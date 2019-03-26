@@ -1,0 +1,8 @@
+resolver: lts-13.10
+flags: {}
+
+packages:
+  - profunctor-optics
+  - profunctor-refs
+
+extra-deps:
