@@ -2,7 +2,7 @@ resolver: lts-13.10
 flags: {}
 
 packages:
-  - profunctor-optics
-  - profunctor-refs
+  - profunctor-optic
+  - profunctor-ref
 
 extra-deps:

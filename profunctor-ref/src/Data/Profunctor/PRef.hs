@@ -188,9 +188,6 @@ matchPRef (PRef o rt rs) =
        Left t -> 
          writeRef rt t >> return Nothing
 
-       Right a -> 
-         return $ Just a
-
 
 -- | Modify a 'PRef'.
 --
@@ -202,9 +199,8 @@ matchPRef (PRef o rt rs) =
 --
 -- >>> s = ("hi!",2) :: (String, Int)
 -- >>> t = (4,2)  :: (Int, Int)
-
 -- >>> rs <- newRef @IO @IORef s
--- >>> rt <- newRef @IO @IORef s
+-- >>> rt <- newRef @IO @IORef t
 -- >>> o :: PRef IORef Strong Int String = PRef _1 rt rs
 -- >>> o' :: PRef IORef Strong String String = PRef _1 rs rs
 --
@@ -212,7 +208,6 @@ matchPRef (PRef o rt rs) =
 -- ("i!",2)
 -- >>> readRef rt 
 -- (4,2)
---
 -- >>> modifyPRef o length >> readRef rs
 -- ("i!",2)
 -- >>> readRef rt 
@@ -223,17 +218,14 @@ matchPRef (PRef o rt rs) =
 --
 -- >>> s = Just "hi!" :: Maybe String
 -- >>> t = Nothing  :: Maybe Int
-
--- >>> rs <- newRef @IORef @IO s
--- >>> rt <- newRef @IORef @IO t
+-- >>> rs <- newRef @IO @IORef s
+-- >>> rt <- newRef @IO @IORef t
 -- >>> o :: PRef IORef Choice Int String = PRef _Just rt rs
 -- >>> o' :: PRef IORef Choice String String = PRef _Just rs rs
-
 -- >>> modifyPRef o' tail >> readRef rs
 -- Just "i!"
 -- >>> readRef rt 
 -- Nothing
-
 -- >>> modifyPRef o length >> readRef rs
 -- Just "i!"
 -- >>> readRef rt 
@@ -244,19 +236,15 @@ matchPRef (PRef o rt rs) =
 --
 -- >>> s = ["hi", "there"] :: [String]
 -- >>> t = fmap Sum [1..10] :: [Sum Int]
-
-
--- >>> rs <- newRef @IORef @IO s
--- >>> rt <- newRef @IORef @IO t
+-- >>> rs <- newRef @IO @IORef s
+-- >>> rt <- newRef @IO @IORef t
 -- >>> o :: PRef IORef Traversing (Sum Int) String = PRef traversed rt rs
 -- >>> o' :: PRef IORef Traversing String String = PRef traversed rs rs
-
--- >>> > modifyPRef o (Sum . length) >> readRef rs
+-- >>> modifyPRef o (Sum . length) >> readRef rs
 -- ["hi","there"]
 -- >>> readRef rt 
 -- [Sum {getSum = 2},Sum {getSum = 5}]
---
--- >>> modifyPRef o' ("oh" ++) >> readPRef rs
+-- >>> modifyPRef o' ("oh" ++) >> readRef rs
 -- ["ohhi","ohthere"]
 --
 modifyPRef 

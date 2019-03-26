@@ -50,11 +50,10 @@ data PRef' r c a = forall s. PRef' (Optic' c s a) !(r s)
 instance Functor (PRef' r c)
 
 
-newtype LocalRef c s a = 
-  LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef' STRef c s) (ST r) a }
-
 
 {-
+newtype LocalRef c s a = 
+  LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef' STRef c s) (ST r) a }
 
 modifyPRef' :: Ref r m => PRef' r Mapping a -> (a -> a) -> m ()
 modifyPRef' (PRef' o rs) f = modifyRef' rs $ over o f
