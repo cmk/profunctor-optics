@@ -1,0 +1,41 @@
+module Data.Profunctor.Optic.Traversal where
+
+import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Operators
+
+
+
+traversed :: forall t a b. Traversable t => Traversal (t a) (t b) a b
+traversed = wander traverse
+
+
+
+sequenceOf
+  :: forall f s t a
+   . Applicative f
+  => Optic (Star f) s t (f a) a -> s -> f t
+sequenceOf t = traverseOf t id
+
+{-
+-- | Traverse both parts of a 'Bitraversable' container with matching types.
+--
+-- Usually that type will be a pair.
+--
+-- >>> (1,2) & both *~ 10
+-- (10,20)
+--
+-- >>> over both length ("hello","world")
+-- (5,5)
+--
+-- >>> ("hello","world")^.both
+-- "helloworld"
+--
+-- @
+-- 'both' :: 'Traversal' (a, a)       (b, b)       a b
+-- 'both' :: 'Traversal' ('Either' a a) ('Either' b b) a b
+-- @
+both :: Bitraversable r => Traversal (r a a) (r b b) a b
+both f = bitraverse f f
+{-# INLINE both #-}
+
+-}

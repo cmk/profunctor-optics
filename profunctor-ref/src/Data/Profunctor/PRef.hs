@@ -19,9 +19,11 @@
 
 {-# LANGUAGE TemplateHaskell #-}
 -- {-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE ConstraintKinds, DeriveFunctor #-}
+{-# LANGUAGE ConstraintKinds, StandaloneDeriving, DeriveAnyClass #-}
 -- {-# LANGUAGE PolyKinds #-}
 -- {-# LANGUAGE ImpredicativeTypes #-}
+
+
 
  {-# OPTIONS_GHC -w #-}
 -- | Environment values with stateful capabilities.
@@ -33,7 +35,6 @@ import Data.Ref
 import Data.Monoid (First)
 
 import Data.Profunctor.Optic
---import Control.Lens
 import Control.Concurrent.STM (STM)
 import Control.Applicative (Const(..))
 import Control.Monad.Reader (MonadReader)
@@ -43,6 +44,8 @@ import Data.Bitraversable
 
 import Data.Function ((&)) 
 
+import Data.Profunctor.Composition
+import Data.Constraint
 -- $setup
 -- >>> :set -XTypeApplications
 -- >>> :set -XScopedTypeVariables
@@ -51,44 +54,33 @@ import Data.Function ((&))
 -- >>> import Data.Monoid (Sum(..))
 -- >>> import Data.Profunctor.Optic
 
-
 {-
--- Lens version
---type Optic p f s t a b = p a (f b) -> p s (f t)
-type Ocular c d s t a b = forall p f. (c p, d f) => Optic p f s t a b  -- p a (f b) -> p s (f t)
-data PRef r c d b a = forall s t. PRef (Ocular c d s t a b) !(r t) !(r s)
+instance () :=> Profunctor (PRef r Profunctor) where ins = Sub Dict
+--instance () :=> Profunctor (PRef r Mapping) where ins = Sub Dict
+-- need e.g. (Profunctor p :- Strong p) :- (Profunctor (Ref r Profunctor) :- Profunctor (Ref r Strong))
 
-data PRef' r c d a = forall s. PRef' (Ocular c d s s a a) !(r s)
+foo :: forall p. c p => (d p => PRef r d b a) -> (c p :- d p) -> PRef r d b a
+foo = (\\)
 
-withPRef :: PRef r c d b a -> (forall s t. Ocular c d s t a b -> r t -> r s -> x) -> x
-withPRef (PRef o rt rs) f = f o rt rs
+-- withDict :: Dict a -> (a => r) -> r
+-- mapDict :: (a :- b) -> Dict a -> Dict b
 
-newLocalPRef :: Ref m r => Ocular c d s t a b -> t -> s -> m (PRef r c d b a)
-newLocalPRef o t s = (PRef o) <$> newRef t <*> newRef s
+bar :: (AffineFolding p) :- (Profunctor p)
+bar = Sub Dict
 
-newLocalPRef' :: Ref m r => Ocular c d s s a a -> s -> m (PRef r c d a a)
-newLocalPRef' o s = newLocalPRef o s s 
+lower :: (a :- b) -> (b => r) -> Dict a -> r
+lower en k = (`withDict` k) . mapDict en
 
--- wont work for general PRef since 'Getter'/'Getting' are monomorphic.
---readPRef :: (c (Star (Const a)), Ref m r) => PRef r c b a -> m a
-readPRef' :: (c (->), d (Const a), Ref m r) => PRef' r c d a -> m a
-readPRef' (PRef' o s) = (^. o) <$> readRef s
+lowerbar :: (Profunctor p => r) -> Dict (AffineFolding p) -> r
+lowerbar = lower bar
+
+bippy :: Dict (AffineFolding (Forget String))
+bippy = Dict 
+
+f = undefined :: Forget String Int Int
+
+lower bar (dimap id id f) bippy
 -}
-
-
--- TODO use constraints library instead?
-class (C '[Profunctor] p) => IsoLike p
-instance (C '[Profunctor] p) => IsoLike p
-
-class (C '[Profunctor, Strong] p) => LensLike p
-instance (C '[Profunctor, Strong] p) => LensLike p
-
-class (C '[Profunctor, Choice] p) => PrismLike p
-instance (C '[Profunctor, Choice] p) => PrismLike p
-
-class (C '[Profunctor, Strong, Choice] p) => AffineLike p
-instance (C '[Profunctor, Strong, Choice] p) => AffineLike p
-
 
 ---------------------------------------------------------------------
 --  PRef
@@ -112,19 +104,91 @@ The type variables signify:
   * @a@ - The covariant read-only type.
 -}
 
-data PRef r c b a = forall s t. PRef (Optic c s t a b) !(r t) !(r s)
 
-instance Functor (PRef r c b)
+data PRef r c b a = forall s t. PRef (Optical c s t a b) !(r t) !(r s)
 
-instance Profunctor (PRef r Profunctor) where
-  --dimap :: (b -> t) -> (s -> a) -> p t s -> p b a
-  dimap bt sa (PRef o rt rs) = PRef (o . iso sa bt) rt rs
+{-
+-- experiment w/ removingOptical type
+data QRef r c b a = forall s t. QRef (forall p. c p => Optic p s t a b) !(r t) !(r s)
+
+withQRef 
+  :: QRef r c b a 
+  -> (forall s t . (forall p. c p => Optic p s t a b) -> r t -> r s -> x) 
+  -> x
+withQRef (QRef o rt rs) f = f o rt rs
+
+data PRef r c b a where 
+
+  --PRef :: (Optic c s t a b) -> r t -> r s -> PRef r c b a
+  PRef :: forall a b c r s t. (forall p. c p => Optic p s t a b) -> r t -> r s -> PRef r c b a
+-}
+
+--data QRef r c s t = forall a b. QRef (Optic c s t a b) !(r a) !(r b)
+
+--instance Functor (PRef r c b) where fmap f p = withPRef p $ \o rt rs -> PRef
+
+
+-- | 'PRef's are profunctors.
+--
+-- 'dimap' example:
+--
+-- >>> s = ("hi",2) :: (String, Int)
+-- >>> t = ("there!",2) :: (String, Int)
+-- >>> rs <- newRef @IO @IORef s
+-- >>> rt <- newRef @IO @IORef t
+-- >>> o :: PRef IORef Profunctor (String, Int) (String, Int) = PRef id rt rs
+-- >>> readPRef (dimap id fst o)
+-- "hi"
+--
+-- >>> tosnd a = ("bye", a)
+-- >>> o' :: PRef IORef Profunctor Int String = dimap tosnd fst o
+-- >>> modifyPRef o' length >> readRef rt
+-- ("bye",2)
+-- >>> readRef rs
+-- ("hi",2)
+
+
+instance Profunctor (PRef r Profunctor) where  dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Strong) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Costrong) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Choice) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Cochoice) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Traversing) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Mapping) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Closed) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+
+instance Profunctor (PRef r AffineFolding) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Folding) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Getting) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r Reviewing) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+instance Profunctor (PRef r AffineTraversing) where dimap bt sa (PRef o rt rs) = PRef (o . dimap sa bt) rt rs
+
+
+instance Strong (PRef r Costrong) where first' (PRef o rt rs) = PRef (o . unfirst) rt rs
+
+
+{-
+
+:set -XTypeApplications
+:set -XScopedTypeVariables
+:set -XOverloadedStrings
+import Data.IORef
+s = ("hi!",2) :: (String, Int)
+--t = ("there!",2) :: (String, Int)
+t = (4,2)  :: (Int, Int)
+rs <- newRef @IO @IORef s
+rt <- newRef @IO @IORef t
+o :: PRef IORef Strong Int String = PRef _1 rt rs
+--o :: PRef IORef Profunctor (String, Int) (String, Int) = PRef id rt rs
+o' = dimap id length o
+readPRef o'
+-}
 
 
 -- | Unbox a 'PRef' by providing an existential continuation.
 withPRef 
   :: PRef r c b a 
-  -> (forall s t. Optic c s t a b -> r t -> r s -> x) 
+  -> (forall s t. Optical c s t a b -> r t -> r s -> x) 
   -> x
 withPRef (PRef o rt rs) f = f o rt rs
 
@@ -135,7 +199,7 @@ withPRef (PRef o rt rs) f = f o rt rs
 -- should be set to 'id'.
 newLocalPRef 
   :: Ref m r 
-  => Optic c s t a b 
+  => Optical c s t a b 
   -> t 
   -> s 
   -> m (PRef r c b a)
@@ -147,13 +211,13 @@ newLocalPRef o t s = (PRef o) <$> newRef t <*> newRef s
 -- and write operations. Note that this is distinct from a 'PRef''.
 newLocalPRef'
   :: Ref m r 
-  => Optic c s s a a 
+  => Optical c s s a a 
   -> s 
   -> m (PRef r c a a)
 newLocalPRef' o s = newLocalPRef o s s 
 
 
---newGlobalRef :: MonadRef m r => Optic c s t a b -> t -> s -> Ref r c b a 
+--newGlobalRef :: MonadRef m r =>Optical c s t a b -> t -> s -> Ref r c b a 
 
 
 -- | Read a value from a 'PRef' with profunctorial strength.
@@ -170,16 +234,19 @@ readPRef (PRef o _ s) = view o <$> readRef s
 -- | Read a value from a 'PRef' with profunctorial choice.
 previewPRef 
   :: Ref m r 
-  => c (Preview a)
+  => c (Previewed a)
   => PRef r c b a 
   -> m (Maybe a)
 previewPRef (PRef o _ s) = preview o <$> readRef s 
 
 
 -- | A variant of 'previewPRef' that updates the write ref on failure.
+--
+-- If the read and write refs are the same then this function reduces
+-- to 'previewPRef' with the overhead of an extra io operation.
 matchPRef
   :: Ref m r
-  => c (Matching a)
+  => c (Matched a)
   => PRef r c b a 
   -> m (Maybe a)
 matchPRef (PRef o rt rs) =
@@ -187,7 +254,8 @@ matchPRef (PRef o rt rs) =
      case matching o s of
        Left t -> 
          writeRef rt t >> return Nothing
-
+       Right a ->
+         return $ Just a
 
 -- | Modify a 'PRef'.
 --
