@@ -25,7 +25,7 @@ type Iso s t a b = Optical Profunctor s t a b
 
 type Iso' s a = Iso s s a a
 
-type AnIso s t a b = Optic (Iso_ a b) s t a b
+type AnIso s t a b = Optic (IsoP a b) s t a b
 
 type AnIso' s a = AnIso s s a a
 
@@ -33,7 +33,7 @@ type Lens s t a b = Optical Strong s t a b
 
 type Lens' s a = Lens s s a a
 
-type ALens s t a b = Optic (Lens_ a b) s t a b
+type ALens s t a b = Optic (LensP a b) s t a b
 
 type ALens' s a = ALens s s a a
 
@@ -41,7 +41,7 @@ type Prism s t a b = Optical Choice s t a b
 
 type Prism' s a = Prism s s a a
 
-type APrism s t a b = Optic (Prism_ a b) s t a b
+type APrism s t a b = Optic (PrismP a b) s t a b
 
 type APrism' s a = APrism s s a a
 
@@ -49,7 +49,7 @@ type Affine s t a b = Optical AffineTraversing s t a b
 
 type Affine' s a = Affine s s a a
 
-type AnAffine s t a b = Optic (Affine_ a b) s t a b
+type AnAffine s t a b = Optic (AffineP a b) s t a b
 
 type AnAffine' s a = Affine s s a a
 
@@ -78,55 +78,12 @@ type Review t b = Optical' Reviewing t b
 
 type AReview t b = Optic' Tagged t b
 
--- | A grate (http://r6research.livejournal.com/28050.html)
-type Grate s t a b = Optical Closed s t a b
+-- | A closure (http://r6research.livejournal.com/28050.html)
+type Closure s t a b = Optical Closed s t a b
 
-type Grate' s a = Grate s s a a
+type Closure' s a = Closure s s a a
 
-type AGrate s t a b = Optic (Grate_ a b) s t a b
-
---type AGrate r s t a b = Optic (Environment r) s t a b
-
-newtype Grate_ a b s t = Grate_ (((s -> a) -> b) -> t)
-
-{-
-data Environment p a b where
-  Environment :: ((s -> a) -> b) -> p x a -> (a -> s -> x) -> Environment p a b
--}
-
-instance Profunctor (Grate_ a b) where
-  dimap f g (Grate_ z) = Grate_ $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (Grate_ a b) where
-  closed (Grate_ z) = Grate_ $ \f x -> z $ \k -> f $ \g -> k (g x)
-
-grate :: (((s -> a) -> b) -> t) -> Grate s t a b
-grate f pab = dimap (flip ($)) f (closed pab)
-
-grate' :: (s -> a) -> (b -> t) -> Grate s t a b
-grate' sa bt = grate $ isoToGrate sa bt
-
-withGrate :: AGrate s t a b -> ((s -> a) -> b) -> t
-withGrate g =
- let Grate_ h = (g (Grate_ $ \f -> f id))
-
-  in h
-
-cloneGrate :: AGrate s t a b -> Grate s t a b
-cloneGrate g = grate (withGrate g)
-
-cotraversed :: Distributive f => Grate (f a) (f b) a b
-cotraversed = grate $ \f -> cotraverse f id
-
-modGrate :: (((s -> a) -> b) -> t) -> (a -> b) -> (s -> t)
-modGrate g adj s = g (\get -> adj (get s))
-
--- Every isomorphism is a grate.
-isoToGrate :: (s -> a) -> (b -> t) -> ((s -> a) -> b) -> t
-isoToGrate get beget build = beget (build get)
-
-
-
+type AClosure s t a b = Optic (ClosureP a b) s t a b
 
 
 ---------------------------------------------------------------------
@@ -134,7 +91,8 @@ isoToGrate get beget build = beget (build get)
 ---------------------------------------------------------------------
 
 
---The Re type, and its instances witness the symmetry of Profunctor and the relation between Bifunctor and Bicontravariant:
+--The 'Re' type, and its instances witness the symmetry of 'Profunctor' 
+-- and the relation between 'Bifunctor' and 'Bicontravariant'.
 
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
@@ -164,19 +122,19 @@ instance Bicontravariant p => Bifunctor (Re p s t) where
 -- 
 ---------------------------------------------------------------------
 
--- | The 'Iso_' profunctor characterizes an 'Iso'.
-data Iso_ a b s t = Iso_ (s -> a) (b -> t)
+-- | The 'IsoP' profunctor precisely characterizes an 'Iso'.
+data IsoP a b s t = IsoP (s -> a) (b -> t)
 
-instance Functor (Iso_ a b s) where
-  fmap f (Iso_ sa bt) = Iso_ sa (f . bt)
+instance Functor (IsoP a b s) where
+  fmap f (IsoP sa bt) = IsoP sa (f . bt)
   {-# INLINE fmap #-}
 
-instance Profunctor (Iso_ a b) where
-  dimap f g (Iso_ sa bt) = Iso_ (sa . f) (g . bt)
+instance Profunctor (IsoP a b) where
+  dimap f g (IsoP sa bt) = IsoP (sa . f) (g . bt)
   {-# INLINE dimap #-}
-  lmap f (Iso_ sa bt) = Iso_ (sa . f) bt
+  lmap f (IsoP sa bt) = IsoP (sa . f) bt
   {-# INLINE lmap #-}
-  rmap f (Iso_ sa bt) = Iso_ sa (f . bt)
+  rmap f (IsoP sa bt) = IsoP sa (f . bt)
   {-# INLINE rmap #-}
 
 ---------------------------------------------------------------------
@@ -184,37 +142,36 @@ instance Profunctor (Iso_ a b) where
 ---------------------------------------------------------------------
 
 
--- | The `Prism_` profunctor characterizes a `Prism`.
-data Prism_ a b s t = Prism_ (b -> t) (s -> Either t a)
+-- | The 'PrismP' profunctor precisely characterizes a 'Prism'.
+data PrismP a b s t = PrismP (b -> t) (s -> Either t a)
 
--- | @type 'Prism_'' a s t = 'Prism_' a a s t@
-type Prism_' a = Prism_ a a
+-- | @type 'PrismP'' a s t = 'PrismP' a a s t@
+type PrismP' a = PrismP a a
 
-instance Functor (Prism_ a b s) where
+instance Functor (PrismP a b s) where
 
-  fmap f (Prism_ bt seta) = Prism_ (f . bt) (either (Left . f) Right . seta)
+  fmap f (PrismP bt seta) = PrismP (f . bt) (either (Left . f) Right . seta)
   {-# INLINE fmap #-}
 
-instance Profunctor (Prism_ a b) where
+instance Profunctor (PrismP a b) where
 
-  dimap f g (Prism_ bt seta) = Prism_ (g . bt) $
+  dimap f g (PrismP bt seta) = PrismP (g . bt) $
     either (Left . g) Right . seta . f
   {-# INLINE dimap #-}
 
-  lmap f (Prism_ bt seta) = Prism_ bt (seta . f)
+  lmap f (PrismP bt seta) = PrismP bt (seta . f)
   {-# INLINE lmap #-}
 
-  rmap f (Prism_ bt seta) = Prism_ (f . bt) (either (Left . f) Right . seta)
+  rmap f (PrismP bt seta) = PrismP (f . bt) (either (Left . f) Right . seta)
   {-# INLINE rmap #-}
 
+instance Choice (PrismP a b) where
 
-instance Choice (Prism_ a b) where
-
-  left' (Prism_ bt seta) = Prism_ (Left . bt) $ 
+  left' (PrismP bt seta) = PrismP (Left . bt) $ 
     either (either (Left . Left) Right . seta) (Left . Right)
   {-# INLINE left' #-}
 
-  right' (Prism_ bt seta) = Prism_ (Right . bt) $ 
+  right' (PrismP bt seta) = PrismP (Right . bt) $ 
     either (Left . Left) (either (Left . Right) Right . seta)
   {-# INLINE right' #-}
 
@@ -225,47 +182,72 @@ instance Choice (Prism_ a b) where
 ---------------------------------------------------------------------
 
 
--- | The `Lens_` profunctor characterizes a `Lens`.
-data Lens_ a b s t = Lens_ (s -> a) (s -> b -> t)
+-- | The `LensP` profunctor precisely characterizes a 'Lens'.
+data LensP a b s t = LensP (s -> a) (s -> b -> t)
 
-instance Profunctor (Lens_ a b) where
+instance Profunctor (LensP a b) where
 
-  dimap f g (Lens_ sa sbt) = Lens_ (sa . f) (\s -> g . sbt (f s))
+  dimap f g (LensP sa sbt) = LensP (sa . f) (\s -> g . sbt (f s))
 
-instance Strong (Lens_ a b) where
+instance Strong (LensP a b) where
 
-  first' (Lens_ sa sbt) =
-    Lens_ (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
+  first' (LensP sa sbt) =
+    LensP (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
 
-  second' (Lens_ sa sbt) =
-    Lens_ (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
--- | The `Lens_` profunctor characterizes a `Lens`.
-data Affine_ a b s t = Affine_ (s -> Either t a) (s -> b -> t)
-
-{-
-instance Profunctor (Affine_ a b) where
-
-  dimap f g (Lens_ sa sbt) = Lens_ (sa . f) (\s -> g . sbt (f s))
-
-instance Strong (Affine_ a b) where
-
-  first' (Affine_ sa sbt) =
-    Lens_ (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
-
-  second' (Affine_ sa sbt) =
-    Lens_ (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
--}
-
+  second' (LensP sa sbt) =
+    LensP (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------
 
+-- | The `LensP` profunctor precisely characterizes a 'Lens'.
+data AffineP a b s t = AffineP (s -> Either t a) (s -> b -> t)
+
+sellAffineP :: AffineP a b a b
+sellAffineP = AffineP Right (\_ -> id)
+
+instance Profunctor (AffineP u v) where
+    dimap f g (AffineP getter setter) = AffineP
+        (\a -> first g $ getter (f a))
+        (\a v -> g (setter (f a) v))
+
+instance Strong (AffineP u v) where
+    first' (AffineP getter setter) = AffineP
+        (\(a, c) -> first (,c) $ getter a)
+        (\(a, c) v -> (setter a v, c))
+
+instance Choice (AffineP u v) where
+    right' (AffineP getter setter) = AffineP
+        (\eca -> assoc (second getter eca))
+        (\eca v -> second (`setter` v) eca)
+      where
+        assoc :: Either a (Either b c) -> Either (Either a b) c
+        assoc (Left a)          = Left (Left a)
+        assoc (Right (Left b))  = Left (Right b)
+        assoc (Right (Right c)) = Right c
+
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+-- | The 'ClosureP' profunctor precisely characterizes 'Closure'.
+
+newtype ClosureP a b s t = ClosureP { unClosureP :: ((s -> a) -> b) -> t }
+
+instance Profunctor (ClosureP a b) where
+  dimap f g (ClosureP z) = ClosureP $ \d -> g (z $ \k -> d (k . f))
+
+
+instance Closed (ClosureP a b) where
+  -- closed :: p a b -> p (x -> a) (x -> b)
+  closed (ClosureP z) = ClosureP $ \f x -> z $ \k -> f $ \g -> k (g x)
+
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
 
 newtype Matched r a b = Matched { runMatched :: a -> Either b r }
 
@@ -312,13 +294,13 @@ instance Strong (Previewed r) where
 -- 
 ---------------------------------------------------------------------
 
-newtype Indexed p i s t = Indexed (p (i, s) t)
 
---instance Profunctor p => Profunctor (Indexed p i) where  dimap f g (Indexed p) = Indexed (dimap (second' f) g p)
+newtype Indexed p i a b = Indexed { runIndexed :: p (i, a) b }
 
 
 instance Profunctor p => Profunctor (Indexed p i) where
     dimap f g (Indexed p) = Indexed (dimap (fmap f) g p)
+    --dimap f g (Indexed p) = Indexed (dimap (second' f) g p)
 
 instance Strong p => Strong (Indexed p i) where
     first' (Indexed p) = Indexed (lmap unassoc (first' p))
@@ -330,15 +312,54 @@ instance Choice p => Choice (Indexed p i) where
     left' (Indexed p) = Indexed $
         lmap (\(i, e) -> first (i,) e) (left' p)
 
-{-
-instance Traversing1 p => Traversing1 (Indexed p i) where
-    wander1 f (Indexed p) = Indexed $
-         wander1 (\g (i, s) -> f (curry g i) s) p
--}
+
 instance Traversing p => Traversing (Indexed p i) where
     wander f (Indexed p) = Indexed $
          wander (\g (i, s) -> f (curry g i) s) p
 
+
+type IndexedOptic p i s t a b = Indexed p i a b -> p s t
+type IndexedOptic' p i s a = IndexedOptic p i s s a a
+
+
+itraversing 
+  :: Traversing p
+  => (forall f. Applicative f => (i -> a -> f b) -> s -> f t)
+  -> IndexedOptic p i s t a b
+itraversing itr (Indexed pab) = wander (\f s -> itr (curry f) s) pab
+
+ifoldMapOf :: IndexedOptic' (Forget r) i s a -> (i -> a -> r) -> s -> r
+ifoldMapOf o f = runForget (o (Indexed (Forget (uncurry f))))
+
+icompose 
+  :: Profunctor p
+  => (i -> j -> k)
+  -> (Indexed p i u v -> p s t)
+  -> (Indexed (Indexed p i) j a b -> Indexed p i u v)
+  -> (Indexed p k a b -> p s t)
+icompose ijk stuv uvab ab = icompose' ijk
+    (stuv . Indexed)
+    (runIndexed . uvab . Indexed . Indexed)
+    (runIndexed ab)
+
+icompose' 
+  :: Profunctor p
+  => (i -> j -> k)
+  -> (p (i, u) v -> p s t)
+  -> (p (i, (j, a)) b -> p (i, u) v)
+  -> (p (k, a) b -> p s t)
+icompose' ijk stuv uvab ab = stuv (uvab (lmap f ab))
+  where
+    f (i, (j, a)) = (ijk i j, a)
+
+itraverseList :: Applicative f => (Int -> a -> f b) -> [a] -> f [b]
+itraverseList f = go 0
+  where
+    go _ []     = pure []
+    go i (a:as) = (:) <$> f i a <*> go (i + 1) as
+
+itraversedList :: Traversing p => IndexedOptic p Int [a] [b] a b
+itraversedList = itraversing itraverseList
 
 ---------------------------------------------------------------------
 -- 
@@ -358,10 +379,6 @@ instance Choice Zipped where
 
 instance Strong Zipped where
     first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))
-
---instance Semigroupal Zipped where mult (Zipped p) (Zipped q) = Zipped (\(a,b) (c,d) -> (p a c, q b d))
-
---instance Monoidal Zipped where unit = Zipped (\_ _ -> ())
 
 
 

@@ -1,28 +1,27 @@
 
 This library is based in large part on 
 
-- Edward Kmett's [`profunctors`](http://hackage.haskell.org/package/profunctors) and [`lens`](http://hackage.haskell.org/package/lens) and packages
+- Edward Kmett's [`profunctors`](http://hackage.haskell.org/package/profunctors) and [`lens`](http://hackage.haskell.org/package/lens) libraries
 - [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) by Matthew Pickering et al
 - [Glassery](http://oleg.fi/gists/posts/2017-04-18-glassery.html) by Oleg Grenrus
 
-Many thanks to them for inspiring me.
-
-The purpose of this library is to provide a minimal & performant implementation of profunctor-encoded optics. Why? 
+The purpose of this package is to provide a minimal & performant implementation of profunctor-encoded optics. Why? 
 Mainly because the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding. 
 This is especially true if you need a lot of control over the entailment relationships between different classes of optic.
-Such a need arose during the creation of [`profunctor-ref`](https://github.com/cmk/profunctor-util/tree/master/profunctor-ref), which is what led to this library in the first place. 
+Such a need arose during the creation of [`profunctor-ref`](https://github.com/cmk/profunctor-util/tree/master/profunctor-ref), which is what led to this work in the first place. 
+
+Now onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) is an excellent general introduction. 
+There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page.
 
 ## Intro
 
-Onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) is an excellent general introduction. 
-There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page.
-In terms of using the library there are four components to keep in mind:
+For day-to-day usage there are four components to keep in mind:
 
 - profunctor type classes (e.g. `Profunctor`, `Strong`, `Choice`, `Closed` etc.)
-- optic 'classes' (e.g. `Lens`, `Prism`, `Affine`, `Traversal`, `Grate` etc.) created by the entailment relations between the profunctor type classes
-- particular profunctors (e.g. `Star (Const Int)`, `Costar Maybe`, `Tagged`, `Forget`, etc.)
+- particular profunctors (e.g. `Star (Const Int) Text Text`, `Costar Maybe a b`, `Tagged a b`, `Forget a b c`, etc.)
+- optic 'classes' (e.g. `Lens`, `Prism`, `Affine`, `Traversal`, `Grate` etc.), induced by entailment relations between the classes above
 - particular optics (e.g. `_1 :: Strong p => Optic p (a, c) (b, c) a b`)
-- functions and combinators on optics (e.g. `.`, `re`, `to`, `view`, `matching`, `traverseOf`, etc.)
+- operators on optics (e.g. `.`, `re`, `to`, `view`, `matching`, `traverseOf`, etc.)
 
 
 The lattice of entailment relations between the various profunctor type classes is a good place to start. 
@@ -73,20 +72,22 @@ pair (fst p) (snd p) ≡ p  -- complete
 
 The constructors and characterizing operations for the remaining optics are summarized in the following table:
 
-| Optic | Constructor | Operators | Added Type class | Profunctor |
+| Optic | Constructor | Operators | Constraint | Profunctor |
 | --- | --- | --- | --- | --- |
-| [Equality](#equality)                 | `id`, `simple`  |                      |                     |               |
+| [Equality](#equality)                 | `id`            |                      |                     |               |
 | [Iso](#iso)                           | `iso`           | `view`, `review`     | `Profunctor`        |               |
 | [Lens](#lens)                         | `lens`          | `view`, `set`        | `Strong`            |               |
-| [Prism](#prism)                       | `prism`         | `matching`, `review` | `Choice`            | `Matched`    |
-| [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    |                     |               |
-| [Getter](#getter)                     | `to`            | `view`               | `Bicontravariant`   |               |
-| [Review](#review)                     | `unto`          | `review`             | `Bifunctor`         | `Tagged`      |
-| [Traversal](#traversal)               | `traversing`    | `traverseOf`         | `Traversing`        | `Star`        |
-| [Affine Fold](#fold-and-affine-fold)  | `afolding`      | `preview`            |                     | `Preview`     |
-| [Fold](#fold-and-affine-fold)         | `folding`       | `foldMapOf`          |                     | `Forget`      |
+| [Prism](#prism)                       | `prism`         | `matching`, `review` | `Choice`            |               |
+| [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    | `AffineTraversing`  | `Matched`     |
+| [PrimGetter](#getter)                 | `to`            | `view`               | `Bicontravariant`   | `Forget`      |
+| [Getter](#getter)                     | `to`            | `view`               | `Getting`           | `Forget`      |
+| [PrimSetter](#setter)                 | `setting`       | `over`               | `Bifunctor`         | `(->)`        |
 | [Setter](#setter)                     | `setting`       | `over`               | `Mapping`           | `(->)`        |
-| [Grate](#grate)                       | `grate`         | `zipWithOf`          | `Closed`            | `Zipped`     |
+| [Review](#review)                     | `unto`          | `review`             | `Reviewing`         | `Tagged`      |
+| [Traversal](#traversal)               | `traversing`    | `traverseOf`         | `Traversing`        | `Star`        |
+| [Affine Fold](#fold-and-affine-fold)  | `afolding`      | `preview`            | `AffineFolding`     | `Previewed`   |
+| [Fold](#fold-and-affine-fold)         | `folding`       | `foldMapOf`          | `Folding`           | `Forget`      |
+| [Grate](#grate)                       | `grate`         | `zipWithOf`          | `Closed`            | `Zipped`      |
 
 The laws are captured in property-driven tests in the test folder.  
 Predicates describing the laws are kept separate so that they can be used to verify downstream optics.
@@ -103,26 +104,28 @@ view o = (through Forget runForget) o id
 review :: Optic Tagged s t a b -> b -> t
 review = through Tagged unTagged
 
+match :: Optic (Matched a) s t a b -> s -> Either t a
+match o = (through Matched runMatched) o Right
+
 preview :: Optic (Previewed a) s t a b -> s -> Maybe a
 preview o = (through Previewed runPreview) o Just
-
-matching :: Optic (Matched a) s t a b -> s -> Either t a
-matching o = (through Matched runMatched) o Right
 
 foldMapOf :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
 foldMapOf = through Forget runForget
 
+zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
+zipWithOf = through Zipped runZipped 
+
 traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
 traverseOf = through Star runStar
 
-zipFWithOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-zipFWithOf = through Costar runCostar
-
-zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = through Zipped runZipped 
+cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
+cotraverseOf = through Costar runCostar
 ```
 
-See the `Data.Profunctor.Optic.Operator` module for more detail.
+See the `Data.Profunctor.Optic.Operator` module for more detail. 
+
+
 
 Finally, the relationships between the associated profunctors and the profunctor classes is as follows:
 
@@ -137,7 +140,7 @@ Finally, the relationships between the associated profunctors and the profunctor
 | `Choice`          | monoid  | aplctve | **yes** | **yes** | **yes** | **yes** | **yes** |
 | `Cochoice`        | **yes** | aplctve | no      | **yes** | no      | no      | **yes** | 
 | `Traversing`      | monoid  | aplctve | no      | no      | no      | no      | **yes** |
-| `Mapping`         | **yes** | aplctve | no      | no      | no      | no      | **yes** |
+| `Mapping`         | no      | aplctve | no      | no      | no      | no      | **yes** |
 | `Closed`          | **yes** | dstrbve | **yes** | **yes** | no      | no      | **yes** |
 
 

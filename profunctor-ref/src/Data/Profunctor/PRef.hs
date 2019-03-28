@@ -44,8 +44,9 @@ import Data.Bitraversable
 
 import Data.Function ((&)) 
 
+import Data.IORef
 import Data.Profunctor.Composition
-import Data.Constraint
+
 -- $setup
 -- >>> :set -XTypeApplications
 -- >>> :set -XScopedTypeVariables
@@ -54,33 +55,6 @@ import Data.Constraint
 -- >>> import Data.Monoid (Sum(..))
 -- >>> import Data.Profunctor.Optic
 
-{-
-instance () :=> Profunctor (PRef r Profunctor) where ins = Sub Dict
---instance () :=> Profunctor (PRef r Mapping) where ins = Sub Dict
--- need e.g. (Profunctor p :- Strong p) :- (Profunctor (Ref r Profunctor) :- Profunctor (Ref r Strong))
-
-foo :: forall p. c p => (d p => PRef r d b a) -> (c p :- d p) -> PRef r d b a
-foo = (\\)
-
--- withDict :: Dict a -> (a => r) -> r
--- mapDict :: (a :- b) -> Dict a -> Dict b
-
-bar :: (AffineFolding p) :- (Profunctor p)
-bar = Sub Dict
-
-lower :: (a :- b) -> (b => r) -> Dict a -> r
-lower en k = (`withDict` k) . mapDict en
-
-lowerbar :: (Profunctor p => r) -> Dict (AffineFolding p) -> r
-lowerbar = lower bar
-
-bippy :: Dict (AffineFolding (Forget String))
-bippy = Dict 
-
-f = undefined :: Forget String Int Int
-
-lower bar (dimap id id f) bippy
--}
 
 ---------------------------------------------------------------------
 --  PRef
@@ -123,10 +97,6 @@ data PRef r c b a where
   PRef :: forall a b c r s t. (forall p. c p => Optic p s t a b) -> r t -> r s -> PRef r c b a
 -}
 
---data QRef r c s t = forall a b. QRef (Optic c s t a b) !(r a) !(r b)
-
---instance Functor (PRef r c b) where fmap f p = withPRef p $ \o rt rs -> PRef
-
 
 -- | 'PRef's are profunctors.
 --
@@ -165,6 +135,10 @@ instance Profunctor (PRef r AffineTraversing) where dimap bt sa (PRef o rt rs) =
 
 
 instance Strong (PRef r Costrong) where first' (PRef o rt rs) = PRef (o . unfirst) rt rs
+instance Costrong (PRef r Strong) where unfirst (PRef o rt rs) = PRef (o . first') rt rs
+
+instance Choice (PRef r Cochoice) where right' (PRef o rt rs) = PRef (o . unright) rt rs
+instance Cochoice (PRef r Choice) where unright (PRef o rt rs) = PRef (o . right') rt rs
 
 
 {-
@@ -251,7 +225,7 @@ matchPRef
   -> m (Maybe a)
 matchPRef (PRef o rt rs) =
   do s <- readRef rs
-     case matching o s of
+     case match o s of
        Left t -> 
          writeRef rt t >> return Nothing
        Right a ->

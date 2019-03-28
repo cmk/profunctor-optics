@@ -1,17 +1,23 @@
-module Data.Profunctor.Optic.Iso where
+module Data.Profunctor.Optic.Iso (
+    module Data.Profunctor.Optic.Iso 
+  , module Export
+) where
 
+import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Types
 
+import Data.Profunctor.Types as Export
+
 {- hedgehog predicates
-fromTo :: Eq s => Iso_ s s a a -> s -> Bool
-fromTo (Iso_ f t) s = (t . f) s == s
+fromTo :: Eq s => IsoP s s a a -> s -> Bool
+fromTo (IsoP f t) s = (t . f) s == s
 
-toFrom :: Eq a => Iso_ s s a a -> a -> Bool
-toFrom (Iso_ f t) a = (f . t) a == a
+toFrom :: Eq a => IsoP s s a a -> a -> Bool
+toFrom (IsoP f t) a = (f . t) a == a
 
 
-associate :: Iso_ ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
-associate = Iso_  f t where
+associate :: IsoP ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
+associate = IsoP  f t where
   f ((a, b), c) = (a, (b, c))
   t (a', (b', c')) = ((a', b'), c')
 
@@ -36,8 +42,7 @@ cloneIso k = withIso k iso
 -- | Extract the two functions, one from @s -> a@ and
 -- one from @b -> t@ that characterize an 'Iso'.
 withIso :: AnIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso ai k = case ai (Iso_ id id) of
-  Iso_ sa bt -> k sa bt
+withIso ai k = case ai (IsoP id id) of IsoP sa bt -> k sa bt
 {-# INLINE withIso #-}
 
 
@@ -50,19 +55,36 @@ from :: AnIso s t a b -> Iso b a t s
 from l = withIso l $ \ sa bt -> iso bt sa
 {-# INLINE from #-}
 
+---------------------------------------------------------------------
+-- Common isos
+---------------------------------------------------------------------
 
-{-
+curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
+curried = iso curry uncurry
 
+uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a, b) -> c) ((d, e) -> f)
+uncurried = iso uncurry curry
 
+flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
+flipped = iso flip flip
 
-au :: forall s t a b e. AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
-au l = withIso l \sa bt f e -> sa (f bt e)
+mapping
+  :: Functor f
+  => Functor g
+  => AnIso s t a b
+  -> Iso (f s) (g t) (f a) (g b)
+mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 
-auf :: forall s t a b e r p. Profunctor p => AnIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
-auf l = withIso l \sa bt f g e -> bt (f (rmap sa g) e)
-
-under :: forall s t a b. AnIso s t a b -> (t -> s) -> b -> a
-under l = withIso l \sa bt ts -> sa <<< ts <<< bt
+dimapping
+  :: Profunctor p
+  => Profunctor q
+  => AnIso s t a b
+  -> AnIso ss tt aa bb
+  -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
+dimapping f g = 
+  withIso f $ \sa bt -> 
+    withIso g $ \ssaa bbtt -> 
+      iso (dimap sa ssaa) (dimap bt bbtt)
 
 -- | If `a1` is obtained from `a` by removing a single value, then
 -- | `Maybe a1` is isomorphic to `a`.
@@ -71,31 +93,15 @@ non def = iso (fromMaybe def) g
   where g a | a == def  = Nothing
             | otherwise = Just a
 
-curried :: forall a b c d e f. Iso (Tuple a b -> c) (Tuple d e -> f) (a -> b -> c) (d -> e -> f)
-curried = iso curry uncurry
+---------------------------------------------------------------------
+-- Derived operators
+---------------------------------------------------------------------
 
-uncurried :: forall a b c d e f. Iso (a -> b -> c) (d -> e -> f) (Tuple a b -> c) (Tuple d e -> f)
-uncurried = iso uncurry curry
+au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+au l = withIso l $ \sa bt f e -> sa (f bt e)
 
-flipped :: forall a b c d e f. Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
-flipped = iso flip flip
+auf :: Profunctor p => AnIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
+auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
 
-mapping
-  :: forall s t a b f g
-   . Functor f
-  => Functor g
-  => AnIso s t a b
-  -> Iso (f s) (g t) (f a) (g b)
-mapping l = withIso l \sa bt -> iso (map sa) (map bt)
-
-dimapping
-  :: forall s ss t tt a aa b bb p q
-   . Profunctor p
-  => Profunctor q
-  => AnIso s t a b
-  -> AnIso ss tt aa bb
-  -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
-dimapping f g = withIso f \sa bt -> withIso g \ssaa bbtt -> iso (dimap sa ssaa) (dimap bt bbtt)
-
--}
-
+under :: AnIso s t a b -> (t -> s) -> b -> a
+under l = withIso l $ \sa bt ts -> sa . ts . bt

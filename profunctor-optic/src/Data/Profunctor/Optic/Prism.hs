@@ -1,24 +1,30 @@
-module Data.Profunctor.Optic.Prism where
+module Data.Profunctor.Optic.Prism (
+    module Data.Profunctor.Optic.Prism 
+  , module Export
+) where
 
 import Control.Arrow ((|||))
 import Control.Monad (guard)
 import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
 
+
+import Data.Profunctor.Choice as Export
+
 {- hedgehog rules:
 
-prism_complete :: Prism s t a b -> Prism s t a b
-prism_complete p = prism (preview p) (matching p)
+prism_complete :: Prism s t a b -> Bool
+prism_complete p = tripping p $ prism (preview p) (matching p)
 
 They have two operations: match and build. The first one tries to extract the focus value from the whole one, but if it's not possible, it provides the final value for t. On the other hand, build is always able to construct the whole value, given the focus one. As expected, this optic should hold the following properties.
 
 -- If we are able to view an existing focus, then building it will return the original structure. 
-matchBuild :: Eq s => Prism_ s s a a -> s -> Bool
-matchBuild (Prism_ seta bt) s = either bt id (seta s) == s
+matchBuild :: Eq s => PrismP s s a a -> s -> Bool
+matchBuild (PrismP seta bt) s = either bt id (seta s) == s
 
 -- If we build a whole from any focus, that whole must contain a focus.
-buildMatch :: (Eq a, Eq s) => Prism_ s s a a -> a -> Bool
-buildMatch (Prism_ seta bt) a = seta (bt a) == Left a --Right a ?
+buildMatch :: (Eq a, Eq s) => PrismP s s a a -> a -> Bool
+buildMatch (PrismP seta bt) a = seta (bt a) == Left a --Right a ?
 
 
 maybeFirst :: Affine (Maybe a, c) (Maybe b, c) a b
@@ -37,85 +43,59 @@ Right (Nothing,"hi")
 -}
 
 
-
-
 -- | Create a 'Prism' from a constructor and a matcher function that
 -- | produces an 'Either'.
 prism :: (b -> t) -> (s -> Either t a) -> Prism s t a b
 prism bt seta = dimap seta (id ||| bt) . right'
-
 
 -- | Create a `Prism` from a constructor and a matcher function that
 -- | produces a `Maybe`.
 prism' :: (a -> s) -> (s -> Maybe a) -> Prism' s a
 prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
 
--- Useful for constructing Prefs from handle and try functions.
+-- | Useful for constructing prisms from handle and try functions.
 eprism :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
-eprism build match = dimap match build . right'
+eprism eebt seea = dimap seea eebt . right'
 
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism l = withPrism l $ \x y p -> prism x y p
 
-
 withPrism :: APrism s t a b -> ((b -> t) -> (s -> Either t a) -> r) -> r
-withPrism l f = case l (Prism_ id Right) of
-  Prism_ g h -> f g h
+withPrism l f = case l (PrismP id Right) of PrismP g h -> f g h
 
+---------------------------------------------------------------------
+-- Common prisms
+---------------------------------------------------------------------
 
-matching'' :: APrism s t a b -> s -> Either t a
-matching'' l = withPrism l $ \_ f -> f
+-- | Filters on a predicate.
+--(a -> Bool) -> p (Either a a) (Either b b) -> p (Either a a) (Either b b)
 
--- | Ask if 'preview' would produce a 'Just' on this prism.
-is :: APrism s t a b -> s -> Bool
-is l = either (const False) (const True) . matching'' l
-
-
--- | Ask if 'preview' would produce a 'Nothing' on this prism.
-isnt :: APrism s t a b -> s -> Bool
-isnt l = not . is l
-
+--filtered :: Choice p => (a -> Bool) -> Optic' p a a
+filtered f =
+  right' .
+    dimap
+      (\x -> if f x then Right x else Left x)
+      (either id id)
 
 -- | Create a 'Prism' from a value and a predicate.
 nearly ::  a -> (a -> Bool) -> Prism' a ()
 nearly x f = prism' (const x) (guard . f)
 
-
 -- | 'only' focuses not just on a case, but a specific value of that case.
 only :: Eq a => a -> Prism a a () ()
 only x = nearly x (x==)
 
+-- | Prism for the `Nothing` constructor of `Maybe`.
+_Nothing :: Prism (Maybe a) (Maybe b) () ()
+_Nothing = prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 
--- | Use a 'Prism' to work over part of a structure.
---
-aside :: APrism s t a b -> Prism (e, s) (e, t) (e, a) (e, b)
-aside k =
-  withPrism k $ \bt seta ->
-    prism (fmap bt) $ \(e,s) ->
-      case seta s of
-        Left t  -> Left  (e,t)
-        Right a -> Right (e,a)
-{-# INLINE aside #-}
+-- | Prism for the `Just` constructor of `Maybe`.
+_Just :: Prism (Maybe a) (Maybe b) a b
+_Just = prism Just $ maybe (Left Nothing) Right
 
-
--- | Given a pair of prisms, project sums.
---
--- Viewing a 'Prism' as a co-'Lens', this combinator can be seen to be dual to 'Control.Lens.Lens.alongside'.
-without :: APrism s t a b
-        -> APrism u v c d
-        -> Prism (Either s u) (Either t v) (Either a c) (Either b d)
-without k =
-  withPrism k $ \bt seta k' ->
-    withPrism k' $ \dv uevc ->
-      prism (bimap bt dv) $ \su ->
-        case su of
-          Left s  -> bimap Left Left (seta s)
-          Right u -> bimap Right Right (uevc u)
-{-# INLINE without #-}
-
-
-
--- | 'lift' a 'Prism' through a 'Traversable' functor, giving a Prism that matches only if all the elements of the container match the 'Prism'.
+-- | 'lift' a 'Prism' through a 'Traversable' functor, 
+-- giving a Prism that matches only if all the elements of the container
+-- match the 'Prism'.
 --
 -- >>> [Left 1, Right "foo", Left 4, Right "woot"]^..below _Right
 -- []
@@ -132,26 +112,39 @@ below k =
 {-# INLINE below #-}
 
 
-{-
--- | Use a 'Prism' as a kind of first-class pattern.
---
--- @'outside' :: 'Prism' s t a b -> 'Lens' (t -> r) (s -> r) (b -> r) (a -> r)@
+-- | Use a 'Prism' to work over part of a structure.
+aside :: APrism s t a b -> Prism (e, s) (e, t) (e, a) (e, b)
+aside k =
+  withPrism k $ \bt seta ->
+    prism (fmap bt) $ \(e,s) ->
+      case seta s of
+        Left t  -> Left  (e,t)
+        Right a -> Right (e,a)
+{-# INLINE aside #-}
 
--- TODO: can we make this work with merely Strong?
-outside :: Representable p => APrism s t a b -> Lens (p t r) (p s r) (p b r) (p a r)
-outside k = withPrism k $ \bt seta f ft ->
-  f (lmap bt ft) <&> \fa -> tabulate $ either (sieve ft) (sieve fa) . seta
-{-# INLINE outside #-}
+-- | Given a pair of prisms, project sums.
+without :: APrism s t a b
+        -> APrism u v c d
+        -> Prism (Either s u) (Either t v) (Either a c) (Either b d)
+without k =
+  withPrism k $ \bt seta k' ->
+    withPrism k' $ \dv uevc ->
+      prism (bimap bt dv) $ \su ->
+        case su of
+          Left s  -> bimap Left Left (seta s)
+          Right u -> bimap Right Right (uevc u)
+{-# INLINE without #-}
 
 
--}
+---------------------------------------------------------------------
+-- Derived operators
+---------------------------------------------------------------------
 
--- | Prism for the `Nothing` constructor of `Maybe`.
-_Nothing :: Prism (Maybe a) (Maybe b) () ()
-_Nothing = prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+-- | Test whether the optic matches or not.
+is :: Optic (Matched a) s t a b -> s -> Bool
+is o = either (const False) (const True) . match o
 
-
--- | Prism for the `Just` constructor of `Maybe`.
-_Just :: Prism (Maybe a) (Maybe b) a b
-_Just = prism Just $ maybe (Left Nothing) Right
+-- | Test whether the optic matches or not.
+isnt :: Optic (Matched a) s t a b -> s -> Bool
+isnt o = not . is o
 
