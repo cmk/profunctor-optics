@@ -4,21 +4,22 @@ module Data.Profunctor.Optic.Review
     Review
   , AReview
   , unto
+  , unto'
   , un
-  --, re
-  --, review, reviews
+  , re
+  , review --, reviews
   --, reuse, reuses
   --, ( # )
-  --, Bifunctor(bimap)
+  , Bifunctor(bimap)
   --, retagged
-  --, Reviewable
+  , Reviewing
   ) where
 
 
 --import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
-
+import Data.Tagged
 ------------------------------------------------------------------------------
 -- Review
 ------------------------------------------------------------------------------

@@ -2,6 +2,7 @@
 module Data.Profunctor.Optic.Closure (
     module Data.Profunctor.Optic.Closure
   , module Export
+  , Costar (..)
 ) where
 
 import Data.Profunctor.Optic.Types 

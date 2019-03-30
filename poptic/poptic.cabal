@@ -1,0 +1,59 @@
+cabal-version: >= 1.10
+
+name:           poptic
+version:        0.0.0.1
+synopsis:       Pure profunctor optics
+description:    Minimal profunctor-based optics compatible with the typeclasses in the profunctor library.
+category:       Data, Lenses
+homepage:       https://github.com/cmk/putil
+bug-reports:    https://github.com/cmk/putil/issues
+author:         Chris McKinlay
+maintainer:     Chris McKinlay
+copyright:      2019 Chris McKinlay
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/cmk/putil
+
+library
+  exposed-modules:
+      Data.Profunctor.Optic
+      Data.Profunctor.Optic.Types
+      Data.Profunctor.Optic.Types.Class
+      Data.Profunctor.Optic.Operators
+      Data.Profunctor.Optic.Affine
+      Data.Profunctor.Optic.Fold
+      Data.Profunctor.Optic.Getter
+      Data.Profunctor.Optic.Iso
+      Data.Profunctor.Optic.Lens
+      Data.Profunctor.Optic.Prism
+      Data.Profunctor.Optic.Review
+      Data.Profunctor.Optic.Setter
+      Data.Profunctor.Optic.Traversal
+
+  hs-source-dirs:
+      src
+  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  build-depends:
+      base >=4.9 && <5.0
+    , constraints
+    , distributive
+    , mtl
+    , profunctors
+    , tagged
+
+test-suite doctests
+  type:          exitcode-stdio-1.0
+  ghc-options:   -threaded
+  main-is:       doctests.hs
+  build-depends: 
+      base
+    , doctest >= 0.8
+    , doctest-discover
+    , profunctor-optic
+    , simple-reflect >= 0.3.1
+  hs-source-dirs: .
+

@@ -193,34 +193,35 @@ notElemOf p a = allOf p (/= a)
 --
 -- findOf :: Optic (Forget (Endo (Maybe a))) s a -> (a -> Bool) -> s -> Maybe a
 findOf :: Fold s a -> (a -> Bool) -> s -> Maybe a
-findOf p f = foldrOf p (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
+findOf p f = 
+  foldrOf p (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
 
 -- | Determines whether a `Fold` has at least one focus.
 --
---has :: Fold s t -> s -> Bool
-has :: Optic (Forget Any) s t a b -> s -> Bool
+--has :: Optic (Forget Any) s t a b -> s -> Bool
+has :: Fold s t -> s -> Bool
 has p = getAny . foldMapOf p (const (Any True))
 
 
 -- | Determines whether a `Fold` does not have a focus.
 --
--- hasnt :: Fold s t -> s -> Bool
-hasnt :: Optic (Forget All) s t a b -> s -> Bool
+--hasnt :: Optic (Forget All) s t a b -> s -> Bool
+hasnt :: Fold s t -> s -> Bool
 hasnt p = getAll . foldMapOf p (const (All False))
 
 
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
---maximumOf :: Ord a => Fold s t -> s -> Maybe a
-maximumOf :: Ord a => Optic (Forget (Endo (Maybe a))) s t a b -> s -> Maybe a
+--maximumOf :: Ord a => Optic (Forget (Endo (Maybe a))) s t a b -> s -> Maybe a
+maximumOf :: Ord a => Fold s a -> s -> Maybe a
 maximumOf p = foldrOf p (\a -> Just . maybe a (max a)) Nothing where
   max a b = if a > b then a else b
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
---minimumOf :: Ord a => Fold s t -> s -> Maybe a
-minimumOf :: Ord a => Optic (Forget (Endo (Maybe a))) s t a b -> s -> Maybe a
+--minimumOf :: Ord a => Optic (Forget (Endo (Maybe a))) s t a b -> s -> Maybe a
+minimumOf :: Ord a => Fold s a -> s -> Maybe a
 minimumOf p = foldrOf p (\a -> Just . maybe a (min a)) Nothing where
   min a b = if a < b then a else b
 

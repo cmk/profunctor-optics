@@ -1,12 +1,12 @@
 cabal-version: >= 1.10
 
-name:           profunctor-ref
+name:           pref
 version:        0.0.0.1
 synopsis:       Profunctor references.
 description:    Profunctor references.
 category:       Data, Lenses
-homepage:       https://github.com/cmk/profunctor-util
-bug-reports:    https://github.com/cmk/profunctor-util/issues
+homepage:       https://github.com/cmk/putil
+bug-reports:    https://github.com/cmk/putil/issues
 author:         Chris McKinlay
 maintainer:     Chris McKinlay
 copyright:      2019 Chris McKinlay
@@ -15,12 +15,11 @@ build-type:     Simple
 
 source-repository head
   type: git
-  location: https://github.com/cmk/profunctor-util
+  location: https://github.com/cmk/putil
 
 library
   exposed-modules:
       Data.Profunctor.PRef
-      Data.Profunctor.PRef'
       Data.Ref
 
   hs-source-dirs:
@@ -29,12 +28,21 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
-    , constraints
     , mtl
     , profunctors
-    , profunctor-optic
+    , poptic
     , stm
     , transformers
+
+executable main
+  main-is: main.hs
+  build-depends:
+      base >=4.9 && <5.0
+    , fast-logger
+    , text
+    , mtl
+    , pref
+    , poptic
 
 test-suite doctests
   type:          exitcode-stdio-1.0
@@ -44,6 +52,6 @@ test-suite doctests
       base
     , doctest >= 0.8
     , doctest-discover
-    , profunctor-ref
+    , pref
   HS-Source-Dirs: .
 

@@ -43,7 +43,7 @@ import Data.Bitraversable
 
 
 import Data.Function ((&)) 
-
+import Data.Void
 import Data.IORef
 import Data.Profunctor.Composition
 
@@ -55,6 +55,7 @@ import Data.Profunctor.Composition
 -- >>> import Data.Monoid (Sum(..))
 -- >>> import Data.Profunctor.Optic
 
+type X = Void
 
 ---------------------------------------------------------------------
 --  PRef
@@ -80,6 +81,8 @@ The type variables signify:
 
 
 data PRef r c b a = forall s t. PRef (Optical c s t a b) !(r t) !(r s)
+
+
 
 {-
 -- experiment w/ removingOptical type
@@ -140,6 +143,43 @@ instance Costrong (PRef r Strong) where unfirst (PRef o rt rs) = PRef (o . first
 instance Choice (PRef r Cochoice) where right' (PRef o rt rs) = PRef (o . unright) rt rs
 instance Cochoice (PRef r Choice) where unright (PRef o rt rs) = PRef (o . right') rt rs
 
+data QRef r c t s b a = QRef (Optical c s t a b) !(r t) !(r s)
+instance Profunctor (QRef r Profunctor t s) where  
+  dimap bt sa (QRef o rt rs) = QRef (o . dimap sa bt) rt rs
+
+
+-------------------------------------------------------------------------------
+--  PRef'
+-------------------------------------------------------------------------------
+
+
+-- Note that PRef r c a a is distinct from PRef' r c a in that it has
+-- a read-only Ref and a write-only Ref of the same type, rather than one Ref for both reading and writing.
+-- Because the Refs are existentialized this makes certain opimitations (e.g 'atomicModifyRef') 
+-- unavaliable to a PRef r c a a.
+--
+-- Note that for TVars 'atomicModifyRef' is equiv / makes no difference
+data PRef' r c a = forall s. PRef' (Optic' c s a) !(r s) 
+
+--instance Functor (PRef' r c)
+
+primGetter :: Bicontravariant p => (s -> a) -> Optic' p s a
+primGetter sa = primgetting sa sa
+
+{-
+newtype LocalRef c s a = 
+  LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef' STRef c s) (ST r) a }
+
+modifyPRef' :: Ref r m => PRef' r Mapping a -> (a -> a) -> m ()
+modifyPRef' (PRef' o rs) f = modifyRef' rs $ over o f
+
+atomicModifyPRef' :: ARef r m => PRef' r Strong a -> (a -> (a, x)) -> m x
+atomicModifyPRef' (PRef' o rs) f = atomicModifyRef' rs ssa
+    where ssa = withLens o $ \sa sas -> \s -> let (a, x) = f . sa $! s in (sas s a, x)
+
+-}
+
+
 
 {-
 
@@ -157,6 +197,7 @@ o :: PRef IORef Strong Int String = PRef _1 rt rs
 o' = dimap id length o
 readPRef o'
 -}
+
 
 
 -- | Unbox a 'PRef' by providing an existential continuation.
@@ -316,6 +357,11 @@ modifyPRef' (PRef o rt rs) f =
 -- where constraints allow.
 setPRef :: (c (->), Ref m r) => PRef r c b a -> b -> m ()
 setPRef r a = modifyPRef r (const a)
+
+
+-- | Strict variant of 'setPRef'.
+setPRef' :: (c (->), Ref m r) => PRef r c b a -> b -> m ()
+setPRef' r a = modifyPRef' r (const a)
 
 
 -- | Variant of 'setPRef' that only opens the write ref.
