@@ -20,8 +20,8 @@ import qualified GHC.SrcLoc as GHC
 import qualified GHC.Stack as GHC
 
 import Data.Void
-import Data.Ref
-import Data.Profunctor.PRef
+import Data.Profunctor.Reference.Types
+import Data.Profunctor.Reference.PRef
 import Data.Profunctor.Optic
 
 main :: IO ()
@@ -86,13 +86,13 @@ data LogLevel
     | LogError
     deriving (Eq, Show, Read, Ord)
 
-ploggers :: PRef IORef Mapping (LogLevel, LogStr) ()
-ploggers = PRef optic loggers loggers 
+ploggers :: PRef Mapping (LogLevel, LogStr) ()
+ploggers = P optic loggers loggers 
 
-logWith :: (MonadIO m, Ref m IORef, ToLogStr msg) => LogLevel -> msg -> m ()
+logWith :: ToLogStr msg => LogLevel -> msg -> IO ()
 logWith ll msg = modifyPRef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
 
-logPureWith :: (Ref IO IORef, ToLogStr msg) => LogLevel -> msg -> a -> a
+logPureWith :: ToLogStr msg => LogLevel -> msg -> a -> a
 logPureWith ll msg expr = unsafePerformIO (logWith ll msg) `seq` expr
 
 -- | Set the verbosity level. Only messages at higher than this level are
@@ -101,31 +101,31 @@ setLogLevel :: LogLevel -> IO ()
 setLogLevel = atomicWriteIORef logLevel
 
 -- | Log with 'LogTrace' log level
-logTrace :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logTrace :: T.Text -> IO ()
 logTrace = logWith LogTrace 
 
 -- | Log with 'LogDebug' log level
-logDebug :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logDebug :: T.Text -> IO ()
 logDebug = logWith LogDebug 
 
 -- | Log with 'LogInfo' log level
-logInfo :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logInfo :: T.Text -> IO ()
 logInfo = logWith LogInfo 
 
 -- | Log with 'LogNote' log level
-logNote :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logNote :: T.Text -> IO ()
 logNote = logWith LogNote 
 
 -- | Log with 'LogWarn' log level
-logWarn :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logWarn :: T.Text -> IO ()
 logWarn = logWith LogWarn 
 
 -- | Log with 'LogError' log level
-logError :: (MonadIO m, Ref m IORef) => T.Text -> m ()
+logError :: T.Text -> IO ()
 logError = logWith LogError 
 
 -- | Log on error level and call 'fail'
-logFail :: (MonadIO m, Ref m IORef) => T.Text -> m a
+logFail :: T.Text -> IO a
 logFail t = logWith LogError t >> fail (T.unpack t)
 
 -- | Log with 'LogTrace' level when the given expression is evaluated
@@ -214,8 +214,8 @@ unsafeLogIO lgr (ll, b) = unsafePerformIO (logmsg ?callStack lgr LogInfo b) `seq
 optic :: Mapping p => Optic p Loggers Loggers () (LogLevel, LogStr)
 optic = setting $ \ub lgr -> unsafeLogIO lgr (ub ())
 
-logmsg :: MonadIO m => GHC.CallStack -> Loggers -> LogLevel -> LogStr -> m ()
-logmsg cs lgrs ll msg = liftIO $ readIORef logLevel >>= \logLim ->
+logmsg :: GHC.CallStack -> Loggers -> LogLevel -> LogStr -> IO ()
+logmsg cs lgrs ll msg = readIORef logLevel >>= \logLim ->
     when (ll >= logLim) $
       do time <- l_timeCache lgrs
          let loc =

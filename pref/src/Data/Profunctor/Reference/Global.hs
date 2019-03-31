@@ -1,7 +1,7 @@
 {-# LANGUAGE TemplateHaskell, CPP #-}
 
 -- | Declare safe top-level mutable variables which scope like ordinary values.
-module Data.Profunctor.Ref.Global
+module Data.Profunctor.Reference.Global
     ( -- * Using this module
       -- $doc
 
@@ -10,7 +10,7 @@ module Data.Profunctor.Ref.Global
 
       -- * Control.Concurrent
     , declareMVar, declareEmptyMVar
-    , declareSampleVar
+   -- , declareSampleVar
     , declareChan
     , declareQSem, declareQSemN
 
@@ -29,6 +29,8 @@ import Control.Monad
 import Language.Haskell.TH
 
 import Data.IORef
+--import Data.Profunctor.Reference.PRef 
+
 import Control.Concurrent
 import Control.Concurrent.STM
 
@@ -36,7 +38,7 @@ import System.IO.Unsafe ( unsafePerformIO )
 
 {- $doc
 Declare a top-level variable like so:
->import Data.Profunctor.Ref.Global
+>import Data.Profunctor.Reference.Global 
 >import Control.Concurrent
 >
 >declareChan "ch"  [t| Maybe Char |]
@@ -94,7 +96,7 @@ declare mty newRef nameStr = do
     let name = mkName nameStr
     ty <- mty
     when (polymorphic ty) $
-        error ("Data.Global: cannot declare ref of polymorphic type " ++
+        error ("Data.Profunctor.Reference.Global: cannot declare ref of polymorphic type " ++
                show (ppr ty))
 
     body <- [| unsafePerformIO $newRef |]
@@ -102,7 +104,7 @@ declare mty newRef nameStr = do
     return [
         SigD name ty
       , ValD (VarP name) (NormalB body) []
-      , PragmaD (InlineP name (InlineSpec False False Nothing)) ]
+      , PragmaD (InlineP name NoInline ConLike AllPhases) ] -- TODO this is probably wrong
 
 declareRef :: Name -> Q Exp -> String -> Q Type -> Q [Dec]
 declareRef refTy newRef nameStr mty
@@ -110,7 +112,6 @@ declareRef refTy newRef nameStr mty
 
 declareSem :: Name -> Q Exp -> String -> Q [Dec]
 declareSem semTy = declare (conT semTy)
-
 
 -- | Declare an @'IORef'@ with an initial value.
 --
@@ -124,12 +125,13 @@ declareIORef     name ty ex = declareRef ''IORef     [| newIORef     $ex |] name
 declareMVar      :: DeclareInit
 declareMVar      name ty ex = declareRef ''MVar      [| newMVar      $ex |] name ty
 
+{-
 -- | Declare a @'SampleVar'@ with an initial value.
 --
 -- >declareSampleVar "foo" [t| Char |] [e| 'x' |]
 declareSampleVar :: DeclareInit
 declareSampleVar name ty ex = declareRef ''SampleVar [| newSampleVar $ex |] name ty
-
+-}
 -- | Declare a @'TVar'@ with an initial value.
 --
 -- >declareTVar "foo" [t| Char |] [e| 'x' |]
@@ -141,7 +143,6 @@ declareTVar      name ty ex = declareRef ''TVar      [| newTVarIO    $ex |] name
 -- >declareTMVar "foo" [t| Char |] [e| 'x' |]
 declareTMVar     :: DeclareInit
 declareTMVar     name ty ex = declareRef ''TMVar     [| newTMVarIO   $ex |] name ty
-
 
 -- | Declare an empty @'MVar'@.
 --

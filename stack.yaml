@@ -5,3 +5,5 @@ packages:
   - poptic
   - pref
 
+extra-deps:
+  - unliftio-streams-0.1.0.0@sha256:8a85223d3d7e95a3a1735f4b08d1ebc9a52755a7c6d50c77112e79b9d0f7b1cd
