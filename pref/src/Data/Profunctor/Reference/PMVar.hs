@@ -1,23 +1,25 @@
 {-# LANGUAGE AllowAmbiguousTypes, TypeApplications, ScopedTypeVariables, FlexibleInstances #-}
 
 module Data.Profunctor.Reference.PMVar
-  ( --newEmptyPMVar
-    newPMVar
-  --, takePMVar
-  --, putPMVar
-  --, readPMVar
-  --, swapPMVar
-  --, tryTakePMVar
-  --, tryPutPMVar
-  --, isEmptyPMVar
-  --, withPMVar
-  --, withPMVarMasked
-  --, modifyPMVar
-  --, modifyPMVar_
-  --, modifyPMVarMasked
-  --, modifyPMVarMasked_
-  --, tryReadPMVar
-  --, mkWeakPMVar
+  ( PMVar
+  , newEmptyPMVar
+  , newPMVar
+  , takePMVar
+  , putPMVar
+  , readPMVar
+  , tryReadPMVar
+  , previewPMVar
+  , tryPreviewPMVar
+  , swapPMVar
+  , tryTakePMVar
+  , tryPutPMVar
+  , isEmptyPMVar
+  , withPMVar
+  , withPMVarMasked
+  , modifyPMVar
+  , modifyPMVar_
+  , modifyPMVarMasked
+  , modifyPMVarMasked_
   ) where
 
 import Data.Profunctor.Optic
@@ -32,25 +34,31 @@ import Control.Monad.IO.Unlift
 import qualified Control.Concurrent.MVar as M
 
 
---type PMVar c b a = P MVar MVar c b a
-type PMVar c a = P' MVar c a
+--type PMVar c b a = Pxx MVar MVar c b a
+type PMVar c a = Px MVar c a
 
 ---------------------------------------------------------------------
 --  Creating 'PMVar's
 ---------------------------------------------------------------------
 
 
+-- | Create a new 'PMVar'.
+
+{-# INLINE newPMVar #-}
+
+newPMVar :: MonadIO m => Optical' c s a -> s -> m (PMVar c a)
+newPMVar o s = liftIO $ (Px o) <$> M.newMVar s
+
+
 -- | Create a new empty 'PMVar'. 
+
+{-# INLINE newEmptyPMVar #-}
+
 newEmptyPMVar 
   :: forall m c s a. MonadIO m
   => Optical' c s a
   -> m (PMVar c a)
-newEmptyPMVar o = liftIO $ (P' o) <$> M.newEmptyMVar @s
-
-
--- | Create a new 'PMVar'.
-newPMVar :: MonadIO m => Optical' c s a -> s -> m (PMVar c a)
-newPMVar o s = liftIO $ (P' o) <$> M.newMVar s
+newEmptyPMVar o = liftIO $ (Px o) <$> M.newEmptyMVar @s
 
 
 ---------------------------------------------------------------------
@@ -58,32 +66,83 @@ newPMVar o s = liftIO $ (P' o) <$> M.newMVar s
 ---------------------------------------------------------------------
 
 
--- | Lifted 'M.isEmptyMVar'.
---
--- @since 0.1.0.0
-isEmptyPMVar :: MonadIO m => MVar a -> m Bool
-isEmptyPMVar = liftIO . M.isEmptyMVar
+-- | Check whether a 'PMVar' is currently empty.
+
+isEmptyPMVar :: MonadIO m => PMVar c a -> m Bool
+isEmptyPMVar (Px _ rs) = liftIO $ M.isEmptyMVar rs
+
 
 -- | Return the contents of the 'PMVar'.
 --
 -- If the 'MVar' is currently empty, 'takeMVar' will wait until it is 
 -- full.  After a 'takePMVar', the read-only 'MVar' is left empty.
---
-{-# INLINE takePMVar #-}
+
 takePMVar :: MonadIO m => c (Forget a) => PMVar c a -> m a
-takePMVar (P' o ms) = liftIO $ view o <$> M.takeMVar ms
+takePMVar (Px o rs) = liftIO $ view o <$> M.takeMVar rs
 
-tryTakePMVar :: MonadIO m => MVar a -> m (Maybe a)
-tryTakePMVar = liftIO . M.tryTakeMVar
 
-readPMVar :: MonadIO m => MVar a -> m a
-readPMVar = liftIO . M.readMVar
-
--- | Lifted 'M.tryReadMVar'.
+-- | A non-blocking version of 'takePMVar'.  
 --
--- @since 0.1.0.0
-tryReadPMVar :: MonadIO m => MVar a -> m (Maybe a)
-tryReadPMVar = liftIO . M.tryReadMVar
+-- The 'tryTakePMVar' function returns immediately, with 'Nothing' if 
+-- the underlying 'MVar' was empty, or @'Just' a@ if it was full with 
+-- contents @s@.  After 'tryTakeMVar', the 'MVar' is left empty.
+
+tryTakePMVar :: MonadIO m => c (Forget a) => PMVar c a -> m (Maybe a)
+tryTakePMVar (Px o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
+
+
+-- | Atomically read the contents of a lens-like 'PMVar'.  
+--
+-- If the underlying 'MVar' is currently empty, 'readPMVar' will wait 
+-- until it is full. 'readPMVar' is guaranteed to receive the next 
+-- 'putPMVar'.
+
+readPMVar 
+  :: MonadIO m 
+  => c (Forget a)
+  => PMVar c a 
+  -> m a
+readPMVar (Px o rs) = liftIO $ view o <$> M.readMVar rs
+
+
+-- | Atomically preview the contents of a prism-like 'PMVar'.  
+--
+-- If the underlying 'MVar' is currently empty, 'readPMVar' will wait 
+-- until it is full. 'readPMVar' is guaranteed to receive the next 
+-- 'putPMVar'. A return value of @'Nothing'@ is therefore a guarantee 
+-- that the @a@ was not present.
+
+previewPMVar
+  :: MonadIO m 
+  => c (Previewed a)
+  => PMVar c a 
+  -> m (Maybe a)
+previewPMVar (Px o rs) = liftIO $ preview o <$> M.readMVar rs
+
+
+-- | A non-blocking variant of 'readPMVar'.
+
+tryReadPMVar
+  :: MonadIO m 
+  => c (Forget a)
+  => PMVar c a 
+  -> m (Maybe a)
+tryReadPMVar (Px o rs) = liftIO $ fmap (view o) <$> M.tryReadMVar rs
+
+
+-- | A non-blocking variant of 'previewPMVar'.
+-- 
+-- A return value of @'Nothing'@ indicates that either the underlying
+-- 'MVar' was empty, or that it was full and that the @a@ was not 
+-- present.
+
+tryPreviewPMVar
+  :: MonadIO m 
+  => c (Previewed a)
+  => PMVar c a 
+  -> m (Maybe a)
+tryPreviewPMVar (Px o rs) = liftIO $ (>>= preview o) <$> M.tryReadMVar rs
+
 
 
 -- | Exception-safe wrapper for operating on the contents of a 'PMVar'.  
@@ -92,58 +151,82 @@ tryReadPMVar = liftIO . M.tryReadMVar
 -- contents of the underlying 'MVar' 'ms' if an exception is raised.
 --
 -- However, it is only atomic if there are no other producers for 'ms'.
---
+
 {-# INLINE withPMVar #-}
+
 withPMVar 
   :: MonadUnliftIO m 
   => c (Forget a)
   => PMVar c a 
   -> (a -> m r) 
   -> m r
-withPMVar (P' o ms) f = 
-  withRunInIO $ \run -> M.withMVar ms (run . f . view o)
+withPMVar (Px o rs) f = 
+     withRunInIO $ \run -> M.withMVar rs (run . f . view o)
+
 
 
 -- | Masked variant of 'withPMVar'.
---
+
 {-# INLINE withPMVarMasked #-}
+
 withPMVarMasked 
   :: MonadUnliftIO m 
   => c (Forget a)
   => PMVar c a 
   -> (a -> m r) 
   -> m r
-withPMVarMasked (P' o ms) f = 
-     withRunInIO $ \run -> M.withMVarMasked ms (run . f . view o)
+withPMVarMasked (Px o rs) f = 
+     withRunInIO $ \run -> M.withMVarMasked rs (run . f . view o)
 
 
 ---------------------------------------------------------------------
 --  Modifying 'PMVar's
 ---------------------------------------------------------------------
 
-{-
-
-
--- | Lifted 'M.swapMVar'.
+-- | Put a value into a 'PMVar'.  
 --
--- @since 0.1.0.0
-swapPMVar :: MonadIO m => PMVar a -> a -> m a
-swapPMVar var = liftIO . M.swapMVar var
+-- If the 'PMVar' is currently full, 'putPMVar' will wait until it 
+-- becomes empty.
 
--- | Lifted 'M.putMVar'.
+putPMVar
+  :: MonadIO m 
+  => c Tagged
+  => PMVar c a 
+  -> a 
+  -> m ()
+putPMVar (Px o rs) a = liftIO $ M.putMVar rs . review o $ a
+
+
+-- | A non-blocking version of 'putPMVar'.  
 --
--- @since 0.1.0.0
-putPMVar :: MonadIO m => PMVar a -> a -> m ()
-putPMVar var = liftIO . M.putMVar var
+-- The 'tryPutMVar' function attempts to put the value @a@ into the 
+-- underlying 'MVar', returning 'True' if it was successful, or 
+-- 'False' otherwise.
 
--- | Lifted 'M.tryPutMVar'.
+tryPutPMVar
+  :: MonadIO m 
+  => c Tagged
+  => PMVar c a 
+  -> a 
+  -> m Bool
+tryPutPMVar (Px o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
+
+
+-- |  Take a value from an 'MVar', putting a new value into its place.
 --
--- @since 0.1.0.0
-tryPutPMVar :: MonadIO m => PMVar a -> a -> m Bool
-tryPutPMVar var = liftIO . M.tryPutMVar var
+-- This function is atomic only if there are no other producers for 
+-- this 'MVar'. Requires an 'Iso'-like optic.
 
+swapPMVar 
+  :: MonadIO m
+  => c (Forget a) 
+  => c Tagged
+  => PMVar c a 
+  -> a 
+  -> m a
+swapPMVar (Px o rs) a = liftIO $ 
+     view o <$> (M.swapMVar rs . review o $ a)
 
--}
 
 -- | An exception-safe wrapper for modifying the contents of a 'PMVar'.
 --
@@ -151,20 +234,23 @@ tryPutPMVar var = liftIO . M.tryPutMVar var
 -- of the underlying 'MVar' 'ms' if an exception is raised.
 --
 -- However, it is only atomic if there are no other producers for 'ms'.
+
 {-# INLINE modifyPMVar_ #-}
+
 modifyPMVar_ 
   :: MonadUnliftIO m
   => c (Star m)
   => PMVar c a
   -> (a -> m a) 
   -> m ()
-modifyPMVar_ (P' o ms) f = 
-     withRunInIO $ \run -> M.modifyMVar_ ms (run . traverseOf o f)
+modifyPMVar_ (Px o rs) f = 
+     withRunInIO $ \run -> M.modifyMVar_ rs (run . traverseOf o f)
 
 
 -- | A variant of 'modifyPMVar_' that allows a value to be returned. 
---
+
 {-# INLINE modifyPMVar #-}
+
 modifyPMVar
   :: MonadUnliftIO m 
   => c (Forget a)
@@ -172,7 +258,7 @@ modifyPMVar
   => PMVar c a
   -> (a -> m (a, r)) 
   -> m r
-modifyPMVar (P' o ms) f =
+modifyPMVar (Px o rs) f =
  let l = (fmap . fmap) fst f
 
      l' = traverseOf o l
@@ -183,25 +269,27 @@ modifyPMVar (P' o ms) f =
 
      out = (Kleisli l') &&& (Kleisli r')
 
-  in withRunInIO $ \run -> M.modifyMVar ms (run . runKleisli out)
+  in withRunInIO $ \run -> M.modifyMVar rs (run . runKleisli out)
 
 
 -- | A masked variant of 'modifyPMVar_'. 
---
+
 {-# INLINE modifyPMVarMasked_ #-}
+
 modifyPMVarMasked_ 
   :: MonadUnliftIO m
   => c (Star m)
   => PMVar c a
   -> (a -> m a) 
   -> m ()
-modifyPMVarMasked_ (P' o ms) f = 
-     withRunInIO $ \run -> M.modifyMVarMasked_ ms (run . traverseOf o f)
+modifyPMVarMasked_ (Px o rs) f = 
+     withRunInIO $ \run -> M.modifyMVarMasked_ rs (run . traverseOf o f)
 
 
 -- | A masked variant of 'modifyPMVar'. 
---
+
 {-# INLINE modifyPMVarMasked #-}
+
 modifyPMVarMasked
   :: MonadUnliftIO m 
   => c (Forget a)
@@ -209,7 +297,7 @@ modifyPMVarMasked
   => PMVar c a
   -> (a -> m (a, r)) 
   -> m r
-modifyPMVarMasked (P' o ms) f =
+modifyPMVarMasked (Px o rs) f =
  let l = (fmap . fmap) fst f
 
      l' = traverseOf o l
@@ -220,6 +308,4 @@ modifyPMVarMasked (P' o ms) f =
 
      out = (Kleisli l') &&& (Kleisli r')
 
-  in withRunInIO $ \run -> M.modifyMVarMasked ms (run . runKleisli out)
-
-
+  in withRunInIO $ \run -> M.modifyMVarMasked rs (run . runKleisli out)

@@ -83,18 +83,25 @@ r - The return value
 
 -}
 
-
---data P rt rs c b a = forall s t. P (Optical c s t a b) !(r t) !(r s)
-
 data P rt rs c b a = forall s t. P (Optical c s t a b) !(rt t) !(rs s)
 
-data P' rs c a = forall s. P' (Optical c s s a a) !(rs s)
+
+data Pxy t s c b a = forall x y . Pxy (Optical c x y a b) !(s x) !(t y)
+
+data Pxx t s c b a = forall x . Pxx (Optical c x x a b) !(s x) !(t x)
+
+data Px s c a = forall x . Px (Optical c x x a a) !(s x)
+
+
+--data P'' rs c a = forall s. P'' (Optical c s s a a) !(rs s) !(rs s)
+
+--data P''' rt rs c a = forall s t. P''' (Optical c s t a b) !(rt t) !(rs s) !(rs s)
 
 {-
-type P = P IORef IORef
-type PVar = P MVar MVar
-type PChan = P Chan
-type PStream = P InputStream OutputStream
+type Pxy = Pxy IORef IORef
+type PVar = Pxy MVar MVar
+type PChan = Pxy Chan
+type PStream = Pxy InputStream OutputStream
 -}
 
 {-
@@ -107,33 +114,33 @@ withQRef
   -> x
 withQRef (QRef o rt rs) f = f o rt rs
 
-data P rt rs c b a where 
+data Pxy rs rt c b a where 
 
-  --P :: (Optic c s t a b) -> r t -> r s -> P rt rs c b a
-  P :: forall a b c r s t. (forall p. c p => Optic p s t a b) -> r t -> r s -> P rt rs c b a
+  --Pxy :: (Optic c s t a b) -> r t -> r s -> Pxy rs rt c b a
+  Pxy :: forall a b c r s t. (forall p. c p => Optic p s t a b) -> r t -> r s -> Pxy rs rt c b a
 -}
 
-instance Profunctor (P rt rs Profunctor) where  dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Strong) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Costrong) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Choice) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Cochoice) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Traversing) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Mapping) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Closed) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
+instance Profunctor (Pxy rs rt Profunctor) where  dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Strong) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Costrong) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Choice) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Cochoice) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Traversing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Mapping) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Closed) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
 
-instance Profunctor (P rt rs AffineFolding) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Folding) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Getting) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs Reviewing) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
-instance Profunctor (P rt rs AffineTraversing) where dimap bt sa (P o rt rs) = P (o . dimap sa bt) rt rs
+instance Profunctor (Pxy rs rt AffineFolding) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Folding) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Getting) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt Reviewing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy rs rt AffineTraversing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
 
 
-instance Strong (P rt rs Costrong) where first' (P o rt rs) = P (o . unfirst) rt rs
-instance Costrong (P rt rs Strong) where unfirst (P o rt rs) = P (o . first') rt rs
+instance Strong (Pxy rs rt Costrong) where first' (Pxy o rs rt) = Pxy (o . unfirst) rs rt
+instance Costrong (Pxy rs rt Strong) where unfirst (Pxy o rs rt) = Pxy (o . first') rs rt
 
-instance Choice (P rt rs Cochoice) where right' (P o rt rs) = P (o . unright) rt rs
-instance Cochoice (P rt rs Choice) where unright (P o rt rs) = P (o . right') rt rs
+instance Choice (Pxy rs rt Cochoice) where right' (Pxy o rs rt) = Pxy (o . unright) rs rt
+instance Cochoice (Pxy rs rt Choice) where unright (Pxy o rs rt) = Pxy (o . right') rs rt
 
 
 -------------------------------------------------------------------------------
@@ -141,10 +148,10 @@ instance Cochoice (P rt rs Choice) where unright (P o rt rs) = P (o . right') rt
 -------------------------------------------------------------------------------
 
 
--- Note that P rt rs c a a is distinct from PRef' r c a in that it has
+-- Note that Pxy rs rt c a a is distinct from PRef' r c a in that it has
 -- a read-only Ref and a write-only Ref of the same type, rather than one Ref for both reading and writing.
 -- Because the Refs are existentialized this makes certain opimitations (e.g 'atomicModifyRef') 
--- unavaliable to a P rt rs c a a.
+-- unavaliable to a Pxy rs rt c a a.
 --
 -- Note that for TVars 'atomicModifyRef' is equiv / makes no difference
 --data PRef' r c a = forall s. PRef' (Optic' c s a) !(r s) 
@@ -171,16 +178,17 @@ atomicModifyPRef' (PRef' o rs) f = atomicModifyRef' rs ssa
 
 
 
--- | Unbox a 'PRef' by providing an existential continuation.
-withP 
-  :: P rt rs c b a 
-  -> (forall s t. Optical c s t a b -> rt t -> rs s -> x) 
-  -> x
-withP (P o rt rs) f = f o rt rs
+
 
 
 {-
 
+-- | Unbox a 'PRef' by providing an existential continuation.
+withPxy 
+  :: Pxy rs rt c b a 
+  -> (forall s t. Optical c s t a b -> rt t -> rs s -> x) 
+  -> x
+withPxy (Pxy o rs rt) f = f o rt rs
 
 -- Affine PRef
 --
@@ -193,20 +201,20 @@ t = (Nothing, 2) :: (Maybe Int, Int)
 rs <- newRef @IORef @IO s
 rt <- newRef @IORef @IO t
 
-o :: P IORef AffineLike Int String = P (_1 . _Just) rt rs
-o' :: P IORef AffineLike String String = P (_1 . _Just) rs rs
+o :: Pxy IORef AffineLike Int String = Pxy (_1 . _Just) rs rt
+o' :: Pxy IORef AffineLike String String = Pxy (_1 . _Just) rs rs
 
 
-modifyP o' tail >> readRef rs >>= print >> readRef rt >>= print
+modifyPxy o' tail >> readRef rs >>= print >> readRef rt >>= print
 -- (Just "i!",2)
 -- (Nothing,2)
 
-modifyP o length >> readRef rs >>= print >> readRef rt >>= print
+modifyPxy o length >> readRef rs >>= print >> readRef rt >>= print
 --(Just "i!",2)
 --(Just 2,2)
 
 
--- Affine P 2
+-- Affine Pxy 2
 --
 
 s = (Nothing, 2) :: (Maybe String, Int)
@@ -215,15 +223,15 @@ t = (Just 4, 2) :: (Maybe Int, Int)
 rs <- newRef @IORef @IO s
 rt <- newRef @IORef @IO t
 
-o :: P IORef AffineLike Int String = P (_1 . _Just) rt rs
-o' :: P IORef AffineLike String String = P (_1 . _Just) rs rs
+o :: Pxy IORef AffineLike Int String = Pxy (_1 . _Just) rs rt
+o' :: Pxy IORef AffineLike String String = Pxy (_1 . _Just) rs rs
 
 
-modifyP o' tail >> readRef rs >>= print >> readRef rt >>= print
+modifyPxy o' tail >> readRef rs >>= print >> readRef rt >>= print
 -- (Nothing,2)
 -- (Just 4,2)
 
-modifyP o length >> readRef rs >>= print >> readRef rt >>= print
+modifyPxy o length >> readRef rs >>= print >> readRef rt >>= print
 -- (Nothing,2)
 -- (Nothing,2)
 

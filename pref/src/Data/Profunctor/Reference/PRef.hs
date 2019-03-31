@@ -73,12 +73,12 @@ declareIORef "rs" [t| (String, Int) |] [e| ("hi!", 2) |]
 declareIORef "rt" [t| (Int, Int) |] [e| (4, 2) |]
 
 i :: PRef Profunctor (String, Int) (String, Int) 
-i = P id rs rs
+i = Pxy id rs rs
 
 o :: PRef Strong Int String 
-o = P _1 rt rs
+o = Pxy _1 rs rt
 
-type PRef = P IORef IORef
+type PRef = Pxy IORef IORef
 
 ---------------------------------------------------------------------
 --  Creating 'PRef's
@@ -90,10 +90,10 @@ type PRef = P IORef IORef
 -- should be set to 'id'.
 newLocalPRef 
   :: Optical c s t a b 
-  -> t 
   -> s 
+  -> t
   -> IO (PRef c b a)
-newLocalPRef o t s = (P o) <$> newIORef t <*> newIORef s
+newLocalPRef o s t = (Pxy o) <$> newIORef s <*> newIORef t
 
 
 -- | A variant of 'newLocalPRef' that uses the same ref for both read
@@ -117,7 +117,7 @@ readPRef
   :: c (Forget a)
   => PRef c b a 
   -> IO a
-readPRef (P o _ s) = view o <$> readIORef s
+readPRef (Pxy o s _) = view o <$> readIORef s
 
 
 -- | Read a value from a 'PRef' with profunctorial choice.
@@ -125,7 +125,7 @@ previewPRef
   :: c (Previewed a)
   => PRef c b a 
   -> IO (Maybe a)
-previewPRef (P o _ s) = preview o <$> readIORef s 
+previewPRef (Pxy o s _) = preview o <$> readIORef s 
 
 
 -- | A variant of 'previewPRef' that updates the write ref on failure.
@@ -136,7 +136,7 @@ matchPRef
   :: c (Matched a)
   => PRef c b a 
   -> IO (Maybe a)
-matchPRef (P o rt rs) =
+matchPRef (Pxy o rs rt) =
   do s <- readIORef rs
      case match o s of
        Left t -> 
@@ -150,9 +150,10 @@ foldMapOfPRef
   => PRef c b a 
   -> (a -> r)
   -> IO r
-foldMapOfPRef (P o _ rs) f = foldMapOf o f <$> readIORef rs 
+foldMapOfPRef (Pxy o rs _) f = foldMapOf o f <$> readIORef rs 
 
 
+-- sumPRef?
 sumOfPRef :: c (Forget (Sum a)) => PRef c b a -> IO a
 sumOfPRef r = getSum <$> foldMapOfPRef r Sum
 
@@ -167,7 +168,7 @@ sumOfPRef r = getSum <$> foldMapOfPRef r Sum
 -- Use this with 'Choice'-constrained optics.  Use 'modifyPRef' with
 -- a constant argument to modify lens-like optics.
 writePRef :: c Tagged => PRef c b a -> b -> IO ()
-writePRef (P o rt _) b = writeIORef rt . review o $ b
+writePRef (Pxy o _ rt) b = writeIORef rt . review o $ b
 
 
 -- | Modify a 'PRef'.
@@ -233,7 +234,7 @@ modifyPRef
   => PRef c b a 
   -> (a -> b) 
   -> IO ()
-modifyPRef (P o rt rs) f = readIORef rs >>= writeIORef rt . over o f
+modifyPRef (Pxy o rs rt) f = readIORef rs >>= writeIORef rt . over o f
 
 
 -- | Strict variant of 'modifyPRef'. This forces both the value stored
@@ -241,7 +242,7 @@ modifyPRef (P o rt rs) f = readIORef rs >>= writeIORef rt . over o f
 -- as well as the value returned. This function is atomic when r is a 
 -- TVar or TMVar.
 modifyPRef' :: c (->) => PRef c b a -> (a -> b) -> IO ()
-modifyPRef' (P o rt rs) f =
+modifyPRef' (Pxy o rs rt) f =
   do s <- readIORef rs
      let t = over o f s
      t `seq` writeIORef rt t
@@ -279,7 +280,7 @@ zipWithOf = through Zipped runZipped
 
 
 zipWithPRef' :: c Zipped => PRef c b a -> (a -> a -> b) -> IO ()
-zipWithPRef' (P o rt rs) f =
+zipWithPRef' (Pxy o rs rt) f =
   do s <- readIORef rs
      let t = zipWithOf o f s s 
      t `seq` writeIORef rt t

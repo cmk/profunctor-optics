@@ -87,7 +87,7 @@ data LogLevel
     deriving (Eq, Show, Read, Ord)
 
 ploggers :: PRef Mapping (LogLevel, LogStr) ()
-ploggers = P optic loggers loggers 
+ploggers = Pxy optic loggers loggers 
 
 logWith :: ToLogStr msg => LogLevel -> msg -> IO ()
 logWith ll msg = modifyPRef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
