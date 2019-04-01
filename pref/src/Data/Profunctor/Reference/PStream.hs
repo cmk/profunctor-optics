@@ -62,13 +62,13 @@ baz = costar id Just
 
 --data Pxy t s c b a = forall x y . Pxy (Optical c x y a b) !(s x) !(t y)
 
-type PStream c b a = Pxy OutputStream InputStream c b a
+type PStream c b a = Pxy c OutputStream InputStream b a
 
-type PInputStream c b a = Pxx InputStream InputStream c b a
+type PInputStream c b a = Pxx c InputStream InputStream b a
 
 --type PInputStream' c a = Px InputStream c a
 
-type POutputStream c b a = Pxx OutputStream OutputStream c b a
+type POutputStream c b = Px c OutputStream b
 
 --type POutputStream' c b = Px OutputStream c b
 

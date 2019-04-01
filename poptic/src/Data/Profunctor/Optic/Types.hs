@@ -9,9 +9,13 @@ module Data.Profunctor.Optic.Types (
 
 import Data.Profunctor.Optic.Types.Class 
 
+--type Optical c s t a b = forall p q. c p => c q => Optic p q s t a b
+
 type Optical c s t a b = forall p. c p => Optic p s t a b
 
 type Optical' c s a = Optical c s s a a
+
+--type Optic p q s t a b = p a b -> q s t
 
 type Optic p s t a b = p a b -> p s t
 

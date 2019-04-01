@@ -78,7 +78,7 @@ i = Pxy id rs rs
 o :: PRef Strong Int String 
 o = Pxy _1 rs rt
 
-type PRef = Pxy IORef IORef
+type PRef c b a = Pxy c IORef IORef b a
 
 ---------------------------------------------------------------------
 --  Creating 'PRef's

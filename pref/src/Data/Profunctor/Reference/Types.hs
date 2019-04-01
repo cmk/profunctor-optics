@@ -44,7 +44,7 @@ import Data.Function ((&))
 import Data.Void
 import Data.IORef
 
-
+import qualified Control.Category as C
 
 type X = Void
 
@@ -85,67 +85,65 @@ r - The return value
 
 data P rt rs c b a = forall s t. P (Optical c s t a b) !(rt t) !(rs s)
 
+-- data Pxy p rt rs b a = forall x y . Pxy (Optical p x y a b) !(rs x) !(rt y)
 
-data Pxy t s c b a = forall x y . Pxy (Optical c x y a b) !(s x) !(t y)
+data Pxy c rt rs b a = forall x y . Pxy (Optical c x y a b) !(rs x) !(rt y)
 
-data Pxx t s c b a = forall x . Pxx (Optical c x x a b) !(s x) !(t x)
+data Pxx c rt rs b a = forall x . Pxx (Optical c x x a b) !(rs x) !(rt x)
 
-data Px s c a = forall x . Px (Optical c x x a a) !(s x)
-
-
---data P'' rs c a = forall s. P'' (Optical c s s a a) !(rs s) !(rs s)
-
---data P''' rt rs c a = forall s t. P''' (Optical c s t a b) !(rt t) !(rs s) !(rs s)
-
-{-
-type Pxy = Pxy IORef IORef
-type PVar = Pxy MVar MVar
-type PChan = Pxy Chan
-type PStream = Pxy InputStream OutputStream
--}
-
-{-
--- experiment w/ removingOptical type
-data QRef r c b a = forall s t. QRef (forall p. c p => Optic p s t a b) !(r t) !(r s)
-
-withQRef 
-  :: QRef r c b a 
-  -> (forall s t . (forall p. c p => Optic p s t a b) -> r t -> r s -> x) 
-  -> x
-withQRef (QRef o rt rs) f = f o rt rs
-
-data Pxy rs rt c b a where 
-
-  --Pxy :: (Optic c s t a b) -> r t -> r s -> Pxy rs rt c b a
-  Pxy :: forall a b c r s t. (forall p. c p => Optic p s t a b) -> r t -> r s -> Pxy rs rt c b a
--}
-
-instance Profunctor (Pxy rs rt Profunctor) where  dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Strong) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Costrong) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Choice) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Cochoice) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Traversing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Mapping) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Closed) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-
-instance Profunctor (Pxy rs rt AffineFolding) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Folding) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Getting) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt Reviewing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy rs rt AffineTraversing) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+data Px c rs a = forall x . Px (Optical c x x a a) !(rs x)
 
 
-instance Strong (Pxy rs rt Costrong) where first' (Pxy o rs rt) = Pxy (o . unfirst) rs rt
-instance Costrong (Pxy rs rt Strong) where unfirst (Pxy o rs rt) = Pxy (o . first') rs rt
-
-instance Choice (Pxy rs rt Cochoice) where right' (Pxy o rs rt) = Pxy (o . unright) rs rt
-instance Cochoice (Pxy rs rt Choice) where unright (Pxy o rs rt) = Pxy (o . right') rs rt
 
 
--------------------------------------------------------------------------------
---  PRef'
--------------------------------------------------------------------------------
+instance Profunctor (Pxy Profunctor rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Strong rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Costrong rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Choice rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Cochoice rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Traversing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Mapping rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Closed rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+
+instance Profunctor (Pxy AffineFolding rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Folding rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Getting rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy Reviewing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (Pxy AffineTraversing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+
+
+instance Strong (Pxy Costrong rt rs) where first' (Pxy o rs rt) = Pxy (o . unfirst) rs rt
+
+instance Costrong (Pxy Strong rt rs) where unfirst (Pxy o rs rt) = Pxy (o . first') rs rt
+
+instance Choice (Pxy Cochoice rt rs) where right' (Pxy o rs rt) = Pxy (o . unright) rs rt
+
+instance Cochoice (Pxy Choice rt rs) where unright (Pxy o rs rt) = Pxy (o . right') rs rt
+
+instance C.Category (Pxy Profunctor rt rs) where 
+  id = undefined
+  bc . ab = compose_pxy ab bc
+
+-- | Unbox a 'Pxy' by providing an existentially quantified continuation.
+withPxy 
+  :: Pxy c rt rs b a 
+  -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
+  -> r
+withPxy (Pxy o sx ty) f = f o sx ty
+
+
+
+
+compose_iso :: AnIso s y a b -> AnIso x t b c -> Iso s t a c
+compose_iso o o' = withIso o $ \ sa bt -> withIso o' $ \ s'a' b't' -> iso sa b't'
+
+compose_pxy :: Pxy Profunctor t x c b -> Pxy Profunctor y s b a -> Pxy Profunctor t s c a
+compose_pxy (Pxy obc _ ty) (Pxy oab sx _) = (Pxy (compose_iso oab obc) sx ty) 
+
+-- Note that this is not categorical composition
+compose_pxx :: Pxx Profunctor t x c b -> Pxx Profunctor y s b a -> Pxy Profunctor t s c a
+compose_pxx (Pxx obc _ ty) (Pxx oab sx _) = (Pxy (compose_iso oab obc) sx ty) 
+
 
 
 -- Note that Pxy rs rt c a a is distinct from PRef' r c a in that it has
@@ -183,12 +181,7 @@ atomicModifyPRef' (PRef' o rs) f = atomicModifyRef' rs ssa
 
 {-
 
--- | Unbox a 'PRef' by providing an existential continuation.
-withPxy 
-  :: Pxy rs rt c b a 
-  -> (forall s t. Optical c s t a b -> rt t -> rs s -> x) 
-  -> x
-withPxy (Pxy o rs rt) f = f o rt rs
+
 
 -- Affine PRef
 --

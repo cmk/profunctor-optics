@@ -34,8 +34,8 @@ import Control.Monad.IO.Unlift
 import qualified Control.Concurrent.MVar as M
 
 
---type PMVar c b a = Pxx MVar MVar c b a
-type PMVar c a = Px MVar c a
+--type PMVar c b a = Pxx c MVar MVar b a
+type PMVar c a = Px c MVar a
 
 ---------------------------------------------------------------------
 --  Creating 'PMVar's
