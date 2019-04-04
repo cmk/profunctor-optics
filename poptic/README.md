@@ -18,7 +18,7 @@ There's also some more detailed mathematical background on the [nLab](https://nc
 For day-to-day usage there are four components to keep in mind:
 
 - profunctor type classes (e.g. `Profunctor`, `Strong`, `Choice`, `Closed` etc.)
-- particular profunctors (e.g. `Star (Const Int) Text Text`, `Costar Maybe a b`, `Tagged a b`, `Forget a b c`, etc.)
+- particular profunctors (e.g. `Star (Const Int) Text Text`, `Costar Maybe a b`, `Costar (Const c) a b`, `Star (Const c) a b c`, etc.)
 - optic 'classes' (e.g. `Lens`, `Prism`, `Affine`, `Traversal`, `Grate` etc.), induced by entailment relations between the classes above
 - particular optics (e.g. `_1 :: Strong p => Optic p (a, c) (b, c) a b`)
 - operators on optics (e.g. `.`, `re`, `to`, `view`, `matching`, `traverseOf`, etc.)
@@ -46,8 +46,8 @@ At the top of the hierarchy is an `Iso`, which is restricted only by the `Profun
 Imposing an additional `Strong` (<span style="color:#000080">blue</span>) constraint we get `Lens`,
 and adding `Traversing1` (<span style="color:#008000">green</span>) turns a `Lens` into a `Traversal1`.
 The other colors denote `Choice` (<span style="color:#800000">red</span>),
-`Bicontravariant` (<span style="color:#ff8000">orange</span>),
-`Bifunctor` (<span style="color:#8000ff">purple</span>), and
+`OutPhantom` (<span style="color:#ff8000">orange</span>),
+`InPhantom` (<span style="color:#8000ff">purple</span>), and
 `Mapping` (<span style="color:#808080">gray</span>). 
 Note that `Closed` is missing, as is `Traversing`, though `Traversing` is (almost) the combination of `Traversing1` and `Choice`.
 The `Strong` (left) side of the graph can also be indexed, leading to `IndexedLens`, `IndexedTraversal` etc. 
@@ -78,49 +78,24 @@ The constructors and characterizing operations for the remaining optics are summ
 | [Iso](#iso)                           | `iso`           | `view`, `review`     | `Profunctor`        |               |
 | [Lens](#lens)                         | `lens`          | `view`, `set`        | `Strong`            |               |
 | [Prism](#prism)                       | `prism`         | `matching`, `review` | `Choice`            |               |
-| [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    | `AffineTraversing`  | `Matched`     |
-| [PrimGetter](#getter)                 | `to`            | `view`               | `Bicontravariant`   | `Forget`      |
-| [Getter](#getter)                     | `to`            | `view`               | `Getting`           | `Forget`      |
-| [PrimSetter](#setter)                 | `setting`       | `over`               | `Bifunctor`         | `(->)`        |
+| [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    | `AffineTraversing`  | `Matched`       |
+| [PrimGetter](#getter)                 | `to`            | `view`               | `OutPhantom`        | `Star (Const c)` |
+| [Getter](#getter)                     | `to`            | `view`               | `Getting`           | `Star (Const c)` |
+| [PrimSetter](#setter)                 | `setting`       | `over`               | `InPhantom`         | `(->)`        |
 | [Setter](#setter)                     | `setting`       | `over`               | `Mapping`           | `(->)`        |
-| [Review](#review)                     | `unto`          | `review`             | `Reviewing`         | `Tagged`      |
+| [Review](#review)                     | `unto`          | `review`             | `Reviewing`         | `Costar (Const c)`      |
 | [Traversal](#traversal)               | `traversing`    | `traverseOf`         | `Traversing`        | `Star`        |
 | [Affine Fold](#fold-and-affine-fold)  | `afolding`      | `preview`            | `AffineFolding`     | `Previewed`   |
-| [Fold](#fold-and-affine-fold)         | `folding`       | `foldMapOf`          | `Folding`           | `Forget`      |
-| [Grate](#grate)                       | `grate`         | `zipWithOf`          | `Closed`            | `Zipped`      |
+| [Fold](#fold-and-affine-fold)         | `folding`       | `foldMapOf`          | `Folding`           | `Star (Const c)` |
+| [Closure](#closure)                   | `closed`        | `zipWithOf`          | `Closed`            | `Zipped`      |
 
 The laws are captured in property-driven tests in the test folder.  
 Predicates describing the laws are kept separate so that they can be used to verify downstream optics.
 
-The operators themselves are for the most part created from the associated profuctor (e.g. `review` from `Tagged`) in a standard fashion:
+The operators themselves are for the most part created from the associated profuctor (e.g. `review` from `Costar (Const c)`) in a standard fashion:
 
 ```
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
 
-view :: Optic (Forget a) s t a b -> s -> a
-view o = (through Forget runForget) o id
-
-review :: Optic Tagged s t a b -> b -> t
-review = through Tagged unTagged
-
-match :: Optic (Matched a) s t a b -> s -> Either t a
-match o = (through Matched runMatched) o Right
-
-preview :: Optic (Previewed a) s t a b -> s -> Maybe a
-preview o = (through Previewed runPreview) o Just
-
-foldMapOf :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
-foldMapOf = through Forget runForget
-
-zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = through Zipped runZipped 
-
-traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf = through Star runStar
-
-cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf = through Costar runCostar
 ```
 
 See the `Data.Profunctor.Optic.Operator` module for more detail. 
@@ -129,12 +104,12 @@ See the `Data.Profunctor.Optic.Operator` module for more detail.
 
 Finally, the relationships between the associated profunctors and the profunctor classes is as follows:
 
-|                  | `Forget` | `Star` | `Tagged` | `Zipped` | `Matched` | `Previewed` |  `(->)` 
+|                  | `Star (Const c)` | `Star` | `Costar (Const c)` | `Zipped` | `Matched` | `Previewed` |  `(->)` 
 | --- | --- | --- | --- | --- | --- | --- |
 
 | `Profunctor`      | **yes** | **yes** | **yes** | **yes** | **yes** | **yes** | **yes** |
-| `Bifunctor`       | no      | no      | **yes** | no      | no      | no      | no      |
-| `Bicontravariant` | **yes** | no      | no      | no      | no      | **yes** | no      |
+| `InPhantom`       | no      | no      | **yes** | no      | no      | no      | no      |
+| `OutPhantom`      | **yes** | no      | no      | no      | no      | **yes** | no      |
 | `Strong`          | **yes** | **yes** | no      | **yes** | **yes** | **yes** | **yes** |
 | `Costrong`        | **yes** | no      | **yes** | **yes** | **yes** | no      | **yes** |
 | `Choice`          | monoid  | aplctve | **yes** | **yes** | **yes** | **yes** | **yes** |
@@ -148,7 +123,7 @@ Finally, the relationships between the associated profunctors and the profunctor
 where annotated entries indicate that the instance is entailed by constraints on the underlying functor. 
 This chart in turn is what determines which operators can be used with each optic.
 
-Consider `review` for example, which is derived from the `Tagged` profunctor. `Tagged` is not an instance of the `Strong`, `Traversing`, `Closed`, or `Mapping` classes. It follows then that a `Setter`, which as we noted above is constrained by `Profunctor`, `Strong`, `Choice`, `Traversing`, `Closed`, and `Mapping`, will not be compatible with the `review` operator.
+Consider `review` for example, which is derived from the `Costar (Const c)` profunctor. `Costar (Const c)` is not an instance of the `Strong`, `Traversing`, `Closed`, or `Mapping` classes. It follows then that a `Setter`, which as we noted above is constrained by `Profunctor`, `Strong`, `Choice`, `Traversing`, `Closed`, and `Mapping`, will not be compatible with the `review` operator.
 
 
 

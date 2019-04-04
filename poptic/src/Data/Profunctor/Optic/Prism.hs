@@ -141,10 +141,9 @@ without k =
 ---------------------------------------------------------------------
 
 -- | Test whether the optic matches or not.
-is :: Optic (Matched a) s t a b -> s -> Bool
+is :: Optic (Star (Either a)) s t a b -> s -> Bool
 is o = either (const False) (const True) . match o
 
 -- | Test whether the optic matches or not.
-isnt :: Optic (Matched a) s t a b -> s -> Bool
+isnt :: Optic (Star (Either a)) s t a b -> s -> Bool
 isnt o = not . is o
-

@@ -74,12 +74,11 @@ getPreview = to . preview
 like :: a -> PrimGetter s s a a
 like a = to (const a)
 
-{-
+
 takeBoth 
-  :: Optic (Forget c) s t c b
-  -> Optic (Forget d) s t d b 
+  :: Optic (Star (Const c)) s t c b
+  -> Optic (Star (Const d)) s t d b 
   -> Getter s (c, d)
--}
 takeBoth l r = to (view l &&& view r)
 
 
@@ -93,5 +92,5 @@ getJust o = o . _Just
 ---------------------------------------------------------------------
 
 infixl 8 ^.
---(^.) :: s -> Optic (Forget a) s t a b -> a
+(^.) :: s -> Optic (Star (Const a)) s t a b -> a
 (^.) s o = foldMapOf o id s

@@ -140,7 +140,7 @@ instance InPhantom p => InPhantom (EitherSide p c d) where
 
 
 --The 'Re' type, and its instances witness the symmetry of 'Profunctor' 
--- and the relation between 'Bifunctor' and 'Bicontravariant'.
+-- and the relation between 'InPhantom' and 'OutPhantom'.
 
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
@@ -159,12 +159,11 @@ instance Choice p => Cochoice (Re p s t) where
 instance Strong p => Costrong (Re p s t) where
     unfirst (Re p) = Re (p . first')
 
-instance Bifunctor p => Bicontravariant (Re p s t) where 
-    cimap f g (Re p) = Re (p . bimap g f)
+instance (Costrong p, InPhantom p) => OutPhantom (Re p s t) where 
+    ocoerce (Re p) = Re (p . icoerce)
 
-instance Bicontravariant p => Bifunctor (Re p s t) where 
-    bimap f g (Re p) = Re (p . cimap g f)
-
+instance (Cochoice p, OutPhantom p) => InPhantom (Re p s t) where 
+    icoerce (Re p) = Re (p . ocoerce)
 
 ---------------------------------------------------------------------
 -- 
@@ -326,9 +325,6 @@ newtype Previewed r a b = Previewed { runPreviewed :: a -> Maybe r }
 
 instance Profunctor (Previewed r) where
     dimap f _ (Previewed p) = Previewed (p . f)
-
-instance Bicontravariant (Previewed r) where
-    cimap f _ (Previewed p) = Previewed (p . f)
 
 instance OutPhantom (Previewed r) where
     ocoerce (Previewed p) = (Previewed p)

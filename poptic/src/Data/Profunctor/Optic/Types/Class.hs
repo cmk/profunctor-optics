@@ -31,9 +31,6 @@ import Data.Profunctor.Composition     as Export
 
 
 
--- Entailment relationships not already given by 'profunctors':
-class Equalizing (p :: * -> * -> *)
-instance Equalizing p
 
 
 class Functor f => Phantom f where
@@ -63,6 +60,10 @@ instance (Phantom f, Traversable f) => InPhantom (Costar f) where
 
 
 
+-- Entailment relationships not already given by 'profunctors':
+class Equalizing (p :: * -> * -> *)
+instance Equalizing p
+
 class (Strong p, Choice p) => AffineTraversing p
 instance (Strong p, Choice p) => AffineTraversing p
 
@@ -87,25 +88,10 @@ class (OutPhantom p, Choice p, Traversing p) => AffineFolding p
 instance (OutPhantom p, Choice p, Traversing p) => AffineFolding p
 
 
-class Bicontravariant p where
-    cimap :: (b -> a) -> (d -> c) -> p a c -> p b d
-    cimap f g = cofirst f . cosecond g
-
-    cofirst :: (b -> a) -> p a c -> p b c
-    cofirst f = cimap f id
-
-    cosecond :: (c -> b) -> p a b -> p a c
-    cosecond = cimap id
-
-    {-# MINIMAL cimap | (cofirst, cosecond) #-}
-
-
-instance Bicontravariant (Forget r) where
-
-    cimap f _ (Forget p) = Forget (p . f)
 
 
 data ProProduct p q a b = ProProduct { upper :: p a b, lower :: q a b}
+
 instance (Profunctor p, Profunctor q) => Profunctor (ProProduct p q) where
   dimap f g (ProProduct u l) = ProProduct (dimap f g u) (dimap f g l)
 

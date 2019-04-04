@@ -55,9 +55,19 @@ from :: AnIso s t a b -> Iso b a t s
 from l = withIso l $ \ sa bt -> iso bt sa
 {-# INLINE from #-}
 
+
+-- ^ @
+-- from' :: Iso b a t s -> Iso s t a b
+-- @
+from' :: Optic (ProProduct (Star (Const t)) (Costar (Const s))) b a t s -> Iso s t a b
+from' o = iso (review . Const) (getConst . get) 
+  where  
+    ProProduct (Star get) (Costar review) = o (ProProduct (Star Const) (Costar getConst))
+
 ---------------------------------------------------------------------
 -- Common isos
 ---------------------------------------------------------------------
+
 
 curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
 curried = iso curry uncurry
@@ -92,10 +102,6 @@ non :: forall a. Eq a => a -> Iso' (Maybe a) a
 non def = iso (fromMaybe def) g
   where g a | a == def  = Nothing
             | otherwise = Just a
-
----------------------------------------------------------------------
--- Derived operators
----------------------------------------------------------------------
 
 au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
 au l = withIso l $ \sa bt f e -> sa (f bt e)
