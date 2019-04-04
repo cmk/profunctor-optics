@@ -53,6 +53,9 @@ class Strong p => OutPhantom p where
 instance Phantom f => OutPhantom (Star f) where
   ocoerce (Star h) = Star $ coerce . h
 
+instance OutPhantom (Forget f) where
+  ocoerce (Forget f) = (Forget f)
+
 -- Upstream imposes the 'Traversable' requirement.
 instance (Phantom f, Traversable f) => InPhantom (Costar f) where
   icoerce (Costar h) = Costar $ h . coerce
@@ -63,21 +66,25 @@ instance (Phantom f, Traversable f) => InPhantom (Costar f) where
 class (Strong p, Choice p) => AffineTraversing p
 instance (Strong p, Choice p) => AffineTraversing p
 
--- class (InPhantom p, Choice p) => Reviewing p
-class (Bifunctor p, Choice p) => Reviewing p
-instance (Bifunctor p, Choice p) => Reviewing p
+class (InPhantom p, Choice p) => Reviewing p
+instance (InPhantom p, Choice p) => Reviewing p
 
--- class (OutPhantom p, Strong p) => Getting p
-class (Bicontravariant p, Strong p) => Getting p
-instance (Bicontravariant p, Strong p) => Getting p
+--class (Bifunctor p, Choice p) => Reviewing p
+--instance (Bifunctor p, Choice p) => Reviewing p
+
+class (OutPhantom p, Strong p) => Getting p
+instance (OutPhantom p, Strong p) => Getting p
+
+--class (Bicontravariant p, Strong p) => Getting p
+--instance (Bicontravariant p, Strong p) => Getting p
 
 --class (OutPhantom p, Traversing p) => Folding p
 
-class (Bicontravariant p, Traversing p) => Folding p
-instance (Bicontravariant p, Traversing p) => Folding p
+class (OutPhantom p, Traversing p) => Folding p
+instance (OutPhantom p, Traversing p) => Folding p
 
-class (Bicontravariant p, Choice p, Traversing p) => AffineFolding p
-instance (Bicontravariant p, Choice p, Traversing p) => AffineFolding p
+class (OutPhantom p, Choice p, Traversing p) => AffineFolding p
+instance (OutPhantom p, Choice p, Traversing p) => AffineFolding p
 
 
 class Bicontravariant p where

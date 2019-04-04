@@ -50,15 +50,9 @@ import Data.Profunctor.Optic.Prism (_Just)
 -- 'to' :: (s -> a) -> 'Getter' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter s s a a
-to f = cimap f f
+to :: (s -> a) -> PrimGetter s t a b
+to f = ocoerce . lmap f
 {-# INLINE to #-}
-
-
--- | A variant of 'to' for a fully polymorphic 'PrimGetter'.
-primgetting :: (s -> a) -> (t -> b) -> PrimGetter s t a b
-primgetting = cimap
-{-# INLINE primgetting #-}
 
 
 getPreview :: Optic (Previewed a) s t a b -> PrimGetter s s (Maybe a) (Maybe a)
@@ -80,11 +74,12 @@ getPreview = to . preview
 like :: a -> PrimGetter s s a a
 like a = to (const a)
 
-
+{-
 takeBoth 
   :: Optic (Forget c) s t c b
   -> Optic (Forget d) s t d b 
   -> Getter s (c, d)
+-}
 takeBoth l r = to (view l &&& view r)
 
 
@@ -98,5 +93,5 @@ getJust o = o . _Just
 ---------------------------------------------------------------------
 
 infixl 8 ^.
-(^.) :: s -> Optic (Forget a) s t a b -> a
-(^.) = flip view
+--(^.) :: s -> Optic (Forget a) s t a b -> a
+(^.) s o = foldMapOf o id s

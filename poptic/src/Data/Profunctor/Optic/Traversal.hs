@@ -45,13 +45,3 @@ sequenceOf
   :: Applicative f
   => Optic (Star f) s t (f a) a -> s -> f t
 sequenceOf t = traverseOf t id
-
--- | More permissive version of 'match' that can satisfy optics with
---
--- a 'Traversing' constraint.
-match' :: Optic (Star (Either a)) s t a b -> s -> Either t a
-match' o =
- let Star h = o (Star Left)
-
-  in switch . h
-

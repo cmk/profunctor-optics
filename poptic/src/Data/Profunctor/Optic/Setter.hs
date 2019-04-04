@@ -20,6 +20,7 @@ import Data.Profunctor.Mapping as Export
 
 data Context a b t = Context (b -> t) a deriving Functor
 
+-- See http://conal.net/blog/posts/semantic-editor-combinators
 setting :: ((a -> b) -> s -> t) -> Setter s t a b
 setting f = dimap (Context id) (\(Context g s) -> f g s) . map'
 

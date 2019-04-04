@@ -3,14 +3,13 @@ module Data.Profunctor.Optic.Review
   -- * Reviewing
     Review
   , AReview
+  , PrimReview
   , unto
-  , unto'
   , un
   , re
   , review --, reviews
   --, reuse, reuses
   --, ( # )
-  , Bifunctor(bimap)
   --, retagged
   , Reviewing
   ) where
@@ -28,20 +27,15 @@ import Data.Tagged
 --  Analagous to 'to' for 'Getter'.
 --
 -- @
--- 'unto' :: (b -> t) -> 'Review' t b
+-- 'unto' :: (b -> t) -> 'PrimReview' s t a b
 -- @
 --
 -- @
 -- 'unto' = 'un' . 'to'
 -- @
 -}
-unto :: (b -> t) -> Review t b 
-unto f = bimap f f
-
-{- | A variant of 'unto' for 'PrimReview'.
--}
-unto' :: (a -> s) -> (b -> t) -> PrimReview s t a b
-unto' = bimap
+unto :: (b -> t) -> PrimReview s t a b 
+unto f = icoerce . rmap f
 
 
 -- | Turn a 'Getter' around to get a 'Review'
@@ -53,8 +47,8 @@ unto' = bimap
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: Optic (Forget a) s t a b -> Review a s --Optic p a a s s
-un = unto . view
+--un :: Optic (Forget a) s t a b -> Review a s --Optic p a a s s
+un o = unto . foldMapOf o id
 
 {-
 

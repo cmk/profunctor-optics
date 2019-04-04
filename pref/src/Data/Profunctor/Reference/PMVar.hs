@@ -27,7 +27,6 @@ import Data.Profunctor.Reference.Types
 import Data.Profunctor.Reference.Global
 
 import System.Mem.Weak (Weak)
---import System.IO.Unsafe
 import Control.Arrow
 import Control.Concurrent.MVar (MVar)
 import Control.Monad.IO.Unlift

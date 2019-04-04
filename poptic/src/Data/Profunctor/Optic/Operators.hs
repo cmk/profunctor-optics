@@ -65,7 +65,7 @@ review = through Tagged unTagged
 
 
 -- | 'view o == foldMapOf o id'
-view :: Optic (Forget a) s t a b -> s -> a
+--view :: Optic (Forget a) s t a b -> s -> a
 view o = foldMapOf o id
 
 
@@ -84,11 +84,11 @@ preview :: Optic (Previewed a) s t a b -> s -> Maybe a
 preview o = (through Previewed runPreviewed) o Just
 
 
-foldMapOf' :: Optic (Star (Const r)) s t a b -> (a -> r) -> s -> r
-foldMapOf' o f = getConst . h where Star h = o (Star (Const . f))
+foldMapOf :: Optic (Star (Const r)) s t a b -> (a -> r) -> s -> r
+foldMapOf o f = getConst . h where Star h = o (Star (Const . f))
 
-foldMapOf :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
-foldMapOf = through Forget runForget
+foldMapOf' :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
+foldMapOf' = through Forget runForget
 
 
 

@@ -151,6 +151,7 @@ type PTBQueue' c a = PRef' c TBQueue a
 
 type PIORef c b a = PRef c IORef IORef b a
 
+--TODO PMVar'
 type PMVar c a = PRef' c MVar a
 
 type PStream c b a = PRef c OutputStream InputStream b a

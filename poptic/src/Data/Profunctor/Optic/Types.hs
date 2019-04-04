@@ -68,24 +68,22 @@ type Fold s a = Optical' Folding s a
 
 type AffineFold s a = Optical' AffineFolding s a
 
--- See http://conal.net/blog/posts/semantic-editor-combinators
 type Setter' s a = Setter s s a a
 
 type Setter s t a b = Optical Mapping s t a b
 
-type PrimGetter s t a b = Optical Bicontravariant s t a b
+type PrimGetter s t a b = Optical OutPhantom s t a b
 
 type Getter s a = Optical' Getting s a
 
-type AGetter s a = Optic' (Forget a) s a 
+type AGetter s a = Optic' (Star (Const a)) s a 
 
-type PrimReview s t a b = Optical Bifunctor s t a b
+type PrimReview s t a b = Optical InPhantom s t a b
 
 type Review t b = Optical' Reviewing t b
 
 type AReview t b = Optic' Tagged t b
 
--- | A closure (http://r6research.livejournal.com/28050.html)
 type Closure s t a b = Optical Closed s t a b
 
 type Closure' s a = Closure s s a a
@@ -331,6 +329,9 @@ instance Profunctor (Previewed r) where
 
 instance Bicontravariant (Previewed r) where
     cimap f _ (Previewed p) = Previewed (p . f)
+
+instance OutPhantom (Previewed r) where
+    ocoerce (Previewed p) = (Previewed p)
 
 instance Choice (Previewed r) where
     right' (Previewed p) = Previewed (either (const Nothing) p)
