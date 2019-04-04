@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPPRef #-}
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
@@ -21,7 +21,7 @@ import qualified GHC.Stack as GHC
 
 import Data.Void
 import Data.Profunctor.Reference.Types
-import Data.Profunctor.Reference.PRef
+import Data.Profunctor.Reference.PIORef
 import Data.Profunctor.Optic
 
 main :: IO ()
@@ -37,7 +37,7 @@ withGlobalLogging cfg $ forM_ msgs logInfo
 
 
 
-putil: poptic, pref, pgen, plog, perror?
+putil: poptic, pref, pgen, plog, pstream, perror?
 
 TODO logging-
 
@@ -48,19 +48,6 @@ TODO random number gen-
 
 
 TODO other examples-
-
-remove ref typeclass! 
-
-are isos cool / useful?
-
-read only / write only / mod only  refs, mvars, etc
- - probably only want PRef' w/ MVars due to locking semantics
-
-composition, dimap, first' / right', arrow stuff
-
-
-rmap toLogStr :: ToLogStr b => PRef r c LogStr () -> PRef r c b () 
-swap () w/ some const a and you have a reader pattern! show example
 
 operate directly on PRefs w/ optics! they are profunctors after all 
 
@@ -86,11 +73,11 @@ data LogLevel
     | LogError
     deriving (Eq, Show, Read, Ord)
 
-ploggers :: PRef Mapping (LogLevel, LogStr) ()
-ploggers = Pxy optic loggers loggers 
+ploggers :: PIORef Mapping (LogLevel, LogStr) ()
+ploggers = PRef optic loggers loggers 
 
 logWith :: ToLogStr msg => LogLevel -> msg -> IO ()
-logWith ll msg = modifyPRef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
+logWith ll msg = modifyPIORef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
 
 logPureWith :: ToLogStr msg => LogLevel -> msg -> a -> a
 logPureWith ll msg expr = unsafePerformIO (logWith ll msg) `seq` expr
@@ -208,11 +195,12 @@ logLevel = unsafePerformIO $ newIORef LogDebug
 --
 --config :: Config --some config
 
-unsafeLogIO :: (?callStack :: GHC.CallStack) => Loggers -> (LogLevel, LogStr) -> Loggers
-unsafeLogIO lgr (ll, b) = unsafePerformIO (logmsg ?callStack lgr LogInfo b) `seq` lgr
 
 optic :: Mapping p => Optic p Loggers Loggers () (LogLevel, LogStr)
 optic = setting $ \ub lgr -> unsafeLogIO lgr (ub ())
+  where
+    unsafeLogIO :: (?callStack :: GHC.CallStack) => Loggers -> (LogLevel, LogStr) -> Loggers
+    unsafeLogIO lgr (ll, b) = unsafePerformIO (logmsg ?callStack lgr LogInfo b) `seq` lgr
 
 logmsg :: GHC.CallStack -> Loggers -> LogLevel -> LogStr -> IO ()
 logmsg cs lgrs ll msg = readIORef logLevel >>= \logLim ->

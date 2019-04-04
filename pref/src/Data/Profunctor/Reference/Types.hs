@@ -1,52 +1,34 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE ExistentialQuantification     #-}
-{-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE AllowAmbiguousTypes       #-}
+{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE FlexibleContexts          #-}
+{-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
+{-# LANGUAGE UndecidableInstances      #-}
 
-{-# LANGUAGE RankNTypes #-}
-
-
-{-# LANGUAGE ScopedTypeVariables, TypeOperators , KindSignatures, GADTs, DataKinds #-}
-
---for tupled constraints
-{-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE UndecidableSuperClasses #-}
-
-
-{-# LANGUAGE TypeApplications #-}
-
-{-# LANGUAGE TemplateHaskell #-}
--- {-# LANGUAGE ImplicitParams #-}
-{-# LANGUAGE ConstraintKinds, StandaloneDeriving, DeriveAnyClass #-}
--- {-# LANGUAGE PolyKinds #-}
--- {-# LANGUAGE ImpredicativeTypes #-}
-
-
-
- {-# OPTIONS_GHC -w #-}
--- | Environment values with stateful capabilities.
+{-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.Types where
 
-
-import Data.Kind (Constraint, Type)
-import Data.Monoid (First)
-
+import Control.Category (Category)
+import Control.Monad.Reader.Class
+import Control.Monad.Writer.Class
+import Control.Monad.State.Class
+import Control.Monad.IO.Unlift
 import Data.Profunctor.Optic
-import Control.Concurrent.STM (STM)
-import Control.Applicative (Const(..))
-import Data.Tuple (swap)
-import Data.Bitraversable
 
+import Control.Arrow
+import Data.IORef (IORef(..))
 
-import Data.Function ((&)) 
-import Data.Void
-import Data.IORef
+import qualified Data.IORef as IOR
+
+import System.IO.Streams (InputStream, OutputStream)
+
+import Control.Concurrent.MVar (MVar)
+--import Control.Concurrent
+import Control.Concurrent.STM (TArray, TBQueue, TQueue, TChan, TMVar, TVar)
+
 
 import qualified Control.Category as C
 
-type X = Void
 
 ---------------------------------------------------------------------
 --  PRef
@@ -55,111 +37,85 @@ type X = Void
 
 {- | A profunctor reference is a pair of mutable references bound 
 
-together with a profunctor optic by existentializing over the read and
-
-write reference types.
+together with a profunctor optic by existentializing over the types
+ 
+in the read and write references.
 
 The type variables signify:
-
-  * @r@ - The reference type (e.g. 'TVar', 'MVar', 'STRef', 'IORef' etc.)
 
   * @c@ - The constraint determining which operations can be performed.
 
-  * @b@ - The contravariant write-only type.
+  * @rt@ - The write container reference (e.g. 'MVar', 'IO', 'IORef' etc.).
 
-  * @a@ - The covariant read-only type.
+  * @rs@ - The read container reference (e.g. 'MVar', 'IO', 'IORef' etc.).
 
+  * @b@ - The exposed (contravariant) write-only type.
 
-data Proxy a' a b' b m r Source#
-
-A Proxy is a monad transformer that receives and sends information on both an upstream and downstream interface.
-
-The type variables signify:
-
-a' and a - The upstream interface, where (a')s go out and (a)s come in
-b' and b - The downstream interface, where (b)s go out and (b')s come in
-m - The base monad
-r - The return value
+  * @a@ - The exposed (covariant) read-only type.
 
 -}
 
-data P rt rs c b a = forall s t. P (Optical c s t a b) !(rt t) !(rs s)
+data PRef c rt rs b a = forall x y . PRef (Optical c x y a b) !(rs x) !(rt y)
 
--- data Pxy p rt rs b a = forall x y . Pxy (Optical p x y a b) !(rs x) !(rt y)
-
-data Pxy c rt rs b a = forall x y . Pxy (Optical c x y a b) !(rs x) !(rt y)
-
-data Pxx c rt rs b a = forall x . Pxx (Optical c x x a b) !(rs x) !(rt x)
-
-data Px c rs a = forall x . Px (Optical c x x a a) !(rs x)
+data PRef' c rs a = forall x . PRef' (Optical' c x a) !(rs x)
 
 
 
+instance Profunctor (PRef Profunctor rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
 
-instance Profunctor (Pxy Profunctor rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Strong rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Costrong rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Choice rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Cochoice rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Traversing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Mapping rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Closed rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (PRef Strong rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
 
-instance Profunctor (Pxy AffineFolding rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Folding rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Getting rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy Reviewing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
-instance Profunctor (Pxy AffineTraversing rt rs) where dimap bt sa (Pxy o rs rt) = Pxy (o . dimap sa bt) rs rt
+instance Profunctor (PRef Costrong rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Choice rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Cochoice rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Closed rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Mapping rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Traversing rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef AffineTraversing rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Folding rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef AffineFolding rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Getting rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
+
+instance Profunctor (PRef Reviewing rt rs) where dimap bt sa (PRef o rs rt) = PRef (o . dimap sa bt) rs rt
 
 
-instance Strong (Pxy Costrong rt rs) where first' (Pxy o rs rt) = Pxy (o . unfirst) rs rt
 
-instance Costrong (Pxy Strong rt rs) where unfirst (Pxy o rs rt) = Pxy (o . first') rs rt
+instance Strong (PRef Costrong rt rs) where first' (PRef o rs rt) = PRef (o . unfirst) rs rt
 
-instance Choice (Pxy Cochoice rt rs) where right' (Pxy o rs rt) = Pxy (o . unright) rs rt
+instance Costrong (PRef Strong rt rs) where unfirst (PRef o rs rt) = PRef (o . first') rs rt
 
-instance Cochoice (Pxy Choice rt rs) where unright (Pxy o rs rt) = Pxy (o . right') rs rt
+instance Choice (PRef Cochoice rt rs) where right' (PRef o rs rt) = PRef (o . unright) rs rt
 
-instance C.Category (Pxy Profunctor rt rs) where 
-  id = undefined
+instance Cochoice (PRef Choice rt rs) where unright (PRef o rs rt) = PRef (o . right') rs rt
+
+instance Category (PRef Profunctor rt rs) where 
+  id = undefined -- TODO produce these w/ TH based on monoid instances from the underlying s,t
   bc . ab = compose_pxy ab bc
-
--- | Unbox a 'Pxy' by providing an existentially quantified continuation.
-withPxy 
-  :: Pxy c rt rs b a 
-  -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
-  -> r
-withPxy (Pxy o sx ty) f = f o sx ty
-
-
-
 
 compose_iso :: AnIso s y a b -> AnIso x t b c -> Iso s t a c
 compose_iso o o' = withIso o $ \ sa bt -> withIso o' $ \ s'a' b't' -> iso sa b't'
 
-compose_pxy :: Pxy Profunctor t x c b -> Pxy Profunctor y s b a -> Pxy Profunctor t s c a
-compose_pxy (Pxy obc _ ty) (Pxy oab sx _) = (Pxy (compose_iso oab obc) sx ty) 
+compose_pxy :: PRef Profunctor t x c b -> PRef Profunctor y s b a -> PRef Profunctor t s c a
+compose_pxy (PRef obc _ ty) (PRef oab sx _) = (PRef (compose_iso oab obc) sx ty) 
 
--- Note that this is not categorical composition
-compose_pxx :: Pxx Profunctor t x c b -> Pxx Profunctor y s b a -> Pxy Profunctor t s c a
-compose_pxx (Pxx obc _ ty) (Pxx oab sx _) = (Pxy (compose_iso oab obc) sx ty) 
-
-
-
--- Note that Pxy rs rt c a a is distinct from PRef' r c a in that it has
--- a read-only Ref and a write-only Ref of the same type, rather than one Ref for both reading and writing.
--- Because the Refs are existentialized this makes certain opimitations (e.g 'atomicModifyRef') 
--- unavaliable to a Pxy rs rt c a a.
---
--- Note that for TVars 'atomicModifyRef' is equiv / makes no difference
---data PRef' r c a = forall s. PRef' (Optic' c s a) !(r s) 
-
---instance Functor (PRef' r c)
-
-primGetter :: Bicontravariant p => (s -> a) -> Optic' p s a
-primGetter sa = primgetting sa sa
+-- | Unbox a 'Pxy' by providing an existentially quantified continuation.
+withPRef 
+  :: PRef c rt rs b a 
+  -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
+  -> r
+withPRef (PRef o sx ty) f = f o sx ty
 
 {-
+
 newtype LocalRef c s a = 
   LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef' STRef c s) (ST r) a }
 
@@ -170,70 +126,188 @@ atomicModifyPRef' :: ARef r m => PRef' r Strong a -> (a -> (a, x)) -> m x
 atomicModifyPRef' (PRef' o rs) f = atomicModifyRef' rs ssa
     where ssa = withLens o $ \sa sas -> \s -> let (a, x) = f . sa $! s in (sas s a, x)
 
+
+type PIORef' c a = PRef' c IORef a
+
+type PMVar c b a = PRef c MVar MVar b a
+
+type PInputStream c a = PRef' c InputStream a
+
+type POutputStream c b = PRef' c OutputStream b
+
+type PTChan c b a = PRef c TChan TChan b a
+
+type PTChan' c a = PRef' c TChan a
+
+type PTQueue c b a = PRef c TQueue TQueue b a
+
+type PTQueue' c a = PRef' c TQueue a
+
+type PTBQueue c b a = PRef c TBQueue TBQueue b a
+
+type PTBQueue' c a = PRef' c TBQueue a
+
 -}
 
+type PIORef c b a = PRef c IORef IORef b a
+
+type PMVar c a = PRef' c MVar a
+
+type PStream c b a = PRef c OutputStream InputStream b a
+
+
+readPRefSimple 
+  :: MonadIO m
+  => c (Forget a)
+  => PRef' c IORef a 
+  -> m a
+readPRefSimple (PRef' o rs) = liftIO $ view o <$> IOR.readIORef rs
+
+modifyPRefSimple
+  :: MonadIO m
+  => c (->)
+  => PRef' c IORef a 
+  -> (a -> a) 
+  -> m ()
+modifyPRefSimple (PRef' o rs) f = liftIO $ IOR.readIORef rs >>= IOR.writeIORef rs . over o f
+
+
+instance (MonadIO m, MonadReader (PRef' Strong IORef a) m) => MonadState a m where 
+
+  get = do
+    ref <- ask
+    readPRefSimple ref
+
+  put a = do
+    ref <- ask
+    liftIO $ modifyPRefSimple ref (const a)
+
+
+instance (MonadIO m, MonadReader (PRef' Strong IORef a) m, Monoid a) => MonadWriter a m where 
+
+  tell a = do
+    ref <- ask
+    liftIO $ modifyPRefSimple ref (`mappend` a)
+
+  pass act = do
+    (a, f) <- act
+    ref <- ask
+    liftIO $ modifyPRefSimple ref f
+    return a
+
+  listen act = do
+    w1 <- ask >>= liftIO . readPRefSimple
+    a <- act
+    w2 <- do
+      ref <- ask
+      v <- liftIO $ readPRefSimple ref
+      _ <- liftIO $ modifyPRefSimple ref (const w1)
+      return v
+    return (a, w2)
+
+--instance (MonadUnliftIO m, MonadReader (PRef Reviewing IORef rs b a) m, Monoid b) => MonadWriter b m where 
 
 
 
 
+-- TODO could generalize this to arbitrary comonads.
+readPure
+  :: c (Forget a)
+  => PRef c rt Identity b a 
+  -> a
+readPure (PRef o rs _) = view o . runIdentity $ rs
+
+-- fills the (read-side) role of the lens in a Has type class
+readex :: MonadReader r m => c (Forget a) => PRef c rt ((->) r) b a -> m a
+readex (PRef o rs _) = view o <$> asks rs
 
 
+getex :: MonadState s m => c (Forget a) => PRef c rt ((->) s) b a -> m a
+getex (PRef o rs _) = view o <$> gets rs
+
+puts :: MonadState s m => (a -> s) -> a -> m ()
+puts f = put . f
+
+tells :: MonadWriter w m => (a -> w) -> a -> m ()
+tells f = tell . f
+
+--putex :: MonadState s m => c (Forget a) => PRef c rt ((->) s) b a -> m a
+--putex p@(PRef o _ rt) = getex p >>= view o <$> gets rs
+
+--tellex :: MonadWriter x m => c Tagged => PRef' c m a -> a -> m ()
+--tellex (PRef' o _) b = tells (review o) b
+
+
+
+
+-- data PRef c rt rs b a = forall x y . PRef (Optical c x y a b) !(rs x) !(rt y)
+
+--instance MonadReader (PRef c m rs b a) m => c (Forget a) => MonadReader a m where
+    
+--    ask = ask >>= \(PRef o s _) -> 
+--
+--
+
+
+
+pmaybe
+  :: Optic (Costar Maybe) s t a b 
+  -> a -> (a -> b) -> Maybe s -> t
+pmaybe o a ab = costar' o ab (maybe a id)
+
+--star' up down o f = outof runStar up (o . into Star down $ f)
+
+
+
+-- TODO check dynamically whether a 'Show' instance is available, and supply a default if not.
+--debug :: Show t => Optic (Star IO) s t a b -> (a -> b) -> s -> IO ()
+--debug o = star (>>=print) o return
 
 {-
-
-
-
--- Affine PRef
---
-aff :: Affine (Either c a, d) (Either c b, d) a b
-aff = first' . right'
-
-s = (Just "hi!", 2) :: (Maybe String, Int)
-t = (Nothing, 2) :: (Maybe Int, Int)
-
-rs <- newRef @IORef @IO s
-rt <- newRef @IORef @IO t
-
-o :: Pxy IORef AffineLike Int String = Pxy (_1 . _Just) rs rt
-o' :: Pxy IORef AffineLike String String = Pxy (_1 . _Just) rs rs
-
-
-modifyPxy o' tail >> readRef rs >>= print >> readRef rt >>= print
--- (Just "i!",2)
--- (Nothing,2)
-
-modifyPxy o length >> readRef rs >>= print >> readRef rt >>= print
---(Just "i!",2)
---(Just 2,2)
-
-
--- Affine Pxy 2
---
-
-s = (Nothing, 2) :: (Maybe String, Int)
-t = (Just 4, 2) :: (Maybe Int, Int)
-
-rs <- newRef @IORef @IO s
-rt <- newRef @IORef @IO t
-
-o :: Pxy IORef AffineLike Int String = Pxy (_1 . _Just) rs rt
-o' :: Pxy IORef AffineLike String String = Pxy (_1 . _Just) rs rs
-
-
-modifyPxy o' tail >> readRef rs >>= print >> readRef rt >>= print
--- (Nothing,2)
--- (Just 4,2)
-
-modifyPxy o length >> readRef rs >>= print >> readRef rt >>= print
--- (Nothing,2)
--- (Nothing,2)
-
-
+>>>  statePRef traversed (\a -> (a+1, show a)) $ fmap Sum i
+["Sum {getSum = 1}","Sum {getSum = 2}","Sum {getSum = 3}","Sum {getSum = 4}","Sum {getSum = 5}"]
 -}
 
+pstate :: Optic (Star ((,) a)) s t a b -> (a -> (a, b)) -> s -> t
+pstate o f = star o snd f id
+
+stateC
+  :: (Foldable f, Monoid t) =>
+     Optic (Star f) s t a b -> (a -> f b) -> s -> t
+stateC o f = star o (foldMap id) f id
+
+into :: ((a -> b) -> c) -> (r -> b) -> (a -> r) -> c
+into up f = up . (f .)
+
+outof :: (c -> a -> b) -> (b -> r) -> c -> a -> r
+outof down g = (g .) . down
 
 
+star
+  :: Optic (Star f) s t a b
+  -> (f t -> r)
+  -> (c -> f b)
+  -> (a -> c)
+  -> s
+  -> r
+star o down up f = outof runStar down (o . into Star up $ f)
 
+star' :: Optic (Star f) s t a b -> (f t -> r) -> (a -> f b) -> s -> r
+star' o f g = star o f g id
 
+costar
+  :: (t -> d)
+  -> Optic (Costar f) s t a b
+  -> (c -> b)
+  -> (f a -> c)
+  -> f s
+  -> d
+costar down o up f = outof runCostar down (o . into Costar up $ f)
 
-
+costar'
+  :: Optic (Costar f) s t a b
+  -> (c -> b)
+  -> (f a -> c)
+  -> f s
+  -> t
+costar' = costar id

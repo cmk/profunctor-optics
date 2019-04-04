@@ -19,7 +19,7 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Reference.PRef
+      Data.Profunctor.Reference.PIORef
       Data.Profunctor.Reference.PMVar
       Data.Profunctor.Reference.PStream
       Data.Profunctor.Reference.Global
@@ -31,6 +31,8 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
+    , comonad
+    , mtl
     , profunctors
     , poptic
     , stm

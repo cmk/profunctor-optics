@@ -200,14 +200,14 @@ findOf p f =
 -- | Determines whether a `Fold` has at least one focus.
 --
 --has :: Optic (Forget Any) s t a b -> s -> Bool
-has :: Fold s t -> s -> Bool
+--has :: Fold s t -> s -> Bool
 has p = getAny . foldMapOf p (const (Any True))
 
 
 -- | Determines whether a `Fold` does not have a focus.
 --
 --hasnt :: Optic (Forget All) s t a b -> s -> Bool
-hasnt :: Fold s t -> s -> Bool
+--hasnt :: Fold s t -> s -> Bool
 hasnt p = getAll . foldMapOf p (const (All False))
 
 

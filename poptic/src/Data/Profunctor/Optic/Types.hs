@@ -5,9 +5,12 @@
 module Data.Profunctor.Optic.Types (
     module Data.Profunctor.Optic.Types
   , module Data.Profunctor.Optic.Types.Class
+  , swap
 ) where
 
+import Control.Arrow ((|||))
 import Data.Profunctor.Optic.Types.Class 
+import Data.Tuple (swap)
 
 --type Optical c s t a b = forall p q. c p => c q => Optic p q s t a b
 
@@ -89,6 +92,49 @@ type Closure' s a = Closure s s a a
 
 type AClosure s t a b = Optic (ClosureP a b) s t a b
 
+
+
+alongside :: Profunctor p => Optic (AlongSide p sc sd) ta tb a b -> Optic (AlongSide p a b) sc sd c d -> Optic p (ta,sc) (tb,sd) (a,c) (b,d)
+-- ^ @
+-- alongside :: Iso ta tb a b -> Iso sc sd c d -> Iso (ta,sc) (tb,sd) (a,c) (b,d)
+-- alongside :: Lens ta tb a b -> Lens sc sd c d -> Lens (ta,sc) (tb,sd) (a,c) (b,d)
+-- alongside :: To ta tb a b -> To sc sd c d -> To (ta,sc) (tb,sd) (a,c) (b,d)
+-- @
+alongside lab lcd = dimap swap swap . runAlongSide . lab . AlongSide . dimap swap swap . runAlongSide . lcd . AlongSide
+
+eitherside :: Profunctor p => Optic (EitherSide p sc sd) ta tb a b -> Optic (EitherSide p a b) sc sd c d -> Optic p (Either ta sc) (Either tb sd) (Either a c) (Either b d)
+-- ^ @
+-- eitherside :: Iso ta tb a b -> Iso sc sd c d -> Iso (Either ta sc) (Either tb sd) (Either a c) (Either b d)
+-- eitherside :: Prism ta tb a b -> Prism sc sd c d -> Lens (Either ta sc) (Either tb sd) (Either a c) (Either b d)
+-- eitherside :: Fro ta tb a b -> Fro sc sd c d -> To (Either ta sc) (Either tb sd) (Either a c) (Either b d)
+-- @
+eitherside lab lcd = dimap switch switch . runEitherSide . lab . EitherSide . dimap switch switch . runEitherSide . lcd . EitherSide
+
+newtype AlongSide p c d a b = AlongSide { runAlongSide :: p (c,a) (d,b) }
+
+instance Profunctor p => Profunctor (AlongSide p c d) where
+  dimap f g (AlongSide pab) = AlongSide $ dimap (fmap f) (fmap g) pab
+
+instance Strong p => Strong (AlongSide p c d) where
+  second' (AlongSide pab) = AlongSide . dimap shuffle shuffle . second' $ pab
+   where
+    shuffle (x,(y,z)) = (y,(x,z))
+
+instance OutPhantom p => OutPhantom (AlongSide p c d) where
+  ocoerce (AlongSide pab) = AlongSide $ ocoerce pab
+
+newtype EitherSide p c d a b = EitherSide { runEitherSide :: p (Either c a) (Either d b) }
+
+instance Profunctor p => Profunctor (EitherSide p c d) where
+  dimap f g (EitherSide pab) = EitherSide $ dimap (fmap f) (fmap g) pab
+
+instance Choice p => Choice (EitherSide p c d) where
+  right' (EitherSide pab) = EitherSide . dimap shuffle shuffle . right' $ pab
+   where
+    shuffle = Right . Left ||| (Left ||| Right . Right)
+
+instance InPhantom p => InPhantom (EitherSide p c d) where
+  icoerce (EitherSide pab) = EitherSide $ icoerce pab
 
 ---------------------------------------------------------------------
 -- 
@@ -243,7 +289,6 @@ newtype ClosureP a b s t = ClosureP { unClosureP :: ((s -> a) -> b) -> t }
 instance Profunctor (ClosureP a b) where
   dimap f g (ClosureP z) = ClosureP $ \d -> g (z $ \k -> d (k . f))
 
-
 instance Closed (ClosureP a b) where
   -- closed :: p a b -> p (x -> a) (x -> b)
   closed (ClosureP z) = ClosureP $ \f x -> z $ \k -> f $ \g -> k (g x)
@@ -385,4 +430,7 @@ instance Strong Zipped where
     first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))
 
 
+switch :: Either b a -> Either a b
+switch (Left e) = Right e
+switch (Right e) = Left e
 
