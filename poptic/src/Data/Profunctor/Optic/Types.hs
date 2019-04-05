@@ -68,21 +68,23 @@ type Fold s a = Optical' Folding s a
 
 type AffineFold s a = Optical' AffineFolding s a
 
+type Setter s t a b = Optical Mapping s t a b
+
 type Setter' s a = Setter s s a a
 
-type Setter s t a b = Optical Mapping s t a b
+type ASetter s t a b = Optic (->) s t a b 
 
 type PrimGetter s t a b = Optical OutPhantom s t a b
 
 type Getter s a = Optical' Getting s a
 
-type AGetter s a = Optic' (Star (Const a)) s a 
+type AGetter r s t a b = Optic (Star (Const r)) s t a b 
 
 type PrimReview s t a b = Optical InPhantom s t a b
 
 type Review t b = Optical' Reviewing t b
 
-type AReview t b = Optic' Tagged t b
+--type AReview t b = Optic' Tagged t b
 
 type Closure s t a b = Optical Closed s t a b
 
@@ -91,22 +93,6 @@ type Closure' s a = Closure s s a a
 type AClosure s t a b = Optic (ClosureP a b) s t a b
 
 
-
-alongside :: Profunctor p => Optic (AlongSide p sc sd) ta tb a b -> Optic (AlongSide p a b) sc sd c d -> Optic p (ta,sc) (tb,sd) (a,c) (b,d)
--- ^ @
--- alongside :: Iso ta tb a b -> Iso sc sd c d -> Iso (ta,sc) (tb,sd) (a,c) (b,d)
--- alongside :: Lens ta tb a b -> Lens sc sd c d -> Lens (ta,sc) (tb,sd) (a,c) (b,d)
--- alongside :: To ta tb a b -> To sc sd c d -> To (ta,sc) (tb,sd) (a,c) (b,d)
--- @
-alongside lab lcd = dimap swap swap . runAlongSide . lab . AlongSide . dimap swap swap . runAlongSide . lcd . AlongSide
-
-eitherside :: Profunctor p => Optic (EitherSide p sc sd) ta tb a b -> Optic (EitherSide p a b) sc sd c d -> Optic p (Either ta sc) (Either tb sd) (Either a c) (Either b d)
--- ^ @
--- eitherside :: Iso ta tb a b -> Iso sc sd c d -> Iso (Either ta sc) (Either tb sd) (Either a c) (Either b d)
--- eitherside :: Prism ta tb a b -> Prism sc sd c d -> Lens (Either ta sc) (Either tb sd) (Either a c) (Either b d)
--- eitherside :: Fro ta tb a b -> Fro sc sd c d -> To (Either ta sc) (Either tb sd) (Either a c) (Either b d)
--- @
-eitherside lab lcd = dimap switch switch . runEitherSide . lab . EitherSide . dimap switch switch . runEitherSide . lcd . EitherSide
 
 newtype AlongSide p c d a b = AlongSide { runAlongSide :: p (c,a) (d,b) }
 
@@ -120,6 +106,35 @@ instance Strong p => Strong (AlongSide p c d) where
 
 instance OutPhantom p => OutPhantom (AlongSide p c d) where
   ocoerce (AlongSide pab) = AlongSide $ ocoerce pab
+
+-- ^ @
+-- alongside :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
+-- alongside :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+-- alongside :: To s t a b -> To s' t' a' b' -> To (s, s') (t, t') (a, a') (b, b')
+-- @
+alongside 
+  :: Profunctor p 
+  => Optic (AlongSide p s' t') s t a b 
+  -> Optic (AlongSide p a b) s' t' a' b' 
+  -> Optic p (s, s') (t, t') (a, a') (b, b')
+alongside lab lcd = 
+  dimap swap swap . runAlongSide . lab . AlongSide . 
+  dimap swap swap . runAlongSide . lcd . AlongSide
+
+-- ^ @
+-- eitherside :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
+-- eitherside :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
+-- eitherside :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- @
+eitherside 
+  :: Profunctor p 
+  => Optic (EitherSide p s' t') s t a b 
+  -> Optic (EitherSide p a b) s' t' a' b' 
+  -> Optic p (Either s s') (Either t t') (Either a a') (Either b b')
+eitherside lab lcd = 
+  dimap switch switch . runEitherSide . lab . EitherSide . 
+  dimap switch switch . runEitherSide . lcd . EitherSide
+
 
 newtype EitherSide p c d a b = EitherSide { runEitherSide :: p (Either c a) (Either d b) }
 
@@ -335,6 +350,23 @@ instance Choice (Previewed r) where
 instance Strong (Previewed r) where
     first' (Previewed p) = Previewed (p . fst)
 
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+
+newtype Pre a b = Pre { runPre :: Maybe a }
+
+instance Phantom (Pre a) where coerce (Pre p) = (Pre p)
+
+instance Functor (Pre a) where
+    fmap f (Pre p) = Pre p
+
+instance Semigroup a => Applicative (Pre a) where
+    pure _ = Pre $ mempty
+
+    (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
 
 ---------------------------------------------------------------------
 -- 

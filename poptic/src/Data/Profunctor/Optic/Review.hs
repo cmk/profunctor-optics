@@ -2,7 +2,6 @@ module Data.Profunctor.Optic.Review
   (
   -- * Reviewing
     Review
-  , AReview
   , PrimReview
   , unto
   , un
@@ -18,7 +17,6 @@ module Data.Profunctor.Optic.Review
 --import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
-import Data.Tagged
 ------------------------------------------------------------------------------
 -- Review
 ------------------------------------------------------------------------------
@@ -49,6 +47,35 @@ unto f = icoerce . rmap f
 -- 3
 --un :: Optic (Forget a) s t a b -> Review a s --Optic p a a s s
 un o = unto . foldMapOf o id
+
+infixr 8 #
+
+-- | An infix alias for 'review'.
+--
+-- @
+-- 'unto' f # x ≡ f x
+-- l # x ≡ x '^.' 're' l
+-- @
+--
+-- This is commonly used when using a 'Prism' as a smart constructor.
+--
+-- >>> _Left # 4
+-- Left 4
+--
+-- But it can be used for any 'Prism'
+--
+-- >>> base 16 # 123
+-- "7b"
+--
+-- @
+-- (#) :: 'Iso''      s a -> a -> s
+-- (#) :: 'Prism''    s a -> a -> s
+-- (#) :: 'Review'    s a -> a -> s
+-- (#) :: 'Equality'' s a -> a -> s
+-- @
+( # ) :: Review t b -> b -> t
+( # ) o b = review o b
+{-# INLINE ( # ) #-}
 
 {-
 
@@ -111,33 +138,6 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE review #-}
 
 
-infixr 8 #
 
--- | An infix alias for 'review'.
---
--- @
--- 'unto' f # x ≡ f x
--- l # x ≡ x '^.' 're' l
--- @
---
--- This is commonly used when using a 'Prism' as a smart constructor.
---
--- >>> _Left # 4
--- Left 4
---
--- But it can be used for any 'Prism'
---
--- >>> base 16 # 123
--- "7b"
---
--- @
--- (#) :: 'Iso''      s a -> a -> s
--- (#) :: 'Prism''    s a -> a -> s
--- (#) :: 'Review'    s a -> a -> s
--- (#) :: 'Equality'' s a -> a -> s
--- @
-( # ) :: AReview t b -> b -> t
-( # ) p = runIdentity #. unTagged #. p .# Tagged .# Identity
-{-# INLINE ( # ) #-}
 
 -}

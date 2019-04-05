@@ -16,8 +16,9 @@ module Data.Profunctor.Optic.Types.Class (
 
 
 import Data.Bifunctor                  as Export
+import Data.Bifunctor.Product          as Export
 import Data.Distributive               as Export
-import Data.Tagged                     as Export
+--import Data.Tagged                     as Export
 import Data.Functor.Const              as Export
 import Data.Functor.Identity           as Export
 import Data.Profunctor                 as Export
@@ -86,14 +87,6 @@ instance (OutPhantom p, Traversing p) => Folding p
 
 class (OutPhantom p, Choice p, Traversing p) => AffineFolding p
 instance (OutPhantom p, Choice p, Traversing p) => AffineFolding p
-
-
-
-
-data ProProduct p q a b = ProProduct { upper :: p a b, lower :: q a b}
-
-instance (Profunctor p, Profunctor q) => Profunctor (ProProduct p q) where
-  dimap f g (ProProduct u l) = ProProduct (dimap f g u) (dimap f g l)
 
 
 

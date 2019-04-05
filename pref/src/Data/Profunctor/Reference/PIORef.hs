@@ -5,7 +5,7 @@ module Data.Profunctor.Reference.PIORef where
 import Data.IORef
 import Data.Monoid
 import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Types
+import Data.Profunctor.Reference.Optic
 import Data.Profunctor.Reference.Global
 
 import Data.Tuple (swap)
@@ -129,7 +129,7 @@ k = PRef swapped y xm
 
 ji :: PRef Profunctor IORef IORef (Int, String) (Int, String)
 ji = j >>> i
-
+{-
 -- category instance requires that rs / rt be fixed
 ki :: PRef Profunctor MVar IORef (Int, String) (Int, String)
 ki = k `compose_pxy` i
@@ -160,6 +160,7 @@ kij = k `compose_pxy` ij
 
 foo :: PRef Profunctor y s (String, Int) a  -> PRef Profunctor MVar s (Int, String) a
 foo = (k `compose_pxy`)
+-}
 
 len :: [a] -> Int
 len = length 
@@ -219,18 +220,20 @@ newLocalPIORef' o s = newLocalPIORef o s s
 --  Reading 'PIORef's
 ---------------------------------------------------------------------
 
+
 -- | Read a value from a 'PIORef'.
 --
 --
 readPIORef 
-  :: c (Forget a)
+  :: c (Star (Const a)) 
   => PIORef c b a 
   -> IO a
 readPIORef (PRef o s _) = view o <$> readIORef s
 
+
 -- | Read a value from a 'PIORef' with profunctorial choice.
 previewPIORef 
-  :: c (Previewed a)
+  :: c (Star (Const (First a)))
   => PIORef c b a 
   -> IO (Maybe a)
 previewPIORef (PRef o s _) = preview o <$> readIORef s 
@@ -241,7 +244,7 @@ previewPIORef (PRef o s _) = preview o <$> readIORef s
 -- If the read and write refs are the same then this function reduces
 -- to 'previewPIORef' with the overhead of an extra io operation.
 matchPIORef
-  :: c (Matched a)
+  :: c (Star (Either a))
   => PIORef c b a 
   -> IO (Maybe a)
 matchPIORef (PRef o rs rt) =
@@ -254,7 +257,7 @@ matchPIORef (PRef o rs rt) =
 
 
 foldMapOfPIORef
-  :: c (Forget r)
+  :: c (Star (Const r))
   => PIORef c b a 
   -> (a -> r)
   -> IO r
@@ -262,7 +265,7 @@ foldMapOfPIORef (PRef o rs _) f = foldMapOf o f <$> readIORef rs
 
 
 -- sumPIORef?
-sumOfPIORef :: c (Forget (Sum a)) => PIORef c b a -> IO a
+sumOfPIORef :: c (Star (Const (Sum a))) => PIORef c b a -> IO a
 sumOfPIORef r = getSum <$> foldMapOfPIORef r Sum
 
 
@@ -275,7 +278,7 @@ sumOfPIORef r = getSum <$> foldMapOfPIORef r Sum
 --
 -- Use this with 'Choice'-constrained optics.  Use 'modifyPIORef' with
 -- a constant argument to modify lens-like optics.
-writePIORef :: c Tagged => PIORef c b a -> b -> IO ()
+writePIORef :: c (Costar (Const b)) => PIORef c b a -> b -> IO ()
 writePIORef (PRef o _ rt) b = writeIORef rt . review o $ b
 
 
@@ -344,6 +347,8 @@ modifyPIORef
   -> IO ()
 modifyPIORef (PRef o rs rt) f = readIORef rs >>= writeIORef rt . over o f
 
+
+
 -- | Strict variant of 'modifyPIORef'. This forces both the value stored
 --
 -- as well as the value returned. This function is atomic when r is a 
@@ -353,6 +358,7 @@ modifyPIORef' (PRef o rs rt) f =
   do s <- readIORef rs
      let t = over o f s
      t `seq` writeIORef rt t
+
 
 -- TODO more like foldState
 atomicModifyPIORef'
@@ -383,7 +389,7 @@ review :: Optic Tagged s t a b -> b -> t
 review = through Tagged unTagged
 
 -- | 'view o == foldMapOf o id'
-view :: Optic (Forget a) s t a b -> s -> a
+view :: Optic (Star (Const a)) s t a b -> s -> a
 view o = (through Forget runForget) o id
 
 match :: Optic (Matched a) s t a b -> s -> Either t a

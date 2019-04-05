@@ -8,6 +8,7 @@ import Data.Profunctor.Optic.Types
 
 import Data.Profunctor.Types as Export
 
+
 {- hedgehog predicates
 fromTo :: Eq s => IsoP s s a a -> s -> Bool
 fromTo (IsoP f t) s = (t . f) s == s
@@ -59,10 +60,10 @@ from l = withIso l $ \ sa bt -> iso bt sa
 -- ^ @
 -- from' :: Iso b a t s -> Iso s t a b
 -- @
-from' :: Optic (ProProduct (Star (Const t)) (Costar (Const s))) b a t s -> Iso s t a b
+from' :: Optic (Product (Star (Const t)) (Costar (Const s))) b a t s -> Iso s t a b
 from' o = iso (review . Const) (getConst . get) 
   where  
-    ProProduct (Star get) (Costar review) = o (ProProduct (Star Const) (Costar getConst))
+    Pair (Star get) (Costar review) = o (Pair (Star Const) (Costar getConst))
 
 ---------------------------------------------------------------------
 -- Common isos

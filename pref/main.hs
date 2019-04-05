@@ -1,4 +1,4 @@
-{-# LANGUAGE CPPRef #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ImplicitParams #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
@@ -20,7 +20,7 @@ import qualified GHC.SrcLoc as GHC
 import qualified GHC.Stack as GHC
 
 import Data.Void
-import Data.Profunctor.Reference.Types
+import Data.Profunctor.Reference.Optic
 import Data.Profunctor.Reference.PIORef
 import Data.Profunctor.Optic
 

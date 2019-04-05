@@ -39,11 +39,12 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
+    , bifunctors
     , constraints
     , distributive
     , mtl
     , profunctors
-    , tagged
+    , validation
 
 test-suite doctests
   type:          exitcode-stdio-1.0

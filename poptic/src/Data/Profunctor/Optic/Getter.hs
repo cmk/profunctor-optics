@@ -5,7 +5,8 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Operators
 import Data.Profunctor.Optic.Prism (_Just)
 
-
+import Control.Monad.Writer as Writer
+import Control.Monad.State as State
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> import Data.Profunctor.Optic.Types 
@@ -54,11 +55,11 @@ to :: (s -> a) -> PrimGetter s t a b
 to f = ocoerce . lmap f
 {-# INLINE to #-}
 
-
-getPreview :: Optic (Previewed a) s t a b -> PrimGetter s s (Maybe a) (Maybe a)
+{-
+getPreview :: Optic (Star (Pre a)) s t a b -> PrimGetter s s (Maybe a) (Maybe a)
 getPreview = to . preview
 {-# INLINE getPreview  #-}
-
+-}
 
 
 -- | Build an constant-valued (index-preserving) 'Getter' from an arbitrary value.
@@ -69,7 +70,7 @@ getPreview = to . preview
 -- a '^.' 'like' b ≡ a '^.' 'to' ('const' b)
 -- @
 --
--- This can be useful as a second case 'failing' a 'Fold'
+-- This can be usefusl as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
 like :: a -> PrimGetter s s a a
 like a = to (const a)
@@ -92,5 +93,28 @@ getJust o = o . _Just
 ---------------------------------------------------------------------
 
 infixl 8 ^.
-(^.) :: s -> Optic (Star (Const a)) s t a b -> a
+(^.) :: s -> AGetter a s t a b -> a
 (^.) s o = foldMapOf o id s
+
+use :: MonadState s m => AGetter a s t a b -> m a
+use l = State.gets (view l)
+
+
+-- | Extracts the portion of a log that is focused on by a 'Getter'. 
+--
+-- Given a 'Fold' or a 'Traversal', then a monoidal summary of the parts 
+-- of the log that are visited will be returned.
+--
+-- @
+-- 'listening' :: 'MonadWriter' w m             => 'Getter' w u     -> m a -> m (a, u)
+-- 'listening' :: 'MonadWriter' w m             => 'Lens'' w u      -> m a -> m (a, u)
+-- 'listening' :: 'MonadWriter' w m             => 'Iso'' w u       -> m a -> m (a, u)
+-- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Fold' w u       -> m a -> m (a, u)
+-- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
+-- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
+-- @
+--listening :: MonadWriter w m => Getting u w u -> m a -> m (a, u)
+listening l m = do
+  (a, w) <- Writer.listen m
+  return (a, view l w)
+{-# INLINE listening #-}

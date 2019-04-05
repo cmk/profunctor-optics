@@ -23,7 +23,8 @@ library
       Data.Profunctor.Reference.PMVar
       Data.Profunctor.Reference.PStream
       Data.Profunctor.Reference.Global
-      Data.Profunctor.Reference.Types
+      Data.Profunctor.Reference.Optic
+      Data.Profunctor.Reference.Simple
 
   hs-source-dirs:
       src

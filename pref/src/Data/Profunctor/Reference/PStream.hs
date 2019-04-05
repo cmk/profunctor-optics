@@ -1,9 +1,10 @@
-{-# LANGUAGE TemplateHaskell, CPPRef #-}
+{-# LANGUAGE TemplateHaskell, CPP #-}
 
 module Data.Profunctor.Reference.PStream where
 
+import Data.Monoid
 import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Types
+import Data.Profunctor.Reference.Optic
 import Data.Profunctor.Reference.Global
 
 import Control.Monad.IO.Unlift
@@ -103,7 +104,7 @@ supplyPStream (PRef o rs rt) f = liftIO $ loop
 
 previewPStream 
   :: MonadIO m 
-  => c (Previewed a)
+  => c (Star (Const (First a)))
   => PStream c b a 
   -> m (Maybe a)
 previewPStream (PRef o rs _) =
@@ -119,7 +120,7 @@ previewPStream (PRef o rs _) =
 
 previewPStream'
   :: MonadIO m 
-  => c (Previewed a)
+  => c (Star (Const (First a)))
   => PStream c b a 
   -> m (Maybe a)
 previewPStream' (PRef o rs _) = 
@@ -137,7 +138,7 @@ previewPStream' (PRef o rs _) =
 
 matchPStream
   :: MonadIO m 
-  => c (Matched a)
+  => c (Star (Either a))
   => PStream c b a 
   -> m (Maybe a)
 matchPStream (PRef o rs rt) = 
@@ -157,7 +158,7 @@ matchPStream (PRef o rs rt) =
 
 matchPStream'
   :: MonadIO m 
-  => c (Matched a)
+  => c (Star (Either a))
   => PStream c b a 
   -> m (Maybe a)
 matchPStream' (PRef o rs rt) = error "TODO"
@@ -165,7 +166,7 @@ matchPStream' (PRef o rs rt) = error "TODO"
 
 readPrism 
   :: Monad m 
-  => Optic (Previewed a) s t a b 
+  => Optic (Star (Const (First a))) s t a b 
   -> Maybe s 
   -> m (Maybe a)
 readPrism o = return . (>>= preview o)
