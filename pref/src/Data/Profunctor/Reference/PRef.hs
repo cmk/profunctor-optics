@@ -17,11 +17,8 @@ module Data.Profunctor.Reference.PRef (
 
 
 import Control.Monad.Reader (MonadReader(..), asks)
-import Control.Monad.State  (MonadState(..), gets)
-import Control.Monad.Writer (MonadWriter(..))
 import Control.Monad.IO.Unlift
-import Data.StateVar as Export
--- (HasGetter(..), HasSetter(..), HasUpdate(..), ($=), ($=!), ($~), ($~!))
+import Data.StateVar as Export (HasGetter(..), HasSetter(..), HasUpdate(..), ($=), ($=!), ($~), ($~!))
 import Data.Profunctor.Optic
 
 import qualified Data.IORef as IOR
@@ -46,7 +43,7 @@ The type variables signify:
 
   * @c@ - The constraint determining which operations can be performed.
 
-  * @rs@ - The read container reference (e.g. 'MVar', 'IO', 'IORef' etc.).
+  * @rs@ - The read container reference (e.g. 'MVar', 'IORef' etc.).
 
   * @a@ - The exposed read / write type.
 
@@ -59,6 +56,8 @@ dimap' :: (b' -> b) -> (a -> a') -> PRef Profunctor rs b a -> PRef Profunctor rs
 dimap' bs sa (PRef o rs) = PRef (o . dimap sa bs) rs
 
 instance Profunctor (PRef Profunctor rs) where dimap = dimap'
+
+
 
 instance (forall s . HasGetter (rs s) s) => HasGetter (PRef Getting rs b a) a where
 
@@ -77,7 +76,6 @@ instance (forall s. HasUpdate (rs s) s s) => HasUpdate (PRef Mapping rs b a) a b
   (PRef o rs) $~! f = liftIO $ rs $~! over o f
 
 
---instance Functor (PRef Profunctor rs) where fmap f (PRef o rs) = PRef (o . dimap id f) rs
 
 -- | Unbox a 'Pxy' by providing an existentially quantified continuation.
 withPRef
@@ -100,7 +98,8 @@ atomicModifyPRef (PRef o rs) f = atomicModifyRef' rs ssa
 
 -}
 
-
+has :: MonadReader r m => c (Star (Const a)) => PRef c ((->) r) b a -> m a
+has (PRef o rs) = view o <$> asks rs
 
 
 
@@ -131,76 +130,4 @@ s = PRef _1 t
 
 --getInt = get @(PRef Strong IORef Int)
 
-{-
 
-instance MonadState a (R.ReaderT (PRef Strong IORef a) IO)  where 
-
-  get = do
-    ref <- R.ask
-    readPIORef ref
-
-  put a = do
-    ref <- R.ask
-    liftIO $ modifyPIORef ref (const a)
-
-foo :: R.ReaderT (PRef Strong IORef Int) IO Int
-foo = do
-  a <- get @Int
-  put (a+1)
-  b <- get @Int
-  return b
-
-use :: MonadState s m => AGetter a s t a b -> m a
-use l = State.gets (view l)
-
-
-getex :: MonadState s m => c (Star (Const a)) => PRefs c rt ((->) s) b a -> m a
-getex (PRefs o rs _) = view o <$> gets rs
-
-puts :: MonadState s m => (a -> s) -> a -> m ()
-puts f = put . f
-
-putex :: MonadState s m => c (Star (Const a)) => PRefs c rt ((->) s) b a -> m a
-putex p@(PRefs o _ rt) = getex p >>= view o <$> gets rs
-instance (MonadIO m, MonadReader (PIORef Strong b a) m, Monoid b) => MonadWriter b m where 
-
-  tell b = do
-    ref <- ask
-    liftIO $ modifyPIORef' ref (const b) --TODO `mappend` 
-
-  pass act = do
-    (a, f) <- act
-    ref <- ask
-    liftIO $ modifyPIORef' ref f
-    return a
-{-
-  listen act = do
-    w1 <- ask >>= liftIO . readPIORef
-    a <- act
-    w2 <- do
-      ref <- ask
-      v <- liftIO $ readPIORef ref
-      _ <- liftIO $ modifyPIORef' ref (const w1)
-      return v
-    return (a, w2)
--}
-
-
-censoring
-  :: MonadWriter s m 
-  => Optic (->) s s a b -> (a -> b) -> m c -> m c
-
-data PRef c rs a = forall x . PRef (Optical' c x a) !(rs x)
--}
-
-
---instance  (forall s . MonadState s m, MonadUnliftIO m) => MonadState (PRef Mapping m a) m where
-
-uses :: MonadState s m => AGetter a s t a b -> m a
-uses l = gets (view l)
-
--- e.g. b -> IO () 
---c (Costar (Const b)) => PRefs c (Star m b) rs b a 
---  PRefs o _ f = f b >> return ()
-tellex :: MonadWriter w m => c (Costar (Const a)) => PRef c rs b a -> a -> m () 
-tellex (PRef o rs) a = undefined 

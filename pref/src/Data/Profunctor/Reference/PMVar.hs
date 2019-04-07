@@ -44,7 +44,7 @@ type PMVar c b a = PRef c MVar b a
 
 {-# INLINE newPMVar #-}
 
-newPMVar :: MonadIO m => Optical' c s a -> s -> m (PMVar c a)
+newPMVar :: MonadIO m => Optical c s s a b -> s -> m (PMVar c b a)
 newPMVar o s = liftIO $ (PRef o) <$> M.newMVar s
 
 
@@ -53,9 +53,9 @@ newPMVar o s = liftIO $ (PRef o) <$> M.newMVar s
 {-# INLINE newEmptyPMVar #-}
 
 newEmptyPMVar 
-  :: forall m c s a. MonadIO m
-  => Optical' c s a
-  -> m (PMVar c a)
+  :: forall m c s a b. MonadIO m
+  => Optical c s s a b
+  -> m (PMVar c b a)
 newEmptyPMVar o = liftIO $ (PRef o) <$> M.newEmptyMVar @s
 
 
@@ -66,7 +66,7 @@ newEmptyPMVar o = liftIO $ (PRef o) <$> M.newEmptyMVar @s
 
 -- | Check whether a 'PMVar' is currently empty.
 
-isEmptyPMVar :: MonadIO m => PMVar c a -> m Bool
+isEmptyPMVar :: MonadIO m => PMVar c b a -> m Bool
 isEmptyPMVar (PRef _ rs) = liftIO $ M.isEmptyMVar rs
 
 
@@ -75,7 +75,7 @@ isEmptyPMVar (PRef _ rs) = liftIO $ M.isEmptyMVar rs
 -- If the 'MVar' is currently empty, 'takeMVar' will wait until it is 
 -- full.  After a 'takePMVar', the read-only 'MVar' is left empty.
 
-takePMVar :: MonadIO m => c (Star (Const a)) => PMVar c a -> m a
+takePMVar :: MonadIO m => c (Star (Const a)) => PMVar c b a -> m a
 takePMVar (PRef o rs) = liftIO $ view o <$> M.takeMVar rs
 
 
@@ -85,7 +85,7 @@ takePMVar (PRef o rs) = liftIO $ view o <$> M.takeMVar rs
 -- the underlying 'MVar' was empty, or @'Just' a@ if it was full with 
 -- contents @s@.  After 'tryTakeMVar', the 'MVar' is left empty.
 
-tryTakePMVar :: MonadIO m => c (Star (Const a)) => PMVar c a -> m (Maybe a)
+tryTakePMVar :: MonadIO m => c (Star (Const a)) => PMVar c b a -> m (Maybe a)
 tryTakePMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
 
 
@@ -98,7 +98,7 @@ tryTakePMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
 readPMVar 
   :: MonadIO m 
   => c (Star (Const a))
-  => PMVar c a 
+  => PMVar c b a 
   -> m a
 readPMVar (PRef o rs) = liftIO $ view o <$> M.readMVar rs
 
@@ -113,7 +113,7 @@ readPMVar (PRef o rs) = liftIO $ view o <$> M.readMVar rs
 previewPMVar
   :: MonadIO m 
   => c (Star (Const (First a)))
-  => PMVar c a 
+  => PMVar c b a 
   -> m (Maybe a)
 previewPMVar (PRef o rs) = liftIO $ preview o <$> M.readMVar rs
 
@@ -123,7 +123,7 @@ previewPMVar (PRef o rs) = liftIO $ preview o <$> M.readMVar rs
 tryReadPMVar
   :: MonadIO m 
   => c (Star (Const a))
-  => PMVar c a 
+  => PMVar c b a 
   -> m (Maybe a)
 tryReadPMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryReadMVar rs
 
@@ -137,7 +137,7 @@ tryReadPMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryReadMVar rs
 tryPreviewPMVar
   :: MonadIO m 
   => c (Star (Const (First a)))
-  => PMVar c a 
+  => PMVar c b a 
   -> m (Maybe a)
 tryPreviewPMVar (PRef o rs) = liftIO $ (>>= preview o) <$> M.tryReadMVar rs
 
@@ -155,7 +155,7 @@ tryPreviewPMVar (PRef o rs) = liftIO $ (>>= preview o) <$> M.tryReadMVar rs
 withPMVar 
   :: MonadUnliftIO m 
   => c (Star (Const a))
-  => PMVar c a 
+  => PMVar c b a 
   -> (a -> m r) 
   -> m r
 withPMVar (PRef o rs) f = 
@@ -170,7 +170,7 @@ withPMVar (PRef o rs) f =
 withPMVarMasked 
   :: MonadUnliftIO m 
   => c (Star (Const a))
-  => PMVar c a 
+  => PMVar c b a 
   -> (a -> m r) 
   -> m r
 withPMVarMasked (PRef o rs) f = 
@@ -188,9 +188,9 @@ withPMVarMasked (PRef o rs) f =
 
 putPMVar
   :: MonadIO m 
-  => c (Costar (Const a)) 
-  => PMVar c a 
-  -> a 
+  => c (Costar (Const b)) 
+  => PMVar c b a 
+  -> b
   -> m ()
 putPMVar (PRef o rs) a = liftIO $ M.putMVar rs . review o $ a
 
@@ -203,9 +203,9 @@ putPMVar (PRef o rs) a = liftIO $ M.putMVar rs . review o $ a
 
 tryPutPMVar
   :: MonadIO m 
-  => c (Costar (Const a))
-  => PMVar c a 
-  -> a 
+  => c (Costar (Const b))
+  => PMVar c b a 
+  -> b
   -> m Bool
 tryPutPMVar (PRef o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
 
@@ -218,9 +218,9 @@ tryPutPMVar (PRef o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
 swapPMVar 
   :: MonadIO m
   => c (Star (Const a)) 
-  => c (Costar (Const a))
-  => PMVar c a 
-  -> a 
+  => c (Costar (Const b))
+  => PMVar c b a 
+  -> b 
   -> m a
 swapPMVar (PRef o rs) a = liftIO $ 
      view o <$> (M.swapMVar rs . review o $ a)
@@ -238,8 +238,8 @@ swapPMVar (PRef o rs) a = liftIO $
 modifyPMVar_ 
   :: MonadUnliftIO m
   => c (Star m)
-  => PMVar c a
-  -> (a -> m a) 
+  => PMVar c b a
+  -> (a -> m b) 
   -> m ()
 modifyPMVar_ (PRef o rs) f = 
      withRunInIO $ \run -> M.modifyMVar_ rs (run . traverseOf o f)
@@ -253,8 +253,8 @@ modifyPMVar
   :: MonadUnliftIO m
   => c (Star m)
   => c (Star (Const a))
-  => PMVar c a
-  -> (a -> m (a, r)) 
+  => PMVar c b a
+  -> (a -> m (b, r)) 
   -> m r
 modifyPMVar (PRef o rs) f =
  let l = (fmap . fmap) fst f
@@ -273,8 +273,8 @@ modifyPMVar (PRef o rs) f =
 modifyPMVarMasked_ 
   :: MonadUnliftIO m
   => c (Star m)
-  => PMVar c a
-  -> (a -> m a) 
+  => PMVar c b a
+  -> (a -> m b) 
   -> m ()
 modifyPMVarMasked_ (PRef o rs) f = 
      withRunInIO $ \run -> M.modifyMVarMasked_ rs (run . traverseOf o f)
@@ -288,8 +288,8 @@ modifyPMVarMasked
   :: MonadUnliftIO m
   => c (Star m)
   => c (Star (Const a))
-  => PMVar c a
-  -> (a -> m (a, r)) 
+  => PMVar c b a
+  -> (a -> m (b, r)) 
   -> m r
 modifyPMVarMasked (PRef o rs) f =
  let l = (fmap . fmap) fst f

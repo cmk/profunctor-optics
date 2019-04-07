@@ -77,7 +77,7 @@ ploggers :: PIORefs Mapping (LogLevel, LogStr) ()
 ploggers = PRefs optic loggers loggers 
 
 logWith :: ToLogStr msg => LogLevel -> msg -> IO ()
-logWith ll msg = modifyPIORef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
+logWith ll msg = modifyPIORefs' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
 
 logPureWith :: ToLogStr msg => LogLevel -> msg -> a -> a
 logPureWith ll msg expr = unsafePerformIO (logWith ll msg) `seq` expr

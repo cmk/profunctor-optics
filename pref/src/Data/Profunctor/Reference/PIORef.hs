@@ -2,17 +2,17 @@
 
 module Data.Profunctor.Reference.PIORef where
 
-impors Data.IORef
-impors Data.Monoid
-impors Data.Profunctor.Optic
-impors Data.Profunctor.Reference.PRef
-impors Data.Profunctor.Reference.Global
+import Data.IORef
+import Data.Monoid
+import Data.Profunctor.Optic
+import Data.Profunctor.Reference.PRef
+import Data.Profunctor.Reference.Global
 
-impors Data.Tuple (swap)
-impors Control.Category ((>>>),(<<<))
+import Data.Tuple (swap)
+import Control.Category ((>>>),(<<<))
+import Control.Monad.IO.Unlift
 
-
-impors Control.Monad.Trans.Reader
+import Control.Monad.Trans.Reader
 
 
 type PIORef c b a = PRef c IORef b a
@@ -26,11 +26,10 @@ type PIORef c b a = PRef c IORef b a
 -- The optic argument is exposed for completeness, but in most cases
 -- should be set to 'id'.
 newLocalPIORef 
-  :: Optical c s t a b 
+  :: Optical c s s a b 
   -> s 
-  -> t
   -> IO (PIORef c b a)
-newLocalPIORef o s t = (PRef o) <$> newIORef s <*> newIORef t
+newLocalPIORef o s = (PRef o) <$> newIORef s 
 
 
 ---------------------------------------------------------------------
@@ -158,12 +157,12 @@ writePIORef (PRef o rs) b = writeIORef rs . review o $ b
 -- ["ohhi","ohthere"]
 --
 modifyPIORef 
-  :: c (->)
+  :: MonadIO m
+  => c (->)
   => PIORef c b a 
   -> (a -> b) 
-  -> IO ()
-modifyPIORef (PRef o rs) f = readIORef rs >>= writeIORef rs . over o f
-
+  -> m ()
+modifyPIORef (PRef o rs) f = liftIO $ modifyIORef rs (over o f)
 
 
 -- | Strict variant of 'modifyPIORef'. This forces both the value stored
@@ -176,7 +175,7 @@ modifyPIORef' (PRef o rs) f =
      let t = over o f s
      t `seq` writeIORef rs t
 
-
+{-
 -- TODO more like foldState
 atomicModifyPIORef'
   :: c (Star ((,) a))
@@ -188,4 +187,4 @@ atomicModifyPIORef' (PRef o rs) f =
      let t = pstate o f s
      t `seq` writeIORef rs t
 
-
+-}

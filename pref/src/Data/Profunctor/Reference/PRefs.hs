@@ -65,9 +65,9 @@ The type variables signify:
 
   * @c@ - The constraint determining which operations can be performed.
 
-  * @rt@ - The write container reference (e.g. 'MVar', 'IO', 'IORef' etc.).
+  * @rt@ - The write container reference (e.g. 'MVar', 'IORef' etc.).
 
-  * @rs@ - The read container reference (e.g. 'MVar', 'IO', 'IORef' etc.).
+  * @rs@ - The read container reference (e.g. '(-> r)', 'MVar', 'IORef' etc.).
 
   * @b@ - The exposed (contravariant) write-only type.
 

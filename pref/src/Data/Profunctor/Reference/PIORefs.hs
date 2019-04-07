@@ -5,7 +5,7 @@ module Data.Profunctor.Reference.PIORefs where
 import Data.IORef
 import Data.Monoid
 import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Optic
+import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
 
 import Data.Tuple (swap)
@@ -189,6 +189,8 @@ o_ty = PRefs _2 t y
 
 -}
 
+
+type PIORefs c b a = PRefs c IORef IORef b a
 
 ---------------------------------------------------------------------
 --  Creating 'PIORefs's

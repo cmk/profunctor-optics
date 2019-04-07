@@ -4,7 +4,7 @@ module Data.Profunctor.Reference.PStreams where
 
 import Data.Monoid
 import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Optic
+import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
 import Data.Void
 
