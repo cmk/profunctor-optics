@@ -33,17 +33,17 @@ folding' f = traverse' . cimap f f
 -}
 {-
 -- | Folds over a `Foldable` container.
-folded :: Foldable f => Monoid r => AGetter r (f a) t a b
+folded :: Foldable f => Monoid r => AGetter r (f a) a
 folded (Star Const) = undefined --Star $ Const . foldMap a
 
 -- | Replicates the elements of a fold.
-replicated :: Monoid r => Int -> AGetter r s t a b
+replicated :: Monoid r => Int -> AGetter r s a
 replicated i (Star (Const a)) = Star (Const (go i a))
   where go 0 _ = mempty
         go n x = x <> go (n - 1) x
 
 -- | Builds a `Fold` using an unfold.
-unfolded :: Monoid r => (s -> Maybe (a, s)) -> AGetter r s t a b
+unfolded :: Monoid r => (s -> Maybe (a, s)) -> AGetter r s a
 unfolded f p = Star (Const go)
   where
   go = maybe mempty (\(a, sn) -> runStar (Const p a <> go sn) . f)
@@ -141,13 +141,13 @@ firstOf l = getFirst . foldMapOf l (First . pure)
 
 preview 
   :: MonadReader s m 
-  => AGetter (First a) s t a b  --Optic (Star (Pre a)) s t a b 
+  => AGetter (First a) s t a b --Optic (Star (Pre a)) s t a b 
   -> m (Maybe a)
 preview o = Reader.asks $ firstOf o
 
 preuse 
   :: MonadState s m 
-  => AGetter (First a) s t a b  --Optic (Star (Pre a)) s t a b  
+  => AGetter (First a) s t a b --Optic (Star (Pre a)) s t a b  
   -> m (Maybe a)
 preuse o = State.gets (preview o)
 
@@ -164,13 +164,13 @@ productOf l = getProduct . foldMapOf l Product
 allOf :: AGetter All s t a b -> (a -> Bool) -> s -> Bool
 allOf l p = getAll . foldMapOf l (All . p)
 
-anyOf :: Optic (Star (Const Any)) s t a b -> (a -> Bool) -> s -> Bool
+anyOf :: AGetter Any s t a b -> (a -> Bool) -> s -> Bool
 anyOf l p = getAny . foldMapOf l (Any . p)
 
 lengthOf :: Num r => Optic (Star (Const (Sum r))) s t a b -> s -> r
 lengthOf l = getSum . foldMapOf l (const (Sum 1))
 
-nullOf :: Optic (Star (Const All)) s t a b -> s -> Bool
+nullOf :: AGetter All s t a b -> s -> Bool
 nullOf l = allOf l (const False)
 
 -- | Right fold over a 'Fold'.
@@ -189,15 +189,15 @@ traverseOf_ p f = foldrOf p (\a f' -> (() <$) (f a) *> f') $ pure ()
 
 sequenceOf_
   :: Applicative f 
-  => AGetter (Endo (f ())) s t (f x) b -> s -> f ()
+  => AGetter (Endo (f ())) s t (f a) b -> s -> f ()
 sequenceOf_ p = traverseOf_ p id
 
 -- | Whether a `Fold` contains a given element.
-elemOf :: Eq a => Optic (Star (Const Any)) s t a b -> a -> s -> Bool
+elemOf :: Eq a => AGetter Any s t a b -> a -> s -> Bool
 elemOf p a = anyOf p (== a)
 
 -- | Whether a `Fold` not contains a given element.
-notElemOf :: Eq a => Optic (Star (Const All)) s t a b -> a -> s -> Bool
+notElemOf :: Eq a => AGetter All s t a b -> a -> s -> Bool
 notElemOf p a = allOf p (/= a)
 
 -- | Find the first focus of a `Fold` that satisfies a predicate, if there is any.

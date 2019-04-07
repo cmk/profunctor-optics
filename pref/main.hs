@@ -20,8 +20,8 @@ import qualified GHC.SrcLoc as GHC
 import qualified GHC.Stack as GHC
 
 import Data.Void
-import Data.Profunctor.Reference.Optic
-import Data.Profunctor.Reference.PIORef
+import Data.Profunctor.Reference.PRefs
+import Data.Profunctor.Reference.PIORefs
 import Data.Profunctor.Optic
 
 main :: IO ()
@@ -51,7 +51,7 @@ TODO other examples-
 
 operate directly on PRefs w/ optics! they are profunctors after all 
 
-can i make a profunctor w/ either s or t as well? then we could play with::  through PRef unPRef
+can i make a profunctor w/ either s or t as well? then we could play with::  through PRefs unPRef
 connection w/ pipes
 -}
 
@@ -73,8 +73,8 @@ data LogLevel
     | LogError
     deriving (Eq, Show, Read, Ord)
 
-ploggers :: PIORef Mapping (LogLevel, LogStr) ()
-ploggers = PRef optic loggers loggers 
+ploggers :: PIORefs Mapping (LogLevel, LogStr) ()
+ploggers = PRefs optic loggers loggers 
 
 logWith :: ToLogStr msg => LogLevel -> msg -> IO ()
 logWith ll msg = modifyPIORef' (lmap (fmap toLogStr) ploggers) (const (ll,msg))
@@ -197,7 +197,7 @@ logLevel = unsafePerformIO $ newIORef LogDebug
 
 
 optic :: Mapping p => Optic p Loggers Loggers () (LogLevel, LogStr)
-optic = setting $ \ub lgr -> unsafeLogIO lgr (ub ())
+optic = sets $ \ub lgr -> unsafeLogIO lgr (ub ())
   where
     unsafeLogIO :: (?callStack :: GHC.CallStack) => Loggers -> (LogLevel, LogStr) -> Loggers
     unsafeLogIO lgr (ll, b) = unsafePerformIO (logmsg ?callStack lgr LogInfo b) `seq` lgr

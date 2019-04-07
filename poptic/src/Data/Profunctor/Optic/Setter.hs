@@ -13,6 +13,8 @@ import Data.Profunctor.Mapping as Export
 
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Control.Monad.Reader as Reader
+
 
 ---------------------------------------------------------------------
 -- Setter
@@ -24,15 +26,15 @@ import Control.Monad.Writer as Writer
 data Context a b t = Context (b -> t) a deriving Functor
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
-setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting f = dimap (Context id) (\(Context g s) -> f g s) . map'
+sets :: ((a -> b) -> s -> t) -> Setter s t a b
+sets f = dimap (Context id) (\(Context g s) -> f g s) . map'
 
 ---------------------------------------------------------------------
 -- Common setters
 ---------------------------------------------------------------------
 
 mapped :: Functor f => Setter (f a) (f b) a b
-mapped = setting fmap
+mapped = sets fmap
 
 ---------------------------------------------------------------------
 -- Derived operators
@@ -253,14 +255,6 @@ argument :: Profunctor p => Setter (p b r) (p a r) a b
 argument = sets lmap
 {-# INLINE argument #-}
 
--- | Build a 'Setter', 'IndexedSetter' or 'IndexPreservingSetter' depending on your choice of 'Profunctor'.
---
--- @
--- 'sets' :: ((a -> b) -> s -> t) -> 'Setter' s t a b
--- @
-sets :: (Profunctor p, Profunctor q, Settable f) => (p a b -> q s t) -> Optical p q f s t a b
-sets f g = undefined -- taintedDot (f (untaintedDot g))
-{-# INLINE sets #-}
 
 -- | This 'setter' can be used to modify all of the values in a 'Monad'.
 --
@@ -325,7 +319,10 @@ l &&~ n = over l (&& n)
 
 -- | Write to a fragment of a larger 'Writer' format.
 --scribe :: (MonadWriter t m, Monoid s) => ASetter s t a b -> b -> m ()
-scribe l b = tell (set l b mempty)
+scribe
+  :: (MonadWriter t m, Monoid s) 
+  => Optic (->) s t a b -> b -> m ()
+scribe o b = tell (set o mempty b)
 {-# INLINE scribe #-}
 
 -- | This is a generalization of 'pass' that allows you to modify just a
@@ -339,6 +336,9 @@ passing l m = pass $ do
 -- | This is a generalization of 'censor' that allows you to 'censor' just a
 -- portion of the resulting 'MonadWriter'.
 --censoring :: MonadWriter w m => Setter w w u v -> (u -> v) -> m a -> m a
+censoring
+  :: MonadWriter s m 
+  => Optic (->) s s a b -> (a -> b) -> m c -> m c
 censoring l uv = censor (over l uv)
 {-# INLINE censoring #-}
 

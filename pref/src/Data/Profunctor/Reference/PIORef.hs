@@ -2,195 +2,22 @@
 
 module Data.Profunctor.Reference.PIORef where
 
-import Data.IORef
-import Data.Monoid
-import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Optic
-import Data.Profunctor.Reference.Global
+impors Data.IORef
+impors Data.Monoid
+impors Data.Profunctor.Optic
+impors Data.Profunctor.Reference.PRef
+impors Data.Profunctor.Reference.Global
 
-import Data.Tuple (swap)
-import Control.Category ((>>>),(<<<))
-
-
-import Control.Monad.Trans.Reader
---import Control.Concurrent.STM
-import Control.Concurrent.MVar (MVar)
--- $setup
--- >>> :set -XTypeApplications
--- >>> :set -XScopedTypeVariables
--- >>> :set -XOverloadedStrings
--- >>> import Data.IORef
--- >>> import Data.Monoid (Sum(..))
--- >>> import Data.Profunctor.Optic
+impors Data.Tuple (swap)
+impors Control.Category ((>>>),(<<<))
 
 
-
--- | 'PRef's are profunctors.
---
--- 'dimap' example:
---
--- >>> s = ("hi",2) :: (String, Int)
--- >>> t = ("there!",2) :: (String, Int)
--- >>> rs <- newRef @IO @IORef s
--- >>> rt <- newRef @IO @IORef t
--- >>> o :: PIORef Profunctor (String, Int) (String, Int) = PIORef id rt rs
--- >>> readPIORef (dimap id fst o)
--- "hi"
---
--- >>> tosnd a = ("bye", a)
--- >>> o' :: PIORef Profunctor Int String = dimap tosnd fst o
--- >>> modifyPIORef o' length >> readRef rt
--- ("bye",2)
--- >>> readRef rs
--- ("hi",2)
+impors Control.Monad.Trans.Reader
 
 
+type PIORef c b a = PRef c IORef b a
 
-{-
-
-:set -XTypeApplications
-:set -XScopedTypeVariables
-:set -XOverloadedStrings
-import Data.IORef
-s = ("hi!",2) :: (String, Int)
---t = ("there!",2) :: (String, Int)
-t = (4,2)  :: (Int, Int)
-rs <- newRef @IO @IORef s
-rt <- newRef @IO @IORef t
-o :: PIORef Strong Int String = PRef _1 rt rs
---o :: PIORef Profunctor (String, Int) (String, Int) = PIORef id rt rs
-o' = dimap id length o
-readPIORef o'
-
-dimapping
-  :: Profunctor p
-  => Profunctor q
-  => AnIso s t a b
-  -> AnIso ss tt aa bb
-  -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
-dimapping f g = 
-  withIso f $ \sa bt -> 
-    withIso g $ \ssaa bbtt -> 
-      iso (dimap sa ssaa) (dimap bt bbtt)
-
--}
-
-
-declareIORef "t" [t| (Int, Int) |] [e| (4, 2) |]
-declareIORef "x" [t| (String, Int) |] [e| ("hi!", 2) |]
-declareIORef "y" [t| (Int, String) |] [e| (4, "there") |]
-
-declareMVar "xm" [t| (String, Int) |] [e| ("hi!", 2) |]
-
-swapped :: Iso (a, b) (b', a') (b, a) (a', b')
-swapped = iso swap swap
-
---declareTMVar "ytm" [t| (Int, String) |] [e| (4, "there") |]
---type Server' b' b m r = forall x' x. Proxy x' x b' b m r
---type Pipe a b = Proxy () a () b
-
---fooPfm :: c Tagged => Pf IO c b a -> IO ()
---fooPfm (PIORef o _ rt) = runContT rt print -- $ (f . review o) 
-
-{-
-out <- makeOutputStream $ maybe (return ()) (writeIORef y)
-> inp <- makeInputStream $ return (Just x)
-> st = PRef swapped inp out
-
-st :: PRef Profunctor OutputStream InputStream (String, Int) (Int, String)
-st = PRef swapped inp out
-
-foup :: IO (OutputStream (Int, String))
-foup = makeOutputStream $ maybe (return ()) (writeIORef y)
-
-
-ok = PRef swapped (Star ReaderT) (Star ReaderT)
-
--}
-
-
-foof :: Monad m => PRef Profunctor m m (String, Int) (Int, String) 
-foof = PRef swapped (return ("hi!", 2)) (return (4, "there"))
-
-i :: PRef Profunctor IORef IORef (String, Int) (Int, String) 
-i = PRef swapped x y
-
--- like i, but with a [] in covariant pos
-h :: PRef Profunctor IORef [] (String, Int) (Int, String) 
-h = PRef swapped [("hi!", 2)] y
-
-j :: PRef Profunctor IORef IORef (Int, String) (String, Int) 
-j = PRef swapped y x
-
--- like j, but with an MVar in contravariant pos
-k :: PRef Profunctor MVar IORef (Int, String) (String, Int) 
-k = PRef swapped y xm
-
-
-ji :: PRef Profunctor IORef IORef (Int, String) (Int, String)
-ji = j >>> i
-{-
--- category instance requires that rs / rt be fixed
-ki :: PRef Profunctor MVar IORef (Int, String) (Int, String)
-ki = k `compose_pxy` i
-
-kh :: PRef Profunctor MVar [] (Int, String) (Int, String) 
-kh = k `compose_pxy` h
-
-ij :: PRef Profunctor IORef IORef (String, Int) (String, Int)
-ij = i >>> j
-
---Optic p (Int, String) (String, Int) (String, Int) (Int, String)
-
-
--- like
---p (String, Int) (Int, String) (Int, String) (String, Int)
-
-
-
-
-
-
-jik :: PRef Profunctor IORef IORef (Int, String) (String, Int)
-jik = ji `compose_pxy` k
-
-
-kij :: PRef Profunctor MVar IORef (Int, String) (String, Int)
-kij = k `compose_pxy` ij
-
-foo :: PRef Profunctor y s (String, Int) a  -> PRef Profunctor MVar s (Int, String) a
-foo = (k `compose_pxy`)
--}
-
-len :: [a] -> Int
-len = length 
-
-j' :: PRef Profunctor IORef IORef ([a], String) (String, Int)
-j' = lmap (bimap len id) j
-
-i' :: PRef Profunctor IORef IORef (String, Int) (String, String)
-i' = rmap (bimap show id) i
-
-i'j' :: PRef Profunctor IORef IORef (String, Int) (String, Int)
-i'j' = i' >>> j'
-
-j'i' :: PRef Profunctor IORef IORef ([a], String) (String, String)
-j'i' = j' >>> i'
-
-
-{-
-o_xt :: PIORef Strong Int String 
-o_xt = PRef _1 x t
-
-o_ty :: PIORef Strong String Int 
-o_ty = PRef _2 t y
-
--- o_xy = o_xt >>> o_ty
-
--}
-
-
----------------------------------------------------------------------
+----------------------------------------------------------------
 --  Creating 'PIORef's
 ---------------------------------------------------------------------
 
@@ -206,16 +33,6 @@ newLocalPIORef
 newLocalPIORef o s t = (PRef o) <$> newIORef s <*> newIORef t
 
 
--- | A variant of 'newLocalPIORef' that uses the same ref for both read
---
--- and write operations. Note that this is distinct from a 'PIORef''.
-newLocalPIORef'
-  :: Optical c s s a a 
-  -> s 
-  -> IO (PIORef c a a)
-newLocalPIORef' o s = newLocalPIORef o s s 
-
-
 ---------------------------------------------------------------------
 --  Reading 'PIORef's
 ---------------------------------------------------------------------
@@ -228,7 +45,7 @@ readPIORef
   :: c (Star (Const a)) 
   => PIORef c b a 
   -> IO a
-readPIORef (PRef o s _) = view o <$> readIORef s
+readPIORef (PRef o rs) = view o <$> readIORef rs
 
 
 -- | Read a value from a 'PIORef' with profunctorial choice.
@@ -236,7 +53,7 @@ previewPIORef
   :: c (Star (Const (First a)))
   => PIORef c b a 
   -> IO (Maybe a)
-previewPIORef (PRef o s _) = preview o <$> readIORef s 
+previewPIORef (PRef o rs) = preview o <$> readIORef rs 
 
 
 -- | A variant of 'previewPIORef' that updates the write ref on failure.
@@ -247,11 +64,11 @@ matchPIORef
   :: c (Star (Either a))
   => PIORef c b a 
   -> IO (Maybe a)
-matchPIORef (PRef o rs rt) =
+matchPIORef (PRef o rs) =
   do s <- readIORef rs
      case match o s of
        Left t -> 
-         writeIORef rt t >> return Nothing
+         writeIORef rs t >> return Nothing
        Right a ->
          return $ Just a
 
@@ -261,7 +78,7 @@ foldMapOfPIORef
   => PIORef c b a 
   -> (a -> r)
   -> IO r
-foldMapOfPIORef (PRef o rs _) f = foldMapOf o f <$> readIORef rs 
+foldMapOfPIORef (PRef o rs) f = foldMapOf o f <$> readIORef rs 
 
 
 -- sumPIORef?
@@ -279,7 +96,7 @@ sumOfPIORef r = getSum <$> foldMapOfPIORef r Sum
 -- Use this with 'Choice'-constrained optics.  Use 'modifyPIORef' with
 -- a constant argument to modify lens-like optics.
 writePIORef :: c (Costar (Const b)) => PIORef c b a -> b -> IO ()
-writePIORef (PRef o _ rt) b = writeIORef rt . review o $ b
+writePIORef (PRef o rs) b = writeIORef rs . review o $ b
 
 
 -- | Modify a 'PIORef'.
@@ -293,17 +110,17 @@ writePIORef (PRef o _ rt) b = writeIORef rt . review o $ b
 -- >>> s = ("hi!",2) :: (String, Int)
 -- >>> t = (4,2)  :: (Int, Int)
 -- >>> rs <- newRef @IO @IORef s
--- >>> rt <- newRef @IO @IORef t
--- >>> o :: PIORef Strong Int String = PRef _1 rt rs
--- >>> o' :: PIORef Strong String String = PRef _1 rs rs
+-- >>> rs <- newRef @IO @IORef t
+-- >>> o :: PIORef Strong Int String = PRefs _1 rs rs
+-- >>> o' :: PIORef Strong String String = PRefs _1 rs rs
 --
 -- >>> modifyPIORef o' tail >> readIORef rs 
 -- ("i!",2)
--- >>> readIORef rt 
+-- >>> readIORef rs 
 -- (4,2)
 -- >>> modifyPIORef o length >> readIORef rs
 -- ("i!",2)
--- >>> readIORef rt 
+-- >>> readIORef rs 
 -- (2,2)
 --
 --
@@ -312,16 +129,16 @@ writePIORef (PRef o _ rt) b = writeIORef rt . review o $ b
 -- >>> s = Just "hi!" :: Maybe String
 -- >>> t = Nothing  :: Maybe Int
 -- >>> rs <- newRef @IO @IORef s
--- >>> rt <- newRef @IO @IORef t
--- >>> o :: PIORef Choice Int String = PRef _Just rt rs
--- >>> o' :: PIORef Choice String String = PRef _Just rs rs
+-- >>> rs <- newRef @IO @IORef t
+-- >>> o :: PIORef Choice Int String = PRefs _Just rs rs
+-- >>> o' :: PIORef Choice String String = PRefs _Just rs rs
 -- >>> modifyPIORef o' tail >> readIORef rs
 -- Just "i!"
--- >>> readIORef rt 
+-- >>> readIORef rs 
 -- Nothing
 -- >>> modifyPIORef o length >> readIORef rs
 -- Just "i!"
--- >>> readIORef rt 
+-- >>> readIORef rs 
 -- Just 2
 --
 --
@@ -330,12 +147,12 @@ writePIORef (PRef o _ rt) b = writeIORef rt . review o $ b
 -- >>> s = ["hi", "there"] :: [String]
 -- >>> t = fmap Sum [1..10] :: [Sum Int]
 -- >>> rs <- newRef @IO @IORef s
--- >>> rt <- newRef @IO @IORef t
--- >>> o :: PIORef Traversing (Sum Int) String = PRef traversed rt rs
--- >>> o' :: PIORef Traversing String String = PRef traversed rs rs
+-- >>> rs <- newRef @IO @IORef t
+-- >>> o :: PIORef Traversing (Sum Int) String = PRefs traversed rs rs
+-- >>> o' :: PIORef Traversing String String = PRefs traversed rs rs
 -- >>> modifyPIORef o (Sum . length) >> readIORef rs
 -- ["hi","there"]
--- >>> readIORef rt 
+-- >>> readIORef rs 
 -- [Sum {getSum = 2},Sum {getSum = 5}]
 -- >>> modifyPIORef o' ("oh" ++) >> readIORef rs
 -- ["ohhi","ohthere"]
@@ -345,7 +162,7 @@ modifyPIORef
   => PIORef c b a 
   -> (a -> b) 
   -> IO ()
-modifyPIORef (PRef o rs rt) f = readIORef rs >>= writeIORef rt . over o f
+modifyPIORef (PRef o rs) f = readIORef rs >>= writeIORef rs . over o f
 
 
 
@@ -354,10 +171,10 @@ modifyPIORef (PRef o rs rt) f = readIORef rs >>= writeIORef rt . over o f
 -- as well as the value returned. This function is atomic when r is a 
 -- TVar or TMVar.
 modifyPIORef' :: c (->) => PIORef c b a -> (a -> b) -> IO ()
-modifyPIORef' (PRef o rs rt) f =
+modifyPIORef' (PRef o rs) f =
   do s <- readIORef rs
      let t = over o f s
-     t `seq` writeIORef rt t
+     t `seq` writeIORef rs t
 
 
 -- TODO more like foldState
@@ -366,114 +183,9 @@ atomicModifyPIORef'
   => PIORef c b a 
   -> (a -> (a, b))
   -> IO ()
-atomicModifyPIORef' (PRef o rs rt) f = 
+atomicModifyPIORef' (PRef o rs) f = 
   do s <- readIORef rs
      let t = pstate o f s
-     t `seq` writeIORef rt t
-
-
-
-
-
-
-{-
-
-
-atomicModifyIORef' :: IORef a -> (a -> (a, b)) -> IO b
-statePIORef :: Optic (Star ((,) a)) s t a b -> (a -> (a, b)) -> s -> t
-
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-
-review :: Optic Tagged s t a b -> b -> t
-review = through Tagged unTagged
-
--- | 'view o == foldMapOf o id'
-view :: Optic (Star (Const a)) s t a b -> s -> a
-view o = (through Forget runForget) o id
-
-match :: Optic (Matched a) s t a b -> s -> Either t a
-match o = (through Matched runMatched) o Right
-
-preview :: Optic (Previewed a) s t a b -> s -> Maybe a
-preview o = (through Previewed runPreviewed) o Just
-
-foldMapOf :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
-foldMapOf = through Forget runForget
-
-zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = through Zipped runZipped 
-
-
-zipWithPIORef' :: c Zipped => PIORef c b a -> (a -> a -> b) -> IO ()
-zipWithPIORef' (PIORef o rs rt) f =
-  do s <- readIORef rs
-     let t = zipWithOf o f s s 
-     t `seq` writeIORef rt t
-
--- | 'traverseOf' can be used to convert 'Strong' optics to their
--- van Laarhoven equivalents.
-traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf = through Star runStar
-
-cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf = through Costar runCostar
--}
-
-
-
-
-{-
-
-
-
--- Affine PIORef
---
-aff :: Affine (Either c a, d) (Either c b, d) a b
-aff = first' . right'
-
-s = (Just "hi!", 2) :: (Maybe String, Int)
-t = (Nothing, 2) :: (Maybe Int, Int)
-
-rs <- newRef @IORef @IO s
-rt <- newRef @IORef @IO t
-
-o :: PIORef IORef AffineLike Int String = PIORef (_1 . _Just) rs rt
-o' :: PIORef IORef AffineLike String String = PIORef (_1 . _Just) rs rs
-
-
-modifyPIORef o' tail >> readRef rs >>= print >> readRef rt >>= print
--- (Just "i!",2)
--- (Nothing,2)
-
-modifyPIORef o length >> readRef rs >>= print >> readRef rt >>= print
---(Just "i!",2)
---(Just 2,2)
-
-
--- Affine PIORef 2
---
-
-s = (Nothing, 2) :: (Maybe String, Int)
-t = (Just 4, 2) :: (Maybe Int, Int)
-
-rs <- newRef @IORef @IO s
-rt <- newRef @IORef @IO t
-
-o :: PIORef IORef AffineLike Int String = PIORef (_1 . _Just) rs rt
-o' :: PIORef IORef AffineLike String String = PIORef (_1 . _Just) rs rs
-
-
-modifyPIORef o' tail >> readRef rs >>= print >> readRef rt >>= print
--- (Nothing,2)
--- (Just 4,2)
-
-modifyPIORef o length >> readRef rs >>= print >> readRef rt >>= print
--- (Nothing,2)
--- (Nothing,2)
-
-
--}
-
+     t `seq` writeIORef rs t
 
 

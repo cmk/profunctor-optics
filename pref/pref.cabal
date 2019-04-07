@@ -19,12 +19,13 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Reference.PIORef
-      Data.Profunctor.Reference.PMVar
-      Data.Profunctor.Reference.PStream
       Data.Profunctor.Reference.Global
-      Data.Profunctor.Reference.Optic
-      Data.Profunctor.Reference.Simple
+      Data.Profunctor.Reference.PRef
+      Data.Profunctor.Reference.PRefs
+      Data.Profunctor.Reference.PIORef
+      Data.Profunctor.Reference.PIORefs
+      Data.Profunctor.Reference.PMVar
+      Data.Profunctor.Reference.PStreams
 
   hs-source-dirs:
       src
@@ -37,6 +38,7 @@ library
     , profunctors
     , poptic
     , stm
+    , StateVar
     , template-haskell
     , transformers
     , io-streams

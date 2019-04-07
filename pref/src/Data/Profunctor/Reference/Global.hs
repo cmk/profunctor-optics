@@ -29,7 +29,7 @@ import Control.Monad
 import Language.Haskell.TH
 
 import Data.IORef
---import Data.Profunctor.Reference.PRef 
+--import Data.Profunctor.Reference.PRefs 
 
 import Control.Concurrent
 import Control.Concurrent.STM

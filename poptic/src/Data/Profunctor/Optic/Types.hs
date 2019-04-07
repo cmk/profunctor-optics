@@ -76,15 +76,17 @@ type ASetter s t a b = Optic (->) s t a b
 
 type PrimGetter s t a b = Optical OutPhantom s t a b
 
+-- TODO: s t a b?
 type Getter s a = Optical' Getting s a
 
 type AGetter r s t a b = Optic (Star (Const r)) s t a b 
 
 type PrimReview s t a b = Optical InPhantom s t a b
 
+-- TODO: s t a b?
 type Review t b = Optical' Reviewing t b
 
---type AReview t b = Optic' Tagged t b
+type AReview r s t a b = Optic (Costar (Const r)) s t a b
 
 type Closure s t a b = Optical Closed s t a b
 

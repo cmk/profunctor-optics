@@ -24,15 +24,16 @@ module Data.Profunctor.Reference.PMVar
 
 import Data.Monoid (First)
 import Data.Profunctor.Optic
-import Data.Profunctor.Reference.Simple
+import Data.Profunctor.Reference.PRef
 import Data.Profunctor.Reference.Global
 
-import System.Mem.Weak (Weak)
 import Control.Arrow
 import Control.Concurrent.MVar (MVar)
 import Control.Monad.IO.Unlift
 import qualified Control.Concurrent.MVar as M
 
+
+type PMVar c b a = PRef c MVar b a
 
 ---------------------------------------------------------------------
 --  Creating 'PMVar's
@@ -44,7 +45,7 @@ import qualified Control.Concurrent.MVar as M
 {-# INLINE newPMVar #-}
 
 newPMVar :: MonadIO m => Optical' c s a -> s -> m (PMVar c a)
-newPMVar o s = liftIO $ (PRef' o) <$> M.newMVar s
+newPMVar o s = liftIO $ (PRef o) <$> M.newMVar s
 
 
 -- | Create a new empty 'PMVar'. 
@@ -55,7 +56,7 @@ newEmptyPMVar
   :: forall m c s a. MonadIO m
   => Optical' c s a
   -> m (PMVar c a)
-newEmptyPMVar o = liftIO $ (PRef' o) <$> M.newEmptyMVar @s
+newEmptyPMVar o = liftIO $ (PRef o) <$> M.newEmptyMVar @s
 
 
 ---------------------------------------------------------------------
@@ -66,7 +67,7 @@ newEmptyPMVar o = liftIO $ (PRef' o) <$> M.newEmptyMVar @s
 -- | Check whether a 'PMVar' is currently empty.
 
 isEmptyPMVar :: MonadIO m => PMVar c a -> m Bool
-isEmptyPMVar (PRef' _ rs) = liftIO $ M.isEmptyMVar rs
+isEmptyPMVar (PRef _ rs) = liftIO $ M.isEmptyMVar rs
 
 
 -- | Return the contents of the 'PMVar'.
@@ -75,7 +76,7 @@ isEmptyPMVar (PRef' _ rs) = liftIO $ M.isEmptyMVar rs
 -- full.  After a 'takePMVar', the read-only 'MVar' is left empty.
 
 takePMVar :: MonadIO m => c (Star (Const a)) => PMVar c a -> m a
-takePMVar (PRef' o rs) = liftIO $ view o <$> M.takeMVar rs
+takePMVar (PRef o rs) = liftIO $ view o <$> M.takeMVar rs
 
 
 -- | A non-blocking version of 'takePMVar'.  
@@ -85,7 +86,7 @@ takePMVar (PRef' o rs) = liftIO $ view o <$> M.takeMVar rs
 -- contents @s@.  After 'tryTakeMVar', the 'MVar' is left empty.
 
 tryTakePMVar :: MonadIO m => c (Star (Const a)) => PMVar c a -> m (Maybe a)
-tryTakePMVar (PRef' o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
+tryTakePMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
 
 
 -- | Atomically read the contents of a lens-like 'PMVar'.  
@@ -99,7 +100,7 @@ readPMVar
   => c (Star (Const a))
   => PMVar c a 
   -> m a
-readPMVar (PRef' o rs) = liftIO $ view o <$> M.readMVar rs
+readPMVar (PRef o rs) = liftIO $ view o <$> M.readMVar rs
 
 
 -- | Atomically preview the contents of a prism-like 'PMVar'.  
@@ -114,7 +115,7 @@ previewPMVar
   => c (Star (Const (First a)))
   => PMVar c a 
   -> m (Maybe a)
-previewPMVar (PRef' o rs) = liftIO $ preview o <$> M.readMVar rs
+previewPMVar (PRef o rs) = liftIO $ preview o <$> M.readMVar rs
 
 
 -- | A non-blocking variant of 'readPMVar'.
@@ -124,7 +125,7 @@ tryReadPMVar
   => c (Star (Const a))
   => PMVar c a 
   -> m (Maybe a)
-tryReadPMVar (PRef' o rs) = liftIO $ fmap (view o) <$> M.tryReadMVar rs
+tryReadPMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryReadMVar rs
 
 
 -- | A non-blocking variant of 'previewPMVar'.
@@ -138,7 +139,7 @@ tryPreviewPMVar
   => c (Star (Const (First a)))
   => PMVar c a 
   -> m (Maybe a)
-tryPreviewPMVar (PRef' o rs) = liftIO $ (>>= preview o) <$> M.tryReadMVar rs
+tryPreviewPMVar (PRef o rs) = liftIO $ (>>= preview o) <$> M.tryReadMVar rs
 
 
 
@@ -157,7 +158,7 @@ withPMVar
   => PMVar c a 
   -> (a -> m r) 
   -> m r
-withPMVar (PRef' o rs) f = 
+withPMVar (PRef o rs) f = 
      withRunInIO $ \run -> M.withMVar rs (run . f . view o)
 
 
@@ -172,7 +173,7 @@ withPMVarMasked
   => PMVar c a 
   -> (a -> m r) 
   -> m r
-withPMVarMasked (PRef' o rs) f = 
+withPMVarMasked (PRef o rs) f = 
      withRunInIO $ \run -> M.withMVarMasked rs (run . f . view o)
 
 
@@ -191,7 +192,7 @@ putPMVar
   => PMVar c a 
   -> a 
   -> m ()
-putPMVar (PRef' o rs) a = liftIO $ M.putMVar rs . review o $ a
+putPMVar (PRef o rs) a = liftIO $ M.putMVar rs . review o $ a
 
 
 -- | A non-blocking version of 'putPMVar'.  
@@ -206,7 +207,7 @@ tryPutPMVar
   => PMVar c a 
   -> a 
   -> m Bool
-tryPutPMVar (PRef' o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
+tryPutPMVar (PRef o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
 
 
 -- |  Take a value from an 'MVar', putting a new value into its place.
@@ -221,7 +222,7 @@ swapPMVar
   => PMVar c a 
   -> a 
   -> m a
-swapPMVar (PRef' o rs) a = liftIO $ 
+swapPMVar (PRef o rs) a = liftIO $ 
      view o <$> (M.swapMVar rs . review o $ a)
 
 
@@ -240,7 +241,7 @@ modifyPMVar_
   => PMVar c a
   -> (a -> m a) 
   -> m ()
-modifyPMVar_ (PRef' o rs) f = 
+modifyPMVar_ (PRef o rs) f = 
      withRunInIO $ \run -> M.modifyMVar_ rs (run . traverseOf o f)
 
 
@@ -255,7 +256,7 @@ modifyPMVar
   => PMVar c a
   -> (a -> m (a, r)) 
   -> m r
-modifyPMVar (PRef' o rs) f =
+modifyPMVar (PRef o rs) f =
  let l = (fmap . fmap) fst f
      l' = traverseOf o l
      r = (fmap . fmap) snd f
@@ -275,7 +276,7 @@ modifyPMVarMasked_
   => PMVar c a
   -> (a -> m a) 
   -> m ()
-modifyPMVarMasked_ (PRef' o rs) f = 
+modifyPMVarMasked_ (PRef o rs) f = 
      withRunInIO $ \run -> M.modifyMVarMasked_ rs (run . traverseOf o f)
 
 
@@ -290,7 +291,7 @@ modifyPMVarMasked
   => PMVar c a
   -> (a -> m (a, r)) 
   -> m r
-modifyPMVarMasked (PRef' o rs) f =
+modifyPMVarMasked (PRef o rs) f =
  let l = (fmap . fmap) fst f
 
      l' = traverseOf o l

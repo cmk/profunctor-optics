@@ -73,7 +73,7 @@ infixr 8 #
 -- (#) :: 'Review'    s a -> a -> s
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
-( # ) :: Review t b -> b -> t
+--( # ) :: Review s t a b -> b -> t
 ( # ) o b = review o b
 {-# INLINE ( # ) #-}
 
