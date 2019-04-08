@@ -8,7 +8,12 @@
 {-# LANGUAGE QuantifiedConstraints     #-}
 
 {-# OPTIONS_GHC -w #-}
-module Data.Profunctor.Reference.PRefs where
+module Data.Profunctor.Reference.PRefs (
+    PVars, PRefs(..), readRef, writeRef, has, withPRefs
+  , (<$<), (>$>), (*$*)
+  , ($=), ($=!), ($~), ($~!)
+  , SettableStateVar(..), GettableStateVar(..)
+) where
 
 import Control.Arrow
 import Control.Category (Category)
@@ -19,7 +24,7 @@ import Control.Monad.IO.Unlift
 
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (has)
 import Data.Profunctor.Reference.Types
 -- (HasGetter(..), HasSetter(..), HasUpdate(..), ($=), ($=!), ($~), ($~!))
 import Data.Void
@@ -43,15 +48,15 @@ in the read and write references.
 
 The type variables signify:
 
-  * @c@ - The profunctor constraint determining which operations can be performed.
+  * @c@ - The profunctor constraint determining which operations may be performed.
 
-  * @rt@ - The write container reference (e.g. 'MVar', 'IORef' etc.).
+  * @rt@ - The contravariant write-only reference.
 
-  * @rs@ - The read container reference (e.g. '(-> r)', 'MVar', 'IORef' etc.).
+  * @rs@ - The covariant read-only reference.
 
-  * @b@ - The exposed (contravariant) write-only type.
+  * @b@ - The contravariant write-only type.
 
-  * @a@ - The exposed (covariant) read-only type.
+  * @a@ - The covariant read-only type.
 
 -}
 
@@ -60,7 +65,32 @@ The type variables signify:
 -- data PRefs' c rs b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rs x)
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 
+-- | Type alias for 'PRefs' constructed from @IO s@ and @t -> IO ()@.
 type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
+
+-- | Extract the covariant read reference.
+readRef :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
+readRef (PRefs o rs _) = view o <$> rs
+
+-- (>$) :: b -> f b -> f a
+-- | Extract the contravariant write reference.
+writeRef :: Contravariant rt => c (Costar (Const b)) => PRefs c rt rs b a -> b -> rt r
+writeRef (PRefs o _ rt) b = review o b >$ rt
+
+--TODO : fills the (read-side) role of the lens in a Has type class
+-- you can have your has-pattern using the raw accessor functions of your caps type,
+-- or just use 'rs = id' if you want 'o' to be your accessor.  write this up.
+
+-- | A substitute for the 'Has' typeclass pattern.
+has :: MonadReader r m => c (Star (Const a)) => PRefs c rt ((->) r) b a -> m a
+has (PRefs o rs _) = view o <$> asks rs
+
+-- | Unbox a 'PRefs' by providing an existentially quantified continuation.
+withPRefs 
+  :: PRefs c rt rs b a 
+  -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
+  -> r
+withPRefs (PRefs o sx ty) f = f o sx ty
 
 instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRefs c rt rs b a) a where
 
@@ -79,10 +109,7 @@ instance (forall s. HasGetter (rs s) s, forall t. HasSetter (rt t) t, c (->)) =>
   (PRefs o rs rt) $~! f = liftIO $ SV.get rs >>= \s -> rt $=! over o f s
 
 -- TODO c :- Profunctor
-dimap' :: (b' -> b) -> (a -> a') -> PRefs Profunctor rt rs b a -> PRefs Profunctor rt rs b' a'
-dimap' bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
-
-instance Profunctor (PRefs Profunctor rt rs) where dimap = dimap'
+instance Profunctor (PRefs Profunctor rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt 
 
 instance Profunctor (PRefs Strong rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
 
@@ -116,8 +143,6 @@ instance Choice (PRefs Cochoice rt rs) where right' (PRefs o rs rt) = PRefs (o .
 
 instance Cochoice (PRefs Choice rt rs) where unright (PRefs o rs rt) = PRefs (o . right') rs rt
 
-
--- PRefs c SettableStateVar GettableStateVar
 instance (Alternative f, Divisible g) => Category (PRefs Profunctor g f) where 
   id =  PRefs (dimap id id) empty conquer
   (PRefs oab sx _) . (PRefs obc _ ty) = (PRefs (compose_iso oab obc) sx ty) 
@@ -129,7 +154,21 @@ compose_iso o o' = withIso o $ \ sa _ -> withIso o' $ \ _ b't' -> iso sa b't'
 --compose_lens o o' = withLens o $ \ sa sbt -> withLens o' $ \ s'a' s'b't' -> lens sa sb't'
 -- newtype Yoneda p a b = Yoneda { runYoneda :: forall x y. (x -> a) -> (b -> y) -> p x y }
 
+-- | Compose two 'PRefs' from left to right:
+--
+-- @
+-- (>$>) :: 'PVars' 'Profunctor' String Int -> 'PVars' 'Profunctor' Text String -> 'PVars' 'Profunctor' Text Int
+-- @
+(>$>) :: PRefs Profunctor rx rs b a -> PRefs Profunctor rt ry c b -> PRefs Profunctor rt rs c a
+(PRefs oab rs _) >$> (PRefs obc _ rt) = (PRefs (compose_iso oab obc) rs rt)
 
+
+-- | Compose two 'PRefs' from right to left:
+--
+-- @
+-- (<$<) :: 'PVars' 'Profunctor' Text String -> 'PVars' 'Profunctor' String Int -> 'PVars' 'Profunctor' Text Int
+-- @
+(<$<) = flip (>$>)
 
 instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where 
   arr f = PRefs (dimap f f) empty conquer
@@ -137,95 +176,20 @@ instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
   (PRefs o f g) *** (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g') 
 
 
-(*$*) :: Applicative f => Divisible g => PRefs Strong g f b1 a1 -> PRefs Strong g f b2 a2 -> PRefs Strong g f (b1,b2) (a1,a2)
+-- | Combine two 'PRefs' with profunctorial strength:
+-- 
+-- @
+-- (+$+) :: 'PVars' 'Strong' String Int -> 'PVars' 'Strong' [a] a -> 'PVars' 'Strong' (String, [a]) (Int, a)
+-- @
+(*$*) :: (Applicative f, Divisible g) => PRefs Strong g f b1 a1 -> PRefs Strong g f b2 a2 -> PRefs Strong g f (b1,b2) (a1,a2)
 (*$*) (PRefs o f g) (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g')
 
--- TODO 'Decidable f' seems like the wrong constraint here.
+-- TODO need a covariant constraint on the input. 
 -- (+$+) :: Decidable f => Decidable g => PRefs Choice g f b1 a1 -> PRefs Choice g f b2 a2 -> PRefs Choice g f (Either b1 b2) (Either a1 a2)
 -- (+$+) (PRefs o f g) (PRefs o' f' g') = PRefs (split o o') (chosen f f') (chosen g g')
 
 
 
--- | Unbox a 'Pxy' by providing an existentially quantified continuation.
-withPRefs 
-  :: PRefs c rt rs b a 
-  -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
-  -> r
-withPRefs (PRefs o sx ty) f = f o sx ty
 
 
 
-
-
---TODO : this is the key function. fills the (read-side) role of the lens in a Has type class
--- you can have your has-pattern using the raw accessor functions of your caps type,
--- or just use 'rs = id' if you want 'o' to be your accessor.  write this up.
-has :: MonadReader r m => c (Star (Const a)) => PRefs c rt ((->) r) b a -> m a
-has (PRefs o rs _) = view o <$> asks rs
-
-read :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
-read (PRefs o rs _) = view o <$> rs
-
--- (>$) :: b -> f b -> f a
-write :: Contravariant rt => c (Costar (Const b)) => PRefs c rt rs b a -> b -> rt r
-write (PRefs o _ rt) b = review o b >$ rt
-
---update :: Functor rs => Contravariant rt => c (->) => PRefs c rt rs b a -> (a -> b) -> rt a
---update (PRefs o rs rt) f = contramap (over o f) rt
-
-{-
-debug :: Show a => SettableStateVar a
-debug = SettableStateVar print
-
-
-
-
-pstate 
-  :: Optic (Star ((,) a)) s t a b
-  -> (a -> (a, b)) -> s -> t
-pstate o f = star o snd f id
-
-pmaybe
-  :: Optic (Costar Maybe) s t a b 
-  -> a -> (a -> b) -> Maybe s -> t
-pmaybe o a ab = costar' o ab (maybe a id)
-
---star' up down o f = outof runStar up (o . into Star down $ f)
-
-
-into :: ((a -> b) -> c) -> (r -> b) -> (a -> r) -> c
-into up f = up . (f .)
-
-outof :: (c -> a -> b) -> (b -> r) -> c -> a -> r
-outof down g = (g .) . down
-
-
-star
-  :: Optic (Star f) s t a b
-  -> (f t -> r)
-  -> (c -> f b)
-  -> (a -> c)
-  -> s
-  -> r
-star o down up f = outof runStar down (o . into Star up $ f)
-
-star' :: Optic (Star f) s t a b -> (f t -> r) -> (a -> f b) -> s -> r
-star' o f g = star o f g id
-
-costar
-  :: (t -> d)
-  -> Optic (Costar f) s t a b
-  -> (c -> b)
-  -> (f a -> c)
-  -> f s
-  -> d
-costar down o up f = outof runCostar down (o . into Costar up $ f)
-
-costar'
-  :: Optic (Costar f) s t a b
-  -> (c -> b)
-  -> (f a -> c)
-  -> f s
-  -> t
-costar' = costar id
--}

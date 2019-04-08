@@ -7,12 +7,12 @@
 {-# LANGUAGE TypeOperators             #-}
 
 module Data.Profunctor.Reference.Types (
-    module Export
-  , module Data.Profunctor.Reference.Types
+    module Data.Profunctor.Reference.Types
+  , module Export
 ) where
 
 import Data.StateVar as Export
-import Data.Profunctor.Optic as Export
+import Data.Profunctor.Optic as Export hiding (has)
 
 debug :: Show a => SettableStateVar a
 debug = SettableStateVar print

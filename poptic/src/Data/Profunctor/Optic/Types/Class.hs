@@ -10,25 +10,22 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Data.Profunctor.Optic.Types.Class (
-    module Export
-  , module Data.Profunctor.Optic.Types.Class
+    module Data.Profunctor.Optic.Types.Class
+  , module Export
 ) where
 
 
 import Data.Bifunctor                  as Export
 import Data.Bifunctor.Product          as Export
-import Data.Distributive               as Export
---import Data.Tagged                     as Export
 import Data.Functor.Const              as Export
 import Data.Functor.Identity           as Export
 import Data.Profunctor                 as Export
 import Data.Profunctor.Types           as Export
-import Data.Profunctor.Choice          as Export
-import Data.Profunctor.Strong          as Export
+import Data.Profunctor.Choice          as Export (TambaraSum(..))
+import Data.Profunctor.Strong          as Export (Tambara(..))
 import Data.Profunctor.Closed          as Export hiding (Closure)
 import Data.Profunctor.Mapping         as Export
 import Data.Profunctor.Traversing      as Export
-import Data.Profunctor.Composition     as Export
 
 
 

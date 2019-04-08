@@ -2,8 +2,8 @@ cabal-version: >= 1.10
 
 name:           poptic
 version:        0.0.0.1
-synopsis:       Pure profunctor optics
-description:    Minimal profunctor-based optics compatible with the typeclasses in the profunctor library.
+synopsis:       Profunctor optics
+description:    A profunctor-encoded optics library compatible with the typeclasses in 'profunctors'.
 category:       Data, Lenses
 homepage:       https://github.com/cmk/putil
 bug-reports:    https://github.com/cmk/putil/issues

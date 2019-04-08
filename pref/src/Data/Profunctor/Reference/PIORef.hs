@@ -170,10 +170,7 @@ modifyPIORef (PRef o rs) f = liftIO $ modifyIORef rs (over o f)
 -- as well as the value returned. This function is atomic when r is a 
 -- TVar or TMVar.
 modifyPIORef' :: c (->) => PIORef c b a -> (a -> b) -> IO ()
-modifyPIORef' (PRef o rs) f =
-  do s <- readIORef rs
-     let t = over o f s
-     t `seq` writeIORef rs t
+modifyPIORef' (PRef o rs) f = liftIO $ modifyIORef' rs (over o f)
 
 {-
 -- TODO more like foldState
