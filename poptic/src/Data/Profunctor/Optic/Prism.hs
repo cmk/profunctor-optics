@@ -7,6 +7,7 @@ import Control.Arrow ((|||))
 import Control.Monad (guard)
 import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
+import Data.Validation (Validation, toEither, fromEither)
 
 
 import Data.Profunctor.Choice as Export
@@ -53,9 +54,23 @@ prism bt seta = dimap seta (id ||| bt) . right'
 prism' :: (a -> s) -> (s -> Maybe a) -> Prism' s a
 prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
 
--- | Useful for constructing prisms from handle and try functions.
-eprism :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
-eprism eebt seea = dimap seea eebt . right'
+-- | Useful for constructing prisms from try and handle functions.
+handled :: (s -> Either e a) -> (Either e b -> t) -> Prism s t a b
+handled seea eebt = dimap seea eebt . right'
+
+validated :: (s -> Validation e a) -> (Validation e b -> t) -> Prism s t a b
+validated svea vebt = dimap svea vebt . dimap toEither fromEither . right'
+
+-- | Analogous to '(+++)' from 'Control.Arrow'
+(+++) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
+(+++) = split
+
+prismOf
+  :: Choice p 
+  => (b -> t)
+  -> (s -> Either t a)
+  -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
+prismOf f g = through Split runSplit (prism f g)
 
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism l = withPrism l $ \x y p -> prism x y p

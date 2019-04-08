@@ -95,61 +95,83 @@ type Closure' s a = Closure s s a a
 type AClosure s t a b = Optic (ClosureP a b) s t a b
 
 
+-- | Box up a profunctor, map it through an optic, then unbox.
+through :: (t1 -> t2) -> (t3 -> t4) -> (t2 -> t3) -> t1 -> t4
+through up down optic a = down (optic $ up a)
 
-newtype AlongSide p c d a b = AlongSide { runAlongSide :: p (c,a) (d,b) }
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
 
-instance Profunctor p => Profunctor (AlongSide p c d) where
-  dimap f g (AlongSide pab) = AlongSide $ dimap (fmap f) (fmap g) pab
+newtype Paired p c d a b = Paired { runPaired :: p (c,a) (d,b) }
 
-instance Strong p => Strong (AlongSide p c d) where
-  second' (AlongSide pab) = AlongSide . dimap shuffle shuffle . second' $ pab
+fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
+fromTambara = Paired . dimap swap swap . runTambara
+
+instance Profunctor p => Profunctor (Paired p c d) where
+  dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
+
+instance Strong p => Strong (Paired p c d) where
+  second' (Paired pab) = Paired . dimap shuffle shuffle . second' $ pab
    where
     shuffle (x,(y,z)) = (y,(x,z))
 
-instance OutPhantom p => OutPhantom (AlongSide p c d) where
-  ocoerce (AlongSide pab) = AlongSide $ ocoerce pab
+instance OutPhantom p => OutPhantom (Paired p c d) where
+  ocoerce (Paired pab) = Paired $ ocoerce pab
 
 -- ^ @
--- alongside :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
--- alongside :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
--- alongside :: To s t a b -> To s' t' a' b' -> To (s, s') (t, t') (a, a') (b, b')
+-- paired :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
+-- paired :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+-- paired :: To s t a b -> To s' t' a' b' -> To (s, s') (t, t') (a, a') (b, b')
 -- @
-alongside 
+paired 
   :: Profunctor p 
-  => Optic (AlongSide p s' t') s t a b 
-  -> Optic (AlongSide p a b) s' t' a' b' 
+  => Optic (Paired p s' t') s t a b 
+  -> Optic (Paired p a b) s' t' a' b' 
   -> Optic p (s, s') (t, t') (a, a') (b, b')
-alongside lab lcd = 
-  dimap swap swap . runAlongSide . lab . AlongSide . 
-  dimap swap swap . runAlongSide . lcd . AlongSide
+paired lab lcd = 
+  dimap swap swap . runPaired . lab . Paired . 
+  dimap swap swap . runPaired . lcd . Paired
 
--- ^ @
--- eitherside :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
--- eitherside :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
--- eitherside :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
--- @
-eitherside 
-  :: Profunctor p 
-  => Optic (EitherSide p s' t') s t a b 
-  -> Optic (EitherSide p a b) s' t' a' b' 
-  -> Optic p (Either s s') (Either t t') (Either a a') (Either b b')
-eitherside lab lcd = 
-  dimap switch switch . runEitherSide . lab . EitherSide . 
-  dimap switch switch . runEitherSide . lcd . EitherSide
+pairing :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (c, s) (d, t) (c, a) (d, b)
+pairing f g = through Paired runPaired (dimap f g)
 
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
 
-newtype EitherSide p c d a b = EitherSide { runEitherSide :: p (Either c a) (Either d b) }
+newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
-instance Profunctor p => Profunctor (EitherSide p c d) where
-  dimap f g (EitherSide pab) = EitherSide $ dimap (fmap f) (fmap g) pab
+fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
+fromTambaraSum = Split . dimap switch switch . runTambaraSum
 
-instance Choice p => Choice (EitherSide p c d) where
-  right' (EitherSide pab) = EitherSide . dimap shuffle shuffle . right' $ pab
+instance Profunctor p => Profunctor (Split p c d) where
+  dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
+
+instance Choice p => Choice (Split p c d) where
+  right' (Split pab) = Split . dimap shuffle shuffle . right' $ pab
    where
     shuffle = Right . Left ||| (Left ||| Right . Right)
 
-instance InPhantom p => InPhantom (EitherSide p c d) where
-  icoerce (EitherSide pab) = EitherSide $ icoerce pab
+instance InPhantom p => InPhantom (Split p c d) where
+  icoerce (Split pab) = Split $ icoerce pab
+
+-- ^ @
+-- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- @
+split 
+  :: Profunctor p 
+  => Optic (Split p s' t') s t a b 
+  -> Optic (Split p a b) s' t' a' b' 
+  -> Optic p (Either s s') (Either t t') (Either a a') (Either b b')
+split lab lcd = 
+  dimap switch switch . runSplit . lab . Split . 
+  dimap switch switch . runSplit . lcd . Split
+
+splitting :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
+splitting f g = through Split runSplit (dimap f g)
 
 ---------------------------------------------------------------------
 -- 
@@ -268,8 +290,8 @@ instance Strong (LensP a b) where
 -- | The `LensP` profunctor precisely characterizes a 'Lens'.
 data AffineP a b s t = AffineP (s -> Either t a) (s -> b -> t)
 
-sellAffineP :: AffineP a b a b
-sellAffineP = AffineP Right (\_ -> id)
+idAffineP :: AffineP a b a b
+idAffineP = AffineP Right (\_ -> id)
 
 instance Profunctor (AffineP u v) where
     dimap f g (AffineP getter setter) = AffineP

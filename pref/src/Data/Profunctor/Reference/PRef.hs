@@ -10,22 +10,22 @@
 
 {-# OPTIONS_GHC -w #-}
 {-# LANGUAGE TemplateHaskell, CPP #-}
-module Data.Profunctor.Reference.PRef (
-    module Export
-  , module Data.Profunctor.Reference.PRef
-) where
+module Data.Profunctor.Reference.PRef where
 
-
+import Control.Category (Category)
 import Control.Monad.Reader (MonadReader(..), asks)
 import Control.Monad.IO.Unlift
-import Data.StateVar as Export (HasGetter(..), HasSetter(..), HasUpdate(..), ($=), ($=!), ($~), ($~!))
+import Data.Functor.Contravariant.Divisible
 import Data.Profunctor.Optic
+import Data.Profunctor.Reference.Global
+import Data.Profunctor.Reference.Types
 
 import qualified Data.IORef as IOR
 import qualified Data.StateVar as SV
 import qualified Control.Monad.Trans.Reader as R
-import Data.Profunctor.Reference.Global
 
+
+import Control.Applicative (liftA2)
 import Data.IORef (IORef(..))
 
 ---------------------------------------------------------------------
@@ -51,6 +51,23 @@ The type variables signify:
 
 data PRef c rs b a = forall x . PRef (Optical c x x a b) !(rs x)
 
+type PVar c b a = PRef c StateVar b a
+
+instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRef c rs b a) a where
+
+  get (PRef o rs) = liftIO $ view o <$> SV.get rs
+  {-# INLINE get #-}
+
+instance (forall s. HasUpdate (rs s) s s, c (->)) => HasSetter (PRef c rs b a) b where
+
+  (PRef o rs) $= b = liftIO $ rs $~ over o (const b)
+  {-# INLINE ($=) #-}
+
+instance (forall s. HasUpdate (rs s) s s, c (->)) => HasUpdate (PRef c rs b a) a b where
+
+  (PRef o rs) $~ f  = liftIO $ rs $~ over o f
+
+  (PRef o rs) $~! f = liftIO $ rs $~! over o f
 
 dimap' :: (b' -> b) -> (a -> a') -> PRef Profunctor rs b a -> PRef Profunctor rs b' a'
 dimap' bs sa (PRef o rs) = PRef (o . dimap sa bs) rs
@@ -58,23 +75,11 @@ dimap' bs sa (PRef o rs) = PRef (o . dimap sa bs) rs
 instance Profunctor (PRef Profunctor rs) where dimap = dimap'
 
 
+(*$*) :: Applicative f => PRef Strong f b1 a1 -> PRef Strong f b2 a2 -> PRef Strong f (b1,b2) (a1,a2)
+(*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
 
-instance (forall s . HasGetter (rs s) s) => HasGetter (PRef Getting rs b a) a where
-
-  get (PRef o rs) = liftIO $ view o <$> SV.get rs
-  {-# INLINE get #-}
-
-instance (forall s. HasUpdate (rs s) s s) => HasSetter (PRef Mapping rs b a) b where
-
-  (PRef o rs) $= b = liftIO $ rs $~ over o (const b)
-  {-# INLINE ($=) #-}
-
-instance (forall s. HasUpdate (rs s) s s) => HasUpdate (PRef Mapping rs b a) a b where
-
-  (PRef o rs) $~ f  = liftIO $ rs $~ over o f
-
-  (PRef o rs) $~! f = liftIO $ rs $~! over o f
-
+(+$+) :: Decidable f => PRef Choice f b1 a1 -> PRef Choice f b2 a2 -> PRef Choice f (Either b1 b2) (Either a1 a2)
+(+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
 
 
 -- | Unbox a 'Pxy' by providing an existentially quantified continuation.
@@ -89,19 +94,12 @@ withPRef (PRef o rs) f = f o rs
 newtype LocalRef c s a = 
   LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef STRef c s) (ST r) a }
 
-modifyPRef :: Ref r m => PRef r Mapping a -> (a -> a) -> m ()
-modifyPRef (PRef o rs) f = modifyRef' rs $ over o f
-
-atomicModifyPRef :: ARef r m => PRef r Strong a -> (a -> (a, x)) -> m x
-atomicModifyPRef (PRef o rs) f = atomicModifyRef' rs ssa
-    where ssa = withLens o $ \sa sas -> \s -> let (a, x) = f . sa $! s in (sas s a, x)
-
 -}
+
+
 
 has :: MonadReader r m => c (Star (Const a)) => PRef c ((->) r) b a -> m a
 has (PRef o rs) = view o <$> asks rs
-
-
 
 
 

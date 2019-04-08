@@ -65,6 +65,7 @@ foldMapOf o f = getConst . h where Star h = o (Star (Const . f))
 foldMapOf' :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
 foldMapOf' = through Forget runForget
 
+
 -- ^ @
 -- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
 -- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
@@ -92,8 +93,6 @@ switch' v = case v of
   Success a -> Failure a
 
 
--- | Box up a profunctor, map it through an optic, then unbox.
-through :: (t1 -> t2) -> (t3 -> t4) -> (t2 -> t3) -> t1 -> t4
-through up down optic a = down (optic $ up a)
+
 
 

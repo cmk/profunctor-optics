@@ -20,8 +20,11 @@ import Control.Monad.Reader as Reader
 -- Setter
 ---------------------------------------------------------------------
 
---setting :: ((a -> b) -> s -> t) -> Setter s t a b
---setting f = roam $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- import Data.Functor.Rep
+-- setting :: ((a -> b) -> s -> t) -> Setter s t a b
+-- setting f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- 
+
 
 data Context a b t = Context (b -> t) a deriving Functor
 

@@ -6,12 +6,14 @@ import Data.Monoid
 import Data.Profunctor.Optic
 import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
+import Data.Profunctor.Reference.Types
 import Data.Void
 
 import Control.Monad.IO.Unlift
 import System.IO.Streams (InputStream, OutputStream)
 import qualified System.IO.Streams as S
 import qualified System.IO.Streams.Combinators as SC
+
 
 type PStreams c b a = PRefs c OutputStream InputStream b a
 

@@ -7,7 +7,8 @@ import Data.Monoid
 import Data.Profunctor.Optic
 import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
-
+import Data.Profunctor.Reference.Types
+import Data.Validation (Validation(..))
 import Data.Tuple (swap)
 import Control.Category ((>>>),(<<<))
 
@@ -85,6 +86,27 @@ declareMVar "xm" [t| (String, Int) |] [e| ("hi!", 2) |]
 swapped :: Iso (a, b) (b', a') (b, a) (a', b')
 swapped = iso swap swap
 
+inp :: GettableStateVar (String, Int)
+inp = makeGettableStateVar $ readIORef x
+
+out :: SettableStateVar (String, Int)
+out = debug
+
+
+trefs :: PRefs Strong SettableStateVar GettableStateVar String String
+trefs = PRefs _1 inp out
+
+{-
+> get trefs
+"hi!"
+> trefs $= "hello!"
+("hello!",2)
+> get trefs
+"hi!"
+> trefs $~ (++ " ahoy!")
+("hi! ahoy!",2)
+-}
+
 --declareTMVar "ytm" [t| (Int, String) |] [e| (4, "there") |]
 --type Server' b' b m r = forall x' x. Proxy x' x b' b m r
 --type Pipe a b = Proxy () a () b
@@ -108,7 +130,7 @@ ok = PRefs swapped (Star ReaderT) (Star ReaderT)
 
 -}
 
-
+{-
 foof :: Monad m => PRefs Profunctor m m (String, Int) (Int, String) 
 foof = PRefs swapped (return ("hi!", 2)) (return (4, "there"))
 
@@ -129,6 +151,7 @@ k = PRefs swapped y xm
 
 ji :: PRefs Profunctor IORef IORef (Int, String) (Int, String)
 ji = j >>> i
+-}
 {-
 -- category instance requires that rs / rt be fixed
 ki :: PRefs Profunctor MVar IORef (Int, String) (Int, String)
@@ -162,6 +185,7 @@ foo :: PRefs Profunctor y s (String, Int) a  -> PRefs Profunctor MVar s (Int, St
 foo = (k `compose_pxy`)
 -}
 
+{-
 len :: [a] -> Int
 len = length 
 
@@ -176,7 +200,7 @@ i'j' = i' >>> j'
 
 j'i' :: PRefs Profunctor IORef IORef ([a], String) (String, String)
 j'i' = j' >>> i'
-
+-}
 
 {-
 o_xt :: PIORefs Strong Int String 
@@ -256,6 +280,24 @@ matchPIORefs (PRefs o rs rt) =
          writeIORef rt t >> return Nothing
        Right a ->
          return $ Just a
+
+
+-- | A variant of 'matchPIORefs' that uses the `Validation` applicative.
+--
+-- If the read and write refs are the same then this function reduces
+-- to 'previewPIORefs' with the overhead of an extra io operation.
+validatePIORefs
+  :: c (Star (Validation a))
+  => PIORefs c b a 
+  -> IO (Maybe a)
+validatePIORefs (PRefs o rs rt) =
+  do s <- readIORef rs
+     case validateOf o s of
+       Failure t -> 
+         writeIORef rt t >> return Nothing
+       Success a ->
+         return $ Just a
+
 
 
 foldMapOfPIORefs
@@ -377,50 +419,6 @@ atomicModifyPIORefs' (PRefs o rs rt) f =
 
 
 
-
-{-
-
-
-atomicModifyIORef' :: IORef a -> (a -> (a, b)) -> IO b
-statePIORefs :: Optic (Star ((,) a)) s t a b -> (a -> (a, b)) -> s -> t
-
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-
-review :: Optic Tagged s t a b -> b -> t
-review = through Tagged unTagged
-
--- | 'view o == foldMapOf o id'
-view :: Optic (Star (Const a)) s t a b -> s -> a
-view o = (through Forget runForget) o id
-
-match :: Optic (Matched a) s t a b -> s -> Either t a
-match o = (through Matched runMatched) o Right
-
-preview :: Optic (Previewed a) s t a b -> s -> Maybe a
-preview o = (through Previewed runPreviewed) o Just
-
-foldMapOf :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
-foldMapOf = through Forget runForget
-
-zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = through Zipped runZipped 
-
-
-zipWithPIORefs' :: c Zipped => PIORefs c b a -> (a -> a -> b) -> IO ()
-zipWithPIORefs' (PIORefs o rs rt) f =
-  do s <- readIORef rs
-     let t = zipWithOf o f s s 
-     t `seq` writeIORef rt t
-
--- | 'traverseOf' can be used to convert 'Strong' optics to their
--- van Laarhoven equivalents.
-traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf = through Star runStar
-
-cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf = through Costar runCostar
--}
 
 
 

@@ -8,22 +8,19 @@
 {-# LANGUAGE QuantifiedConstraints     #-}
 
 {-# OPTIONS_GHC -w #-}
-module Data.Profunctor.Reference.PRefs (
-    module Export
-  , module Data.Profunctor.Reference.PRefs
-) where
+module Data.Profunctor.Reference.PRefs where
 
 import Control.Arrow
 import Control.Category (Category)
-import Control.Concurrent.MVar (MVar)
-import Control.Concurrent.STM (TArray, TBQueue, TQueue, TChan, TMVar, TVar)
+import Control.Applicative
 import Control.Monad.Reader (MonadReader(..), asks)
-import Control.Monad.State  (MonadState(..), gets)
 import Control.Monad.Writer (MonadWriter(..))
 import Control.Monad.IO.Unlift
-import Data.IORef (IORef(..))
+
+import Data.Functor.Contravariant
+import Data.Functor.Contravariant.Divisible
 import Data.Profunctor.Optic
-import Data.StateVar as Export
+import Data.Profunctor.Reference.Types
 -- (HasGetter(..), HasSetter(..), HasUpdate(..), ($=), ($=!), ($~), ($~!))
 import Data.Void
 import System.IO.Streams (InputStream, OutputStream)
@@ -32,23 +29,6 @@ import qualified Data.StateVar as SV
 import qualified Control.Category as C
 import qualified Data.IORef as IOR
 
-
--- TODO consider using the version from contravariant.
--- | Dual function arrows.
-newtype Op a b = Op { runOp :: b -> a }
-
-type (<—) a b = Op a b
-
-instance Category Op where
-  id = Op id
-  Op f . Op g = Op (g . f)
-
---type (<—) a b = b -> a
-
-contra :: (c -> b) -> (a <— b) -> (a <— c)
-contra f g = Op (runOp g . f)
-
---instance Contravariant (Op a) where contramap f g = Op (getOp g . f)
 
 ---------------------------------------------------------------------
 --  PRef
@@ -63,7 +43,7 @@ in the read and write references.
 
 The type variables signify:
 
-  * @c@ - The constraint determining which operations can be performed.
+  * @c@ - The profunctor constraint determining which operations can be performed.
 
   * @rt@ - The write container reference (e.g. 'MVar', 'IORef' etc.).
 
@@ -75,8 +55,28 @@ The type variables signify:
 
 -}
 
--- data PRefs c rt rs b a 
+-- TODO: consider adding some version of PRefs'
+-- data PRefs' c rs rt b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rt x)
+-- data PRefs' c rs b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rs x)
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
+
+type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
+
+instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRefs c rt rs b a) a where
+
+  get (PRefs o rs _) = liftIO $ view o <$> SV.get rs
+  {-# INLINE get #-}
+
+instance (forall s. HasGetter (rs s) s, forall t. HasSetter (rt t) t, c (->)) => HasSetter (PRefs c rt rs b a) b where
+
+  (PRefs o rs rt) $= b = liftIO $ SV.get rs >>= \s -> rt $= over o (const b) s
+  {-# INLINE ($=) #-}
+
+instance (forall s. HasGetter (rs s) s, forall t. HasSetter (rt t) t, c (->)) => HasUpdate (PRefs c rt rs b a) a b where
+
+  (PRefs o rs rt) $~ f  = liftIO $ SV.get rs >>= \s -> rt $= over o f s
+
+  (PRefs o rs rt) $~! f = liftIO $ SV.get rs >>= \s -> rt $=! over o f s
 
 -- TODO c :- Profunctor
 dimap' :: (b' -> b) -> (a -> a') -> PRefs Profunctor rt rs b a -> PRefs Profunctor rt rs b' a'
@@ -116,33 +116,35 @@ instance Choice (PRefs Cochoice rt rs) where right' (PRefs o rs rt) = PRefs (o .
 
 instance Cochoice (PRefs Choice rt rs) where unright (PRefs o rs rt) = PRefs (o . right') rs rt
 
-instance Category (PRefs Profunctor rt rs) where 
-  id = undefined -- TODO produce these w/ TH based on monoid instances from the underlying s,t
+
+-- PRefs c SettableStateVar GettableStateVar
+instance (Alternative f, Divisible g) => Category (PRefs Profunctor g f) where 
+  id =  PRefs (dimap id id) empty conquer
   (PRefs oab sx _) . (PRefs obc _ ty) = (PRefs (compose_iso oab obc) sx ty) 
 
-
 compose_iso :: AnIso s y a b -> AnIso x t b c -> Iso s t a c
-compose_iso o o' = withIso o $ \ sa bt -> withIso o' $ \ s'a' b't' -> iso sa b't'
+compose_iso o o' = withIso o $ \ sa _ -> withIso o' $ \ _ b't' -> iso sa b't'
 
 --compose_lens :: ALens s y a b -> ALens x t b c -> Lens s t a c
 --compose_lens o o' = withLens o $ \ sa sbt -> withLens o' $ \ s'a' s'b't' -> lens sa sb't'
+-- newtype Yoneda p a b = Yoneda { runYoneda :: forall x y. (x -> a) -> (b -> y) -> p x y }
 
 
-instance (forall s . HasGetter (rs s) s) => HasGetter (PRefs Getting rt rs b a) a where
 
-  get (PRefs o rs _) = liftIO $ view o <$> SV.get rs
-  {-# INLINE get #-}
+instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where 
+  arr f = PRefs (dimap f f) empty conquer
 
-instance (forall s. HasGetter (rs s) s, forall t. HasSetter (rt t) t) => HasSetter (PRefs Mapping rt rs b a) b where
+  (PRefs o f g) *** (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g') 
 
-  (PRefs o rs rt) $= b = liftIO $ SV.get rs >>= \s -> rt $= over o (const b) s
-  {-# INLINE ($=) #-}
 
-instance (forall s. HasGetter (rs s) s, forall t. HasSetter (rt t) t) => HasUpdate (PRefs Mapping rt rs b a) a b where
+(*$*) :: Applicative f => Divisible g => PRefs Strong g f b1 a1 -> PRefs Strong g f b2 a2 -> PRefs Strong g f (b1,b2) (a1,a2)
+(*$*) (PRefs o f g) (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g')
 
-  (PRefs o rs rt) $~ f  = liftIO $ SV.get rs >>= \s -> rt $= over o f s
+-- TODO 'Decidable f' seems like the wrong constraint here.
+-- (+$+) :: Decidable f => Decidable g => PRefs Choice g f b1 a1 -> PRefs Choice g f b2 a2 -> PRefs Choice g f (Either b1 b2) (Either a1 a2)
+-- (+$+) (PRefs o f g) (PRefs o' f' g') = PRefs (split o o') (chosen f f') (chosen g g')
 
-  (PRefs o rs rt) $~! f = liftIO $ SV.get rs >>= \s -> rt $=! over o f s
+
 
 -- | Unbox a 'Pxy' by providing an existentially quantified continuation.
 withPRefs 
@@ -150,25 +152,6 @@ withPRefs
   -> (forall x y. Optical c x y a b -> rs x -> rt y -> r) 
   -> r
 withPRefs (PRefs o sx ty) f = f o sx ty
-
-
-{-
-
-type PMVar c b a = PRefs c MVar MVar b a
-
-type PInputStream c a = PRef c InputStream a
-
-type POutputStream c b = PRef c OutputStream b
-
-type PTChan c b a = PRefs c TChan TChan b a
-
-type PTQueue c b a = PRefs c TQueue TQueue b a
-
-type PTBQueue c b a = PRefs c TBQueue TBQueue b a
-
-
--}
-
 
 
 
@@ -180,23 +163,21 @@ type PTBQueue c b a = PRefs c TBQueue TBQueue b a
 has :: MonadReader r m => c (Star (Const a)) => PRefs c rt ((->) r) b a -> m a
 has (PRefs o rs _) = view o <$> asks rs
 
-contraview :: Optic (Costar (Const b)) s t a b -> (c <— t) -> c <— b
-contraview = contra . review
+read :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
+read (PRefs o rs _) = view o <$> rs
 
-gives :: MonadWriter w m => c (Costar (Const b)) => PRefs c (Op w) rs b a -> b -> m ()
-gives (PRefs o _ rt) b = tells (runOp $ contraview o rt) b
+-- (>$) :: b -> f b -> f a
+write :: Contravariant rt => c (Costar (Const b)) => PRefs c rt rs b a -> b -> rt r
+write (PRefs o _ rt) b = review o b >$ rt
 
-tells :: MonadWriter w m => (a -> w) -> a -> m ()
-tells f = tell . f
+--update :: Functor rs => Contravariant rt => c (->) => PRefs c rt rs b a -> (a -> b) -> rt a
+--update (PRefs o rs rt) f = contramap (over o f) rt
+
+{-
+debug :: Show a => SettableStateVar a
+debug = SettableStateVar print
 
 
-foox :: MonadIO m => PRefs c (Star m b) rs b a -> b -> m ()
-foox (PRefs _ _ rt) b = runStar rt b >> return ()
-
-
--- TODO check dynamically whether a 'Show' instance is available, and supply a default if not.
---debug :: Show t => Optic (Star IO) s t a b -> (a -> b) -> s -> IO ()
---debug o = star (>>=print) o return
 
 
 pstate 
@@ -247,3 +228,4 @@ costar'
   -> f s
   -> t
 costar' = costar id
+-}

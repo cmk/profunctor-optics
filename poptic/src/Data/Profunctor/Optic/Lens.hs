@@ -26,6 +26,16 @@ updateUpdate (LensP v u) a1 a2 s = u (a2, (u (a1, s))) == u (a2, s)
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (sa &&& id) (uncurry . flip $ sbt) . first'
 
+-- Analogous to (***) from 'Control.Arrow'
+(***) :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+(***) = paired
+
+lensOf
+  :: (s -> a)
+  -> (s -> b -> t) 
+  -> Lens (c, s) (d, t) (c, a) (d, b)
+lensOf f g = through Paired runPaired (lens f g)
+
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens l = withLens l $ \x y p -> lens x y p
 
