@@ -21,6 +21,24 @@ type PInputStream c b a = PRefs c ((->) Void) InputStream a
 
 type POutputStream c b a = PRefs c OutputStream ((->) Void) b
 
+-- TODO
+-- PVars c b a -> PStreams c b a
+-- instance Divisible OutputStream
+-- instance Applicative InputStream
+
+
+instance HasGetter (InputStream a) (Maybe a) where
+
+  get = liftIO . S.read
+  {-# INLINE get #-}
+
+instance HasSetter (OutputStream b) (Maybe b) where
+
+  os $= b = liftIO $ S.write b os
+  {-# INLINE ($=) #-}
+
+
+
 ---------------------------------------------------------------------
 --  Connecting 'PStreams's
 ---------------------------------------------------------------------
@@ -113,7 +131,7 @@ supplyPStreams (PRefs o rs rt) f = liftIO $ loop
 previewPStreams 
   :: MonadIO m 
   => c (Star (Const (First a)))
-  => PStreams c b a 
+  => PRefs c rt InputStream b a 
   -> m (Maybe a)
 previewPStreams (PRefs o rs _) =
   liftIO (S.read rs) >>= readPrism o
@@ -129,7 +147,7 @@ previewPStreams (PRefs o rs _) =
 previewPStreams'
   :: MonadIO m 
   => c (Star (Const (First a)))
-  => PStreams c b a 
+  => PRefs c rt InputStream b a
   -> m (Maybe a)
 previewPStreams' (PRefs o rs _) = 
   do ma <- liftIO (S.peek rs) >>= readPrism o 

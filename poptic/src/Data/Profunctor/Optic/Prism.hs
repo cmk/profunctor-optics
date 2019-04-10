@@ -55,11 +55,11 @@ prism' :: (a -> s) -> (s -> Maybe a) -> Prism' s a
 prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
 
 -- | Useful for constructing prisms from try and handle functions.
-handled :: (s -> Either e a) -> (Either e b -> t) -> Prism s t a b
-handled seea eebt = dimap seea eebt . right'
+handled :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
+handled eebt seea = dimap seea eebt . right'
 
-validated :: (s -> Validation e a) -> (Validation e b -> t) -> Prism s t a b
-validated svea vebt = dimap svea vebt . dimap toEither fromEither . right'
+validated :: (Validation e b -> t) -> (s -> Validation e a) -> Prism s t a b
+validated vebt svea = dimap svea vebt . dimap toEither fromEither . right'
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
 (+++) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 

@@ -22,6 +22,7 @@ import qualified System.IO.Streams as S
 import qualified System.IO.Streams.Combinators as SC
 
 {-
+
 >  connectPStreams parseref fromInteger
 Right 0
 Right 1

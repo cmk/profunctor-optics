@@ -31,7 +31,6 @@ import qualified Control.Monad.Trans.Reader as R
 
 import Control.Applicative (liftA2)
 import Data.IORef (IORef(..))
-
 ---------------------------------------------------------------------
 --  PRef
 ---------------------------------------------------------------------
@@ -66,9 +65,6 @@ newtype LocalRef c s a =
   LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef STRef c s) (ST r) a }
 
 -}
-
-has :: MonadReader r m => c (Star (Const a)) => PRef c ((->) r) b a -> m a
-has (PRef o rs) = view o <$> asks rs
 
 
 instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRef c rs b a) a where
@@ -124,9 +120,27 @@ instance Cochoice (PRef Choice rs) where unright (PRef o rs) = PRef (o . right')
 (*$*) :: Applicative f => PRef Strong f b1 a1 -> PRef Strong f b2 a2 -> PRef Strong f (b1,b2) (a1,a2)
 (*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
 
+-- TODO: could use these w/ & an 'Error m e = Error { forall a. e -> m a }' the 'Decidable' instance for exceptions
 (+$+) :: Decidable f => PRef Choice f b1 a1 -> PRef Choice f b2 a2 -> PRef Choice f (Either b1 b2) (Either a1 a2)
 (+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
 
 
+has :: MonadReader r m => c (Star (Const a)) => PRef c ((->) r) b a -> m a
+has (PRef o rs) = view o <$> asks rs
 
-
+{-
+hasBoth  
+  :: c1 (Star (Const (PRef Strong m b1 a1)))
+  => c2 (Star (Const (PRef Strong m b2 a2)))
+  => MonadReader r m
+  => PRef c1 ((->) r) b4 (PRef Strong m b1 a1)
+  -> PRef c2 ((->) r) b5 (PRef Strong m b2 a2)
+  -> m (PRef Strong m (b1, b2) (a1, a2))
+hasBoth r s = liftA2 (*$*) (has r) (has s)
+-}
+asksBoth
+  :: (MonadReader r m, Applicative m) 
+  => (r -> PRef Strong m b1 a1)
+  -> (r -> PRef Strong m b2 a2)
+  -> m (PRef Strong m (b1, b2) (a1, a2))
+asksBoth r s = liftA2 (*$*) (asks r) (asks s)

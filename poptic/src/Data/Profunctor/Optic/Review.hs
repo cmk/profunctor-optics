@@ -8,12 +8,12 @@ module Data.Profunctor.Optic.Review
   , re
   , review --, reviews
   --, reuse, reuses
-  --, ( # )
+  , (#)
   --, retagged
   , Reviewing
   ) where
 
-
+import Control.Monad.Reader
 --import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
@@ -141,3 +141,39 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 
 
 -}
+
+
+-- | This can be used to turn an 'Control.Lens.Iso.Iso' or 'Prism' around and 'view' a value (or the current environment) through it the other way,
+-- applying a function.
+--
+-- @
+-- 'reviews' ≡ 'views' '.' 're'
+-- 'reviews' ('unto' f) g ≡ g '.' f
+-- @
+--
+-- >>> reviews _Left isRight "mustard"
+-- False
+--
+-- >>> reviews (unto succ) (*2) 3
+-- 8
+--
+-- Usually this function is used in the @(->)@ 'Monad' with a 'Prism' or 'Control.Lens.Iso.Iso', in which case it may be useful to think of
+-- it as having one of these more restricted type signatures:
+--
+-- @
+-- 'reviews' :: 'Iso'' s a   -> (s -> r) -> a -> r
+-- 'reviews' :: 'Prism'' s a -> (s -> r) -> a -> r
+-- @
+--
+-- However, when working with a 'Monad' transformer stack, it is sometimes useful to be able to 'review' the current environment, in which case
+-- it may be beneficial to think of it as having one of these slightly more liberal type signatures:
+--
+-- @
+-- 'reviews' :: 'MonadReader' a m => 'Iso'' s a   -> (s -> r) -> m r
+-- 'reviews' :: 'MonadReader' a m => 'Prism'' s a -> (s -> r) -> m r
+-- @
+--reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
+reviews :: MonadReader b m => Optic (Costar (Const b)) s t a b -> (t -> r) -> m r
+reviews p tr = asks (tr . review p)
+{-# INLINE reviews #-}
+

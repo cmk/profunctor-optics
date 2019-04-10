@@ -15,6 +15,7 @@ import Control.Category ((>>>),(<<<))
 
 import Control.Monad.Trans.Reader
 --import Control.Concurrent.STM
+
 import Control.Concurrent.MVar (MVar)
 -- $setup
 -- >>> :set -XTypeApplications
@@ -263,6 +264,7 @@ previewPIORefs
   => PIORefs c b a 
   -> IO (Maybe a)
 previewPIORefs (PRefs o rs _) = preview o <$> readIORef rs 
+
 
 
 -- | A variant of 'previewPIORefs' that updates the write ref on failure.

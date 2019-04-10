@@ -38,6 +38,7 @@ library
     , mtl
     , profunctors
     , poptic
+    , safe-exceptions
     , stm
     , StateVar
     , template-haskell
