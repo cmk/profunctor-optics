@@ -27,20 +27,20 @@ import Control.Applicative
 
 --data Catch a m e = forall t . Exception e => Catch (e -> Maybe t) (t -> m a)
 --TODO: profunctor instance
-data Catch m e b a = Catch (a -> Maybe e) (e -> m b)
+data Catch e m a b = Catch (b -> Maybe e) (e -> m a)
 
-instance Contravariant (Catch m e b) where
+instance Contravariant (Catch e m a) where
   
   contramap f (Catch emt tma) = Catch (emt . f) tma
 
 
-instance MonadError e m => Divisible (Catch m e b) where
+instance MonadError e m => Divisible (Catch e m a) where
   
   divide f (Catch g g') (Catch h h') = Catch (\e -> case f e of (e1, e2) -> g e1 <|> h e2) (\t -> g' t >> h' t)
   
   conquer = Catch (const Nothing) throwError
 
-instance MonadError e m => Decidable (Catch m e b) where
+instance MonadError e m => Decidable (Catch e m a) where
 
   lose _ = Catch (const Nothing) throwError
 
