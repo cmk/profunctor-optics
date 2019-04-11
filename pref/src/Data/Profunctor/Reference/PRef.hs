@@ -31,6 +31,7 @@ import qualified Control.Monad.Trans.Reader as R
 
 import Control.Applicative (liftA2)
 import Data.IORef (IORef(..))
+
 ---------------------------------------------------------------------
 --  PRef
 ---------------------------------------------------------------------
@@ -48,7 +49,7 @@ import Data.IORef (IORef(..))
 
 data PRef c rs b a = forall x . PRef (Optical c x x a b) !(rs x)
 
--- | Type alias for 'PRefs' constructed from @IO s@ and @s -> IO ()@.
+-- | Type alias for a 'PRef' constructed from @IO s@ and @s -> IO ()@.
 type PVar c b a = PRef c StateVar b a
 
 

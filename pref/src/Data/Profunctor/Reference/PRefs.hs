@@ -5,6 +5,7 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeOperators             #-}
+{-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE QuantifiedConstraints     #-}
 
 {-# OPTIONS_GHC -w #-}
@@ -69,13 +70,43 @@ data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
 
 -- | Extract the covariant read reference.
-readRef :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
-readRef (PRefs o rs _) = view o <$> rs
+readRefs :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
+readRefs (PRefs o rs _) = view o <$> rs
 
 -- (>$) :: b -> f b -> f a
 -- | Extract the contravariant write reference.
-writeRef :: Contravariant rt => c (Costar (Const b)) => PRefs c rt rs b a -> b -> rt r
-writeRef (PRefs o _ rt) b = review o b >$ rt
+writeRefs :: Contravariant rt => c (Costar (Const b)) => PRefs c rt rs b a -> b -> rt r
+writeRefs (PRefs o _ rt) b = review o b >$ rt
+
+--readPure ::  Monoid r => (s -> a) -> PRefs Profunctor (Op r) ((->) s) b a
+readPure :: Divisible g => (s -> a) -> PRefs Profunctor g ((->) s) b a
+readPure f = PRefs (dimap f id) id conquer
+
+-- writePure :: (b -> t) -> PRefs Profunctor (Op t) Maybe b a
+writePure :: Alternative f => (b -> t) -> PRefs Profunctor (Op t) f b a
+writePure g = PRefs (dimap id g) empty (Op id) 
+
+readVars :: (s -> a) -> PVars Profunctor b a
+readVars f = PRefs (dimap f id) empty conquer
+
+writeVars :: (b -> t) -> PVars Profunctor b a
+writeVars g = PRefs (dimap id g) empty conquer
+
+--liftPRefs :: (p :- q) -> PRefs p rt rs b a -> PRefs q rt rs b a
+--liftPRefs (PRefs o rs rt) = PRefs o rs rt
+
+-- TODO try passing entailment dicts here Strong :- Profunctor
+--readStrong :: (forall g . Decidable g) => (s -> a) -> PRefs Profunctor g ((->) s) b a
+--
+
+{-
+> :t readRef simple
+readRef simple :: a -> a
+> :t writeRef simple
+writeRef simple :: a -> Op a r
+-}
+simple :: PRefs Profunctor (Op a) ((->) a) a a
+simple = readPure @(Op ()) id >$> writePure @Maybe id
 
 --TODO : fills the (read-side) role of the lens in a Has type class
 -- you can have your has-pattern using the raw accessor functions of your caps type,
@@ -84,6 +115,7 @@ writeRef (PRefs o _ rt) b = review o b >$ rt
 -- | A substitute for the 'Has' typeclass pattern.
 has :: MonadReader r m => c (Star (Const a)) => PRefs c rt ((->) r) b a -> m a
 has (PRefs o rs _) = view o <$> asks rs
+
 
 -- | Unbox a 'PRefs' by providing an existentially quantified continuation.
 withPRefs 
@@ -143,16 +175,21 @@ instance Choice (PRefs Cochoice rt rs) where right' (PRefs o rs rt) = PRefs (o .
 
 instance Cochoice (PRefs Choice rt rs) where unright (PRefs o rs rt) = PRefs (o . right') rs rt
 
-instance (Alternative f, Divisible g) => Category (PRefs Profunctor g f) where 
+instance (Alternative f, Divisible g) => Category (PRefs Profunctor g f) where
+
   id =  PRefs (dimap id id) empty conquer
+
   (PRefs oab sx _) . (PRefs obc _ ty) = PRefs (compose_iso oab obc) sx ty
 
 compose_iso :: AnIso s y a b -> AnIso x t b c -> Iso s t a c
 compose_iso o o' = withIso o $ \ sa _ -> withIso o' $ \ _ b't' -> iso sa b't'
 
-instance (Alternative f, Divisible g) => Category (PRefs Strong g f) where 
+instance (Alternative f, Divisible g) => Category (PRefs Strong g f) where
+
   id =  PRefs (dimap id id) empty conquer
-  (PRefs oab sx _) . (PRefs obc _ ty) = undefined 
+
+  (PRefs oab sx _) . (PRefs obc _ ty) = undefined --TODO implement this
+
 
 
 --compose_lens :: ALens s y a b -> ALens x t b c -> Lens s t a c

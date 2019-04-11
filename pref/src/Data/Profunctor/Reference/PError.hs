@@ -13,6 +13,7 @@ module Data.Profunctor.Reference.PError where
 import Control.Applicative
 import Control.Monad.Error.Class
 import Control.Monad.IO.Unlift
+import Control.Monad.Trans.Except
 
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
@@ -32,10 +33,10 @@ instance Contravariant (Catch e m a) where
   
   contramap f (Catch emt tma) = Catch (emt . f) tma
 
-
 instance MonadError e m => Divisible (Catch e m a) where
   
-  divide f (Catch g g') (Catch h h') = Catch (\e -> case f e of (e1, e2) -> g e1 <|> h e2) (\t -> g' t >> h' t) --TODO 
+  divide f (Catch g g') (Catch h h') = 
+    Catch (\e -> case f e of (e1, e2) -> g e1 <|> h e2) (\t -> g' t >> h' t) --TODO 
   
   conquer = Catch (const Nothing) throwError
 
@@ -101,7 +102,7 @@ instance Handleable e m (Handler e m) where
 -}
 
 
-
+--TODO upstream to poptic if we go w/ MonadError
 -- | Helper function to provide conditional catch behavior.
 catchJust :: MonadError e m => (e -> Maybe t) -> m a -> (t -> m a) -> m a
 catchJust f m k = catchError m $ \ e -> case f e of
@@ -140,27 +141,7 @@ trying l = tryJust (preview l)
 --throwing l = reviews l throw
 -}
 
--- | Maybe produce a 'Left', otherwise produce a 'Right'.
---
--- >>> maybeToRight "default" (Just 12)
--- Left 12
---
--- >>> maybeToRight "default" Nothing
--- Right "default"
-maybeToLeft :: b -> Maybe a -> Either a b
-maybeToLeft _ (Just x) = Left x
-maybeToLeft y Nothing  = Right y
 
--- | Maybe produce a 'Right', otherwise produce a 'Left'.
---
--- >>> maybeToRight "default" (Just 12)
--- Right 12
---
--- >>> maybeToRight "default" Nothing
--- Left "default"
-maybeToRight :: b -> Maybe a -> Either b a
-maybeToRight _ (Just x) = Right x
-maybeToRight y Nothing  = Left y
 
 -- | Generalize @Either e@ as @MonadError e m@.
 --
@@ -201,3 +182,7 @@ tryPError (PRefs o m (Catch f g)) = catchJust f (view o <$> m) g
 throwPError :: (forall e . MonadError e m) => c (Costar (Const b)) => PError e m c b a -> b -> m a
 throwPError (PRefs o _ (Catch f g)) b = catchJust f (throwError . review o $ b) g
 
+--throwPError' :: c (Costar (Const b)) => PError e (Either e) c b a -> b -> Either e a
+--throwPError' = throwPError
+--tryP :: (forall e . MonadError e m) => m Int
+--tryP = return 1

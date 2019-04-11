@@ -53,9 +53,9 @@ toValidation :: Either String a -> Validation Text a
 toValidation = first T.pack . fromEither
 
 decimal_ :: Text -> Validation Text Integer
-decimal_ = toValidation . fmap fst . T.decimal
-
---validated :: (s -> Validation e a) -> (Validation e b -> t) -> Prism s t a b
+decimal_ = toValidation . fmap fst . T.decimal 
+ 
+--validated :: (Validation e b -> t) -> (s -> Validation e a) -> Prism s t a b
 parser :: Prism Text (Either Text b) Integer b
 parser = validated toEither decimal_ 
 

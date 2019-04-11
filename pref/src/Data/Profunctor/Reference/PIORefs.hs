@@ -1,10 +1,11 @@
 {-# LANGUAGE TemplateHaskell, CPP #-}
 
+{-# LANGUAGE  FlexibleContexts, ScopedTypeVariables           #-}
+
 module Data.Profunctor.Reference.PIORefs where
 
 import Data.IORef
 import Data.Monoid
-import Data.Profunctor.Optic
 import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
 import Data.Profunctor.Reference.Types
@@ -12,11 +13,17 @@ import Data.Validation (Validation(..))
 import Data.Tuple (swap)
 import Control.Category ((>>>),(<<<))
 
-
+import Data.Void
 import Control.Monad.Trans.Reader
---import Control.Concurrent.STM
 
-import Control.Concurrent.MVar (MVar)
+
+--import Control.Concurrent.STM
+--
+import Control.Monad.Reader
+import Data.Functor.Contravariant
+import Data.Functor.Contravariant.Divisible
+
+import Control.Applicative
 -- $setup
 -- >>> :set -XTypeApplications
 -- >>> :set -XScopedTypeVariables
@@ -87,15 +94,52 @@ declareMVar "xm" [t| (String, Int) |] [e| ("hi!", 2) |]
 swapped :: Iso (a, b) (b', a') (b, a) (a', b')
 swapped = iso swap swap
 
+data Config = Config { cnum :: Int, cstr :: String }
+--make lenses
+
+--type (a <– b) = Op a b
+out :: Op a Void
+out = Op absurd 
+
+--foo :: PRefs c (Op a) ((->) (String, Int)) Int String
+foo :: PRefs Profunctor (Op a) ((->) (String, Int)) Void String
+foo = PRefs (dimap fst absurd) id out 
+
+foo' :: Decidable f => PRefs Profunctor f ((->) (String, Int)) b String
+foo' = PRefs (dimap fst id) id conquer
+
+-- null :: PRefs Profunctor g f Void ()
+--withfoo :: Applicative f => PRefs Profunctor SettableStateVar f b Void
+--withfoo = PRefs () pure printout
+
+-- you can essentially write to a contravariant functor (>$) :: b -> f b -> f a
+--  contramap . const
+--  runReader hasfoo ("hi", 3)
+-- "hi"
+hasfoo :: MonadReader (String, Int) m => m String
+hasfoo = has foo
+
+nada :: (Functor f, Contravariant f) => f a -> f b
+nada x = () <$ x $< ()
+
+
+hasfoobar
+  :: PRefs Profunctor rt ry b Void
+  -> PRefs Profunctor rt ((->) (String, Int)) b String
+hasfoobar = (foo >$>)
+
+-- <$< foo
+
+
 inp :: GettableStateVar (String, Int)
 inp = makeGettableStateVar $ readIORef x
 
-out :: SettableStateVar (String, Int)
-out = debug
+printout :: SettableStateVar (String, Int)
+printout = debug
 
 
 trefs :: PRefs Strong SettableStateVar GettableStateVar String String
-trefs = PRefs _1 inp out
+trefs = PRefs _1 inp printout
 
 {-
 > get trefs
