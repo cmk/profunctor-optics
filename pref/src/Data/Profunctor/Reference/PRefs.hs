@@ -34,10 +34,7 @@ import qualified Data.StateVar as SV
 import qualified Control.Category as C
 import qualified Data.IORef as IOR
 
-import Data.Maybe (listToMaybe)
 import Data.Monoid
---import Control.Exception.Safe hiding (Handler)
-import Control.Monad.Error.Class
 ---------------------------------------------------------------------
 --  PRef
 ---------------------------------------------------------------------
@@ -68,6 +65,8 @@ The type variables signify:
 -- data PRefs' c rs b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rs x)
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 
+-- | Type alias for 'PRefs' constructed from @IO s@ and @t -> IO ()@.
+type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
 
 -- | Extract the covariant read reference.
 readRef :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
@@ -156,44 +155,8 @@ instance (Alternative f, Divisible g) => Category (PRefs Strong g f) where
   (PRefs oab sx _) . (PRefs obc _ ty) = undefined 
 
 
---try :: (MonadCatch m, Exception e) => m a -> m (Either e a)
-
---tryJust :: (MonadCatch m, Exception e) => (e -> Maybe b) -> m a -> m (Either b a)
---trying :: MonadCatch m => c (Star (Const (First a))) => PRefs c (Error m) m b a
---
-{-
-e -> Either t a
-PThrow m e = PRef Reviewing (Error m) e ()
-PHandle e m a = PRefs Choice m (Error m) e a -- 
-
-PTry e m a = PRefs Choice (Error m) m e a
-catchJust :: MonadError t m => (t -> Maybe e) -> m a -> (e -> m a) -> m a
--}
-
---tryP :: (c (Star (Const (m a))), MonadCatch m) => PRefs c (Error m) m b (m a) -> m a
---tryP :: (c (Star (Const a)), MonadCatch rs) => PRefs c (Error m) rs b a -> rs a
---tryP (PRefs o rs (Error f)) = try rs >>= either (f >> return undefined) (return . view o)
-
--- | Type alias for 'PRefs' constructed from @IO s@ and @t -> IO ()@.
-type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
-
--- | Type alias for 'PRefs' constructed from @m s@, @(t -> Maybe e)@, and @(e -> m a)@.
-type PError e m c b a = PRefs c (Catch e m a) m b a
-
---tryPError' :: (forall e . MonadError e m) => c (Star (Either a)) => PError e m c b a -> m a
---tryPError' (PRefs o m (Catch f g)) = catchJust f (match o <$> m) g
-
---https://lukajcb.github.io/blog/functional/2018/04/15/rethinking-monaderror.html
-tryPError :: (forall e . MonadError e m) => c (Star (Const a)) => PError e m c b a -> m a
-tryPError (PRefs o m (Catch f g)) = catchJust f (view o <$> m) g
-
---TODO try this with simple Either
-throwPError :: (forall e . MonadError e m) => c (Costar (Const b)) => PError e m c b a -> b -> m a
-throwPError (PRefs o _ (Catch f g)) b = catchJust f (throwError . review o $ b) g
-
 --compose_lens :: ALens s y a b -> ALens x t b c -> Lens s t a c
 --compose_lens o o' = withLens o $ \ sa sbt -> withLens o' $ \ s'a' s'b't' -> lens sa sb't'
--- newtype Yoneda p a b = Yoneda { runYoneda :: forall x y. (x -> a) -> (b -> y) -> p x y }
 
 -- | Compose two 'PRefs' from left to right:
 --
@@ -211,7 +174,8 @@ throwPError (PRefs o _ (Catch f g)) b = catchJust f (throwError . review o $ b) 
 -- @
 (<$<) = flip (>$>)
 
-instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where 
+instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
+
   arr f = PRefs (dimap f f) empty conquer
 
   (PRefs o f g) *** (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g') 

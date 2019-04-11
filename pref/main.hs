@@ -57,7 +57,7 @@ decimal_ = toValidation . fmap fst . T.decimal
 
 --validated :: (s -> Validation e a) -> (Validation e b -> t) -> Prism s t a b
 parser :: Prism Text (Either Text b) Integer b
-parser = validated decimal_ toEither
+parser = validated toEither decimal_ 
 
 -- type PStreams c b a = PRefs c OutputStream InputStream b a
 parseref :: PStreams Choice Int Integer
