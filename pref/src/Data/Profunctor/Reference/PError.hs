@@ -5,184 +5,124 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeOperators             #-}
-{-# LANGUAGE QuantifiedConstraints     #-}
+{-# LANGUAGE QuantifiedConstraints, ConstraintKinds     #-}
 
 {-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.PError where
 
 import Control.Applicative
-import Control.Monad.Error.Class
+import Control.Exception.Optic
 import Control.Monad.IO.Unlift
-import Control.Monad.Trans.Except
 
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
-import Data.Profunctor.Optic hiding (has)
+
 import Data.Profunctor.Reference.Types
 import Data.Profunctor.Reference.PRefs
+--import Data.Profunctor.Reference.PRef 
 import Data.Void
 
 import Data.Maybe (listToMaybe)
 import Data.Monoid
 
---data Catch a m e = forall t . Exception e => Catch (e -> Maybe t) (t -> m a)
---TODO: profunctor instance
-data Catch e m a b = Catch (b -> Maybe e) (e -> m a)
+import UnliftIO.Exception hiding (Handler)
 
-instance Contravariant (Catch e m a) where
+
+data Handler m e = Handler { runHandler :: forall a. e -> m a }
+
+instance Contravariant (Handler m) where
+  
+  contramap f (Handler h) = Handler $ h . f
+
+instance Applicative m => Divisible (Handler m) where
+  
+  divide f (Handler h) (Handler h') = 
+    Handler $ \e -> case f e of (e1, e2) -> h e1 *> h' e2
+  
+  conquer = Handler $ const undefined
+
+instance MonadUnliftIO m => Decidable (Handler m) where
+
+  lose f = Handler $ \a -> absurd (f a)
+
+  choose f (Handler h) (Handler h') = Handler $ either h h' . f
+
+
+-- | Create a new 'PError'.
+
+{-# INLINE newPError #-}
+
+newPError :: MonadIO m => Exception a => Handler m SomeException -> PError m Choice a a
+newPError h = PRef exception h
+
+
+
+
+--TODO: push this upstream, demonstrate use case w/ +$+
+data PRef c cs rs b a = forall x . cs x => PRef (Optical c x x a b) (rs x)
+
+type PError m c b a = PRef c Exception (Handler m) b a
+
+perror :: Exception a => PError IO Choice a a
+perror = PRef exception (Handler throwIO)
+
+tryPError :: MonadUnliftIO m => c (Star (Const (First a))) => PError m c b a -> m r -> m (Either a r)
+tryPError (PRef o _) m = tryJust (preview o) m
+
+throwPError :: MonadUnliftIO m => c (Costar (Const b)) => PError m c b a -> b -> m r
+throwPError (PRef o _) b = throwing o b
+
+catchPError :: MonadUnliftIO m => c (Star (Either a)) => PError m c b a -> m r -> (a -> m r) -> m r
+catchPError (PRef o (Handler ht)) m ha = m `catch` \e -> either ht ha $ match o e
+
+handlePError :: MonadUnliftIO m => c (Star (Either a)) => PError m c b a -> (a -> m r) -> m r -> m r
+handlePError perr = flip $ catchPError perr
+
+
+
+
+
+{-
+data Catch m a b = forall e . Exception e => Catch (b -> Maybe e) (e -> m a)
+
+
+instance Contravariant (Catch m a) where
   
   contramap f (Catch emt tma) = Catch (emt . f) tma
 
-instance MonadError e m => Divisible (Catch e m a) where
+instance MonadThrow m => Divisible (Catch m a) where
   
   divide f (Catch g g') (Catch h h') = 
     Catch (\e -> case f e of (e1, e2) -> g e1 <|> h e2) (\t -> g' t >> h' t) --TODO 
   
-  conquer = Catch (const Nothing) throwError
+  conquer = Catch (const Nothing) throwM
 
-instance MonadError e m => Decidable (Catch e m a) where
+instance MonadThrow m => Decidable (Catch m a) where
 
-  lose _ = Catch (const Nothing) throwError
+  lose _ = Catch (const Nothing) throwM
 
   choose f (Catch g g') (Catch h _) = Catch (either g h . f) g' --TODO left-biased ?
 
+data PRefs'' c rt rs b a = forall x y . Exception x => PRefs'' (Optical c x y a b) (rs x) (rt y)
+--type PError c rt rs b a = PRefs c X Exception rt rs b a 
 
+tryFoo :: MonadUnliftIO m => c (Star (Const (First a))) => PRefs'' c rt rs b a -> m r -> m (Either a r)
+tryFoo (PRefs'' o _ _ ) m = tryJust (preview o) m
 
-{-
-
-
-
-
-instance Monad m => Decidable (Catch a m) where
-  lose f = Catch $ \a -> absurd (f a)
-  choose f (Catch g) (Catch h) = Catch $ either g h . f
-
-
--- | You need this when using 'catches'.
-
-data Error m e where
-  Error :: Exception e => (e -> m a) -> Error m e
-
-data Throw a m e where
-  Throw :: Exception e => (e -> m a) -> Throw a m e
-
-error :: (Exception e, MonadThrow m) => Error m e
-error = Error throwM
-
-instance Monad m => Functor (Handler e m) where
-  fmap f (Handler ema amr) = Handler ema $ \a -> do
-     r <- amr a
-     return (f r)
-  {-# INLINE fmap #-}
-
-instance Monad m => Semigroup (Handler e m a) where
-  (<>) = M.mappend
-  {-# INLINE (<>) #-}
-
-instance Monad m => Alt (Handler e m) where
-  Handler ema amr <!> Handler emb bmr = Handler emab abmr where
-    emab e = Left <$> ema e <|> Right <$> emb e
-    abmr = either amr bmr
-  {-# INLINE (<!>) #-}
-
-instance Monad m => Plus (Handler e m) where
-  zero = Handler (const Nothing) undefined
-  {-# INLINE zero #-}
-
-instance Monad m => M.Monoid (Handler e m a) where
-  mempty = zero
-  {-# INLINE mempty #-}
-  mappend = (<!>)
-  {-# INLINE mappend #-}
-
-instance Handleable e m (Handler e m) where
-  handler = Handler . preview
-  {-# INLINE handler #-}
-
--}
-
-
---TODO upstream to poptic if we go w/ MonadError
--- | Helper function to provide conditional catch behavior.
-catchJust :: MonadError e m => (e -> Maybe t) -> m a -> (t -> m a) -> m a
-catchJust f m k = catchError m $ \ e -> case f e of
-  Nothing -> throwError e
-  Just x  -> k x
-{-# INLINE catchJust #-}
-
---catching :: MonadCatch m => Getting (First a) SomeException a -> m r -> (a -> m r) -> m r
-catching :: MonadError e m => AGetter (First a) e t a b -> m r -> (a -> m r) -> m r
---catching :: MonadError e m => Getting (M.First a) e a -> m r -> (a -> m r) -> m r
-catching l = catchJust (preview l)
-
-{-
---tryN (PRefs o rs (Error f)) = try rs >>= either (f >> return undefined) (return . view o)
-exception :: Exception a => Prism' SomeException a
-exception = prism' toException fromException
-
---catching :: MonadCatch m => Getting (First a) SomeException a -> m r -> (a -> m r) -> m r
-catching :: Exception s => AGetter (First a) s t a b -> IO r -> (a -> IO r) -> IO r
-catching l = catchJust (preview l)
-
--- catching_ :: MonadCatch m => Getting (First a) SomeException a -> m r -> m r -> m r
-catching_ :: Exception s => AGetter (First a) s t a b -> IO r -> IO r -> IO r
-catching_ l a b = catchJust (preview l) a (const b)
-
--- handling :: MonadCatch m => Getting (First a) SomeException a -> (a -> m r) -> m r -> m r
-handling :: Exception s => AGetter (First a) s t a b -> (a -> IO r) -> IO r -> IO r
-handling l = flip (catching l)
-
---trying :: MonadCatch m => Getting (First a) SomeException a -> m r -> m (Either a r)
-trying :: Exception s => AGetter (First a) s t a b -> IO r -> IO (Either a r)
-trying l = tryJust (preview l)
-
---throwing :: AReview SomeException b -> b -> r
---throwing :: (MonadReader b1 m, Exception e) => Optic (Costar (Const b1)) s e a1 b1 -> m a2
---throwing l = reviews l throw
--}
-
-
-
--- | Generalize @Either e@ as @MonadError e m@.
---
--- If the argument has form @Left e@, an error is produced in the monad via
--- 'throwError'. Otherwise, the @Right a@ part is forwarded.
-eitherToError :: (MonadError e m) => Either e a -> m a
-eitherToError = either throwError return
-
---try :: (MonadCatch m, Exception e) => m a -> m (Either e a)
-
---tryJust :: (MonadCatch m, Exception e) => (e -> Maybe b) -> m a -> m (Either b a)
---trying :: MonadCatch m => c (Star (Const (First a))) => PRefs c (Error m) m b a
---
-{-
-e -> Either t a
-PThrow m e = PRef Reviewing (Error m) e ()
-PHandle e m a = PRefs Choice m (Error m) e a -- 
-
-PTry e m a = PRefs Choice (Error m) m e a
-catchJust :: MonadError t m => (t -> Maybe e) -> m a -> (e -> m a) -> m a
--}
-
---tryP :: (c (Star (Const (m a))), MonadCatch m) => PRefs c (Error m) m b (m a) -> m a
---tryP :: (c (Star (Const a)), MonadCatch rs) => PRefs c (Error m) rs b a -> rs a
---tryP (PRefs o rs (Error f)) = try rs >>= either (f >> return undefined) (return . view o)
 
 -- | Type alias for 'PRefs' constructed from @m s@, @(t -> Maybe e)@, and @(e -> m a)@.
-type PError e m c b a = PRefs c (Catch e m a) m b a
 
---tryPError' :: (forall e . MonadError e m) => c (Star (Either a)) => PError e m c b a -> m (Either e a)
---tryPError' (PRefs o m (Catch f g)) = catchJust f (match o <$> m) g
+type PCatch m c b a = PRefs' c (Catch m a) m b a
 
---https://lukajcb.github.io/blog/functional/2018/04/15/rethinking-monaderror.html
-tryPError :: (forall e . MonadError e m) => c (Star (Const a)) => PError e m c b a -> m a
-tryPError (PRefs o m (Catch f g)) = catchJust f (view o <$> m) g
+data PRefs' c rt rs b a = forall x y . Exception y => PRefs' (Optical c x y a b) (rs x) (rt y)
 
---TODO try this with simple Either
-throwPError :: (forall e . MonadError e m) => c (Costar (Const b)) => PError e m c b a -> b -> m a
-throwPError (PRefs o _ (Catch f g)) b = catchJust f (throwError . review o $ b) g
+--type PCatch c rt rs b a = PRefs c Exception X rt rs b a 
 
---throwPError' :: c (Costar (Const b)) => PError e (Either e) c b a -> b -> Either e a
---throwPError' = throwPError
---tryP :: (forall e . MonadError e m) => m Int
---tryP = return 1
+tryPCatch :: MonadUnliftIO m => c (Star (Const a)) => PCatch m c b a -> m a
+tryPCatch (PRefs' o m (Catch f g)) = catchJust f (view o <$> m) g
+
+throwPCatch :: MonadUnliftIO m => c (Costar (Const b)) => PCatch m c b a -> b -> m a
+throwPCatch (PRefs' o _ (Catch f g)) b = catchJust f (throwing o $ b) g
+-}
+
+

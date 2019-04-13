@@ -6,7 +6,7 @@ module Data.Profunctor.Optic.Review
   , unto
   , un
   , re
-  , review --, reviews
+  , review, reviews
   --, reuse, reuses
   , (#)
   --, retagged

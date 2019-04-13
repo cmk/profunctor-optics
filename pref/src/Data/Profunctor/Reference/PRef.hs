@@ -118,8 +118,12 @@ instance Choice (PRef Cochoice rs) where right' (PRef o rs) = PRef (o . unright)
 
 instance Cochoice (PRef Choice rs) where unright (PRef o rs) = PRef (o . right') rs
 
+infixr 3 *$*
+
 (*$*) :: Applicative f => PRef Strong f b1 a1 -> PRef Strong f b2 a2 -> PRef Strong f (b1,b2) (a1,a2)
 (*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
+
+infixr 2 +$+
 
 -- TODO: could use these w/ & an 'Error m e = Error { forall a. e -> m a }' the 'Decidable' instance for exceptions
 (+$+) :: Decidable f => PRef Choice f b1 a1 -> PRef Choice f b2 a2 -> PRef Choice f (Either b1 b2) (Either a1 a2)

@@ -3,6 +3,7 @@ flags: {}
 
 packages:
   - poptic
+  - poptic-exception
   - pref
 
 extra-deps:

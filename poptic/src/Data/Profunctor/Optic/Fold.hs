@@ -155,7 +155,7 @@ preuse o = State.gets (preview o)
 lastOf :: AGetter (Last a) s t a b -> s -> Maybe a
 lastOf p = getLast . foldMapOf p (Last . Just)
 
-sumOf :: Optic (Star (Const (Sum a))) s t a b -> s -> a
+sumOf :: AGetter (Sum a) s t a b -> s -> a
 sumOf l = getSum . foldMapOf l Sum
 
 productOf :: AGetter (Product a) s t a b -> s -> a
@@ -167,14 +167,14 @@ allOf l p = getAll . foldMapOf l (All . p)
 anyOf :: AGetter Any s t a b -> (a -> Bool) -> s -> Bool
 anyOf l p = getAny . foldMapOf l (Any . p)
 
-lengthOf :: Num r => Optic (Star (Const (Sum r))) s t a b -> s -> r
+lengthOf :: Num r => AGetter (Sum r) s t a b -> s -> r
 lengthOf l = getSum . foldMapOf l (const (Sum 1))
 
 nullOf :: AGetter All s t a b -> s -> Bool
 nullOf l = allOf l (const False)
 
 -- | Right fold over a 'Fold'.
-foldrOf :: Optic (Star (Const (Endo c))) s t a b -> (a -> c -> c) -> c -> s -> c
+foldrOf :: AGetter (Endo c) s t a b -> (a -> c -> c) -> c -> s -> c
 foldrOf p f r = flip appEndo r . foldMapOf p (Endo . f)
 
 -- | Left fold over a 'Fold'.

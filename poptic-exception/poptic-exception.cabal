@@ -1,0 +1,33 @@
+cabal-version: >= 1.10
+
+name:           poptic-exception
+version:        0.0.0.1
+synopsis:       Exception handling with profunctor optics
+description:    Minimal profunctor-based optics compatible with the typeclasses in the profunctor library.
+category:       Data, Lenses
+homepage:       https://github.com/cmk/putil
+bug-reports:    https://github.com/cmk/putil/issues
+author:         Chris McKinlay
+maintainer:     Chris McKinlay
+copyright:      2019 Chris McKinlay
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/cmk/putil
+
+library
+  exposed-modules:
+      Control.Exception.Optic
+
+  hs-source-dirs:
+      src
+  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings
+  ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+  build-depends:
+      base >=4.9 && <5.0
+    , unliftio-core
+    , unliftio
+    , poptic
+

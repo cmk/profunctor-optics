@@ -21,11 +21,11 @@ library
   exposed-modules:
       Data.Profunctor.Reference.Global
       Data.Profunctor.Reference.PError
-      Data.Profunctor.Reference.PRef
-      Data.Profunctor.Reference.PRefs
       Data.Profunctor.Reference.PIORef
       Data.Profunctor.Reference.PIORefs
       Data.Profunctor.Reference.PMVar
+      Data.Profunctor.Reference.PRef
+      Data.Profunctor.Reference.PRefs
       Data.Profunctor.Reference.PStreams
       Data.Profunctor.Reference.Types
 
@@ -39,6 +39,7 @@ library
     , mtl
     , profunctors
     , poptic
+    , poptic-exception
     , safe-exceptions
     , stm
     , StateVar
@@ -47,6 +48,7 @@ library
     , validation
     , io-streams
     , unliftio-core
+    , unliftio
 
 executable main
   main-is: main.hs

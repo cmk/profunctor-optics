@@ -10,7 +10,7 @@
 
 {-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.PRefs (
-    PVars, PRefs(..), readRef, writeRef, has, withPRefs
+    PVars, PRefs(..), readRefs, writeRefs, has, withPRefs
   , (<$<), (>$>), (*$*)
   , ($=), ($=!), ($~), ($~!)
   , SettableStateVar(..), GettableStateVar(..)
@@ -66,8 +66,12 @@ The type variables signify:
 -- data PRefs' c rs b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rs x)
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 
+--data PRefs co ct cs rt rs b a = forall x y . (cs x, ct y) => PRefs (Optical co x y a b) (rs x) (rt y)
+
 -- | Type alias for 'PRefs' constructed from @IO s@ and @t -> IO ()@.
 type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
+
+--type PVars m c b a = PRefs c (Settable m) (Gettable m) b a
 
 -- | Extract the covariant read reference.
 readRefs :: Functor rs => c (Star (Const a)) => PRefs c rt rs b a -> rs a
@@ -191,7 +195,7 @@ instance (Alternative f, Divisible g) => Category (PRefs Strong g f) where
   (PRefs oab sx _) . (PRefs obc _ ty) = undefined --TODO implement this
 
 
-
+infixr 1 >$>, <$<
 --compose_lens :: ALens s y a b -> ALens x t b c -> Lens s t a c
 --compose_lens o o' = withLens o $ \ sa sbt -> withLens o' $ \ s'a' s'b't' -> lens sa sb't'
 
@@ -217,7 +221,7 @@ instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
 
   (PRefs o f g) *** (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g') 
 
-
+infixr 3 *$*
 -- | Combine two 'PRefs' with profunctorial strength:
 -- 
 -- @
@@ -227,6 +231,7 @@ instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
 (*$*) (PRefs o f g) (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g')
 
 
+infixr 2 +$+
 -- | Combine two 'PRefs' with profunctorial choice:
 -- 
 -- @

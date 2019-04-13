@@ -17,8 +17,12 @@ import Data.Profunctor.Optic as Export hiding (has)
 import Data.Void
 import Data.Monoid
 
+class X x
+instance X x
 
+newtype Settable m a = Settable (a -> m ())
 
+type Gettable m a = m a
 
 debug :: Show a => SettableStateVar a
 debug = SettableStateVar print
