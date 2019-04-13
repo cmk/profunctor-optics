@@ -12,13 +12,10 @@ import Control.Arrow ((|||))
 import Data.Profunctor.Optic.Types.Class 
 import Data.Tuple (swap)
 
---type Optical c s t a b = forall p q. c p => c q => Optic p q s t a b
 
 type Optical c s t a b = forall p. c p => Optic p s t a b
 
 type Optical' c s a = Optical c s s a a
-
---type Optic p q s t a b = p a b -> q s t
 
 type Optic p s t a b = p a b -> p s t
 
@@ -94,6 +91,11 @@ type Closure' s a = Closure s s a a
 
 type AClosure s t a b = Optic (ClosureP a b) s t a b
 
+
+infixl 1 &
+
+(&) :: a -> (a -> b) -> b
+(&) = flip ($)
 
 -- | Box up a profunctor, map it through an optic, then unbox.
 through :: (t1 -> t2) -> (t3 -> t4) -> (t2 -> t3) -> t1 -> t4

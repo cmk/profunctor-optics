@@ -26,6 +26,7 @@ import Data.Monoid (First)
 import Data.Profunctor.Optic
 import Data.Profunctor.Reference.PRef
 import Data.Profunctor.Reference.Global
+import Data.Profunctor.Reference.Types
 
 import Control.Arrow
 import Control.Concurrent.MVar (MVar)
@@ -33,7 +34,7 @@ import Control.Monad.IO.Unlift
 import qualified Control.Concurrent.MVar as M
 
 
-type PMVar c b a = PRef c MVar b a
+type PMVar c b a = PRef c X MVar b a
 
 ---------------------------------------------------------------------
 --  Creating 'PMVar's
@@ -89,7 +90,7 @@ tryTakePMVar :: MonadIO m => c (Star (Const a)) => PMVar c b a -> m (Maybe a)
 tryTakePMVar (PRef o rs) = liftIO $ fmap (view o) <$> M.tryTakeMVar rs
 
 
--- | Atomically read the contents of a lens-like 'PMVar'.  
+-- | Atomically read the contents of a 'PMVar'.  
 --
 -- If the underlying 'MVar' is currently empty, 'readPMVar' will wait 
 -- until it is full. 'readPMVar' is guaranteed to receive the next 
@@ -103,7 +104,7 @@ readPMVar
 readPMVar (PRef o rs) = liftIO $ view o <$> M.readMVar rs
 
 
--- | Atomically preview the contents of a prism-like 'PMVar'.  
+-- | Atomically preview the contents of a 'PMVar'.  
 --
 -- If the underlying 'MVar' is currently empty, 'readPMVar' will wait 
 -- until it is full. 'readPMVar' is guaranteed to receive the next 
@@ -213,8 +214,7 @@ tryPutPMVar (PRef o rs) a = liftIO $ M.tryPutMVar rs . review o $ a
 -- |  Take a value from an 'MVar', putting a new value into its place.
 --
 -- This function is atomic only if there are no other producers for 
--- this 'MVar'. Requires an 'Iso'-like optic.
-
+-- this 'MVar'.
 swapPMVar 
   :: MonadIO m
   => c (Star (Const a)) 

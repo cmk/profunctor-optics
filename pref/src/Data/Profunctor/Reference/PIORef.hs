@@ -7,6 +7,7 @@ import Data.Monoid
 import Data.Profunctor.Optic
 import Data.Profunctor.Reference.PRef
 import Data.Profunctor.Reference.Global
+import Data.Profunctor.Reference.Types
 
 import Data.Tuple (swap)
 import Control.Category ((>>>),(<<<))
@@ -15,7 +16,7 @@ import Control.Monad.IO.Unlift
 import Control.Monad.Trans.Reader
 
 
-type PIORef c b a = PRef c IORef b a
+type PIORef c b a = PRef c X IORef b a
 
 ----------------------------------------------------------------
 --  Creating 'PIORef's
