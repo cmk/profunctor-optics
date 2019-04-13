@@ -11,21 +11,25 @@
 module Data.Profunctor.Reference.PError where
 
 import Control.Applicative
-import Control.Exception.Optic
+import Control.Monad (MonadPlus(..))
 import Control.Monad.IO.Unlift
 
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
 
 import Data.Profunctor.Reference.Types
-import Data.Profunctor.Reference.PRefs
---import Data.Profunctor.Reference.PRef 
+import Data.Profunctor.Reference.PRef
 import Data.Void
 
-import Data.Maybe (listToMaybe)
 import Data.Monoid
 
-import UnliftIO.Exception hiding (Handler)
+import UnliftIO.Exception (Exception(..), SomeException)
+
+import qualified UnliftIO.Exception as Ex hiding (Handler)
+import qualified Control.Exception.Optic as O (exception, throwing, trying)
+
+
+
 
 
 data Handler m e = Handler { runHandler :: forall a. e -> m a }
@@ -34,14 +38,14 @@ instance Contravariant (Handler m) where
   
   contramap f (Handler h) = Handler $ h . f
 
-instance Applicative m => Divisible (Handler m) where
+instance MonadPlus m => Divisible (Handler m) where
   
   divide f (Handler h) (Handler h') = 
-    Handler $ \e -> case f e of (e1, e2) -> h e1 *> h' e2
+    Handler $ \e -> case f e of (e1, e2) -> h e1 >> h' e2
   
-  conquer = Handler $ const undefined
+  conquer = Handler $ const mzero
 
-instance MonadUnliftIO m => Decidable (Handler m) where
+instance MonadPlus m => Decidable (Handler m) where
 
   lose f = Handler $ \a -> absurd (f a)
 
@@ -52,31 +56,54 @@ instance MonadUnliftIO m => Decidable (Handler m) where
 
 {-# INLINE newPError #-}
 
-newPError :: MonadIO m => Exception a => Handler m SomeException -> PError m Choice a a
-newPError h = PRef exception h
+newPError :: MonadIO m => Exception a => Handler m SomeException -> PError m Choice a
+newPError h = PRef O.exception h
 
 
 
+{-
+-- TODO- you can use these to define domain-level exceptions. e.g.
+-- myerr :: PError IO Choice MyDomainException = perror
+-- then come back and handle the backend exception hierarchy at a later time
+-- 
+foo :: PError IO Choice Foo
+foo = perror
 
---TODO: push this upstream, demonstrate use case w/ +$+
-data PRef c cs rs b a = forall x . cs x => PRef (Optical c x x a b) (rs x)
+bar :: PError IO Choice Bar
+bar = perror
+ 
+baz :: PError m c a -> PRef c X (Handler m) a a
+baz (PRef o h) = (PRef o h)
 
-type PError m c b a = PRef c Exception (Handler m) b a
+> :t baz foo +$+ baz bar
 
-perror :: Exception a => PError IO Choice a a
-perror = PRef exception (Handler throwIO)
+  :: PRef
+       Choice
+       X
+       (Handler IO)
+       (Either Foo Bar)
+       (Either Foo Bar)
+-}
 
-tryPError :: MonadUnliftIO m => c (Star (Const (First a))) => PError m c b a -> m r -> m (Either a r)
-tryPError (PRef o _) m = tryJust (preview o) m
 
-throwPError :: MonadUnliftIO m => c (Costar (Const b)) => PError m c b a -> b -> m r
-throwPError (PRef o _) b = throwing o b
+type PError m c a = PRef c Exception (Handler m) a a
 
-catchPError :: MonadUnliftIO m => c (Star (Either a)) => PError m c b a -> m r -> (a -> m r) -> m r
-catchPError (PRef o (Handler ht)) m ha = m `catch` \e -> either ht ha $ match o e
+perror :: MonadIO m => Exception a => PError m Choice a
+perror = PRef O.exception (Handler Ex.throwIO)
 
-handlePError :: MonadUnliftIO m => c (Star (Either a)) => PError m c b a -> (a -> m r) -> m r -> m r
-handlePError perr = flip $ catchPError perr
+trying :: MonadUnliftIO m => c (Star (Const (First a))) => PError m c a -> m r -> m (Either a r)
+trying (PRef o _) m = O.trying o m
+
+throwing :: MonadUnliftIO m => c (Costar (Const a)) => PError m c a -> a -> m r
+throwing (PRef o _) a = O.throwing o a
+
+-- | Runs the hidden 'Handler' or the user-supplied handler, depending on the error.
+catching :: MonadUnliftIO m => c (Star (Either a)) => PError m c a -> m r -> (a -> m r) -> m r
+catching (PRef o (Handler ht)) m ha = m `Ex.catch` \e -> either ht ha $ match o e
+
+-- | A flipped variant of 'catchPError'.
+handling :: MonadUnliftIO m => c (Star (Either a)) => PError m c a -> (a -> m r) -> m r -> m r
+handling perr = flip $ catching perr
 
 
 

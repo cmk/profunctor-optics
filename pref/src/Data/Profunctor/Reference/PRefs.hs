@@ -66,7 +66,7 @@ The type variables signify:
 -- data PRefs' c rs b a = forall x . PRefs' (Optical c x x a b) !(rs x) !(rs x)
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 
---data PRefs co ct cs rt rs b a = forall x y . (cs x, ct y) => PRefs (Optical co x y a b) (rs x) (rt y)
+--data PRefs c ct cs rt rs b a = forall x y . (cs x, ct y) => PRefs (Optical c x y a b) (rs x) (rt y)
 
 -- | Type alias for 'PRefs' constructed from @IO s@ and @t -> IO ()@.
 type PVars c b a = PRefs c SettableStateVar GettableStateVar b a
