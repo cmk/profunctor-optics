@@ -12,6 +12,8 @@ module Data.Profunctor.Reference.Types (
   , module Export
 ) where
 
+import Control.Applicative
+import Control.Exception (Exception(..))
 import Data.StateVar as Export
 import Data.Profunctor.Optic as Export hiding (has)
 import Data.Void
@@ -19,6 +21,13 @@ import Data.Monoid
 
 class X x
 instance X x
+
+instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
+
+  toException = either toException toException
+
+  fromException s = (fmap Left $ fromException s) <|> (fmap Right $ fromException s) 
+
 
 newtype Settable m a = Settable (a -> m ())
 

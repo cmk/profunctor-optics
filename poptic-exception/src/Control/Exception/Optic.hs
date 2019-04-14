@@ -289,6 +289,50 @@ _Interrupted :: Prism' IOErrorType ()
 _Interrupted = only Interrupted
 
 ----------------------------------------------------------------------------------------------------
+-- Async Exceptions
+----------------------------------------------------------------------------------------------------
+
+
+-- | The current thread's stack exceeded its limit. Since an 'Exception' has
+-- been raised, the thread's stack will certainly be below its limit again,
+-- but the programmer should take remedial action immediately.
+--
+_StackOverflow :: Prism' AsyncException ()
+_StackOverflow = dimap seta (either id id) . right' . rmap (const Ex.StackOverflow)
+  where seta Ex.StackOverflow = Right ()
+        seta t = Left t
+
+
+-- | The program's heap usage has exceeded its limit.
+--
+-- See 'GHC.IO.Exception' for more information.
+-- 
+_HeapOverflow :: Prism' AsyncException ()
+_HeapOverflow = dimap seta (either id id) . right' . rmap (const Ex.HeapOverflow)
+  where seta Ex.HeapOverflow = Right ()
+        seta t = Left t
+
+
+-- | This 'Exception' is raised by another thread calling
+-- 'Control.Concurrent.killThread', or by the system if it needs to terminate
+-- the thread for some reason.
+--
+_ThreadKilled :: Prism' AsyncException ()
+_ThreadKilled = dimap seta (either id id) . right' . rmap (const Ex.ThreadKilled)
+  where seta Ex.ThreadKilled = Right ()
+        seta t = Left t
+
+
+-- | This 'Exception' is raised by default in the main thread of the program when
+-- the user requests to terminate the program via the usual mechanism(s)
+-- (/e.g./ Control-C in the console).
+--
+_UserInterrupt :: Prism' AsyncException ()
+_UserInterrupt = dimap seta (either id id) . right' . rmap (const Ex.UserInterrupt)
+  where seta Ex.UserInterrupt = Right ()
+        seta t = Left t
+
+----------------------------------------------------------------------------------------------------
 -- Arithmetic exceptions
 ----------------------------------------------------------------------------------------------------
 
@@ -361,50 +405,6 @@ _IndexOutOfBounds = dimap seta (either id id) . right' . rmap Ex.IndexOutOfBound
 _UndefinedElement :: Prism' ArrayException String
 _UndefinedElement = dimap seta (either id id) . right' . rmap Ex.UndefinedElement
   where seta (Ex.UndefinedElement r) = Right r
-        seta t = Left t
-
-----------------------------------------------------------------------------------------------------
--- Async Exceptions
-----------------------------------------------------------------------------------------------------
-
-
--- | The current thread's stack exceeded its limit. Since an 'Exception' has
--- been raised, the thread's stack will certainly be below its limit again,
--- but the programmer should take remedial action immediately.
---
-_StackOverflow :: Prism' AsyncException ()
-_StackOverflow = dimap seta (either id id) . right' . rmap (const Ex.StackOverflow)
-  where seta Ex.StackOverflow = Right ()
-        seta t = Left t
-
-
--- | The program's heap usage has exceeded its limit.
---
--- See 'GHC.IO.Exception' for more information.
--- 
-_HeapOverflow :: Prism' AsyncException ()
-_HeapOverflow = dimap seta (either id id) . right' . rmap (const Ex.HeapOverflow)
-  where seta Ex.HeapOverflow = Right ()
-        seta t = Left t
-
-
--- | This 'Exception' is raised by another thread calling
--- 'Control.Concurrent.killThread', or by the system if it needs to terminate
--- the thread for some reason.
---
-_ThreadKilled :: Prism' AsyncException ()
-_ThreadKilled = dimap seta (either id id) . right' . rmap (const Ex.ThreadKilled)
-  where seta Ex.ThreadKilled = Right ()
-        seta t = Left t
-
-
--- | This 'Exception' is raised by default in the main thread of the program when
--- the user requests to terminate the program via the usual mechanism(s)
--- (/e.g./ Control-C in the console).
---
-_UserInterrupt :: Prism' AsyncException ()
-_UserInterrupt = dimap seta (either id id) . right' . rmap (const Ex.UserInterrupt)
-  where seta Ex.UserInterrupt = Right ()
         seta t = Left t
 
 ----------------------------------------------------------------------------------------------------

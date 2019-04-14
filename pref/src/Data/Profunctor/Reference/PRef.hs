@@ -29,10 +29,25 @@ import qualified Data.IORef as IOR
 import qualified Data.StateVar as SV
 import qualified Control.Monad.Trans.Reader as R
 
+{-
 
 import Data.Constraint
 import Data.Constraint.Forall
 
+-- (\\) :: a => (b => r) -> (a :- b) -> r 
+
+-- nice to haves:
+
+--withPRef' :: (cs s :- cs' s) -> PRef c cs rs a b -> (cs' s => PRef c cs' rs a b -> x) -> x
+--withPRef' r f = undefined
+
+--withEntailment :: c (PRef r d) => (d p :- c p) -> (c (PRef r c) => x) -> x
+--withEntailment = undefined
+
+withEntailment :: a => (a :- b) -> (b => c) -> c
+withEntailment p q = q \\ p
+
+-}
 
 ---------------------------------------------------------------------
 --  PRef
@@ -55,34 +70,6 @@ data PRef c cs rs b a = forall x . cs x => PRef (Optical c x x a b) (rs x)
 
 -- | Type alias for a 'PRef' constructed from @IO s@ and @s -> IO ()@.
 type PVar c cs b a = PRef c cs StateVar b a
-
--- (\\) :: a => (b => r) -> (a :- b) -> r 
-
--- nice to haves:
-
---withPRef' :: (cs s :- cs' s) -> PRef c cs rs a b -> (cs' s => PRef c cs' rs a b -> x) -> x
---withPRef' r f = undefined
-
---withEntailment :: c (PRef r d) => (d p :- c p) -> (c (PRef r c) => x) -> x
---withEntailment = undefined
-
-withEntailment :: a => (a :- b) -> (b => c) -> c
-withEntailment p q = q \\ p
-
-
--- | Unbox a 'PRef' by providing an existentially quantified continuation.
-withPRef
-  :: PRef c cs rs b a 
-  -> (forall x . Optical c x x a b -> rs x -> r) 
-  -> r
-withPRef (PRef o rs) f = f o rs
-
-{-
-
-newtype LocalRef c s a = 
-  LocalRef { unLocalRef :: Ref m r => forall r. ReaderT (PRef STRef c s) (ST r) a }
-
--}
 
 
 instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRef c cs rs b a) a where
@@ -135,31 +122,34 @@ instance Choice (PRef Cochoice cs rs) where right' (PRef o rs) = PRef (o . unrig
 
 instance Cochoice (PRef Choice cs rs) where unright (PRef o rs) = PRef (o . right') rs
 
-infixr 3 *$*
+infixr 3 *|*
 
-(*$*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1,b2) (a1,a2)
-(*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
+(*|*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1,b2) (a1,a2)
+(*|*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
 
-infixr 2 +$+
+infixr 2 +|+
 
--- TODO: could use these w/ & an 'Error m e = Error { forall a. e -> m a }' the 'Decidable' instance for exceptions
-(+$+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
-(+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
+(+|+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
+(+|+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
 
 
 has :: MonadReader r m => c (Star (Const a)) => PRef c cs ((->) r) b a -> m a
 has (PRef o rs) = view o <$> asks rs
 
-asksBoth
-  :: (MonadReader r m, Applicative m) 
-  => (r -> PRef Strong X m b1 a1)
-  -> (r -> PRef Strong X m b2 a2)
-  -> m (PRef Strong X m (b1, b2) (a1, a2))
-asksBoth r s = liftA2 (*$*) (asks r) (asks s)
+asksBoth :: (MonadReader r m, Applicative m) => (r -> PRef Strong X m b1 a1) -> (r -> PRef Strong X m b2 a2) -> m (PRef Strong X m (b1, b2) (a1, a2))
+asksBoth r s = liftA2 (*|*) (asks r) (asks s)
 
 asksEither
   :: (MonadReader r m, Decidable m) 
   => (r -> PRef Choice X m b1 a1)
   -> (r -> PRef Choice X m b2 a2)
   -> m (PRef Choice X m (Either b1 b2) (Either a1 a2))
-asksEither r s = liftA2 (+$+) (asks r) (asks s)
+asksEither r s = liftA2 (+|+) (asks r) (asks s)
+
+
+-- | Unbox a 'PRef' by providing an existentially quantified continuation.
+withPRef
+  :: PRef c cs rs b a 
+  -> (forall x . Optical c x x a b -> rs x -> r) 
+  -> r
+withPRef (PRef o rs) f = f o rs

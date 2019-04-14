@@ -5,14 +5,14 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeOperators             #-}
-{-# LANGUAGE QuantifiedConstraints, ConstraintKinds     #-}
+{-# LANGUAGE QuantifiedConstraints, ConstraintKinds,ScopedTypeVariables    #-}
 
 {-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.PError where
 
 import Control.Applicative
 import Control.Exception (Exception(..), SomeException, AsyncException, ArrayException, ArithException)
-import Control.Monad (MonadPlus(..), liftM)
+import Control.Monad (MonadPlus(..))
 import Control.Monad.IO.Unlift
 
 import Data.Functor.Contravariant
@@ -61,6 +61,76 @@ instance MonadPlus m => Decidable (Handler m) where
   choose f (Handler h) (Handler h') = Handler $ either h h' . f
 
 
+data Foo = Foo deriving Show
+instance Exception Foo
+
+data Bar = Bar deriving Show
+instance Exception Bar
+
+foo :: PError IO Choice Foo
+foo = perror
+
+bar :: PError IO Choice Bar
+bar = perror
+
+foobar :: PError IO Choice (Foo + Bar)
+foobar = foo +!+ bar
+
+data Baz = Baz deriving Show
+instance Exception Baz
+
+data Bip = Bip deriving Show
+instance Exception Bip
+
+baz :: PError IO Choice Baz
+baz = perror
+
+bip :: PError IO Choice Bip
+bip = perror
+
+bazbip :: PError IO Choice (Baz + Bip)
+bazbip = baz +!+ bip
+
+barbazbip :: PError IO Choice (Bar + Baz + Bip)
+barbazbip = bar +!+ baz +!+ bip
+
+foobarbazbip :: PError IO Choice (Foo + Bar + Baz + Bip)
+foobarbazbip = foo +!+ bar +!+ baz +!+ bip
+
+{-
+catchfbbb = catching foobarbazbip (Ux.throwIO Foo) $ either (const $print "caught") (const $ print "uncaught")
+> catching foobarbazbip (Ux.throwIO Foo) $ either (const $print "caugh") (const $ print "uncaught")
+"caught"
+
+
+l :: l -> Either l r
+l = Left
+
+r :: r -> Either l r
+r = Right
+
+try also using decidable
+
+catchBarbazbip :: String
+    -> Either
+        (HeadError + LookupError + ParseError)
+        Integer
+foo str = do
+    c <- mapLeft l (head str)
+    r <- mapLeft (r . l) (lookup str strMap)
+    mapLeft (r . r) (parse (c : r))
+
+-}
+
+type (+) = Either
+infixr 5 +
+
+infixr 2 +!+
+
+(+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
+(+!+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
+
+
 -- | 'PError's decouple backend exceptions and handlers from the rest of the program.
 --
 type PError m c a = PRef c Exception (Handler m) a a
@@ -68,11 +138,34 @@ type PError m c a = PRef c Exception (Handler m) a a
 
 -- | A default 'PError' with no backend handler.
 --
-pthrow :: (MonadIO m, Exception a) => PError m Choice a
-pthrow = PRef O.exception (Handler Ux.throwIO)
+perror :: (MonadIO m, Exception a) => PError m Choice a
+perror = PRef O.exception (Handler Ux.throwIO)
 
 
--- | A variant of 'Control.Exception.try' that takes a 'Prism' (or any 'Fold') to select which
+-- | A 'PError' that converts an asynchronous frontend exception into a synchronous backend exception.
+--
+psync :: Exception a => Handler m SomeException -> PError m InPhantom a
+psync h = PRef (unto Ux.toSyncException) h
+
+
+-- | A 'PError' that converts a synchronous frontend exception into an asynchronous backend exception.
+--
+-- For asynchronous exceptions, this is the same as 'Ex.toException'. 
+-- For synchronous exceptions, this will wrap up the exception with 'Ux.AsyncExceptionWrapper'.
+--
+pasync :: Exception a => Handler m SomeException -> PError m InPhantom a
+pasync h = PRef (unto Ux.toAsyncException) h
+
+
+-- | An async safe version of 'Ex.onException'.
+--
+-- Runs a frontend action using the backend handler for cleanup.
+--
+withPError :: MonadUnliftIO m => PError m c a -> m r -> m r
+withPError (PRef _ (Handler h)) act = Ux.withException act h
+
+
+-- | A variant of 'Ex.try' that takes a 'Prism' (or any 'Fold') to select which
 -- exceptions are caught. If the 'Exception' does not match the predicate, it is re-thrown.
 --
 -- Note that this will not catch asynchronous exceptions.
@@ -84,7 +177,7 @@ trying (PRef o _) = O.trying o
 -- | A variant of 'trying' that discards the specific exception thrown.
 --
 trying_ :: (MonadUnliftIO m, c (Star (Const (First a)))) => PError m c a -> m r -> m (Maybe r)
-trying_ o m = preview right' `liftM` trying o m
+trying_ o m = preview right' <$> trying o m
 
 
 -- | Throw an 'Exception' described by a 'PError'. Exceptions may be thrown from
@@ -102,7 +195,7 @@ throwing (PRef o _) = O.throwing o
 --
 -- Note that this will not catch asynchronous exceptions.
 --
--- >>> catching (pthrow @IO @AssertionFailed) (assert False (return "uncaught")) $ \ _ -> return "caught"
+-- >>> catching (perror @IO @AssertionFailed) (assert False (return "uncaught")) $ \ _ -> return "caught"
 -- "caught"
 --
 catching :: (MonadUnliftIO m, c (Star (Either a))) => PError m c a -> m r -> (a -> m r) -> m r
@@ -133,15 +226,8 @@ asSomeException = asException O.exception
 -- IO Error Types
 ----------------------------------------------------------------------------------------------------
 
-{-
-asUserError :: MonadIO m => Handler m IOErrorType -> PError m Choice () 
-asUserError h = PRef O._UserError h
-
-_EOF :: Prism' IOErrorType ()
-_PermissionDenied :: Prism' IOErrorType ()
--}
---PRef c Exception (Handler m) a a
-
+asIOException :: (MonadIO m, Exception a) => Prism' IOException a -> Handler m IOException -> PError m Choice a
+asIOException = asException
 
 -- | Surface the exception type while hiding the handler.
 --
@@ -177,6 +263,52 @@ fileName h = PRef O.fileName h
 --
 errno :: Handler m IOException -> PError m Strong (Maybe CInt)
 errno h = PRef O.errno h
+
+----------------------------------------------------------------------------------------------------
+-- Async Exceptions
+----------------------------------------------------------------------------------------------------
+
+asAsyncException :: (MonadIO m, Exception a) => Prism' AsyncException a -> Handler m AsyncException -> PError m Choice a
+asAsyncException o = asException o
+
+
+{-# INLINE asStackOverflow #-}
+
+-- | The current thread's stack exceeded its limit. Since an 'Exception' has
+-- been raised, the thread's stack will certainly be below its limit again,
+-- but the programmer should take remedial action immediately.
+--
+asStackOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asStackOverflow h = PRef O._StackOverflow h
+
+
+{-# INLINE asHeapOverflow #-}
+
+-- | The program's heap usage has exceeded its limit.
+--
+asHeapOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asHeapOverflow h = PRef O._HeapOverflow h
+
+
+{-# INLINE asThreadKilled #-}
+
+-- | This 'Exception' is raised by another thread calling
+-- 'Control.Concurrent.killThread', or by the system if it needs to terminate
+-- the thread for some reason.
+--
+asThreadKilled :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asThreadKilled h = PRef O._ThreadKilled h
+
+
+{-# INLINE asUserInterrupt #-}
+
+-- | This 'Exception' is raised by default in the main thread of the program when
+-- the user requests to terminate the program via the usual mechanism(s)
+-- (/e.g./ Control-C in the console).
+--
+asUserInterrupt :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asUserInterrupt h = PRef O._UserInterrupt h
+
 
 ----------------------------------------------------------------------------------------------------
 -- Arithmetic Exceptions
@@ -259,53 +391,6 @@ asIndexOutOfBounds h = PRef O._IndexOutOfBounds h
 --
 asUndefinedElement :: MonadIO m => Handler m ArrayException -> PError m Choice String 
 asUndefinedElement h = PRef O._UndefinedElement h
-
-
-----------------------------------------------------------------------------------------------------
--- Async Exceptions
-----------------------------------------------------------------------------------------------------
-
-asAsyncException :: (MonadIO m, Exception a) => Prism' AsyncException a -> Handler m AsyncException -> PError m Choice a
-asAsyncException o = asException o
-
-
-{-# INLINE asStackOverflow #-}
-
--- | The current thread's stack exceeded its limit. Since an 'Exception' has
--- been raised, the thread's stack will certainly be below its limit again,
--- but the programmer should take remedial action immediately.
---
-asStackOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
-asStackOverflow h = PRef O._StackOverflow h
-
-
-{-# INLINE asHeapOverflow #-}
-
--- | The program's heap usage has exceeded its limit.
---
-asHeapOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
-asHeapOverflow h = PRef O._HeapOverflow h
-
-
-{-# INLINE asThreadKilled #-}
-
--- | This 'Exception' is raised by another thread calling
--- 'Control.Concurrent.killThread', or by the system if it needs to terminate
--- the thread for some reason.
---
-asThreadKilled :: MonadIO m => Handler m AsyncException -> PError m Choice () 
-asThreadKilled h = PRef O._ThreadKilled h
-
-
-{-# INLINE asUserInterrupt #-}
-
--- | This 'Exception' is raised by default in the main thread of the program when
--- the user requests to terminate the program via the usual mechanism(s)
--- (/e.g./ Control-C in the console).
---
-asUserInterrupt :: MonadIO m => Handler m AsyncException -> PError m Choice () 
-asUserInterrupt h = PRef O._UserInterrupt h
-
 
 ----------------------------------------------------------------------------------------------------
 -- Miscellaneous Exceptions
@@ -397,38 +482,3 @@ asErrorCall h = PRef O._ErrorCall h
 --
 asAllocationLimitExceeded :: MonadIO m => Handler m Ex.AllocationLimitExceeded -> PError m Choice ()
 asAllocationLimitExceeded h = PRef O._AllocationLimitExceeded h
-
-
-{-
--- TODO- you can use these to define domain-level exceptions. e.g.
--- myerr :: PError IO Choice MyDomainException = perror
--- then come back and handle the backend exception hierarchy at a later time
--- 
-data Foo = Foo deriving Show
-instance Exception Foo
-
-data Bar = Bar deriving Show
-instance Exception Bar
-
-foo :: PError IO Choice Foo
-foo = pthrow
-
-bar :: PError IO Choice Bar
-bar = pthrow
- 
-baz :: PError m c a -> PRef c X (Handler m) a a
-baz (PRef o h) = (PRef o h)
-
-> :t baz foo +$+ baz bar
-
-  :: PRef
-       Choice
-       X
-       (Handler IO)
-       (Either Foo Bar)
-       (Either Foo Bar)
--}
-
-
-
-

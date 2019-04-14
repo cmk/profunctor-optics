@@ -11,7 +11,7 @@
 {-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.PRefs (
     PVars, PRefs(..), readRefs, writeRefs, has, withPRefs
-  , (<$<), (>$>), (*$*)
+  , (<$<), (>$>), (*$*), (+$+)
   , ($=), ($=!), ($~), ($~!)
   , SettableStateVar(..), GettableStateVar(..)
 ) where
@@ -210,9 +210,6 @@ infixr 1 >$>, <$<
 
 -- | Compose two 'PRefs' from right to left:
 --
--- @
--- (<$<) :: 'PVars' 'Profunctor' Text String -> 'PVars' 'Profunctor' String Int -> 'PVars' 'Profunctor' Text Int
--- @
 (<$<) = flip (>$>)
 
 instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
