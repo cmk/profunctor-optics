@@ -1,4 +1,5 @@
-An optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into what you might call 'backend' input/outputs (i.e. `s` and `t`) and 'frontend' input/outputs (i.e. `a` and `b`). If you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) (https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) instead of the [`van Laarhoven`](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic)) you gain precise control over data access with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. If you further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two 'backend' types, you get the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
+An optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into what, for the purposes of this readme, I'll call 'backend' input/outputs (i.e. `s` and `t`, but really any types associated with your resource management layer) and 'frontend' input/outputs (i.e. `a` and `b`, but really any types associated with your domain logic layer). If you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) instead of the [van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic)) you gain precise control over data access with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. If you then further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two 'backend' types, you get the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
+
 
 ```
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
@@ -102,15 +103,13 @@ So for example the `(+$+)` operator I defined above also has a specialization (d
 (+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
 (+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
-which allows you to monoidally combine various backend exception handlers you may need to support your domain logic layer _without needing compile-time access to them_, completely safely.
-The upshot is that `+!+` effectively gives you a free monoid for exception handling, so you can keep your error types small. 
-This is a win for large applications IMO, where [monolithic error types](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html) are painful to deal with.
+which effectivey models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend.
 
+This is a win for large applications IMO, because you can easily [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
 
-Finally, the `AsBaz` analog I promised above is simply:
+Finally, the `AsBaz` analog I mentioned above is simply:
 ```
-asException :: (MonadIO m, Exception a, Exception e) => Prism' e a -> Error m e -> PError m Choice a
+asException :: (MonadIO m, Exception s, Exception a) => Prism' s a -> Error m s -> PError m Choice a
 asException o h = PRef o h
 ```
-where `e` is the backend exception that dissapears once the frontend type is created.
-
+where, like the `env` in your typical `AsFoo env` instance, the `s` exception is unreachable by users of `PError m Choice a`.
