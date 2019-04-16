@@ -12,7 +12,7 @@
 {-# LANGUAGE TemplateHaskell, CPP #-}
 module Data.Profunctor.Reference.PRef (
     module Data.Profunctor.Reference.PRef 
-  , ($=), ($=!), ($~), ($~!)
+  -- (*|*), (+|+), (|=), (|=!), (|~), (|~!)
   , StateVar(..)
 ) where
 
@@ -72,21 +72,22 @@ data PRef c cs rs b a = forall x . cs x => PRef (Optical c x x a b) (rs x)
 type PVar c cs b a = PRef c cs StateVar b a
 
 
-instance (forall s . HasGetter (rs s) s, c (Star (Const a))) => HasGetter (PRef c cs rs b a) a where
+instance (c (Star (Const a)), forall s . HasGetter (rs s) s) => HasGetter (PRef c cs rs b a) a where
 
   get (PRef o rs) = liftIO $ view o <$> SV.get rs
   {-# INLINE get #-}
 
-instance (forall s. HasUpdate (rs s) s s, c (->)) => HasSetter (PRef c cs rs b a) b where
+instance (c (->), forall s. HasUpdate (rs s) s s) => HasSetter (PRef c cs rs b a) b where
 
   (PRef o rs) $= b = liftIO $ rs $~ over o (const b)
   {-# INLINE ($=) #-}
 
-instance (forall s. HasUpdate (rs s) s s, c (->)) => HasUpdate (PRef c cs rs b a) a b where
+instance (c (->), forall s. HasUpdate (rs s) s s) => HasUpdate (PRef c cs rs b a) a b where
 
   (PRef o rs) $~ f  = liftIO $ rs $~ over o f
 
   (PRef o rs) $~! f = liftIO $ rs $~! over o f
+
 
 instance Profunctor (PRef Profunctor cs rs) where dimap bt sa (PRef o rs) = PRef (o . dimap sa bt) rs
 
@@ -122,29 +123,28 @@ instance Choice (PRef Cochoice cs rs) where right' (PRef o rs) = PRef (o . unrig
 
 instance Cochoice (PRef Choice cs rs) where unright (PRef o rs) = PRef (o . right') rs
 
-infixr 3 *|*
+infixr 3 *$*
 
-(*|*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1,b2) (a1,a2)
-(*|*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
+(*$*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1,b2) (a1,a2)
+(*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
 
-infixr 2 +|+
+infixr 2 +$+
 
-(+|+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
-(+|+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
-
+(+$+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
+(+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
 
 has :: MonadReader r m => c (Star (Const a)) => PRef c cs ((->) r) b a -> m a
 has (PRef o rs) = view o <$> asks rs
 
 asksBoth :: (MonadReader r m, Applicative m) => (r -> PRef Strong X m b1 a1) -> (r -> PRef Strong X m b2 a2) -> m (PRef Strong X m (b1, b2) (a1, a2))
-asksBoth r s = liftA2 (*|*) (asks r) (asks s)
+asksBoth r s = liftA2 (*$*) (asks r) (asks s)
 
 asksEither
   :: (MonadReader r m, Decidable m) 
   => (r -> PRef Choice X m b1 a1)
   -> (r -> PRef Choice X m b2 a2)
   -> m (PRef Choice X m (Either b1 b2) (Either a1 a2))
-asksEither r s = liftA2 (+|+) (asks r) (asks s)
+asksEither r s = liftA2 (+$+) (asks r) (asks s)
 
 
 -- | Unbox a 'PRef' by providing an existentially quantified continuation.

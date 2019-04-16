@@ -5,7 +5,9 @@
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE TypeOperators             #-}
-{-# LANGUAGE QuantifiedConstraints, ConstraintKinds,ScopedTypeVariables    #-}
+{-# LANGUAGE QuantifiedConstraints     #-}
+{-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 {-# OPTIONS_GHC -w #-}
 module Data.Profunctor.Reference.PError where
@@ -18,6 +20,7 @@ import Control.Monad.IO.Unlift
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
 import Data.Monoid (First(..))
+import Data.Profunctor.Optic hiding (has)
 import Data.Profunctor.Reference.Types
 import Data.Profunctor.Reference.PRef
 import Data.Void
@@ -27,8 +30,9 @@ import GHC.IO.Exception
 import System.IO
 import Foreign.C.Types
 
+import Data.Validation
 import qualified Control.Exception as Ex 
-import qualified UnliftIO.Exception as Ux hiding (Handler)
+import qualified UnliftIO.Exception as Ux hiding (Error)
 import qualified Control.Exception.Optic as O 
 
 
@@ -38,113 +42,52 @@ import qualified Control.Exception.Optic as O
 -- >>> :m + Control.Exception
 -- >>> :m + Data.Profunctor.Optic
 
-
 -- | A generic container for exception handlers.
 --
-data Handler m e = Handler { runHandler :: forall a. e -> m a }
+-- The existential quantification means that an 'Error m e' must eventually 
+-- throw an exception. Typically 'e' is itself an instance of 'Exception',
+-- and 'Error m e' catches a specific 'e', does some resource managment (e.g.
+-- closing a file handle or other expensive resource) and re-throws.
+--
+data Error m e = Error { runError :: forall a. e -> m a }
 
-instance Contravariant (Handler m) where
+instance Contravariant (Error m) where
   
-  contramap f (Handler h) = Handler $ h . f
+  contramap f (Error h) = Error $ h . f
 
-instance MonadPlus m => Divisible (Handler m) where
+instance MonadPlus m => Divisible (Error m) where
   
-  divide f (Handler h) (Handler h') = 
-    Handler $ \e -> case f e of (e1, e2) -> h e1 >> h' e2
+  divide f (Error h) (Error h') = 
+    Error $ \e -> case f e of (e1, e2) -> h e1 >> h' e2
   
-  conquer = Handler $ const mzero
+  conquer = Error $ const mzero
 
-instance MonadPlus m => Decidable (Handler m) where
+instance MonadPlus m => Decidable (Error m) where
 
-  lose f = Handler $ \a -> absurd (f a)
+  lose f = Error $ \a -> absurd (f a)
 
-  choose f (Handler h) (Handler h') = Handler $ either h h' . f
+  choose f (Error h) (Error h') = Error $ either h h' . f
 
-
-data Foo = Foo deriving Show
-instance Exception Foo
-
-data Bar = Bar deriving Show
-instance Exception Bar
-
-foo :: PError IO Choice Foo
-foo = perror
-
-bar :: PError IO Choice Bar
-bar = perror
-
-foobar :: PError IO Choice (Foo + Bar)
-foobar = foo +!+ bar
-
-data Baz = Baz deriving Show
-instance Exception Baz
-
-data Bip = Bip deriving Show
-instance Exception Bip
-
-baz :: PError IO Choice Baz
-baz = perror
-
-bip :: PError IO Choice Bip
-bip = perror
-
-bazbip :: PError IO Choice (Baz + Bip)
-bazbip = baz +!+ bip
-
-barbazbip :: PError IO Choice (Bar + Baz + Bip)
-barbazbip = bar +!+ baz +!+ bip
-
-foobarbazbip :: PError IO Choice (Foo + Bar + Baz + Bip)
-foobarbazbip = foo +!+ bar +!+ baz +!+ bip
-
-{-
-catchfbbb = catching foobarbazbip (Ux.throwIO Foo) $ either (const $print "caught") (const $ print "uncaught")
-> catching foobarbazbip (Ux.throwIO Foo) $ either (const $print "caugh") (const $ print "uncaught")
-"caught"
-
-
-l :: l -> Either l r
-l = Left
-
-r :: r -> Either l r
-r = Right
-
-try also using decidable
-
-catchBarbazbip :: String
-    -> Either
-        (HeadError + LookupError + ParseError)
-        Integer
-foo str = do
-    c <- mapLeft l (head str)
-    r <- mapLeft (r . l) (lookup str strMap)
-    mapLeft (r . r) (parse (c : r))
-
--}
-
-type (+) = Either
-infixr 5 +
 
 infixr 2 +!+
 
 (+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
-(+!+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
+(+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 
 
 -- | 'PError's decouple backend exceptions and handlers from the rest of the program.
 --
-type PError m c a = PRef c Exception (Handler m) a a
-
+type PError m c a = PRef c Exception (Error m) a a
 
 -- | A default 'PError' with no backend handler.
 --
 perror :: (MonadIO m, Exception a) => PError m Choice a
-perror = PRef O.exception (Handler Ux.throwIO)
+perror = PRef O.exception (Error Ux.throwIO)
 
 
 -- | A 'PError' that converts an asynchronous frontend exception into a synchronous backend exception.
 --
-psync :: Exception a => Handler m SomeException -> PError m InPhantom a
+psync :: Exception a => Error m SomeException -> PError m InPhantom a
 psync h = PRef (unto Ux.toSyncException) h
 
 
@@ -153,7 +96,7 @@ psync h = PRef (unto Ux.toSyncException) h
 -- For asynchronous exceptions, this is the same as 'Ex.toException'. 
 -- For synchronous exceptions, this will wrap up the exception with 'Ux.AsyncExceptionWrapper'.
 --
-pasync :: Exception a => Handler m SomeException -> PError m InPhantom a
+pasync :: Exception a => Error m SomeException -> PError m InPhantom a
 pasync h = PRef (unto Ux.toAsyncException) h
 
 
@@ -162,7 +105,7 @@ pasync h = PRef (unto Ux.toAsyncException) h
 -- Runs a frontend action using the backend handler for cleanup.
 --
 withPError :: MonadUnliftIO m => PError m c a -> m r -> m r
-withPError (PRef _ (Handler h)) act = Ux.withException act h
+withPError (PRef _ (Error h)) act = Ux.withException act h
 
 
 -- | A variant of 'Ex.try' that takes a 'Prism' (or any 'Fold') to select which
@@ -191,7 +134,7 @@ throwing :: (MonadUnliftIO m, c (Costar (Const a))) => PError m c a -> a -> m r
 throwing (PRef o _) = O.throwing o
 
 
--- | Catch exceptions with the backend 'Handler' or the user-supplied handler.
+-- | Catch exceptions with the backend 'Error' or the user-supplied handler.
 --
 -- Note that this will not catch asynchronous exceptions.
 --
@@ -199,8 +142,10 @@ throwing (PRef o _) = O.throwing o
 -- "caught"
 --
 catching :: (MonadUnliftIO m, c (Star (Either a))) => PError m c a -> m r -> (a -> m r) -> m r
-catching (PRef o (Handler ht)) m ha = m `Ux.catch` \e -> either ht ha $ match o e
+catching (PRef o (Error ht)) m ha = m `Ux.catch` \e -> either ht ha $ match o e
 
+catching' :: (MonadUnliftIO m, c (Star (Validation a))) => PError m c a -> m r -> (a -> m r) -> m r
+catching' (PRef o (Error ht)) m ha = m `Ux.catch` \e -> validation ht ha $ validateOf o e
 
 -- | A flipped variant of 'catching'.
 --
@@ -213,62 +158,62 @@ handling perr = flip $ catching perr
 -- This function takes a handler for a backend exception type @e@ 
 -- and ties it to a user exception type @a@.
 --
-asException :: (MonadIO m, Exception a, Exception s) => Prism' s a -> Handler m s -> PError m Choice a
+asException :: (MonadIO m, Exception a, Exception s) => Prism' s a -> Error m s -> PError m Choice a
 asException o h = PRef o h
 
 
 -- | A variant of 'asPError' specialized to 'SomeException'.
 --
-asSomeException :: (MonadIO m, Exception a) => Handler m SomeException -> PError m Choice a
+asSomeException :: (MonadIO m, Exception a) => Error m SomeException -> PError m Choice a
 asSomeException = asException O.exception
 
 ----------------------------------------------------------------------------------------------------
 -- IO Error Types
 ----------------------------------------------------------------------------------------------------
 
-asIOException :: (MonadIO m, Exception a) => Prism' IOException a -> Handler m IOException -> PError m Choice a
+asIOException :: (MonadIO m, Exception a) => Prism' IOException a -> Error m IOException -> PError m Choice a
 asIOException = asException
 
 -- | Surface the exception type while hiding the handler.
 --
-errorType :: Handler m IOException -> PError m Strong IOErrorType
+errorType :: Error m IOException -> PError m Strong IOErrorType
 errorType h = PRef O.errorType h
 
 
 -- | Location where the error happened.
 --
-location :: Handler m IOException -> PError m Strong String
+location :: Error m IOException -> PError m Strong String
 location h = PRef O.location h
 
 
 -- | Error type specific information.
 --
-description :: Handler m IOException -> PError m Strong String
+description :: Error m IOException -> PError m Strong String
 description h = PRef O.description h
 
 
 -- | The handle used by the action flagging this error.
 -- 
-handle :: Handler m IOException -> PError m Strong (Maybe Handle)
+handle :: Error m IOException -> PError m Strong (Maybe Handle)
 handle h = PRef O.handle h
 
 
 -- | 'fileName' the error is related to.
 --
-fileName :: Handler m IOException -> PError m Strong (Maybe FilePath)
+fileName :: Error m IOException -> PError m Strong (Maybe FilePath)
 fileName h = PRef O.fileName h
 
 
 -- | 'errno' leading to this error, if any.
 --
-errno :: Handler m IOException -> PError m Strong (Maybe CInt)
+errno :: Error m IOException -> PError m Strong (Maybe CInt)
 errno h = PRef O.errno h
 
 ----------------------------------------------------------------------------------------------------
 -- Async Exceptions
 ----------------------------------------------------------------------------------------------------
 
-asAsyncException :: (MonadIO m, Exception a) => Prism' AsyncException a -> Handler m AsyncException -> PError m Choice a
+asAsyncException :: (MonadIO m, Exception a) => Prism' AsyncException a -> Error m AsyncException -> PError m Choice a
 asAsyncException o = asException o
 
 
@@ -278,7 +223,7 @@ asAsyncException o = asException o
 -- been raised, the thread's stack will certainly be below its limit again,
 -- but the programmer should take remedial action immediately.
 --
-asStackOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asStackOverflow :: MonadIO m => Error m AsyncException -> PError m Choice () 
 asStackOverflow h = PRef O._StackOverflow h
 
 
@@ -286,7 +231,7 @@ asStackOverflow h = PRef O._StackOverflow h
 
 -- | The program's heap usage has exceeded its limit.
 --
-asHeapOverflow :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asHeapOverflow :: MonadIO m => Error m AsyncException -> PError m Choice () 
 asHeapOverflow h = PRef O._HeapOverflow h
 
 
@@ -296,7 +241,7 @@ asHeapOverflow h = PRef O._HeapOverflow h
 -- 'Control.Concurrent.killThread', or by the system if it needs to terminate
 -- the thread for some reason.
 --
-asThreadKilled :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asThreadKilled :: MonadIO m => Error m AsyncException -> PError m Choice () 
 asThreadKilled h = PRef O._ThreadKilled h
 
 
@@ -306,7 +251,7 @@ asThreadKilled h = PRef O._ThreadKilled h
 -- the user requests to terminate the program via the usual mechanism(s)
 -- (/e.g./ Control-C in the console).
 --
-asUserInterrupt :: MonadIO m => Handler m AsyncException -> PError m Choice () 
+asUserInterrupt :: MonadIO m => Error m AsyncException -> PError m Choice () 
 asUserInterrupt h = PRef O._UserInterrupt h
 
 
@@ -314,7 +259,7 @@ asUserInterrupt h = PRef O._UserInterrupt h
 -- Arithmetic Exceptions
 ----------------------------------------------------------------------------------------------------
 
-asArithException :: (MonadIO m, Exception a) => Prism' ArithException a -> Handler m ArithException -> PError m Choice a
+asArithException :: (MonadIO m, Exception a) => Prism' ArithException a -> Error m ArithException -> PError m Choice a
 asArithException = asException
 
 
@@ -322,7 +267,7 @@ asArithException = asException
 
 -- | Detect arithmetic overflow.
 --
-asOverflow :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asOverflow :: MonadIO m => Error m ArithException -> PError m Choice () 
 asOverflow h = PRef O._Overflow h
 
 
@@ -330,7 +275,7 @@ asOverflow h = PRef O._Overflow h
 
 -- | Detect arithmetic underflow.
 --
-asUnderflow :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asUnderflow :: MonadIO m => Error m ArithException -> PError m Choice () 
 asUnderflow h = PRef O._Underflow h
 
 
@@ -338,7 +283,7 @@ asUnderflow h = PRef O._Underflow h
 
 -- | Detect arithmetic loss of precision.
 --
-asLossOfPrecision :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asLossOfPrecision :: MonadIO m => Error m ArithException -> PError m Choice () 
 asLossOfPrecision h = PRef O._LossOfPrecision h
 
 
@@ -346,7 +291,7 @@ asLossOfPrecision h = PRef O._LossOfPrecision h
 
 -- | Detect division by zero.
 --
-asDivideByZero :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asDivideByZero :: MonadIO m => Error m ArithException -> PError m Choice () 
 asDivideByZero h = PRef O._DivideByZero h
 
 
@@ -354,7 +299,7 @@ asDivideByZero h = PRef O._DivideByZero h
 
 -- | Detect exceptional denormalized floating pure.
 --
-asDenormal :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asDenormal :: MonadIO m => Error m ArithException -> PError m Choice () 
 asDenormal h = PRef O._Denormal h
 
 
@@ -366,14 +311,14 @@ asDenormal h = PRef O._Denormal h
 --
 -- <http://haskell.1045720.n5.nabble.com/Data-Ratio-and-exceptions-td5711246.html>
 --
-asRatioZeroDenominator :: MonadIO m => Handler m ArithException -> PError m Choice () 
+asRatioZeroDenominator :: MonadIO m => Error m ArithException -> PError m Choice () 
 asRatioZeroDenominator h = PRef O._RatioZeroDenominator h
 
 ----------------------------------------------------------------------------------------------------
 -- Array Exceptions
 ----------------------------------------------------------------------------------------------------
 
-asArrayException :: (MonadIO m, Exception a) => Prism' ArrayException a -> Handler m ArrayException -> PError m Choice a
+asArrayException :: (MonadIO m, Exception a) => Prism' ArrayException a -> Error m ArrayException -> PError m Choice a
 asArrayException o = asException o
 
 
@@ -381,7 +326,7 @@ asArrayException o = asException o
 
 -- | Detect attempts to index an array outside its declared bounds.
 --
-asIndexOutOfBounds :: MonadIO m => Handler m ArrayException -> PError m Choice String 
+asIndexOutOfBounds :: MonadIO m => Error m ArrayException -> PError m Choice String 
 asIndexOutOfBounds h = PRef O._IndexOutOfBounds h
 
 
@@ -389,28 +334,28 @@ asIndexOutOfBounds h = PRef O._IndexOutOfBounds h
 
 -- | Detect attempts to evaluate an element of an array that has not been initialized.
 --
-asUndefinedElement :: MonadIO m => Handler m ArrayException -> PError m Choice String 
+asUndefinedElement :: MonadIO m => Error m ArrayException -> PError m Choice String 
 asUndefinedElement h = PRef O._UndefinedElement h
 
 ----------------------------------------------------------------------------------------------------
 -- Miscellaneous Exceptions
 ----------------------------------------------------------------------------------------------------
 
-asAssertionFailed :: MonadIO m => Handler m Ex.AssertionFailed -> PError m Choice String 
+asAssertionFailed :: MonadIO m => Error m Ex.AssertionFailed -> PError m Choice String 
 asAssertionFailed h = PRef O._AssertionFailed h
 
 -- | Thrown when the runtime system detects that the computation is guaranteed
 -- not to terminate. Note that there is no guarantee that the runtime system
 -- will notice whether any given computation is guaranteed to terminate or not.
 --
-asNonTermination :: MonadIO m => Handler m Ex.NonTermination -> PError m Choice ()
+asNonTermination :: MonadIO m => Error m Ex.NonTermination -> PError m Choice ()
 asNonTermination h = PRef O._NonTermination h
 
 
 -- | Thrown when the program attempts to call atomically, from the
 -- 'Control.Monad.STM' package, inside another call to atomically.
 --
-asNestedAtomically :: MonadIO m => Handler m Ex.NestedAtomically -> PError m Choice ()
+asNestedAtomically :: MonadIO m => Error m Ex.NestedAtomically -> PError m Choice ()
 asNestedAtomically h = PRef O._NestedAtomically h
 
 
@@ -418,7 +363,7 @@ asNestedAtomically h = PRef O._NestedAtomically h
 -- are no other references to the 'Control.Concurrent.MVar.MVar' so it can't
 -- ever continue.
 --
-asBlockedIndefinitelyOnMVar :: MonadIO m => Handler m Ex.BlockedIndefinitelyOnMVar -> PError m Choice ()
+asBlockedIndefinitelyOnMVar :: MonadIO m => Error m Ex.BlockedIndefinitelyOnMVar -> PError m Choice ()
 asBlockedIndefinitelyOnMVar h = PRef O._BlockedIndefinitelyOnMVar h
 
 
@@ -426,33 +371,33 @@ asBlockedIndefinitelyOnMVar h = PRef O._BlockedIndefinitelyOnMVar h
 -- but there are no other references to any TVars involved, so it can't ever
 -- continue.
 --
-asBlockedIndefinitelyOnSTM :: MonadIO m => Handler m Ex.BlockedIndefinitelyOnSTM -> PError m Choice ()
+asBlockedIndefinitelyOnSTM :: MonadIO m => Error m Ex.BlockedIndefinitelyOnSTM -> PError m Choice ()
 asBlockedIndefinitelyOnSTM h = PRef O._BlockedIndefinitelyOnSTM h
 
 
 -- | There are no runnable threads, so the program is deadlocked. The
 -- 'Deadlock' 'Exception' is raised in the main thread only.
 --
-asDeadlock :: MonadIO m => Handler m Ex.Deadlock -> PError m Choice ()
+asDeadlock :: MonadIO m => Error m Ex.Deadlock -> PError m Choice ()
 asDeadlock h = PRef O._Deadlock h
 
 
 -- | A class method without a definition (neither a default definition,
 -- nor a definition in the appropriate instance) was called.
 --
-asNoMethodError :: MonadIO m => Handler m Ex.NoMethodError -> PError m Choice String
+asNoMethodError :: MonadIO m => Error m Ex.NoMethodError -> PError m Choice String
 asNoMethodError h = PRef O._NoMethodError h
 
 
 -- | A pattern match failed.
 --
-asPatternMatchFail :: MonadIO m => Handler m Ex.PatternMatchFail -> PError m Choice String
+asPatternMatchFail :: MonadIO m => Error m Ex.PatternMatchFail -> PError m Choice String
 asPatternMatchFail h = PRef O._PatternMatchFail h
 
 
 -- | An uninitialised record field was used.
 --
-asRecConError :: MonadIO m => Handler m Ex.RecConError -> PError m Choice String
+asRecConError :: MonadIO m => Error m Ex.RecConError -> PError m Choice String
 asRecConError h = PRef O._RecConError h
 
 
@@ -460,7 +405,7 @@ asRecConError h = PRef O._RecConError h
 -- field. This can only happen with a datatype with multiple constructors,
 -- where some fields are in one constructor but not another.
 --
-asRecSelError :: MonadIO m => Handler m Ex.RecSelError -> PError m Choice String
+asRecSelError :: MonadIO m => Error m Ex.RecSelError -> PError m Choice String
 asRecSelError h = PRef O._RecSelError h
 
 
@@ -468,17 +413,17 @@ asRecSelError h = PRef O._RecSelError h
 -- appropriate field. This can only happen with a datatype with multiple
 -- constructors, where some fields are in one constructor but not another.
 --
-asRecUpdError :: MonadIO m => Handler m Ex.RecUpdError -> PError m Choice String
+asRecUpdError :: MonadIO m => Error m Ex.RecUpdError -> PError m Choice String
 asRecUpdError h = PRef O._RecUpdError h
 
 
 -- | Thrown when the user calls 'Prelude.error'.
 --
-asErrorCall :: MonadIO m => Handler m Ex.ErrorCall -> PError m Choice String 
+asErrorCall :: MonadIO m => Error m Ex.ErrorCall -> PError m Choice String 
 asErrorCall h = PRef O._ErrorCall h
 
 
 -- | This thread has exceeded its allocation limit.
 --
-asAllocationLimitExceeded :: MonadIO m => Handler m Ex.AllocationLimitExceeded -> PError m Choice ()
+asAllocationLimitExceeded :: MonadIO m => Error m Ex.AllocationLimitExceeded -> PError m Choice ()
 asAllocationLimitExceeded h = PRef O._AllocationLimitExceeded h

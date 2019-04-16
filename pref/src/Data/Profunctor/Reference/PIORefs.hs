@@ -6,6 +6,7 @@ module Data.Profunctor.Reference.PIORefs where
 
 import Data.IORef
 import Data.Monoid
+import Data.Profunctor.Optic hiding (has)
 import Data.Profunctor.Reference.PRefs
 import Data.Profunctor.Reference.Global
 import Data.Profunctor.Reference.Types
@@ -126,13 +127,16 @@ nada x = () <$ x $< ()
 hasfoobar
   :: PRefs Profunctor rt ry b Void
   -> PRefs Profunctor rt ((->) (String, Int)) b String
-hasfoobar = (foo >$>)
+hasfoobar = (foo >.>)
 
 -- <$< foo
 
 
 inp :: GettableStateVar (String, Int)
 inp = makeGettableStateVar $ readIORef x
+
+debug :: Show a => SettableStateVar a
+debug = SettableStateVar print
 
 printout :: SettableStateVar (String, Int)
 printout = debug

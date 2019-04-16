@@ -8,14 +8,21 @@
 -- {-# LANGUAGE GADTs             #-}
 
 module Data.Profunctor.Reference.Types (
-    module Data.Profunctor.Reference.Types
-  , module Export
+    -- module Data.Profunctor.Reference.Types
+    X(..), type (+), (>+<), (>*<)
+  , get, (=$), ($=), (!=$), ($=!), (~$), ($~), (!~$), ($~!)
+  , HasGetter, HasSetter, HasUpdate
+  , GettableStateVar, SettableStateVar, StateVar
+  , makeGettableStateVar
+  , pstate, pmaybe
 ) where
 
 import Control.Applicative
 import Control.Exception (Exception(..))
-import Data.StateVar as Export
-import Data.Profunctor.Optic as Export hiding (has)
+import Control.Monad.IO.Unlift
+import Data.Functor.Contravariant.Divisible
+import Data.Profunctor.Optic
+import Data.StateVar 
 import Data.Void
 import Data.Monoid
 
@@ -28,13 +35,39 @@ instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
 
   fromException s = (fmap Left $ fromException s) <|> (fmap Right $ fromException s) 
 
+type (+) = Either
+infixr 5 +
+
+type (*) = (,)
+infixl 6 *
+
+infixr 3 >*<
+
+(>*<) :: Divisible f => f a -> f b -> f (a , b)
+(>*<) = divided
+
+infixr 3 >+<
+
+(>+<) :: Decidable f => f a -> f b -> f (a + b)
+(>+<) = chosen
 
 newtype Settable m a = Settable (a -> m ())
 
 type Gettable m a = m a
 
-debug :: Show a => SettableStateVar a
-debug = SettableStateVar print
+infixl 2 =$, !=$, ~$, !~$
+(=$) :: (MonadIO m, HasSetter t a) => a -> t -> m ()
+(=$) = flip ($=)
+
+(!=$) :: (MonadIO m, HasSetter t a) => a -> t -> m () 
+(!=$) = flip ($=!)
+
+(~$) :: (MonadIO m, HasUpdate t a b) => (a -> b) -> t -> m ()
+(~$) = flip ($~)
+
+(!~$) :: (MonadIO m, HasUpdate t a b) => (a -> b) -> t -> m ()
+(!~$) = flip ($~!)
+
 
 pstate 
   :: Optic (Star ((,) a)) s t a b
