@@ -75,7 +75,7 @@ along with a combinators to cover the common `myfunc :: (HasBar env, HasBippy en
 ```
 asksBoth :: (MonadReader r m, Applicative m) => (r -> PRef Strong m b1 a1) -> (r -> PRef Strong m b2 a2) -> m (PRef Strong m (b1, b2) (a1, a2))
 asksBoth r s = liftA2 (*$*) (asks r) (asks s)
-```.
+```
 
 But wait! There's more. This approach applies to more that just the has pattern. Because we're dealing with profunctors we can combine our backend dependencies as sum types as well:
 ```
