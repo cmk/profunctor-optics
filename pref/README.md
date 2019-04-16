@@ -81,7 +81,7 @@ asksBoth r s = liftA2 (*$*) (asks r) (asks s)
 ```
 
 
-But wait! There's more. This approach applies to more that just the has pattern. For one thing, the fact that we're dealing with profunctors means we can also expose backend resources to users as sum types:
+This approach applies to more that just the has pattern. For one thing, the fact that we're dealing with profunctors means we can also expose backend resources to users as sum types:
 ```
 asksEither :: (MonadReader r m, Decidable m) => (r -> PRef Choice m b1 a1) -> (r -> PRef Choice m b2 a2) -> m (PRef Choice m (Either b1 b2) (Either a1 a2))
 asksEither r s = liftA2 (+$+) (asks r) (asks s)
@@ -106,12 +106,16 @@ So for example the `(+$+)` operator I defined above also has a specialization (d
 (+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
 (+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
-which effectivey models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend.
-This is a win for large applications IMO, because you can easily [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
+which effectivey models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend. See [`catching`](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs#L151).
+This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
 
 Finally, the `AsBaz` analog I mentioned above is simply:
 ```
 asException :: (MonadIO m, Exception s, Exception a) => Prism' s a -> Error m s -> PError m Choice a
 asException o h = PRef o h
 ```
-where, like the `env` in your typical `AsFoo env` instance, the `s` exception is unreachable by users of `PError m Choice a`.
+where, like the actual instantiations of `env` in your typical `AsFoo env` instance, instantiations of the `s` exception are unreachable by users of `PError m Choice a`. Like in the has pattern, any knowledge of the actual resources beyond the `rs` and `rt` types has been completely erased at the type level. The domain logic and resource management sides of your application can be compiled separately, or be maintained by different people using the `PRefs` as the go-between. 
+
+
+This approach provides a lot of design latitude to the resource management side of your program. For example, you can create one large exception type for the whole application, or integrate a number of smaller exception types & handlers (see `PError`). You can use a single piece of 'fat' state (e.g. an `IORef (Map k v)`) or break out a number of smaller pieces of state (see `PIORef`). You can log to disk or to a Kinesis stream, use Redis or PostGres (or even Redis on the read side and Postgres on the write side) (see `PIORefs` and `PStreams`). The domain code can only see the exposed `a` for reads and `b` for writes. 
+
