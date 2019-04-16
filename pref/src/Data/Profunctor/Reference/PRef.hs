@@ -134,14 +134,14 @@ infixr 3 *$*
 -- | Combine two 'PRefs' with profunctorial strength.
 --
 (*$*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1, b2) (a1, a2)
-(*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
+(*$*) (PRef o f) (PRef o' f') = PRef (o *** o') (liftA2 (,) f f')
 
 infixr 2 +$+
 
 -- | Combine two 'PRefs' with profunctorial choice.
 --
 (+$+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
-(+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
+(+$+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 
 has :: MonadReader r m => c (Star (Const a)) => PRef c cs ((->) r) b a -> m a
 has (PRef o rs) = view o <$> asks rs

@@ -15,7 +15,6 @@ module Data.Profunctor.Reference.PRefs (
   , SettableStateVar(..), GettableStateVar(..)
 ) where
 
-import Control.Arrow
 import Control.Category (Category)
 import Control.Applicative
 import Control.Monad.Reader (MonadReader(..), asks)
@@ -191,11 +190,6 @@ infixr 1 >.>, <.<
 --
 (<.<) = flip (>.>)
 
-instance (Alternative f, Divisible g) => Arrow (PRefs Profunctor g f) where
-
-  arr f = PRefs (dimap f f) empty conquer
-
-  (PRefs o f g) *** (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g') 
 
 infixr 3 *$$*
 -- | Combine two 'PRefs' with profunctorial strength:
@@ -204,7 +198,7 @@ infixr 3 *$$*
 -- (*$$*) :: 'PVars' 'Strong' String Int -> 'PVars' 'Strong' [a] a -> 'PVars' 'Strong' (String, [a]) (Int, a)
 -- @
 (*$$*) :: (Applicative f, Divisible g) => PRefs Strong g f b1 a1 -> PRefs Strong g f b2 a2 -> PRefs Strong g f (b1,b2) (a1,a2)
-(*$$*) (PRefs o f g) (PRefs o' f' g') = PRefs (paired o o') (liftA2 (,) f f') (divided g g')
+(*$$*) (PRefs o f g) (PRefs o' f' g') = PRefs (o *** o') (liftA2 (,) f f') (g >*< g')
 
 
 infixr 2 +$$+
@@ -214,4 +208,4 @@ infixr 2 +$$+
 -- (+$$+) :: 'PVars' 'Choice' String Int -> 'PVars' 'Choice' [a] a -> 'PVars' 'Choice' (Either String [a]) (Either Int a)
 -- @
 (+$$+) :: (Alternative f, Decidable g) => PRefs Choice g f b1 a1 -> PRefs Choice g f b2 a2 -> PRefs Choice g f (Either b1 b2) (Either a1 a2)
-(+$$+) (PRefs o f g) (PRefs o' f' g') = PRefs (split o o') (fmap Left f <|> fmap Right f')  (chosen g g')
+(+$$+) (PRefs o f g) (PRefs o' f' g') = PRefs (o +++ o') (fmap Left f <|> fmap Right f')  (g >+< g')

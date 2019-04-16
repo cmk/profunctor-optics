@@ -1,3 +1,4 @@
+[poptic](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf)
 
 This library is based in large part on 
 
@@ -5,7 +6,7 @@ This library is based in large part on
 - [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) by Matthew Pickering et al
 - [Glassery](http://oleg.fi/gists/posts/2017-04-18-glassery.html) by Oleg Grenrus
 
-The purpose of this package is to provide a minimal & performant implementation of profunctor-encoded optics. Why? 
+Its purpose is to provide a minimal & performant implementation of profunctor-encoded optics. Why? 
 Mainly because the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding. 
 This is especially true if you need a lot of control over the entailment relationships between different classes of optic.
 Such a need arose during the creation of [`profunctor-ref`](https://github.com/cmk/profunctor-util/tree/master/profunctor-ref), which is what led to this work in the first place. 
