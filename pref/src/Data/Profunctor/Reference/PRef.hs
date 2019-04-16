@@ -123,13 +123,23 @@ instance Choice (PRef Cochoice cs rs) where right' (PRef o rs) = PRef (o . unrig
 
 instance Cochoice (PRef Choice cs rs) where unright (PRef o rs) = PRef (o . right') rs
 
+
+-- | Unbox a 'PRef' by providing an existentially quantified continuation.
+-- 
+withPRef :: PRef c cs rs b a -> (forall x . Optical c x x a b -> rs x -> r) -> r
+withPRef (PRef o rs) f = f o rs
+
 infixr 3 *$*
 
-(*$*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1,b2) (a1,a2)
+-- | Combine two 'PRefs' with profunctorial strength.
+--
+(*$*) :: Applicative f => PRef Strong X f b1 a1 -> PRef Strong X f b2 a2 -> PRef Strong X f (b1, b2) (a1, a2)
 (*$*) (PRef o f) (PRef o' f') = PRef (paired o o') (liftA2 (,) f f')
 
 infixr 2 +$+
 
+-- | Combine two 'PRefs' with profunctorial choice.
+--
 (+$+) :: Decidable f => PRef Choice X f b1 a1 -> PRef Choice X f b2 a2 -> PRef Choice X f (Either b1 b2) (Either a1 a2)
 (+$+) (PRef o f) (PRef o' f') = PRef (split o o') (chosen f f')
 
@@ -139,17 +149,5 @@ has (PRef o rs) = view o <$> asks rs
 asksBoth :: (MonadReader r m, Applicative m) => (r -> PRef Strong X m b1 a1) -> (r -> PRef Strong X m b2 a2) -> m (PRef Strong X m (b1, b2) (a1, a2))
 asksBoth r s = liftA2 (*$*) (asks r) (asks s)
 
-asksEither
-  :: (MonadReader r m, Decidable m) 
-  => (r -> PRef Choice X m b1 a1)
-  -> (r -> PRef Choice X m b2 a2)
-  -> m (PRef Choice X m (Either b1 b2) (Either a1 a2))
+asksEither :: (MonadReader r m, Decidable m) => (r -> PRef Choice X m b1 a1) -> (r -> PRef Choice X m b2 a2) -> m (PRef Choice X m (Either b1 b2) (Either a1 a2))
 asksEither r s = liftA2 (+$+) (asks r) (asks s)
-
-
--- | Unbox a 'PRef' by providing an existentially quantified continuation.
-withPRef
-  :: PRef c cs rs b a 
-  -> (forall x . Optical c x x a b -> rs x -> r) 
-  -> r
-withPRef (PRef o rs) f = f o rs
