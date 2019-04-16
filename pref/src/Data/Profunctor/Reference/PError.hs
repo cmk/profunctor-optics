@@ -42,6 +42,23 @@ import qualified Control.Exception.Optic as O
 -- >>> :m + Control.Exception
 -- >>> :m + Data.Profunctor.Optic
 
+
+-- | 'PError's decouple backend exceptions and handlers from the rest of the program.
+--
+type PError m c a = PRef c Exception (Error m) a a
+
+infixr 2 +!+
+
+-- | Combine different errors using profunctorial choice.
+--
+-- @
+-- 'catching' (bar +!+ baz +!+ bip) (Ux.throwIO Bip) ('runError' $ hbar >+< hbaz >+< hbip)
+-- @
+--
+(+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
+(+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
+
+
 -- | A generic container for exception handlers.
 --
 -- The existential quantification means that an 'Error m e' must eventually 
@@ -49,7 +66,7 @@ import qualified Control.Exception.Optic as O
 -- and 'Error m e' catches a specific 'e', does some resource managment (e.g.
 -- closing a file handle or other expensive resource) and re-throws.
 --
-data Error m e = Error { runError :: forall a. e -> m a }
+newtype Error m e = Error { runError :: forall a. e -> m a }
 
 instance Contravariant (Error m) where
   
@@ -68,16 +85,6 @@ instance MonadPlus m => Decidable (Error m) where
 
   choose f (Error h) (Error h') = Error $ either h h' . f
 
-
-infixr 2 +!+
-
-(+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
-(+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
-
-
--- | 'PError's decouple backend exceptions and handlers from the rest of the program.
---
-type PError m c a = PRef c Exception (Error m) a a
 
 -- | A default 'PError' with no backend handler.
 --
