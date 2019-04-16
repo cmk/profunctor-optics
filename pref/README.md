@@ -106,8 +106,59 @@ So for example the `(+$+)` operator I defined above also has a specialization (d
 (+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
 (+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
-which effectivey models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend. See [`catching`](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs#L151).
-This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
+which effectively models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend. This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
+
+
+To give a toy example, suppose you have some collection of exceptions in your resource management layer, perhaps coming from various `amazonka` libraries, the user, and other http / grpc services. You've currently modelled these as a sum type `BazBarBip`:
+
+```
+{-# LANGUAGE TypeOperators #-}
+import qualified Control.Exception as Ex 
+import qualified UnliftIO.Exception as Ux
+import qualified Control.Exception.Optic as O 
+
+type (+) = Either
+
+data Bar = Bar deriving Show
+instance Exception Bar
+
+data Baz = Baz deriving Show
+instance Exception Baz
+
+data Bip = Bip deriving Show
+instance Exception Bip
+
+data BarBazBip = BBar Bar | BBaz Baz | BBip Bip deriving Show
+instance Exception BarBazBip
+```
+
+You can expose the user-level exceptions to your domain logic by simply passing the `Bar` part of your sum type to a pref:
+
+```
+isBar :: BarBazBip -> Maybe Bar
+isBar (BBar Bar) = Just Bar
+isBar _ = Nothing
+
+_Bar :: Prism' BarBazBip Bar
+_Bar = prism' BBar isBar
+
+notbar :: PError IO Choice Bar
+notbar = PRef _Bar (Error $ \e -> print "handle on backend" >> Ux.throwIO e)
+```
+which gives you the following exception handling semantics:
+
+```
+>>> catching (notbar) (Ux.throwIO $ BBar Bar) (\e -> print "handle on frontend" >> Ux.throwIO e) 
+"handle on frontend"
+*** Exception: Bar
+>>> catching (notbar) (Ux.throwIO $ BBaz Baz) (\e -> print "handle on frontend" >> Ux.throwIO e) 
+"handle on backend"
+*** Exception: BBaz Baz
+```
+Note that the first exception thrown is `Bar`, not `BBar Bar`. 
+The error types on the backend are completely decoupled from the rest of your program, and can be refactored at will without disrupting anything in your domain logic layer. 
+See also [`catching`](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs#L151).
+
 
 Finally, the `AsBaz` analog I mentioned above is simply:
 ```
