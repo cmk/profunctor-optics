@@ -112,12 +112,9 @@ which effectively models your exceptions as a free monoid that can run in two se
 To give a toy example, suppose you have some collection of exceptions in your resource management layer, perhaps coming from various `amazonka` libraries, the user, and other http / grpc services. You've currently modelled these as a sum type `BazBarBip`:
 
 ```
-{-# LANGUAGE TypeOperators #-}
 import qualified Control.Exception as Ex 
 import qualified UnliftIO.Exception as Ux
 import qualified Control.Exception.Optic as O 
-
-type (+) = Either
 
 data Bar = Bar deriving Show
 instance Exception Bar
