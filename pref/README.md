@@ -1,4 +1,6 @@
-An optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into what, for the purposes of this readme, I'll call 'backend' input/outputs (i.e. `s` and `t`, but really any types associated with your resource management layer) and 'frontend' input/outputs (i.e. `a` and `b`, but really any types associated with your domain logic layer). If you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) instead of the [van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic)) you gain precise control over data access with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. If you then further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two 'backend' types, you get the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
+An optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into what, for the purposes of this readme, I'll call 'backend' input/outputs (i.e. `s` and `t`, but really any types associated with your resource management layer) and 'frontend' input/outputs (i.e. `a` and `b`, but really any types associated with your domain logic layer).
+
+Now if you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) instead of the [van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic)) you gain precise control over data access with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. If you then further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two 'backend' types, you get the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
 
 
 ```
@@ -22,17 +24,17 @@ So for example you can `dimap` them like this:
 >>> t = ("there!",2) :: (String, Int)
 >>> rs <- newIORef s
 >>> rt <- newIORef t
->>> o :: PIORefs Profunctor (String, Int) (String, Int) = PIORefs id rt rs
+>>> o :: PRefs Profunctor IORef IORef (String, Int) (String, Int) = PRefs id rt rs
 >>> readPIORefs (dimap id fst o)
 "hi"
 ```
 or this:
 ```
 >>> tosnd a = ("bye", a)
->>> o' :: PIORefs Profunctor Int String = dimap tosnd fst o
->>> modifyPIORefs o' length >> readRef rt
+>>> o' :: PRefs Profunctor IORef IORef Int String = dimap tosnd fst o
+>>> modifyPIORefs o' length >> readIORef rt
 ("bye",2)
->>> readRef rs
+>>> readIORef rs
 ("hi",2)
 ```
 
@@ -57,7 +59,7 @@ ji :: PRefs Profunctor IORef IORef (Int, String) (Int, String)
 ji = j >>> i
 ```
 
-Finally there's also a simpler version that contains only one underlying reference:
+Finally there's also a simplified version that contains only one underlying reference:
 
 ```
 data PRef c rs b a = forall x . PRef  (Optical c x x a b) !(rs x)
@@ -65,20 +67,21 @@ data PRef c rs b a = forall x . PRef  (Optical c x x a b) !(rs x)
 which is usable for reading / writing / modifying depending on the profunctor constraint `c`.
 
 
-My main goal in this is to try and find a viable alternative to the type-class heavy approaches to resource abstraction (e.g. `MonadFoo`, `HasBar`, `AsBaz` etc) currently prevalent. 
-The `HasBar` alternative is [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs#L106) for the separate read/write case and [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRef.hs#L146) for the single reference case:
+One goal with this experiment is to try and find a viable alternative to the type-class heavy approaches to resource abstraction (e.g. `MonadFoo`, `HasBar`, `AsBaz` etc) currently prevalent. 
+The resulting `HasBar` alternative is [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs#L106) for the separate read/write case and [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRef.hs#L146) for the single reference case:
 
 ```
 has :: MonadReader r m => c (Star (Const a)) => PRef c ((->) r) b a -> m a
 has (PRef o rs) = view o <$> asks rs
 ```
-along with a combinators to cover the common `myfunc :: (HasBar env, HasBippy env, MonadReader env m) => ...` use case:
+along with a combinator to cover the common `myfunc :: (HasBar r, HasBippy r, MonadReader r m) => ...` use case:
 ```
 asksBoth :: (MonadReader r m, Applicative m) => (r -> PRef Strong m b1 a1) -> (r -> PRef Strong m b2 a2) -> m (PRef Strong m (b1, b2) (a1, a2))
 asksBoth r s = liftA2 (*$*) (asks r) (asks s)
 ```
 
-But wait! There's more. This approach applies to more that just the has pattern. Because we're dealing with profunctors we can combine our backend dependencies as sum types as well:
+
+But wait! There's more. This approach applies to more that just the has pattern. For one thing, the fact that we're dealing with profunctors means we can also expose backend resources to users as sum types:
 ```
 asksEither :: (MonadReader r m, Decidable m) => (r -> PRef Choice m b1 a1) -> (r -> PRef Choice m b2 a2) -> m (PRef Choice m (Either b1 b2) (Either a1 a2))
 asksEither r s = liftA2 (+$+) (asks r) (asks s)
@@ -93,10 +96,10 @@ The `*$*` and `+$+` operators above are essentially `***` and `+++` from [`Contr
 (+$+) :: Decidable f => PRef Choice f b1 a1 -> PRef Choice f b2 a2 -> PRef Choice f (Either b1 b2) (Either a1 a2)
 (+$+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
-and `(>+<) :: Decidable f => f a -> f b -> f (Either a b)` is a [`contravariant`](http://hackage.haskell.org/package/contravariant-1.5) cousin to `liftA2 (,) :: Applicative f => f a -> f b -> f (a, b)`.
+where `(>+<) :: Decidable f => f a -> f b -> f (Either a b)` is a [`contravariant`](http://hackage.haskell.org/package/contravariant-1.5) cousin to `liftA2 (,) :: Applicative f => f a -> f b -> f (a, b)`.
 
-And because the resources are completely abstracted behind `s`, `t`, `rs`, and `rt` (and possibly also constraints on `s` and `t`, still protyping this) we can apply the same functions to essentially any set of operations that you can fit into a `foo m b a = MonadUnliftIO m => (b -> m (), m a)` (which is itself a profunctor).
 
+Because the resources are completely abstracted behind `s`, `t`, `rs`, and `rt` (and possibly also constraints on `s` and `t`, still protyping this) we can apply the same functions to essentially any set of operations that you can fit into a `foo m b a = MonadUnliftIO m => (b -> m (), m a)` (which is itself a profunctor).
 So for example the `(+$+)` operator I defined above also has a specialization (defined in [`PError`](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs)):
 
 ```
@@ -104,7 +107,6 @@ So for example the `(+$+)` operator I defined above also has a specialization (d
 (+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
 which effectivey models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend.
-
 This is a win for large applications IMO, because you can easily [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
 
 Finally, the `AsBaz` analog I mentioned above is simply:
