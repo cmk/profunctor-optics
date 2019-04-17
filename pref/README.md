@@ -1,20 +1,26 @@
-An optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into what, for the purposes of this readme, I'll call 'backend' input/outputs (i.e. `s` and `t`, but really any types associated with your resource management layer) and 'frontend' input/outputs (i.e. `a` and `b`, but really any types associated with your domain logic layer).
+# Profunctor References
 
-Now if you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) instead of the [van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic)) you gain precise control over data access with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. If you then further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two 'backend' types, you get the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
+Let's first quickly posit that an optic (e.g. one of the types in [`Control.Lens.Type`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html)) naturally divides into 'backend' input/outputs (i.e. `s` and `t`, but really any types associated with your resource management layer) and 'frontend' input/outputs (i.e. `a` and `b`, but really any types associated with your domain logic layer).
+
+Now if you use the [profunctor](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf) encoding (e.g. from [`poptic`](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L20)) of optics instead of the [van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) one (e.g. from [`lens`](http://hackage.haskell.org/package/lens-4.17/docs/Control-Lens-Type.html#t:Optic), 
+one thing that happens is that you gain precise control over what that optic [can and cannot do](https://github.com/cmk/putil/blob/master/poptic/optics-hierarchy.svg) with [just the one type variable](https://github.com/cmk/putil/blob/master/poptic/src/Data/Profunctor/Optic/Types.hs#L16) representing a constraint. 
+If you then further combine this `c` with the `c` trick from the "Build Systems à la Carte" paper (see [`Task`](https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task)) and existentialize over the two backend types `s` and `t`, you end up with the following [type](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs):
 
 
 ```
 data PRefs c rt rs b a = forall x y . PRefs (Optical c x y a b) !(rs x) !(rt y)
 ```
 
-that I haven't been able to trace down anywhere and so am provisionally calling a profunctor reference (borrowed from SML's [references](https://www.cs.cmu.edu/~rwh/introsml/core/refs.htm)).  
+that I haven't been able to trace down anywhere and so have taken to calling a profunctor reference (borrowed from SML's [references](https://www.cs.cmu.edu/~rwh/introsml/core/refs.htm) or the early ['functional references'](https://www.twanvl.nl/blog/haskell/cps-functional-references) terminology for lenses take your pick). 
+Profunctor references are essentially arbitrary input / output resources `rs` and `rt`, bound together with a profunctor-encoded optic that dictates access to those resources. 
+The result is a new family of profunctors with some interesting properties relevant to structuring applications, especially large ones.
 
-Profunctor references are basically input / output resources `rs` and `rt`, bound together with a profunctor-encoded optic by existentializing over the `s` and `t` types. 
-The effect of existentializing over the backend types is that 'frontend' code can no longer rely on any particular instantiation of inputs or outputs to the component in question, 
+
+The effect of existentializing over the backend types is that 'frontend' or domain logic code can no longer rely on any particular instantiation of inputs or outputs to the component in question, 
 be it an [exception](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs)
-, [io ref](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PIORef.hs)
-, [mvar](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PMVar.hs)
-, [io-stream](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PStreams.hs), `TChan`, kinesis stream, logger, etc. 
+, [mutable data reference](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PIORef.hs)
+, [mutex](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PMVar.hs)
+, [stream](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PStreams.hs), DynamoDB instance, logger, etc. 
 The result is essentially the same decoupling you get with traditional typeclass-mediated resource management, but without the typeclasses and _with_ all the laws and composability you get from profunctors & arrows (e.g. [`dimap`](http://hackage.haskell.org/package/profunctors-5.3/docs/Data-Profunctor.html#v:dimap), [`first'`](http://hackage.haskell.org/package/profunctors-5.3/docs/Data-Profunctor.html#v:first-39-), [`left'`](http://hackage.haskell.org/package/profunctors-5.3/docs/Data-Profunctor.html#v:left-39-), and so forth).
 
 So for example you can `dimap` them like this:
@@ -38,7 +44,7 @@ or this:
 ("hi",2)
 ```
 
-They also form a category, so they compose:
+Profunctor references also compose:
 
 ```
 import Control.Category (>>>)
@@ -67,7 +73,7 @@ data PRef c rs b a = forall x . PRef  (Optical c x x a b) !(rs x)
 which is usable for reading / writing / modifying depending on the profunctor constraint `c`.
 
 
-One goal with this experiment is to try and find a viable alternative to the type-class heavy approaches to resource abstraction (e.g. `MonadFoo`, `HasBar`, `AsBaz` etc) currently prevalent. 
+One goal with this experiment was to try and find a viable alternative to the type-class heavy approaches to resource abstraction (e.g. `MonadFoo`, `HasBar`, `AsBaz` etc) currently prevalent. 
 The resulting `HasBar` alternative is [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRefs.hs#L106) for the separate read/write case and [here](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PRef.hs#L146) for the single reference case:
 
 ```
@@ -81,11 +87,14 @@ asksBoth r s = liftA2 (*$*) (asks r) (asks s)
 ```
 
 
-This approach applies to more that just the has pattern. For one thing, the fact that we're dealing with profunctors means we can also expose backend resources to users as sum types:
+It turns out that prefs are fairly flexible and can be applied to more that just the has pattern. 
+For one thing, the fact that we're dealing with profunctors means we can also expose backend resources to users as sum types:
 ```
 asksEither :: (MonadReader r m, Decidable m) => (r -> PRef Choice m b1 a1) -> (r -> PRef Choice m b2 a2) -> m (PRef Choice m (Either b1 b2) (Either a1 a2))
 asksEither r s = liftA2 (+$+) (asks r) (asks s)
 ```
+which effectively gives the backend freedom to choose at runtime which resource to expose to the frontend.
+
 
 The `*$*` and `+$+` operators above are essentially `***` and `+++` from [`Control.Arrow`](http://hackage.haskell.org/package/base-4.11.1.0/docs/Control-Arrow.html):
 
@@ -99,14 +108,15 @@ The `*$*` and `+$+` operators above are essentially `***` and `+++` from [`Contr
 where `(>+<) :: Decidable f => f a -> f b -> f (Either a b)` is a [`contravariant`](http://hackage.haskell.org/package/contravariant-1.5) cousin to `liftA2 (,) :: Applicative f => f a -> f b -> f (a, b)`.
 
 
-Because the resources are completely abstracted behind `s`, `t`, `rs`, and `rt` (and possibly also constraints on `s` and `t`, still protyping this) we can apply the same functions to essentially any set of operations that you can fit into a `foo m b a = MonadUnliftIO m => (b -> m (), m a)` (which is itself a profunctor).
+Because the resources are completely abstracted behind `s`, `t`, `rs`, and `rt` (and possibly also constraints on `s` and `t`, still protyping this) we can apply the same functions to essentially any set of operations that you can fit into a `foo m b a = MonadUnliftIO m => (b -> m (), m a)` (which is itself a profunctor). 
 So for example the `(+$+)` operator I defined above also has a specialization (defined in [`PError`](https://github.com/cmk/putil/blob/master/pref/src/Data/Profunctor/Reference/PError.hs)):
 
 ```
 (+!+) :: MonadPlus m => PError m Choice a -> PError m Choice b -> PError m Choice (Either a b)
 (+!+) (PRef o f) (PRef o' f') = PRef (o +++ o') (f >+< f')
 ```
-which effectively models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend. This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
+which effectively models your exceptions as a free monoid that can run in two separate interpreters, one on the backend and one on the frontend. 
+This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
 
 
 To give a toy example, suppose you have some collection of exceptions in your resource management layer, perhaps coming from various `amazonka` libraries, the user, and other http / grpc services. You've currently modelled these as a sum type `BazBarBip`:
