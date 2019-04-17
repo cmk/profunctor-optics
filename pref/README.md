@@ -119,7 +119,7 @@ which effectively models your exceptions as a free monoid that can run in two se
 This is convenient if you like to [keep your error types small](https://www.parsonsmatt.org/2018/11/03/trouble_with_typed_errors.html).
 
 
-To give a toy example, suppose you have some collection of exceptions in your resource management layer, perhaps coming from various `amazonka` libraries, the user, and other http / grpc services. You've currently modelled these as a sum type `BazBarBip`:
+To give a toy example, suppose you have some collection of exceptions in your resource management layer, perhaps coming from the user, various `amazonka` libraries, and other http / grpc services. You've currently modelled these as a sum type `BarBazBip`:
 
 ```
 import qualified Control.Exception as Ex 
