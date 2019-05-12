@@ -9,7 +9,7 @@ This library is based in large part on
 Its purpose is to provide a minimal & performant implementation of profunctor-encoded optics. Why? 
 Mainly because the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding. 
 This is especially true if you need a lot of control over the entailment relationships between different classes of optic.
-Such a need arose during the creation of [`profunctor-ref`](https://github.com/cmk/profunctor-util/tree/master/profunctor-ref), which is what led to this work in the first place. 
+Such a need arose during the creation of [`pref`](https://github.com/cmk/putil/tree/master/pref), which is what led to this work in the first place. 
 
 Now onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) is an excellent general introduction. 
 There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page.
@@ -105,9 +105,8 @@ See the `Data.Profunctor.Optic.Operator` module for more detail.
 
 Finally, the relationships between the associated profunctors and the profunctor classes is as follows:
 
-|                  | `Star (Const c)` | `Star` | `Costar (Const c)` | `Zipped` | `Matched` | `Previewed` |  `(->)` 
-| --- | --- | --- | --- | --- | --- | --- |
-
+| | `Star (Const c)` | `Star` | `Costar (Const c)` | `Zipped` | `Matched` | `Previewed` |  `(->)` |
+| --- | --- | --- | --- | --- | --- | --- | --- |
 | `Profunctor`      | **yes** | **yes** | **yes** | **yes** | **yes** | **yes** | **yes** |
 | `InPhantom`       | no      | no      | **yes** | no      | no      | no      | no      |
 | `OutPhantom`      | **yes** | no      | no      | no      | no      | **yes** | no      |
