@@ -11,7 +11,7 @@ Mainly because the profunctor encoding of optics is easier to understand and wor
 This is especially true if you need a lot of control over the entailment relationships between different classes of optic.
 Such a need arose during the creation of [`pref`](https://github.com/cmk/putil/tree/master/pref), which is what led to this work in the first place. 
 
-Now onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) is an excellent general introduction. 
+Now onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) and [this talk](https://www.youtube.com/watch?v=OJtGECfksds) are excellent general introductions. 
 There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page.
 
 ## Intro
