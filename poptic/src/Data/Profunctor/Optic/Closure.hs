@@ -5,7 +5,7 @@ module Data.Profunctor.Optic.Closure (
   , Costar (..)
 ) where
 
-import Data.Profunctor.Optic.Types 
+import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Operators
 
 import Data.Profunctor.Closed as Export hiding (Closure)
@@ -25,7 +25,7 @@ closureMod sa bt sab = bt (sab sa)
 
 withClosure :: AClosure s t a b -> ((s -> a) -> b) -> t
 withClosure g =
- let ClosureP h = (g (ClosureP $ \f -> f id))
+ let ClosureRep h = (g (ClosureRep $ \f -> f id))
 
   in h
 

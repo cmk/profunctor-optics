@@ -2,104 +2,113 @@
 
 {-# LANGUAGE TupleSections, FlexibleInstances, UndecidableInstances #-}
 
-module Data.Profunctor.Optic.Types (
-    module Data.Profunctor.Optic.Types
-  , module Data.Profunctor.Optic.Types.Class
-  , swap
+module Data.Profunctor.Optic.Type (
+    module Data.Profunctor.Optic.Type
+  , module Data.Profunctor.Optic.Type.Class
 ) where
 
-import Control.Arrow ((|||))
-import Data.Profunctor.Optic.Types.Class 
-import Data.Tuple (swap)
+import Data.Profunctor.Optic.Type.Class 
+import Data.Profunctor.Optic.Prelude
 
+--type Optical c s t a b = forall p. c p => Optic p s t a b
 
-type Optical c s t a b = forall p. c p => Optic p s t a b
-
-type Optical' c s a = Optical c s s a a
+--type Optical' c s a = Optical c s s a a
 
 type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
 
-type Equality s t a b = Optical Equalizing s t a b
+-- | A witness that @(a ~ s, b ~ t)@.
+type Equality s t a b = forall p. Optic p s t a b 
+
+--type Equality s t a b = Optical Equalizing s t a b
 
 type Equality' s a = Equality s s a a
 
-type Iso s t a b = Optical Profunctor s t a b
+type Iso s t a b = forall p. Profunctor p => Optic p s t a b --Optical Profunctor s t a b
 
 type Iso' s a = Iso s s a a
 
-type AnIso s t a b = Optic (IsoP a b) s t a b
+type AnIso s t a b = Optic (IsoRep a b) s t a b
 
 type AnIso' s a = AnIso s s a a
 
-type Lens s t a b = Optical Strong s t a b
+type Lens s t a b = forall p. Strong p => Optic p s t a b  --Optical Strong s t a b
 
 type Lens' s a = Lens s s a a
 
-type ALens s t a b = Optic (LensP a b) s t a b
+type ALens s t a b = Optic (LensRep a b) s t a b
 
 type ALens' s a = ALens s s a a
 
-type Prism s t a b = Optical Choice s t a b
+type Prism s t a b = forall p. Choice p => Optic p s t a b  --Optical Choice s t a b
 
 type Prism' s a = Prism s s a a
 
-type APrism s t a b = Optic (PrismP a b) s t a b
+type APrism s t a b = Optic (PrismRep a b) s t a b
+
+--type APrism s t a b = Optic (Star (Either a)) s t a b
 
 type APrism' s a = APrism s s a a
 
-type Affine s t a b = Optical AffineTraversing s t a b
+type Affine s t a b = forall p. AffineTraversing p => Optic p s t a b --Optical AffineTraversing s t a b
 
 type Affine' s a = Affine s s a a
 
-type AnAffine s t a b = Optic (AffineP a b) s t a b
+type AnAffine s t a b = Optic (AffineRep a b) s t a b
 
 type AnAffine' s a = Affine s s a a
 
-type Traversal s t a b = Optical Traversing s t a b
+type Traversal s t a b = forall p. Traversing p => Optic p s t a b  --Optical Traversing s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type Fold s a = Optical' Folding s a
+type Traversal1 s t a b = forall p. Traversing1 p => Optic p s t a b  --Optical Traversing s t a b
 
-type AffineFold s a = Optical' AffineFolding s a
+type Traversal1' s a = Traversal1 s s a a
 
-type Setter s t a b = Optical Mapping s t a b
+type Fold s a = forall p. Folding p => Optic' p s a  --Optical' Folding s a
+
+type Fold1 s a = forall p. Folding1 p => Optic' p s a 
+
+type AffineFold s a = forall p. AffineFolding p => Optic' p s a  --Optical' AffineFolding s a
+
+type Setter s t a b = forall p. Mapping p => Optic p s t a b  --Optical Mapping s t a b
 
 type Setter' s a = Setter s s a a
 
 type ASetter s t a b = Optic (->) s t a b 
 
-type PrimGetter s t a b = Optical OutPhantom s t a b
+type PrimGetter s a = forall p. OutPhantom p => Optic' p s a -- Optical' OutPhantom s a
+--type APrimGetter s a = Optic' Tagged s a
 
--- TODO: s t a b?
-type Getter s a = Optical' Getting s a
+--type Getting r s a = Optic' (Star (Const r)) s a
 
-type AGetter r s t a b = Optic (Star (Const r)) s t a b 
+-- type GetterRep r s a = Optic' (Star (Const r)) s a
+-- type AGetter s a = forall r. GetterRep r s a
 
-type PrimReview s t a b = Optical InPhantom s t a b
+type Getter s a = forall p. Getting p => Optic' p s a  --Optical' Getting s a
 
--- TODO: s t a b?
-type Review t b = Optical' Reviewing t b
+type AGetter r s a = Optic' (Star (Const r)) s a
 
-type AReview r s t a b = Optic (Costar (Const r)) s t a b
 
-type Closure s t a b = Optical Closed s t a b
+type PrimReview t b = forall p. InPhantom p => Optic' p t b --Optical InPhantom s t a b
+-- type APrimReview t b = Optic' Tagged t b
+
+--type Reviewing r t b = Optic' (Costar (Const r)) t b
+--class (InPhantom p, Choice p) => Reviewing p
+
+type Review t b = forall p. Reviewing p => Optic' p t b --Optical' Reviewing t b
+-- type Review t b = forall r. Reviewing r t b
+-- type AReview t b = Optic' Tagged t b
+type AReview t b = forall r. Optic' (Costar (Const r)) t b
+
+type Closure s t a b = forall p. Closed p => Optic p s t a b  --Optical Closed s t a b
 
 type Closure' s a = Closure s s a a
 
-type AClosure s t a b = Optic (ClosureP a b) s t a b
+type AClosure s t a b = Optic (ClosureRep a b) s t a b
 
-
-infixl 1 &
-
-(&) :: a -> (a -> b) -> b
-(&) = flip ($)
-
--- | Box up a profunctor, map it through an optic, then unbox.
-through :: (t1 -> t2) -> (t3 -> t4) -> (t2 -> t3) -> t1 -> t4
-through up down optic a = down (optic $ up a)
 
 ---------------------------------------------------------------------
 -- 
@@ -124,7 +133,6 @@ instance OutPhantom p => OutPhantom (Paired p c d) where
 -- ^ @
 -- paired :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
 -- paired :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
--- paired :: To s t a b -> To s' t' a' b' -> To (s, s') (t, t') (a, a') (b, b')
 -- @
 paired 
   :: Profunctor p 
@@ -136,7 +144,7 @@ paired lab lcd =
   dimap swap swap . runPaired . lcd . Paired
 
 pairing :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (c, s) (d, t) (c, a) (d, b)
-pairing f g = through Paired runPaired (dimap f g)
+pairing f g = between runPaired Paired (dimap f g)
 
 ---------------------------------------------------------------------
 -- 
@@ -145,7 +153,7 @@ pairing f g = through Paired runPaired (dimap f g)
 newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
 fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
-fromTambaraSum = Split . dimap switch switch . runTambaraSum
+fromTambaraSum = Split . dimap swap swap . runTambaraSum
 
 instance Profunctor p => Profunctor (Split p c d) where
   dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
@@ -169,11 +177,11 @@ split
   -> Optic (Split p a b) s' t' a' b' 
   -> Optic p (Either s s') (Either t t') (Either a a') (Either b b')
 split lab lcd = 
-  dimap switch switch . runSplit . lab . Split . 
-  dimap switch switch . runSplit . lcd . Split
+  dimap swap swap . runSplit . lab . Split . 
+  dimap swap swap . runSplit . lcd . Split
 
 splitting :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
-splitting f g = through Split runSplit (dimap f g)
+splitting f g = between runSplit Split (dimap f g)
 
 ---------------------------------------------------------------------
 -- 
@@ -210,19 +218,19 @@ instance (Cochoice p, OutPhantom p) => InPhantom (Re p s t) where
 -- 
 ---------------------------------------------------------------------
 
--- | The 'IsoP' profunctor precisely characterizes an 'Iso'.
-data IsoP a b s t = IsoP (s -> a) (b -> t)
+-- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
+data IsoRep a b s t = IsoRep (s -> a) (b -> t)
 
-instance Functor (IsoP a b s) where
-  fmap f (IsoP sa bt) = IsoP sa (f . bt)
+instance Functor (IsoRep a b s) where
+  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE fmap #-}
 
-instance Profunctor (IsoP a b) where
-  dimap f g (IsoP sa bt) = IsoP (sa . f) (g . bt)
+instance Profunctor (IsoRep a b) where
+  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
   {-# INLINE dimap #-}
-  lmap f (IsoP sa bt) = IsoP (sa . f) bt
+  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
   {-# INLINE lmap #-}
-  rmap f (IsoP sa bt) = IsoP sa (f . bt)
+  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
 ---------------------------------------------------------------------
@@ -230,36 +238,33 @@ instance Profunctor (IsoP a b) where
 ---------------------------------------------------------------------
 
 
--- | The 'PrismP' profunctor precisely characterizes a 'Prism'.
-data PrismP a b s t = PrismP (b -> t) (s -> Either t a)
+-- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
+data PrismRep a b s t = PrismRep (b -> t) (s -> Either t a)
 
--- | @type 'PrismP'' a s t = 'PrismP' a a s t@
-type PrismP' a = PrismP a a
+instance Functor (PrismRep a b s) where
 
-instance Functor (PrismP a b s) where
-
-  fmap f (PrismP bt seta) = PrismP (f . bt) (either (Left . f) Right . seta)
+  fmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
   {-# INLINE fmap #-}
 
-instance Profunctor (PrismP a b) where
+instance Profunctor (PrismRep a b) where
 
-  dimap f g (PrismP bt seta) = PrismP (g . bt) $
+  dimap f g (PrismRep bt seta) = PrismRep (g . bt) $
     either (Left . g) Right . seta . f
   {-# INLINE dimap #-}
 
-  lmap f (PrismP bt seta) = PrismP bt (seta . f)
+  lmap f (PrismRep bt seta) = PrismRep bt (seta . f)
   {-# INLINE lmap #-}
 
-  rmap f (PrismP bt seta) = PrismP (f . bt) (either (Left . f) Right . seta)
+  rmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
   {-# INLINE rmap #-}
 
-instance Choice (PrismP a b) where
+instance Choice (PrismRep a b) where
 
-  left' (PrismP bt seta) = PrismP (Left . bt) $ 
+  left' (PrismRep bt seta) = PrismRep (Left . bt) $ 
     either (either (Left . Left) Right . seta) (Left . Right)
   {-# INLINE left' #-}
 
-  right' (PrismP bt seta) = PrismP (Right . bt) $ 
+  right' (PrismRep bt seta) = PrismRep (Right . bt) $ 
     either (Left . Left) (either (Left . Right) Right . seta)
   {-# INLINE right' #-}
 
@@ -270,68 +275,63 @@ instance Choice (PrismP a b) where
 ---------------------------------------------------------------------
 
 
--- | The `LensP` profunctor precisely characterizes a 'Lens'.
-data LensP a b s t = LensP (s -> a) (s -> b -> t)
+-- | The `LensRep` profunctor precisely characterizes a 'Lens'.
+data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
 
-instance Profunctor (LensP a b) where
+instance Profunctor (LensRep a b) where
 
-  dimap f g (LensP sa sbt) = LensP (sa . f) (\s -> g . sbt (f s))
+  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
 
-instance Strong (LensP a b) where
+instance Strong (LensRep a b) where
 
-  first' (LensP sa sbt) =
-    LensP (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
+  first' (LensRep sa sbt) =
+    LensRep (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
 
-  second' (LensP sa sbt) =
-    LensP (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
+  second' (LensRep sa sbt) =
+    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------
 
--- | The `LensP` profunctor precisely characterizes a 'Lens'.
-data AffineP a b s t = AffineP (s -> Either t a) (s -> b -> t)
+-- | The `LensRep` profunctor precisely characterizes a 'Lens'.
+data AffineRep a b s t = AffineRep (s -> Either t a) (s -> b -> t)
 
-idAffineP :: AffineP a b a b
-idAffineP = AffineP Right (\_ -> id)
+idAffineRep :: AffineRep a b a b
+idAffineRep = AffineRep Right (\_ -> id)
 
-instance Profunctor (AffineP u v) where
-    dimap f g (AffineP getter setter) = AffineP
+instance Profunctor (AffineRep u v) where
+    dimap f g (AffineRep getter setter) = AffineRep
         (\a -> first g $ getter (f a))
         (\a v -> g (setter (f a) v))
 
-instance Strong (AffineP u v) where
-    first' (AffineP getter setter) = AffineP
+instance Strong (AffineRep u v) where
+    first' (AffineRep getter setter) = AffineRep
         (\(a, c) -> first (,c) $ getter a)
         (\(a, c) v -> (setter a v, c))
 
-instance Choice (AffineP u v) where
-    right' (AffineP getter setter) = AffineP
-        (\eca -> assoc (second getter eca))
+instance Choice (AffineRep u v) where
+    right' (AffineRep getter setter) = AffineRep
+        (\eca -> unassoc (second getter eca))
         (\eca v -> second (`setter` v) eca)
-      where
-        assoc :: Either a (Either b c) -> Either (Either a b) c
-        assoc (Left a)          = Left (Left a)
-        assoc (Right (Left b))  = Left (Right b)
-        assoc (Right (Right c)) = Right c
 
 
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------
 
--- | The 'ClosureP' profunctor precisely characterizes 'Closure'.
+-- | The 'ClosureRep' profunctor precisely characterizes 'Closure'.
 
-newtype ClosureP a b s t = ClosureP { unClosureP :: ((s -> a) -> b) -> t }
+newtype ClosureRep a b s t = ClosureRep { unClosureRep :: ((s -> a) -> b) -> t }
 
-instance Profunctor (ClosureP a b) where
-  dimap f g (ClosureP z) = ClosureP $ \d -> g (z $ \k -> d (k . f))
+instance Profunctor (ClosureRep a b) where
+  dimap f g (ClosureRep z) = ClosureRep $ \d -> g (z $ \k -> d (k . f))
 
-instance Closed (ClosureP a b) where
+instance Closed (ClosureRep a b) where
   -- closed :: p a b -> p (x -> a) (x -> b)
-  closed (ClosureP z) = ClosureP $ \f x -> z $ \k -> f $ \g -> k (g x)
+  closed (ClosureRep z) = ClosureRep $ \f x -> z $ \k -> f $ \g -> k (g x)
 
-
+{-
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------
@@ -343,11 +343,6 @@ instance Profunctor (Matched r) where
 
 instance Choice (Matched r) where
     right' (Matched p) = Matched (unassocE . fmap p)
-
-unassocE :: Either a (Either b c) -> Either (Either a b) c
-unassocE (Left a)          = Left (Left a)
-unassocE (Right (Left b))  = Left (Right b)
-unassocE (Right (Right c)) = Right c
 
 instance Strong (Matched r) where
     first' (Matched p) = Matched (\(a,c) -> first (,c) (p a))
@@ -375,7 +370,7 @@ instance Choice (Previewed r) where
 
 instance Strong (Previewed r) where
     first' (Previewed p) = Previewed (p . fst)
-
+-}
 
 ---------------------------------------------------------------------
 -- 
@@ -387,10 +382,13 @@ newtype Pre a b = Pre { runPre :: Maybe a }
 instance Phantom (Pre a) where coerce (Pre p) = (Pre p)
 
 instance Functor (Pre a) where
-    fmap f (Pre p) = Pre p
+    fmap _ (Pre p) = Pre p
+
+instance Contravariant (Pre a) where
+    contramap _ (Pre p) = Pre p
 
 instance Semigroup a => Applicative (Pre a) where
-    pure _ = Pre $ mempty
+    pure _ = Pre $ Nothing
 
     (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
 
@@ -398,6 +396,32 @@ instance Semigroup a => Applicative (Pre a) where
 -- 
 ---------------------------------------------------------------------
 
+
+-- http://hackage.haskell.org/package/lens-4.17/docs/src/Control.Lens.Internal.Context.html#Context
+
+-- | The indexed store can be used to characterize a 'Lens'
+-- and is used by 'cloneLens'.
+--
+-- @'Context' a b t@ is isomorphic to
+-- @newtype 'Context' a b t = 'Context' { runContext :: forall f. 'Functor' f => (a -> f b) -> f t }@,
+-- and to @exists s. (s, 'Lens' s t a b)@.
+--
+-- A 'Context' is like a 'Lens' that has already been applied to a some structure.
+--data Context a b t = Context (b -> t) a
+
+data Context a b t = Context (b -> t) a 
+
+instance Functor (Context a b) where
+    fmap g (Context h a) = Context (g . h) a
+    {-# INLINE fmap #-}
+
+instance Profunctor (Context a) where
+    dimap f g (Context h a) = Context (g . h . f) a
+    {-# INLINE dimap #-}
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
 
 newtype Indexed p i a b = Indexed { runIndexed :: p (i, a) b }
 
@@ -409,8 +433,7 @@ instance Profunctor p => Profunctor (Indexed p i) where
 instance Strong p => Strong (Indexed p i) where
     first' (Indexed p) = Indexed (lmap unassoc (first' p))
 
-unassoc :: (a,(b,c)) -> ((a,b),c)
-unassoc (a,(b,c)) = ((a,b),c)
+
 
 instance Choice p => Choice (Indexed p i) where
     left' (Indexed p) = Indexed $
@@ -483,9 +506,3 @@ instance Choice Zipped where
 
 instance Strong Zipped where
     first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))
-
-
-switch :: Either b a -> Either a b
-switch (Left e) = Right e
-switch (Right e) = Left e
-

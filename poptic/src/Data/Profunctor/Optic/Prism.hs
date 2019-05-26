@@ -3,16 +3,16 @@ module Data.Profunctor.Optic.Prism (
   , module Export
 ) where
 
-import Control.Arrow ((|||))
 import Control.Monad (guard)
-import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
+import Data.Profunctor.Optic.Prelude 
+import Data.Profunctor.Optic.Type -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operators
-import Data.Validation (Validation, toEither, fromEither)
+import Data.Either.Validation (Validation, eitherToValidation, validationToEither)
 
 
 import Data.Profunctor.Choice as Export
 
-{- hedgehog rules:
+{- prism laws:
 
 prism_complete :: Prism s t a b -> Bool
 prism_complete p = tripping p $ prism (preview p) (matching p)
@@ -20,12 +20,12 @@ prism_complete p = tripping p $ prism (preview p) (matching p)
 They have two operations: match and build. The first one tries to extract the focus value from the whole one, but if it's not possible, it provides the final value for t. On the other hand, build is always able to construct the whole value, given the focus one. As expected, this optic should hold the following properties.
 
 -- If we are able to view an existing focus, then building it will return the original structure. 
-matchBuild :: Eq s => PrismP s s a a -> s -> Bool
-matchBuild (PrismP seta bt) s = either bt id (seta s) == s
+matchBuild :: Eq s => PrismRep s s a a -> s -> Bool
+matchBuild (PrismRep seta bt) s = either bt id (seta s) == s
 
 -- If we build a whole from any focus, that whole must contain a focus.
-buildMatch :: (Eq a, Eq s) => PrismP s s a a -> a -> Bool
-buildMatch (PrismP seta bt) a = seta (bt a) == Left a --Right a ?
+buildMatch :: (Eq a, Eq s) => PrismRep s s a a -> a -> Bool
+buildMatch (PrismRep seta bt) a = seta (bt a) == Left a --Right a ?
 
 
 maybeFirst :: Affine (Maybe a, c) (Maybe b, c) a b
@@ -59,7 +59,7 @@ handled :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
 handled eebt seea = dimap seea eebt . right'
 
 validated :: (Validation e b -> t) -> (s -> Validation e a) -> Prism s t a b
-validated vebt svea = dimap svea vebt . dimap toEither fromEither . right'
+validated vebt svea = dimap svea vebt . dimap validationToEither eitherToValidation . right'
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
 (+++) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
@@ -70,22 +70,20 @@ prismOf
   => (b -> t)
   -> (s -> Either t a)
   -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
-prismOf f g = through Split runSplit (prism f g)
+prismOf f g = between runSplit Split (prism f g)
 
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism l = withPrism l $ \x y p -> prism x y p
 
 withPrism :: APrism s t a b -> ((b -> t) -> (s -> Either t a) -> r) -> r
-withPrism l f = case l (PrismP id Right) of PrismP g h -> f g h
+withPrism l f = case l (PrismRep id Right) of PrismRep g h -> f g h
 
 ---------------------------------------------------------------------
 -- Common prisms
 ---------------------------------------------------------------------
 
 -- | Filters on a predicate.
---(a -> Bool) -> p (Either a a) (Either b b) -> p (Either a a) (Either b b)
-
---filtered :: Choice p => (a -> Bool) -> Optic' p a a
+filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
 filtered f =
   right' .
     dimap

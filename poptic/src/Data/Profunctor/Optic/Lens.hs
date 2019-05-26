@@ -3,23 +3,21 @@ module Data.Profunctor.Optic.Lens (
   , module Export
 ) where
 
-import Control.Arrow ((&&&))
-
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Prelude ((&&&), between)
+import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
 
 import Data.Profunctor.Strong as Export
 
 {- Hedgehog predicates
-viewUpdate :: Eq s => LensP s s a a -> s -> Bool
-viewUpdate (LensP v u) s = u ((v s), s) == s
+viewUpdate :: Eq s => LensRep s s a a -> s -> Bool
+viewUpdate (LensRep v u) s = u ((v s), s) == s
 
-updateView :: Eq a => LensP s s a a -> a -> s -> Bool
-updateView (LensP v u) a s = v (u (a, s)) == a
+updateView :: Eq a => LensRep s s a a -> a -> s -> Bool
+updateView (LensRep v u) a s = v (u (a, s)) == a
 
-updateUpdate :: Eq s => LensP s s a a -> a -> a -> s -> Bool
-updateUpdate (LensP v u) a1 a2 s = u (a2, (u (a1, s))) == u (a2, s)
+updateUpdate :: Eq s => LensRep s s a a -> a -> a -> s -> Bool
+updateUpdate (LensRep v u) a1 a2 s = u (a2, (u (a1, s))) == u (a2, s)
 
 -}
 
@@ -34,13 +32,13 @@ lensOf
   :: (s -> a)
   -> (s -> b -> t) 
   -> Lens (c, s) (d, t) (c, a) (d, b)
-lensOf f g = through Paired runPaired (lens f g)
+lensOf f g = between runPaired Paired (lens f g)
 
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens l = withLens l $ \x y p -> lens x y p
 
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens l f = case l (LensP id $ \_ b -> b) of LensP x y -> f x y
+withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
 
 ---------------------------------------------------------------------
 -- Common lenses 

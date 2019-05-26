@@ -20,14 +20,15 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Optic
-      Data.Profunctor.Optic.Types
-      Data.Profunctor.Optic.Types.Class
+      Data.Profunctor.Optic.Type
+      Data.Profunctor.Optic.Type.Class
       Data.Profunctor.Optic.Operators
       Data.Profunctor.Optic.Affine
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Getter
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Lens
+      Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Setter
@@ -40,11 +41,14 @@ library
   build-depends:
       base >=4.9 && <5.0
     , bifunctors
-    , constraints
+    --, constraints
+    , composition-prelude
+    , contravariant
     , distributive
+    , semigroupoids
     , mtl
     , profunctors
-    , validation
+    , either
 
 test-suite doctests
   type:          exitcode-stdio-1.0

@@ -3,13 +3,16 @@ module Data.Profunctor.Optic.Operators (
   , swap
 ) where
 
-import Data.Profunctor.Optic.Types
-import Data.Validation
+import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Type
+import Data.Either.Validation
 
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 
 
+import Data.Profunctor.Unsafe
+--import Control.Monad.Reader.Class as Reader
 
 
 
@@ -19,7 +22,7 @@ import Control.Monad.State as State
 
 
 re :: Optic (Re p a b) s t a b -> Optic p b a t s
-re o = (through Re runRe) o id
+re o = (between runRe Re) o id
 
 
 -- ^ @
@@ -31,40 +34,46 @@ over = id
 
 
 -- ^ @
--- review :: Review s t a b -> b -> tb
+-- review :: AReview t b -> b -> t
 -- @
 --
-review :: Optic (Costar (Const b)) s t a b -> b -> t
+review :: AReview t b -> b -> t
 review o = h . Const where Costar h = o (Costar getConst)
 
 
 
 -- | 'view o == foldMapOf o id'
-view :: MonadReader s m => Optic (Star (Const a)) s t a b -> m a
+view :: MonadReader s m => AGetter a s a -> m a
 view o = Reader.asks $ foldMapOf o id
+
+views :: MonadReader s m => AGetter r s a -> (a -> r) -> m r
+views o f = Reader.asks $ foldMapOf o f 
+{-# INLINE views #-}
 
 
 -- ^ @
 -- match :: Traversal s t a b -> s -> Either t a
 -- @
 match :: Optic (Star (Either a)) s t a b -> s -> Either t a
-match o = switch . h where Star h = o (Star Left)
+match o = swap . h where Star h = o (Star Left)
 
 -- | A more restrictive variant of 'match'.
-match' :: Optic (Matched a) s t a b -> s -> Either t a
-match' o = (through Matched runMatched) o Right
+--match' :: Optic (Matched a) s t a b -> s -> Either t a
+--match' o = (between Matched runMatched) o Right
 
 
 
 
 previewOf :: Optic (Star (Pre a)) s t a b -> s -> Maybe a
-previewOf o = runPre . h where Star h = o (Star (Pre . Just))
+--previewOf o = between ((runPre .) . runStar) (Star . ((Pre . Just) .)) o id
+previewOf o = runPre #. h where Star h = o (Star (Pre #. Just))
 
 foldMapOf :: Optic (Star (Const r)) s t a b -> (a -> r) -> s -> r
-foldMapOf o f = getConst . h where Star h = o (Star (Const . f))
+--foldMapOf o f = between ((getConst .) . runStar) (Star . ((Const . f) .)) o id
+foldMapOf o f = getConst #. h where Star h = o (Star (Const #. f))
 
 foldMapOf' :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
-foldMapOf' = through Forget runForget
+foldMapOf' = between runForget Forget
 
 
 -- ^ @
@@ -72,26 +81,23 @@ foldMapOf' = through Forget runForget
 -- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
 -- @
 traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf o f = tf where Star tf = o (Star f)
+traverseOf = between runStar Star -- tf where Star tf = o (Star f)
 
 cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf o f = tf where Costar tf = o (Costar f) -- = through Costar runCostar
+cotraverseOf = between runCostar Costar -- o f = tf where Costar tf = o (Costar f) -- = between Costar runCostar
 
 validateOf
   :: Optic (Star (Validation a)) s t a b 
   -> s 
   -> Validation t a
-validateOf o = switch' . h where Star h = o (Star Failure)
+validateOf o = swap . h where Star h = o (Star Failure)
 
 
 zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = through Zipped runZipped 
+zipWithOf = between runZipped Zipped
 
 
-switch'  :: Validation e a -> Validation a e
-switch' v = case v of
-  Failure e -> Success e
-  Success a -> Failure a
+
 
 
 

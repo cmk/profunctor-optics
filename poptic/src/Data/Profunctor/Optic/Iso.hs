@@ -1,24 +1,22 @@
-module Data.Profunctor.Optic.Iso (
-    module Data.Profunctor.Optic.Iso 
-  , module Export
-) where
+module Data.Profunctor.Optic.Iso where
 
+import Data.Profunctor.Optic.Prelude
+import Data.Bifunctor.Product (Product(..))
 import Data.Maybe (fromMaybe)
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 
-import Data.Profunctor.Types as Export
 
 
 {- hedgehog predicates
-fromTo :: Eq s => IsoP s s a a -> s -> Bool
-fromTo (IsoP f t) s = (t . f) s == s
+fromTo :: Eq s => IsoRep s s a a -> s -> Bool
+fromTo (IsoRep f t) s = (t . f) s == s
 
-toFrom :: Eq a => IsoP s s a a -> a -> Bool
-toFrom (IsoP f t) a = (f . t) a == a
+toFrom :: Eq a => IsoRep s s a a -> a -> Bool
+toFrom (IsoRep f t) a = (f . t) a == a
 
 
-associate :: IsoP ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
-associate = IsoP  f t where
+associate :: IsoRep ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
+associate = IsoRep  f t where
   f ((a, b), c) = (a, (b, c))
   t (a', (b', c')) = ((a', b'), c')
 
@@ -43,7 +41,7 @@ cloneIso k = withIso k iso
 -- | Extract the two functions, one from @s -> a@ and
 -- one from @b -> t@ that characterize an 'Iso'.
 withIso :: AnIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso ai k = case ai (IsoP id id) of IsoP sa bt -> k sa bt
+withIso ai k = case ai (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
 

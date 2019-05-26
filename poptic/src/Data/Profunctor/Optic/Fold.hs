@@ -2,7 +2,7 @@ module Data.Profunctor.Optic.Fold where
 
 import Data.Monoid
 import Data.Profunctor.Optic.Getter
-import Data.Profunctor.Optic.Types hiding (Product) 
+import Data.Profunctor.Optic.Type hiding (Product) 
 import Data.Profunctor.Optic.Operators
 
 import Data.Foldable (traverse_)
@@ -59,12 +59,12 @@ unfolded f p = Star (Const go)
 -- @
 toPureOf
   :: Applicative f 
-  => AGetter (f a) s t a b -> s -> f a
+  => AGetter (f a) s a -> s -> f a
 toPureOf o = foldMapOf o pure
 
 -- | Collects the foci of a `Fold` into a list.
 --toListOf :: Fold (Endo [a]) s t a b -> s -> [a]
-toListOf :: AGetter (Endo [a]) s t a b -> s -> [a]
+toListOf :: AGetter (Endo [a]) s a -> s -> [a]
 toListOf o = foldrOf o (:) []
 
 infixl 8 ^..
@@ -95,6 +95,7 @@ infixl 8 ^..
 -- ('^..') :: s -> 'Prism'' s a     -> [a]
 -- ('^..') :: s -> 'Affine'' s a    -> [a]
 -- @
+(^..) :: s -> AGetter (Endo [a]) s a -> [a]
 (^..) = flip toListOf
 {-# INLINE (^..) #-}
 
@@ -132,106 +133,100 @@ infixl 8 ^?
 -- ('^?') :: s -> 'Iso'' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
 -- @
-(^?) :: s -> AGetter (First a) s t a b -> Maybe a
+(^?) :: s -> AGetter (First a) s a -> Maybe a
 (^?) = flip firstOf
 
 -- | The first focus of a `Fold`, if there is any. Synonym for `preview`.
-firstOf :: AGetter (First a) s t a b -> s -> Maybe a
+firstOf :: AGetter (First a) s a -> s -> Maybe a
 firstOf l = getFirst . foldMapOf l (First . pure)
 
 preview 
   :: MonadReader s m 
-  => AGetter (First a) s t a b --Optic (Star (Pre a)) s t a b 
+  => AGetter (First a) s a --Optic (Star (Pre a)) s t a b 
   -> m (Maybe a)
 preview o = Reader.asks $ firstOf o
 
 preuse 
   :: MonadState s m 
-  => AGetter (First a) s t a b --Optic (Star (Pre a)) s t a b  
+  => AGetter (First a) s a --Optic (Star (Pre a)) s t a b  
   -> m (Maybe a)
 preuse o = State.gets (preview o)
 
 -- | The last focus of a `Fold`, if there is any.
-lastOf :: AGetter (Last a) s t a b -> s -> Maybe a
+lastOf :: AGetter (Last a) s a -> s -> Maybe a
 lastOf p = getLast . foldMapOf p (Last . Just)
 
-sumOf :: AGetter (Sum a) s t a b -> s -> a
+sumOf :: AGetter (Sum a) s a -> s -> a
 sumOf l = getSum . foldMapOf l Sum
 
-productOf :: AGetter (Product a) s t a b -> s -> a
+productOf :: AGetter (Product a) s a -> s -> a
 productOf l = getProduct . foldMapOf l Product
 
-allOf :: AGetter All s t a b -> (a -> Bool) -> s -> Bool
+allOf :: AGetter All s a -> (a -> Bool) -> s -> Bool
 allOf l p = getAll . foldMapOf l (All . p)
 
-anyOf :: AGetter Any s t a b -> (a -> Bool) -> s -> Bool
+anyOf :: AGetter Any s a -> (a -> Bool) -> s -> Bool
 anyOf l p = getAny . foldMapOf l (Any . p)
 
-lengthOf :: Num r => AGetter (Sum r) s t a b -> s -> r
+lengthOf :: Num r => AGetter (Sum r) s a -> s -> r
 lengthOf l = getSum . foldMapOf l (const (Sum 1))
 
-nullOf :: AGetter All s t a b -> s -> Bool
+nullOf :: AGetter All s a -> s -> Bool
 nullOf l = allOf l (const False)
 
 -- | Right fold over a 'Fold'.
-foldrOf :: AGetter (Endo c) s t a b -> (a -> c -> c) -> c -> s -> c
+foldrOf :: AGetter (Endo c) s a -> (a -> c -> c) -> c -> s -> c
 foldrOf p f r = flip appEndo r . foldMapOf p (Endo . f)
 
 -- | Left fold over a 'Fold'.
-foldlOf :: AGetter (Dual (Endo c)) s t a b -> (c -> a -> c) -> c -> s -> c
+foldlOf :: AGetter (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
 foldlOf p f r = flip appEndo r . getDual . foldMapOf p (Dual . Endo . flip f)
 
 -- | Traverse the foci of a `Fold`, discarding the results.
 traverseOf_
   :: Applicative f 
-  => AGetter (Endo (f ())) s t a b -> (a -> f x) -> s -> f ()
+  => AGetter (Endo (f ())) s a -> (a -> f x) -> s -> f ()
 traverseOf_ p f = foldrOf p (\a f' -> (() <$) (f a) *> f') $ pure ()
 
 sequenceOf_
   :: Applicative f 
-  => AGetter (Endo (f ())) s t (f a) b -> s -> f ()
+  => AGetter (Endo (f ())) s (f a) -> s -> f ()
 sequenceOf_ p = traverseOf_ p id
 
 -- | Whether a `Fold` contains a given element.
-elemOf :: Eq a => AGetter Any s t a b -> a -> s -> Bool
+elemOf :: Eq a => AGetter Any s a -> a -> s -> Bool
 elemOf p a = anyOf p (== a)
 
 -- | Whether a `Fold` not contains a given element.
-notElemOf :: Eq a => AGetter All s t a b -> a -> s -> Bool
+notElemOf :: Eq a => AGetter All s a -> a -> s -> Bool
 notElemOf p a = allOf p (/= a)
 
 -- | Find the first focus of a `Fold` that satisfies a predicate, if there is any.
 --
---
--- findOf :: Optic (Star (Const (Endo (Maybe a)))) s a -> (a -> Bool) -> s -> Maybe a
-findOf :: Fold s a -> (a -> Bool) -> s -> Maybe a
+findOf :: AGetter (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf p f = 
   foldrOf p (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
 
 -- | Determines whether a `Fold` has at least one focus.
 --
--- has :: Optic (Star (Const Any)) s t a b -> s -> Bool
-has :: Fold s t -> s -> Bool
+has :: AGetter Any s a -> s -> Bool
 has p = getAny . foldMapOf p (const (Any True))
 
 
 -- | Determines whether a `Fold` does not have a focus.
 --
--- hasnt :: Optic (Star (Const All)) s t a b -> s -> Bool
-hasnt :: Fold s t -> s -> Bool
+hasnt :: AGetter All s a -> s -> Bool
 hasnt p = getAll . foldMapOf p (const (All False))
 
 
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
---maximumOf :: Ord a => Optic (Star (Const (Endo (Maybe a)))) s t a b -> s -> Maybe a
-maximumOf :: Ord a => Fold s a -> s -> Maybe a
+maximumOf :: Ord a => AGetter (Endo (Maybe a)) s a -> s -> Maybe a
 maximumOf p = foldrOf p (\a -> Just . maybe a (max a)) Nothing
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
---minimumOf :: Ord a => Optic (Star (Const (Endo (Maybe a)))) s t a b -> s -> Maybe a
-minimumOf :: Ord a => Fold s a -> s -> Maybe a
+minimumOf :: Ord a => AGetter (Endo (Maybe a)) s a -> s -> Maybe a
 minimumOf p = foldrOf p (\a -> Just . maybe a (min a)) Nothing
 

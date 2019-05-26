@@ -1,12 +1,10 @@
-{-# LANGUAGE DeriveFunctor #-}
-
 module Data.Profunctor.Optic.Setter (
     module Data.Profunctor.Optic.Setter 
   , module Export
 ) where
 
 
-import Data.Profunctor.Optic.Types 
+import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Operators
 
 import Data.Profunctor.Mapping as Export
@@ -21,12 +19,9 @@ import Control.Monad.Reader as Reader
 ---------------------------------------------------------------------
 
 -- import Data.Functor.Rep
--- setting :: ((a -> b) -> s -> t) -> Setter s t a b
--- setting f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- sets :: ((a -> b) -> s -> t) -> Setter s t a b
+-- sets f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
 -- 
-
-
-data Context a b t = Context (b -> t) a deriving Functor
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
 sets :: ((a -> b) -> s -> t) -> Setter s t a b

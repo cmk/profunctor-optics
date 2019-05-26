@@ -15,7 +15,8 @@ module Data.Profunctor.Optic.Review
 
 import Control.Monad.Reader
 --import Data.Profunctor.Optic.Getter
-import Data.Profunctor.Optic.Types -- (APrism, APrism', Prism, Prism', Review, under)
+import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Operators
 ------------------------------------------------------------------------------
 -- Review
@@ -32,7 +33,7 @@ import Data.Profunctor.Optic.Operators
 -- 'unto' = 'un' . 'to'
 -- @
 -}
-unto :: (b -> t) -> PrimReview s t a b 
+unto :: (b -> t) -> PrimReview t b 
 unto f = icoerce . rmap f
 
 
@@ -45,8 +46,8 @@ unto f = icoerce . rmap f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
---un :: Optic (Forget a) s t a b -> Review a s --Optic p a a s s
-un o = unto . foldMapOf o id
+un :: AGetter a s a -> PrimReview a s
+un = unto . view 
 
 infixr 8 #
 
@@ -73,8 +74,9 @@ infixr 8 #
 -- (#) :: 'Review'    s a -> a -> s
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
---( # ) :: Review s t a b -> b -> t
-( # ) o b = review o b
+--( # ) :: Review t b -> b -> t
+(#) :: AReview t b -> b -> t
+o # b = review o b
 {-# INLINE ( # ) #-}
 
 {-
@@ -173,7 +175,7 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'reviews' :: 'MonadReader' a m => 'Prism'' s a -> (s -> r) -> m r
 -- @
 --reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews :: MonadReader b m => Optic (Costar (Const b)) s t a b -> (t -> r) -> m r
+reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
 reviews p tr = asks (tr . review p)
 {-# INLINE reviews #-}
 

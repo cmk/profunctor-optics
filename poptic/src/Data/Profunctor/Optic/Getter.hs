@@ -1,15 +1,14 @@
 module Data.Profunctor.Optic.Getter where
 
 import Control.Arrow ((&&&))
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operators
 import Data.Profunctor.Optic.Prism (_Just)
-
 import Control.Monad.Writer as Writer
 import Control.Monad.State as State
 -- $setup
 -- >>> :set -XNoOverloadedStrings
--- >>> import Data.Profunctor.Optic.Types 
+-- >>> import Data.Profunctor.Optic.Type 
 -- >>> import Debug.SimpleReflect.Expr
 -- >>> import Debug.SimpleReflect.Vars as Vars hiding (f,g)
 -- >>> let f :: Expr -> Expr; f = Debug.SimpleReflect.Vars.f
@@ -51,9 +50,13 @@ import Control.Monad.State as State
 -- 'to' :: (s -> a) -> 'Getter' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter s t a b
+to :: (s -> a) -> PrimGetter s a
 to f = ocoerce . lmap f
 {-# INLINE to #-}
+
+--to' :: (Profunctor p, Contravariant f) => (s -> a) -> p a (f a) -> p s (f s)
+--to' k = dimap k (contramap k)
+-- ocoerce (Star h) = Star $ coerce . h
 
 {-
 getPreview :: Optic (Star (Pre a)) s t a b -> PrimGetter s s (Maybe a) (Maybe a)
@@ -72,19 +75,17 @@ getPreview = to . preview
 --
 -- This can be usefusl as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
-like :: a -> PrimGetter s s a a
+like :: a -> PrimGetter s a
 like a = to (const a)
 
 
-takeBoth 
-  :: Optic (Star (Const c)) s t c b
-  -> Optic (Star (Const d)) s t d b 
-  -> Getter s (c, d)
+takeBoth :: AGetter a s a -> AGetter a' s a' -> Getter s (a, a')
 takeBoth l r = to (view l &&& view r)
 
 
 -- | We can freely convert a 'Getter s (Maybe a)' into an 'AffineFold s a'.
-getJust :: Getter s (Maybe a) -> AffineFold s a
+-- getJust :: Getting (Maybe a) s (Maybe a) -> AffineFold s a
+getJust :: Choice p => (p (Maybe a) (Maybe b) -> c) -> p a b -> c
 getJust o = o . _Just
 
 
@@ -93,11 +94,12 @@ getJust o = o . _Just
 ---------------------------------------------------------------------
 
 infixl 8 ^.
-(^.) :: s -> AGetter a s t a b -> a
+(^.) :: s -> AGetter a s a -> a
 (^.) s o = foldMapOf o id s
 
-use :: MonadState s m => AGetter a s t a b -> m a
+use :: MonadState s m => AGetter a s a -> m a
 use l = State.gets (view l)
+
 
 
 -- | Extracts the portion of a log that is focused on by a 'Getter'. 
@@ -113,8 +115,14 @@ use l = State.gets (view l)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
---listening :: MonadWriter w m => Getting u w u -> m a -> m (a, u)
+listening :: MonadWriter w m => AGetter u w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)
 {-# INLINE listening #-}
+
+listenings :: MonadWriter w m => AGetter v w u -> (u -> v) -> m a -> m (a, v)
+listenings l uv m = do
+  (a, w) <- listen m
+  return (a, views l uv w)
+{-# INLINE listenings #-}
