@@ -73,7 +73,7 @@ pair (fst p) (snd p) ≡ p  -- complete
 
 The constructors and characterizing operations for the remaining optics are summarized in the following table:
 
-| Optic | Constructor | Operators | Constraint | Profunctor |
+| Optic | Constructor | Operator | Constraint | Profunctor |
 | --- | --- | --- | --- | --- |
 | [Equality](#equality)                 | `id`            |                      |                     |               |
 | [Iso](#iso)                           | `iso`           | `view`, `review`     | `Profunctor`        |               |

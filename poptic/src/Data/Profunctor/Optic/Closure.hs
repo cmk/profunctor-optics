@@ -6,7 +6,7 @@ module Data.Profunctor.Optic.Closure (
 ) where
 
 import Data.Profunctor.Optic.Type 
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
 
 import Data.Profunctor.Closed as Export hiding (Closure)
 

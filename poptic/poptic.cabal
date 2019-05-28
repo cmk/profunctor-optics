@@ -22,7 +22,7 @@ library
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
-      Data.Profunctor.Optic.Operators
+      Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Affine
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Getter

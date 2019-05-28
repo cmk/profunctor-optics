@@ -6,7 +6,7 @@ module Data.Profunctor.Optic.Prism (
 import Control.Monad (guard)
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type -- (APrism, APrism', Prism, Prism', Review, under)
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
 import Data.Either.Validation (Validation, eitherToValidation, validationToEither)
 
 
@@ -26,6 +26,13 @@ matchBuild (PrismRep seta bt) s = either bt id (seta s) == s
 -- If we build a whole from any focus, that whole must contain a focus.
 buildMatch :: (Eq a, Eq s) => PrismRep s s a a -> a -> Bool
 buildMatch (PrismRep seta bt) a = seta (bt a) == Left a --Right a ?
+
+First, if I review a value with a Prism and then preview, I will get it back:
+
+preview l (review l b) ≡ Just b
+
+If you can extract a value a using a Prism l from a value s, then the value s is completely described by l and a:
+preview l s ≡ Just a ⇒ review l a ≡ s
 
 
 maybeFirst :: Affine (Maybe a, c) (Maybe b, c) a b
@@ -47,7 +54,7 @@ Right (Nothing,"hi")
 -- | Create a 'Prism' from a constructor and a matcher function that
 -- | produces an 'Either'.
 prism :: (b -> t) -> (s -> Either t a) -> Prism s t a b
-prism bt seta = dimap seta (id ||| bt) . right'
+prism bt seta = dimap seta (id ||| bt) . _Right
 
 -- | Create a `Prism` from a constructor and a matcher function that
 -- | produces a `Maybe`.
@@ -56,14 +63,14 @@ prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
 
 -- | Useful for constructing prisms from try and handle functions.
 handled :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
-handled eebt seea = dimap seea eebt . right'
+handled eebt seea = dimap seea eebt . _Right
 
 validated :: (Validation e b -> t) -> (s -> Validation e a) -> Prism s t a b
-validated vebt svea = dimap svea vebt . dimap validationToEither eitherToValidation . right'
+validated vebt svea = dimap svea vebt . dimap validationToEither eitherToValidation . _Right
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
-(+++) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
-(+++) = split
+(+|+) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
+(+|+) = split
 
 prismOf
   :: Choice p 
@@ -82,10 +89,16 @@ withPrism l f = case l (PrismRep id Right) of PrismRep g h -> f g h
 -- Common prisms
 ---------------------------------------------------------------------
 
+filtering :: (a -> Bool) -> Prism a a a a
+filtering p = dimap getter (either id id) . _Right 
+  where
+    getter x | p x       = Right x
+             | otherwise = Left x
+
 -- | Filters on a predicate.
 filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
 filtered f =
-  right' .
+  _Right .
     dimap
       (\x -> if f x then Right x else Left x)
       (either id id)
@@ -105,6 +118,12 @@ _Nothing = prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 -- | Prism for the `Just` constructor of `Maybe`.
 _Just :: Prism (Maybe a) (Maybe b) a b
 _Just = prism Just $ maybe (Left Nothing) Right
+
+_Left :: Prism (Either a c) (Either b c) a b
+_Left = left'
+
+_Right :: Prism (Either c a) (Either c b) a b
+_Right = right'
 
 -- | 'lift' a 'Prism' through a 'Traversable' functor, 
 -- giving a Prism that matches only if all the elements of the container

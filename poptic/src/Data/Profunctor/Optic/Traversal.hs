@@ -5,7 +5,7 @@ module Data.Profunctor.Optic.Traversal (
 
 import Data.Bitraversable 
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
 
 import Data.Profunctor.Traversing as Export
 

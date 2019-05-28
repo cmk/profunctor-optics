@@ -5,7 +5,7 @@ module Data.Profunctor.Optic.Setter (
 
 
 import Data.Profunctor.Optic.Type 
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
 
 import Data.Profunctor.Mapping as Export
 
@@ -47,6 +47,7 @@ infixr 4 %~
 reover :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
 reover = over . re
 
+-- set l y (set l x a) ≡ set l y a
 set :: Optic (->) s t a b -> s -> b -> t
 set o s b = over o (const b) s
 

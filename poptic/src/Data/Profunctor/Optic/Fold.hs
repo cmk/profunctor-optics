@@ -1,9 +1,9 @@
 module Data.Profunctor.Optic.Fold where
 
 import Data.Monoid
-import Data.Profunctor.Optic.Getter
-import Data.Profunctor.Optic.Type hiding (Product) 
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Type 
+import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Prelude
 
 import Data.Foldable (traverse_)
 --import Data.Functor.Const (Const(..))
@@ -14,7 +14,6 @@ import Control.Monad.State as State
 ---------------------------------------------------------------------
 -- Fold
 ---------------------------------------------------------------------
-{-
 -- | Build an 'AffineFold' from an arbitrary function.
 --
 -- @
@@ -30,7 +29,16 @@ folding f = cimap f (const ()) . wander traverse_
 
 folding' :: Traversable f => (s -> a) -> Fold (f s) a
 folding' f = traverse' . cimap f f
--}
+
+-- | Folds over a `Foldable` container.
+--folded :: (Foldable f, Monoid r) => (a -> r) -> AGetter r (f a) a
+folded :: (Foldable f, Monoid r) => (a -> r) -> Star (Const r) (f a) a
+folded f = forget (foldMap f)
+
+cofolded :: (Foldable f, Monoid r) => (a -> r) -> Costar f a r
+cofolded f = Costar (foldMap f)
+
+
 {-
 -- | Folds over a `Foldable` container.
 folded :: Foldable f => Monoid r => AGetter r (f a) a
@@ -47,6 +55,23 @@ unfolded :: Monoid r => (s -> Maybe (a, s)) -> AGetter r s a
 unfolded f p = Star (Const go)
   where
   go = maybe mempty (\(a, sn) -> runStar (Const p a <> go sn) . f)
+
+
+-- | Build a 'Fold' that unfolds its values from a seed.
+--
+-- @
+-- 'Prelude.unfoldr' ≡ 'toListOf' '.' 'unfolded'
+-- @
+--
+-- >>> 10^..unfolded (\b -> if b == 0 then Nothing else Just (b, b-1))
+-- [10,9,8,7,6,5,4,3,2,1]
+unfolded :: (b -> Maybe (a, b)) -> Fold b a
+unfolded f g b0 = go b0 where
+  go b = case f b of
+    Just (a, b') -> g a *> go b'
+    Nothing      -> noEffect
+{-# INLINE unfolded #-}
+
 -}
 ---------------------------------------------------------------------
 -- Derived operators

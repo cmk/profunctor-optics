@@ -2,27 +2,32 @@ module Data.Profunctor.Optic.Review
   (
   -- * Reviewing
     Review
+  , Reviewing
   , PrimReview
   , unto
   , un
+  , relike
   , re
   , review, reviews
   --, reuse, reuses
   , (#)
-  --, retagged
-  , Reviewing
+  , retagged
+  , reviewEither
   ) where
 
-import Control.Monad.Reader
+--import Control.Monad.Reader
+import Control.Monad.Reader as Reader
+
 --import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
+
 ------------------------------------------------------------------------------
 -- Review
 ------------------------------------------------------------------------------
 
-{- | Convert a function into a 'Review'.
+-- | Convert a function into a 'Review'.
 --  Analagous to 'to' for 'Getter'.
 --
 -- @
@@ -32,8 +37,8 @@ import Data.Profunctor.Optic.Operators
 -- @
 -- 'unto' = 'un' . 'to'
 -- @
--}
-unto :: (b -> t) -> PrimReview t b 
+--
+unto :: (b -> t) -> PrimReview' t b 
 unto f = icoerce . rmap f
 
 
@@ -46,12 +51,29 @@ unto f = icoerce . rmap f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: AGetter a s a -> PrimReview a s
-un = unto . view 
+un :: AGetter a s a -> PrimReview' a s
+un = unto . (`foldMapOf` id)
 
-infixr 8 #
 
--- | An infix alias for 'review'.
+-- | Build a constant-valued (index-preserving) 'PrimReview' from an arbitrary value.
+--
+-- @
+-- 'relike' a '.' 'relike' b ≡ 'relike' a
+-- 'relike' a '#' b ≡ a
+-- 'relike' a '#' b ≡ 'unto' ('const' a) '#' b
+-- @
+--
+relike :: t -> PrimReview' t b
+relike t = unto (const t)
+
+reviewEither :: AReview b t b -> AReview b' t b' -> PrimReview' t (Either b b')
+reviewEither l r = unto (review l ||| review r)
+
+---------------------------------------------------------------------
+-- Derived operators
+---------------------------------------------------------------------
+
+-- | An infix alias for 'review'. Dual to '^.'.
 --
 -- @
 -- 'unto' f # x ≡ f x
@@ -74,10 +96,29 @@ infixr 8 #
 -- (#) :: 'Review'    s a -> a -> s
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
---( # ) :: Review t b -> b -> t
-(#) :: AReview t b -> b -> t
+--
+(#) :: AReview b t b -> b -> t
 o # b = review o b
 {-# INLINE ( # ) #-}
+
+-- ^ @
+-- 'review o ≡ unfoldMapOf o id'
+-- @
+--
+review :: MonadReader b m => AReview b t b -> m t
+review = Reader.asks . (`unfoldMapOf` id) 
+{-# INLINE review #-}
+
+-- ^ @
+-- 'reviews o f ≡ unfoldMapOf o f'
+-- @
+--
+reviews :: MonadReader r m => AReview r t b -> (r -> b) -> m t
+reviews o f = Reader.asks $ unfoldMapOf o f 
+{-# INLINE reviews #-}
+
+infixr 8 #
+
 
 {-
 
@@ -103,7 +144,7 @@ o # b = review o b
 -- 're' :: 'Prism' s t a b -> 'Getter' b t
 -- 're' :: 'Iso' s t a b   -> 'Getter' b t
 -- @
-re :: AReview t b -> Getter b t
+re :: (forall r. AReview r t b) -> Getter b t
 re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE re #-}
 
@@ -175,7 +216,8 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'reviews' :: 'MonadReader' a m => 'Prism'' s a -> (s -> r) -> m r
 -- @
 --reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews p tr = asks (tr . review p)
-{-# INLINE reviews #-}
+--reviews :: MonadReader b m => (forall r. AReview b t b) -> (t -> r) -> m r
+--reviews :: MonadReader b m => AReview b t b -> (t -> r) -> m r
+--reviews p tr = asks (tr . review p)
+--{-# INLINE reviews #-}
 

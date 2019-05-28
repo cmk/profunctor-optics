@@ -1,9 +1,12 @@
+{-# LANGUAGE TypeOperators    #-}
+
 module Data.Profunctor.Optic.Getter where
 
 import Control.Arrow ((&&&))
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Prism (_Just)
+import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer
 import Control.Monad.State as State
 -- $setup
@@ -50,9 +53,10 @@ import Control.Monad.State as State
 -- 'to' :: (s -> a) -> 'Getter' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter s a
+to :: (s -> a) -> PrimGetter' s a
 to f = ocoerce . lmap f
 {-# INLINE to #-}
+
 
 --to' :: (Profunctor p, Contravariant f) => (s -> a) -> p a (f a) -> p s (f s)
 --to' k = dimap k (contramap k)
@@ -65,7 +69,7 @@ getPreview = to . preview
 -}
 
 
--- | Build an constant-valued (index-preserving) 'Getter' from an arbitrary value.
+-- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
 --
 -- @
 -- 'like' a '.' 'like' b ≡ 'like' b
@@ -73,14 +77,14 @@ getPreview = to . preview
 -- a '^.' 'like' b ≡ a '^.' 'to' ('const' b)
 -- @
 --
--- This can be usefusl as a second case 'failing' a 'Fold'
+-- This can be useful as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
-like :: a -> PrimGetter s a
+like :: a -> PrimGetter' s a
 like a = to (const a)
 
 
-takeBoth :: AGetter a s a -> AGetter a' s a' -> Getter s (a, a')
-takeBoth l r = to (view l &&& view r)
+viewBoth :: AGetter a s a -> AGetter a' s a' -> PrimGetter' s (a, a')
+viewBoth l r = to (view l &&& view r)
 
 
 -- | We can freely convert a 'Getter s (Maybe a)' into an 'AffineFold s a'.
@@ -95,11 +99,27 @@ getJust o = o . _Just
 
 infixl 8 ^.
 (^.) :: s -> AGetter a s a -> a
-(^.) s o = foldMapOf o id s
+(^.) = flip view
+
+
+-- ^ @
+-- 'view o ≡ foldMapOf o id'
+-- @
+view :: MonadReader s m => AGetter a s a -> m a
+view = Reader.asks . (`foldMapOf` id)
+{-# INLINE view #-}
+
+
+-- ^ @
+-- 'views o f ≡ foldMapOf o f'
+-- @
+views :: MonadReader s m => AGetter r s a -> (a -> r) -> m r
+views o f = Reader.asks $ foldMapOf o f
+{-# INLINE views #-}
+
 
 use :: MonadState s m => AGetter a s a -> m a
-use l = State.gets (view l)
-
+use o = State.gets (view o)
 
 
 -- | Extracts the portion of a log that is focused on by a 'Getter'. 

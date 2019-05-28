@@ -3,8 +3,9 @@ module Data.Profunctor.Optic (
 ) where
 
 
-import Data.Profunctor.Optic.Type     as Export
-import Data.Profunctor.Optic.Operators as Export
+import Data.Profunctor.Optic.Type      as Export
+import Data.Profunctor.Optic.Operator  as Export
+import Data.Profunctor.Optic.Prelude   as Export
 import Data.Profunctor.Optic.Affine    as Export
 import Data.Profunctor.Optic.Fold      as Export
 import Data.Profunctor.Optic.Iso       as Export

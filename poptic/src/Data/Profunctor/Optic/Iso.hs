@@ -6,6 +6,13 @@ import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Type
 
 
+type As a = Equality' a a
+
+-- 'simple' is occasionally useful to constraint excessive polymorphism, 
+-- e.g turn Optic into simple Optic'.
+-- | @foo . (simple :: As Int) . bar@.
+simple :: As a
+simple = id
 
 {- hedgehog predicates
 fromTo :: Eq s => IsoRep s s a a -> s -> Bool
@@ -14,11 +21,16 @@ fromTo (IsoRep f t) s = (t . f) s == s
 toFrom :: Eq a => IsoRep s s a a -> a -> Bool
 toFrom (IsoRep f t) a = (f . t) a == a
 
+Since every Iso is both a valid Lens and a valid Prism the laws for those types imply the following laws for an Iso o:
 
-associate :: IsoRep ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
-associate = IsoRep  f t where
-  f ((a, b), c) = (a, (b, c))
-  t (a', (b', c')) = ((a', b'), c')
+viewP o (reviewP o b) ≡ b
+reviewP o (viewP o s) ≡ s
+
+Or even more powerfully using re:
+
+o . re o ≡ id
+re o . o ≡ id
+
 
 λ> from associate ((1, "hi"), True)
 (1,("hi",True))
@@ -67,12 +79,20 @@ from' o = iso (review . Const) (getConst . get)
 -- Common isos
 ---------------------------------------------------------------------
 
-
 curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
 curried = iso curry uncurry
 
 uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a, b) -> c) ((d, e) -> f)
 uncurried = iso uncurry curry
+
+associated :: Iso ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
+associated = iso assoc unassoc
+
+unassociated :: Iso (a, (b, c)) (a', (b', c')) ((a, b), c) ((a', b'), c') 
+unassociated = iso unassoc assoc
+
+swapped :: Iso (a, b) (c, d) (b, a) (d, c)
+swapped = iso swap swap
 
 flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
 flipped = iso flip flip
