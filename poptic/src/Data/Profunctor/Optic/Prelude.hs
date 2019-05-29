@@ -8,17 +8,21 @@ module Data.Profunctor.Optic.Prelude (
 ) where
 
 import Data.Bifunctor                  as Export
+import Data.Either.Combinators         as Export hiding (eitherToError)
+import Data.Function                   as Export
+import Data.Functor                    as Export
 import Data.Functor.Apply              as Export
+import Data.Functor.Compose            as Export
 import Data.Functor.Const              as Export
 import Data.Functor.Contravariant      as Export
+import Data.Functor.Contravariant.Divisible      as Export
 import Data.Functor.Identity           as Export
 import Data.Semigroup.Traversable      as Export
-import Data.Profunctor                 as Export
+import Data.Semigroup.Foldable         as Export
+import Data.Profunctor                 as Export hiding (Forget(..))
 import Data.Void                       as Export
 import Control.Arrow                   as Export ((+++),(***),(|||),(&&&)) 
---import Control.Composition             as Export (between)
-
-
+import Control.Applicative             as Export hiding (WrappedArrow(..))
 
 
 import Data.Bifunctor (Bifunctor (..))
@@ -29,11 +33,8 @@ import Data.Bifunctor.Tannen (Tannen (..))
 import Data.Bifunctor.Biff (Biff (..))
 import Data.Either.Validation (Validation(..))
 
-import           Control.Applicative
 import           Control.Monad
 import           Data.Foldable
-import           Data.Function       (fix, on, (&))
-import           Data.Functor        ((<&>))
 import           Data.Traversable
 import           Prelude             hiding (foldr)
 
@@ -55,6 +56,13 @@ infixr 5 +
 type (*) = (,)
 infixl 6 *
 
+(.+++) :: a + b + c + d + e -> (((a + b) + c) + d) + e
+(.+++) = x . x . x where x = unassoc @(+)
+
+(+++.) :: (((a + b) + c) + d) + e -> a + b + c + d + e 
+(+++.) = x . x . x where x = assoc @(+)
+
+
 infixr 3 >*<
 
 (>*<) :: Divisible f => f a -> f b -> f (a , b)
@@ -66,19 +74,16 @@ infixr 3 >+<
 (>+<) = chosen
 -}
 
-type (+) = Either
-infixr 5 +
+{-
+strong :: Apply f => f a -> f b -> f (a, b)
+strong = liftF2 (,)
 
-type (*) = (,)
-infixl 6 *
+costrong :: Divisible f => f a -> f b -> f (a, b)
+costrong = divide id
 
-
-(.+++) :: a + b + c + d + e -> (((a + b) + c) + d) + e
-(.+++) = x . x . x where x = unassoc @(+)
-
-(+++.) :: (((a + b) + c) + d) + e -> a + b + c + d + e 
-(+++.) = x . x . x where x = assoc @(+)
-
+choice :: Decidable f => f a -> f b -> f (Either a b)
+choice = choose id
+-}
 
 _1 :: Strong p => p a b -> p (a,c) (b,c) 
 _1 = first'
@@ -140,25 +145,25 @@ dedup = join either id
 (-$) = flip
 
 {-# RULES
-    "thread" forall f g.   thread [f, g]    = f . g;
-    "thread" forall f g h. thread [f, g, h] = f . g . h;
-    "thread" forall f fs.  thread (f:fs)    = f . thread fs
+    "endo" forall f g.   endo [f, g]    = f . g;
+    "endo" forall f g h. endo [f, g, h] = f . g . h;
+    "endo" forall f fs.  endo (f:fs)    = f . endo fs
   #-}
 
-thread :: Foldable t => t (a -> a) -> a -> a
-thread = foldr (.) id
+endo :: Foldable t => t (a -> a) -> a -> a
+endo = foldr (.) id
 
-{-# INLINE [1] thread #-}
+{-# INLINE [1] endo #-}
 
-threadM :: (Monad m, Foldable t, Applicative m) => t (a -> m a) -> a -> m a
-threadM = foldr (<=<) pure
+endoM :: (Monad m, Foldable t, Applicative m) => t (a -> m a) -> a -> m a
+endoM = foldr (<=<) pure
 
-{-# INLINE [1] threadM #-}
+{-# INLINE [1] endoM #-}
 
 {-# RULES
-    "threadM" forall f g.   threadM [f, g]    = f <=< g;
-    "threadM" forall f g h. threadM [f, g, h] = f <=< g <=< h;
-    "threadM" forall f fs.  threadM (f:fs)    = f <=< threadM fs
+    "endoM" forall f g.   endoM [f, g]    = f <=< g;
+    "endoM" forall f g h. endoM [f, g, h] = f <=< g <=< h;
+    "endoM" forall f fs.  endoM (f:fs)    = f <=< endoM fs
   #-}
 
 
@@ -190,23 +195,6 @@ pretagged = first absurd . lmap absurd
 noEffect :: (Contravariant f, Applicative f) => f a
 noEffect = phantom $ pure ()
 {-# INLINE noEffect #-}
-
-{-
-cmap :: Contravariant f => (a -> b) -> f b -> f a
-cmap = contramap 
-
-class Bicontravariant p where
-    cimap :: (b -> a) -> (d -> c) -> p a c -> p b d
-    cimap f g = cofirst f . cosecond g
-
-    cofirst :: (b -> a) -> p a c -> p b c
-    cofirst f = cimap f id
-
-    cosecond :: (c -> b) -> p a b -> p a c
-    cosecond = cimap id
-
-    {-# MINIMAL cimap | (cofirst, cosecond) #-}
--}
 
 -- | 'Swap'
 --

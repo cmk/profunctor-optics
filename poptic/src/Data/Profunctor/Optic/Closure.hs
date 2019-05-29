@@ -5,8 +5,9 @@ module Data.Profunctor.Optic.Closure (
   , Costar (..)
 ) where
 
-import Data.Profunctor.Optic.Type 
-import Data.Profunctor.Optic.Operator
+import Data.Distributive
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Prelude
 
 import Data.Profunctor.Closed as Export hiding (Closure)
 

@@ -5,23 +5,20 @@ module Data.Profunctor.Optic.Getter where
 import Control.Arrow ((&&&))
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Prelude (Const(..), lmap)
 import Data.Profunctor.Optic.Prism (_Just)
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer
 import Control.Monad.State as State
--- $setup
--- >>> :set -XNoOverloadedStrings
--- >>> import Data.Profunctor.Optic.Type 
--- >>> import Debug.SimpleReflect.Expr
--- >>> import Debug.SimpleReflect.Vars as Vars hiding (f,g)
--- >>> let f :: Expr -> Expr; f = Debug.SimpleReflect.Vars.f
--- >>> let g :: Expr -> Expr; g = Debug.SimpleReflect.Vars.g
 
 
 ---------------------------------------------------------------------
--- Getter
+-- 'Getter'
 ---------------------------------------------------------------------
 
+-- laws 
+-- getter_complete :: Getter s a -> Bool
+-- getter_complete o = tripping o $ to (view o)
 
 -- | Build a 'Getter' from an arbitrary function.
 --
@@ -53,7 +50,7 @@ import Control.Monad.State as State
 -- 'to' :: (s -> a) -> 'Getter' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter' s a
+to :: (s -> a) -> PrimGetter s t a b
 to f = ocoerce . lmap f
 {-# INLINE to #-}
 
@@ -61,12 +58,6 @@ to f = ocoerce . lmap f
 --to' :: (Profunctor p, Contravariant f) => (s -> a) -> p a (f a) -> p s (f s)
 --to' k = dimap k (contramap k)
 -- ocoerce (Star h) = Star $ coerce . h
-
-{-
-getPreview :: Optic (Star (Pre a)) s t a b -> PrimGetter s s (Maybe a) (Maybe a)
-getPreview = to . preview
-{-# INLINE getPreview  #-}
--}
 
 
 -- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
@@ -79,18 +70,22 @@ getPreview = to . preview
 --
 -- This can be useful as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
-like :: a -> PrimGetter' s a
+like :: a -> PrimGetter s t a b
 like a = to (const a)
 
 
-viewBoth :: AGetter a s a -> AGetter a' s a' -> PrimGetter' s (a, a')
-viewBoth l r = to (view l &&& view r)
+-- @
+-- 'cloneGetter' :: 'Getting' a s a -> 'Getter' s a
+-- @
+cloneGetter :: Getting a s a -> PrimGetter s t a b
+cloneGetter = to . view
 
+-- @
+-- 'cloneGetter' :: 'Getting' a s a -> 'Getting' b s b -> 'Getter' s (a, b)
+-- @
+cloneGetters :: Getting a s a -> Getting b s b -> PrimGetter' s (a, b)
+cloneGetters l r = to (view l &&& view r)
 
--- | We can freely convert a 'Getter s (Maybe a)' into an 'AffineFold s a'.
--- getJust :: Getting (Maybe a) s (Maybe a) -> AffineFold s a
-getJust :: Choice p => (p (Maybe a) (Maybe b) -> c) -> p a b -> c
-getJust o = o . _Just
 
 
 ---------------------------------------------------------------------
@@ -98,14 +93,14 @@ getJust o = o . _Just
 ---------------------------------------------------------------------
 
 infixl 8 ^.
-(^.) :: s -> AGetter a s a -> a
+(^.) :: s -> Getting a s a -> a
 (^.) = flip view
 
 
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
 -- @
-view :: MonadReader s m => AGetter a s a -> m a
+view :: MonadReader s m => Getting a s a -> m a
 view = Reader.asks . (`foldMapOf` id)
 {-# INLINE view #-}
 
@@ -113,12 +108,12 @@ view = Reader.asks . (`foldMapOf` id)
 -- ^ @
 -- 'views o f ≡ foldMapOf o f'
 -- @
-views :: MonadReader s m => AGetter r s a -> (a -> r) -> m r
+views :: MonadReader s m => Getting r s a -> (a -> r) -> m r
 views o f = Reader.asks $ foldMapOf o f
 {-# INLINE views #-}
 
 
-use :: MonadState s m => AGetter a s a -> m a
+use :: MonadState s m => Getting a s a -> m a
 use o = State.gets (view o)
 
 
@@ -135,13 +130,13 @@ use o = State.gets (view o)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
-listening :: MonadWriter w m => AGetter u w u -> m a -> m (a, u)
+listening :: MonadWriter w m => Getting u w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)
 {-# INLINE listening #-}
 
-listenings :: MonadWriter w m => AGetter v w u -> (u -> v) -> m a -> m (a, v)
+listenings :: MonadWriter w m => Getting v w u -> (u -> v) -> m a -> m (a, v)
 listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)

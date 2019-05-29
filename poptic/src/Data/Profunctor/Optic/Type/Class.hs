@@ -16,7 +16,7 @@ module Data.Profunctor.Optic.Type.Class (
 
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Types           as Export
+import Data.Profunctor.Types           --as Export hiding (Forget(..))
 import Data.Profunctor.Choice          as Export 
 import Data.Profunctor.Strong          as Export 
 import Data.Profunctor.Closed          as Export hiding (Closure)
@@ -27,7 +27,6 @@ import Data.Profunctor.Traversing      as Export
 coerce :: (Contravariant f, Functor f) => f a -> f b
 coerce = phantom
 
-type IPhantom p = (Bifunctor p, Profunctor p)
 
 class Profunctor p => InPhantom p where
   icoerce :: p a c -> p b c
@@ -64,29 +63,9 @@ leftDefault = icoerce . dimap id Left
 --class Equalizing (p :: * -> * -> *)
 --instance Equalizing p
 
-class (Strong p, Choice p) => AffineTraversing p
-instance (Strong p, Choice p) => AffineTraversing p
+--class (Strong p, Choice p) => AffineTraversing p
+--instance (Strong p, Choice p) => AffineTraversing p
 
-class (InPhantom p, Choice p) => Reviewing p
-instance (InPhantom p, Choice p) => Reviewing p
-
---class (Bifunctor p, Choice p) => Reviewing p
---instance (Bifunctor p, Choice p) => Reviewing p
-
---class (Bicontravariant p, Strong p) => Getting p
---instance (Bicontravariant p, Strong p) => Getting p
-
-class (OutPhantom p, Strong p) => Getting p
-instance (OutPhantom p, Strong p) => Getting p
-
-class (Getting p, Traversing1 p) => Folding1 p
-instance (Getting p, Traversing1 p) => Folding1 p
-
-class (Getting p, Traversing p) => Folding p
-instance (Getting p, Traversing p) => Folding p
-
-class (OutPhantom p, Strong p, Choice p) => AffineFolding p
-instance (OutPhantom p, Strong p, Choice p) => AffineFolding p
 
 class Strong p => Traversing1 p where
   traverse1' :: Traversable1 f => p a b -> p (f a) (f b)

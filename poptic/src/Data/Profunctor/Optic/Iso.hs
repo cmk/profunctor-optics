@@ -5,6 +5,12 @@ import Data.Bifunctor.Product (Product(..))
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Type
 
+import Control.Monad (join)
+
+
+---------------------------------------------------------------------
+-- 'Equality' 
+---------------------------------------------------------------------
 
 type As a = Equality' a a
 
@@ -14,7 +20,12 @@ type As a = Equality' a a
 simple :: As a
 simple = id
 
+---------------------------------------------------------------------
+-- 'Iso' 
+---------------------------------------------------------------------
+
 {- hedgehog predicates
+
 fromTo :: Eq s => IsoRep s s a a -> s -> Bool
 fromTo (IsoRep f t) s = (t . f) s == s
 
@@ -97,6 +108,23 @@ swapped = iso swap swap
 flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
 flipped = iso flip flip
 
+-- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
+--
+-- @
+-- 'involuted' ≡ 'Control.Monad.join' 'iso'
+-- @
+--
+-- >>> "live" ^. involuted reverse
+-- "evil"
+--
+-- >>> "live" & involuted reverse %~ ('d':)
+-- "lived"
+--
+involuted :: (s -> a) -> Iso s a a s
+involuted = join iso
+{-# INLINE involuted #-}
+
+
 mapping
   :: Functor f
   => Functor g
@@ -130,3 +158,19 @@ auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
 
 under :: AnIso s t a b -> (t -> s) -> b -> a
 under l = withIso l $ \sa bt ts -> sa . ts . bt
+
+
+-- | @'anon' a p@ generalizes @'non' a@ to take any value and a predicate.
+--
+-- This function assumes that @p a@ holds @'True'@ and generates an isomorphism between @'Maybe' (a | 'not' (p a))@ and @a@.
+--
+-- >>> Map.empty & at "hello" . anon Map.empty Map.null . at "world" ?~ "!!!"
+-- fromList [("hello",fromList [("world","!!!")])]
+--
+-- >>> fromList [("hello",fromList [("world","!!!")])] & at "hello" . anon Map.empty Map.null . at "world" .~ Nothing
+-- fromList []
+anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
+anon a p = iso (fromMaybe a) go where
+  go b | p b       = Nothing
+       | otherwise = Just b
+{-# INLINE anon #-}

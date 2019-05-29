@@ -3,11 +3,16 @@ module Data.Profunctor.Optic.Lens (
   , module Export
 ) where
 
-import Data.Profunctor.Optic.Prelude ((&&&), between)
+import Data.Profunctor.Optic.Prelude ((&&&), between, dimap)
 import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
 
 import Data.Profunctor.Strong as Export
+
+
+---------------------------------------------------------------------
+-- 'Lens' 
+---------------------------------------------------------------------
 
 {- Hedgehog predicates
 viewUpdate :: Eq s => LensRep s s a a -> s -> Bool

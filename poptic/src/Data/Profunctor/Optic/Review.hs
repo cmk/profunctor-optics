@@ -51,7 +51,7 @@ unto f = icoerce . rmap f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: AGetter a s a -> PrimReview' a s
+un :: Getting a s a -> PrimReview' a s
 un = unto . (`foldMapOf` id)
 
 
@@ -66,7 +66,7 @@ un = unto . (`foldMapOf` id)
 relike :: t -> PrimReview' t b
 relike t = unto (const t)
 
-reviewEither :: AReview b t b -> AReview b' t b' -> PrimReview' t (Either b b')
+reviewEither :: Reviewing b t b -> Reviewing b' t b' -> PrimReview' t (Either b b')
 reviewEither l r = unto (review l ||| review r)
 
 ---------------------------------------------------------------------
@@ -97,7 +97,7 @@ reviewEither l r = unto (review l ||| review r)
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
 --
-(#) :: AReview b t b -> b -> t
+(#) :: Reviewing b t b -> b -> t
 o # b = review o b
 {-# INLINE ( # ) #-}
 
@@ -105,7 +105,7 @@ o # b = review o b
 -- 'review o ≡ unfoldMapOf o id'
 -- @
 --
-review :: MonadReader b m => AReview b t b -> m t
+review :: MonadReader b m => Reviewing b t b -> m t
 review = Reader.asks . (`unfoldMapOf` id) 
 {-# INLINE review #-}
 
@@ -113,7 +113,7 @@ review = Reader.asks . (`unfoldMapOf` id)
 -- 'reviews o f ≡ unfoldMapOf o f'
 -- @
 --
-reviews :: MonadReader r m => AReview r t b -> (r -> b) -> m t
+reviews :: MonadReader r m => Reviewing r t b -> (r -> b) -> m t
 reviews o f = Reader.asks $ unfoldMapOf o f 
 {-# INLINE reviews #-}
 
@@ -144,7 +144,7 @@ infixr 8 #
 -- 're' :: 'Prism' s t a b -> 'Getter' b t
 -- 're' :: 'Iso' s t a b   -> 'Getter' b t
 -- @
-re :: (forall r. AReview r t b) -> Getter b t
+re :: (forall r. Reviewing r t b) -> Getter b t
 re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE re #-}
 
@@ -176,7 +176,7 @@ re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'review' :: 'MonadReader' a m => 'Iso'' s a   -> m s
 -- 'review' :: 'MonadReader' a m => 'Prism'' s a -> m s
 -- @
-review :: MonadReader b m => AReview t b -> m t
+review :: MonadReader b m => Reviewing t b -> m t
 review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE review #-}
 
@@ -215,9 +215,9 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'reviews' :: 'MonadReader' a m => 'Iso'' s a   -> (s -> r) -> m r
 -- 'reviews' :: 'MonadReader' a m => 'Prism'' s a -> (s -> r) -> m r
 -- @
---reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
---reviews :: MonadReader b m => (forall r. AReview b t b) -> (t -> r) -> m r
---reviews :: MonadReader b m => AReview b t b -> (t -> r) -> m r
+--reviews :: MonadReader b m => Reviewing t b -> (t -> r) -> m r
+--reviews :: MonadReader b m => (forall r. Reviewing b t b) -> (t -> r) -> m r
+--reviews :: MonadReader b m => Reviewing b t b -> (t -> r) -> m r
 --reviews p tr = asks (tr . review p)
 --{-# INLINE reviews #-}
 

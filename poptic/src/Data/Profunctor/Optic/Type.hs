@@ -7,6 +7,7 @@ module Data.Profunctor.Optic.Type (
   , module Data.Profunctor.Optic.Type.Class
 ) where
 
+import Data.Semigroup (First, Last)
 import Data.Profunctor.Optic.Type.Class 
 import Data.Profunctor.Optic.Prelude
 
@@ -55,6 +56,8 @@ type APrism' s a = APrism s s a a
 
 type VLPrism s t a b = forall p f. (Choice p, Applicative f) => p a (f b) -> p s (f t)
 
+type AffineTraversing p = (Strong p, Choice p)
+
 type Affine s t a b = forall p. AffineTraversing p => Optic p s t a b
 
 type Affine' s a = Affine s s a a
@@ -75,8 +78,13 @@ type Traversal1' s a = Traversal1 s s a a
 
 type VLTraversal1 s t a b = forall f. Apply f => LensLike f s t a b
 
-type AffineFold s a = forall p. AffineFolding p => Optic' p s a
---type AffineFold s a = forall p. (Strong p, Choice p, Bicontravariant p) => Optic' p s a
+-- An 'AffineFold' extracts at most one result.
+type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
+
+type Pre s a = Optic' (Star (Const (Maybe (First a)))) s a
+
+type Post s a = Optic' (Star (Const (Maybe (Last a)))) s a
+
 
 -- | A 'Fold' describes how to retrieve multiple values in a way that can be composed
 -- with other optics.
@@ -91,17 +99,20 @@ type AffineFold s a = forall p. AffineFolding p => Optic' p s a
 --
 -- Unlike a 'Traversal' a 'Fold' is read-only. Since a 'Fold' cannot be used to write back there are no laws that apply.
 --
-type Fold s a = forall p. Folding p => Optic' p s a
-
---type Fold s a = forall p. (Traversing p, Bicontravariant p) => Optic' p s a
-
+type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 
 type VLFold s a = forall f. (Contravariant f, Applicative f) => LensLike' f s a
 
-type Fold1 s a = forall p. Folding1 p => Optic' p s a 
---type Fold1 s a = forall p. (Traversing1 p, Bicontravariant p) => Optic' p s a
+type Getting r s a = Optic' (Star (Const r)) s a
+
+type Reviewing r s a = Optic' (Costar (Const r)) s a
+
+-- A 'Fold1' extracts at least one result.
+type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a 
 
 type VLFold1 s a = forall f. (Contravariant f, Apply f) => LensLike' f s a
+
+--type Getting1 r s a = Semigroup r => Optic' (Star (Const r)) s a
 
 type Setter s t a b = forall p. Mapping p => Optic p s t a b
 
@@ -118,32 +129,26 @@ type PrimGetter' s a = PrimGetter s s a a
 --type Getting r s a = Optic' (Star (Const r)) s a
 
 -- type GetterRep r s a = Optic' (Star (Const r)) s a
--- type AGetter s a = forall r. GetterRep r s a
+-- type Getting s a = forall r. GetterRep r s a
 
-type Getter s a = forall p. Getting p => Optic' p s a
+--type Getting p = (OutPhantom p, Strong p) 
 
-type AGetter r s a = Optic' (Star (Const r)) s a
+-- A 'Getter' extracts exactly one result.
+type Getter s a = forall p. (OutPhantom p, Strong p) => Optic' p s a
+
+--type Getting r s a = Optic' (Star (Const r)) s a
 
 type PrimReview s t a b = forall p. InPhantom p => Optic p s t a b
 
 type PrimReview' t b = PrimReview t t b b
 
--- type APrimReview t b = Optic' Tagged t b
-
---type Reviewing r t b = Optic' (Costar (Const r)) t b
---class (InPhantom p, Choice p) => Reviewing p
-
-type Review t b = forall p. Reviewing p => Optic' p t b
--- type Review t b = forall r. Reviewing r t b
--- type AReview t b = Optic' Tagged t b
-type AReview r t b = Optic' (Costar (Const r)) t b
+type Review t b = forall p. (InPhantom p, Choice p) => Optic' p t b
 
 type Closure s t a b = forall p. Closed p => Optic p s t a b
 
 type Closure' s a = Closure s s a a
 
 type AClosure s t a b = Optic (ClosureRep a b) s t a b
-
 
 
 
@@ -245,10 +250,10 @@ instance Choice p => Cochoice (Re p s t) where
 instance Strong p => Costrong (Re p s t) where
     unfirst (Re p) = Re (p . first')
 
-instance (Costrong p, InPhantom p) => OutPhantom (Re p s t) where 
+instance InPhantom p => OutPhantom (Re p s t) where 
     ocoerce (Re p) = Re (p . icoerce)
 
-instance (Cochoice p, OutPhantom p) => InPhantom (Re p s t) where 
+instance OutPhantom p => InPhantom (Re p s t) where 
     icoerce (Re p) = Re (p . ocoerce)
 
 ---------------------------------------------------------------------
@@ -368,64 +373,7 @@ instance Closed (ClosureRep a b) where
   -- closed :: p a b -> p (x -> a) (x -> b)
   closed (ClosureRep z) = ClosureRep $ \f x -> z $ \k -> f $ \g -> k (g x)
 
-{-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
 
-newtype Matched r a b = Matched { runMatched :: a -> Either b r }
-
-instance Profunctor (Matched r) where
-    dimap f g (Matched p) = Matched (first g . p . f)
-
-instance Choice (Matched r) where
-    right' (Matched p) = Matched (unassocE . fmap p)
-
-instance Strong (Matched r) where
-    first' (Matched p) = Matched (\(a,c) -> first (,c) (p a))
-
-instance Costrong (Matched r) where
-    unfirst (Matched f) =
-       Matched (first fst . f . (, error "Costrong Matched"))
-
---TODO give this a Traversing instance or else use matching'
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
-newtype Previewed r a b = Previewed { runPreviewed :: a -> Maybe r }
-
-instance Profunctor (Previewed r) where
-    dimap f _ (Previewed p) = Previewed (p . f)
-
-instance OutPhantom (Previewed r) where
-    ocoerce (Previewed p) = (Previewed p)
-
-instance Choice (Previewed r) where
-    right' (Previewed p) = Previewed (either (const Nothing) p)
-
-instance Strong (Previewed r) where
-    first' (Previewed p) = Previewed (p . fst)
--}
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
--- Pre (Semigroup.First a) b
-newtype Pre a b = Pre { runPre :: Maybe a }
-
-instance Functor (Pre a) where
-    fmap _ (Pre p) = Pre p
-
-instance Contravariant (Pre a) where
-    contramap _ (Pre p) = Pre p
-
-instance Semigroup a => Applicative (Pre a) where
-    pure _ = Pre $ Nothing
-
-    (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
 
 ---------------------------------------------------------------------
 -- 

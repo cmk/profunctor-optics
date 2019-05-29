@@ -23,7 +23,7 @@ library
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
       Data.Profunctor.Optic.Operator
-      Data.Profunctor.Optic.Affine
+      Data.Profunctor.Optic.Closure
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Getter
       Data.Profunctor.Optic.Iso
@@ -42,7 +42,7 @@ library
       base >=4.9 && <5.0
     , bifunctors
     --, constraints
-    , composition-prelude
+    --, safe
     , contravariant
     , distributive
     , semigroupoids

@@ -97,11 +97,7 @@ filtering p = dimap getter (either id id) . _Right
 
 -- | Filters on a predicate.
 filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
-filtered f =
-  _Right .
-    dimap
-      (\x -> if f x then Right x else Left x)
-      (either id id)
+filtered f = _Right . dimap (\x -> if f x then Right x else Left x) (either id id)
 
 -- | Create a 'Prism' from a value and a predicate.
 nearly ::  a -> (a -> Bool) -> Prism' a ()
