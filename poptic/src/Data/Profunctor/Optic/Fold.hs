@@ -1,4 +1,10 @@
-module Data.Profunctor.Optic.Fold where
+module Data.Profunctor.Optic.Fold (
+    module Data.Profunctor.Optic.Fold 
+  , module Export
+) where
+
+import Data.Profunctor.Optic.Fold.NonEmpty as Export
+import Data.Profunctor.Optic.Fold.Affine   as Export
 
 import Data.Semigroup
 import Data.Profunctor.Optic.Type 
@@ -16,6 +22,7 @@ import Control.Monad.State as State
 
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
+
 
 ---------------------------------------------------------------------
 -- 'Fold'

@@ -1,4 +1,4 @@
-module Data.Profunctor.Optic.Fold1 where
+module Data.Profunctor.Optic.Fold.NonEmpty where
 
 import Data.Semigroup
 import Data.Profunctor.Optic.Type 

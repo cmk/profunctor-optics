@@ -1,7 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 
-module Data.Profunctor.Optic.AffineTraversal where
+module Data.Profunctor.Optic.Traversal.Affine where
 
 import Data.Bitraversable 
 import Data.Profunctor.Optic.Type

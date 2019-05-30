@@ -1,10 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 
 
-module Data.Profunctor.Optic.Traversal1 (
-    module Data.Profunctor.Optic.Traversal1 
-  , module Export
-) where
+module Data.Profunctor.Optic.Traversal.NonEmpty where
 
 import Data.Bitraversable 
 import Data.Profunctor.Optic.Type

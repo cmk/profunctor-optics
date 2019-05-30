@@ -1,4 +1,4 @@
-module Data.Profunctor.Optic.AffineFold where
+module Data.Profunctor.Optic.Fold.Affine where
 
 import Data.Semigroup
 import Data.Profunctor.Optic.Type 

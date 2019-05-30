@@ -1,6 +1,4 @@
 {-# LANGUAGE TupleSections #-}
-
-
 module Data.Profunctor.Optic.Traversal (
     module Data.Profunctor.Optic.Traversal 
   , module Export
@@ -11,7 +9,9 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Traversing as Export
+import Data.Profunctor.Optic.Traversal.Affine    as Export
+import Data.Profunctor.Optic.Traversal.NonEmpty  as Export
+import Data.Profunctor.Traversing                as Export
 
 
 ---------------------------------------------------------------------
