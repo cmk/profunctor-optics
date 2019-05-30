@@ -86,7 +86,7 @@ type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s
 -- By convention, if there exists a 'foo' method that expects a @'Data.Foldable.Foldable' (f a)@, then there should be a
 -- @fooOf@ method that takes a @'Fold' s a@ and a value of type @s@. See 'Data.Profunctor.Optic.Fold'.
 --
--- A 'Getter' is a legal 'Fold' that just ignores the supplied 'Data.Monoid.Monoid'.
+-- A 'View' is a legal 'Fold' that just ignores the supplied 'Data.Monoid.Monoid'.
 --
 -- Unlike a 'Traversal' a 'Fold' is read-only. Since a 'Fold' cannot be used to write back there are no laws that apply.
 --
@@ -99,16 +99,16 @@ type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a
 
 type VLFold1 s a = forall f. (Contravariant f, Apply f) => LensLike' f s a
 
-type Setter s t a b = forall p. Mapping p => Optic p s t a b
+type Over s t a b = forall p. Mapping p => Optic p s t a b
 
-type Setter' s a = Setter s s a a
+type Over' s a = Over s s a a
 
 type PrimView s t a b = forall p. OutPhantom p => Optic p s t a b
 
 type PrimView' s a = PrimView s s a a
 
--- A 'Getter' extracts exactly one result.
-type Getter s a = forall p. (OutPhantom p, Strong p) => Optic' p s a
+-- A 'View' extracts exactly one result.
+type View s a = forall p. (OutPhantom p, Strong p) => Optic' p s a
 
 type PrimReview s t a b = forall p. InPhantom p => Optic p s t a b
 
@@ -339,7 +339,7 @@ instance InPhantom p => InPhantom (Split p c d) where
 -- ^ @
 -- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
 -- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
--- split :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: View s t a b -> View s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
 -- @
 split 
   :: Profunctor p 
@@ -761,7 +761,7 @@ instance Monoid (f a) => Monoid (Indexing f a) where
 -- 'indexing' :: 'Control.Lens.Type.Lens' s t a b      -> 'Control.Lens.Type.IndexedLens' 'Int'  s t a b
 -- 'indexing' :: 'Control.Lens.Type.Iso' s t a b       -> 'Control.Lens.Type.IndexedLens' 'Int' s t a b
 -- 'indexing' :: 'Control.Lens.Type.Fold' s a          -> 'Control.Lens.Type.IndexedFold' 'Int' s a
--- 'indexing' :: 'Control.Lens.Type.Getter' s a        -> 'Control.Lens.Type.IndexedGetter' 'Int' s a
+-- 'indexing' :: 'Control.Lens.Type.View' s a        -> 'Control.Lens.Type.IndexedView' 'Int' s a
 -- @
 --
 -- @'indexing' :: 'Indexable' 'Int' p => 'Control.Lens.Type.LensLike' ('Indexing' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@
@@ -812,7 +812,7 @@ instance Contravariant f => Contravariant (Indexing64 f) where
 -- 'indexing64' :: 'Control.Lens.Type.Lens' s t a b      -> 'Control.Lens.Type.IndexedLens' 'Int64' s t a b
 -- 'indexing64' :: 'Control.Lens.Type.Iso' s t a b       -> 'Control.Lens.Type.IndexedLens' 'Int64' s t a b
 -- 'indexing64' :: 'Control.Lens.Type.Fold' s a          -> 'Control.Lens.Type.IndexedFold' 'Int64' s a
--- 'indexing64' :: 'Control.Lens.Type.Getter' s a        -> 'Control.Lens.Type.IndexedGetter' 'Int64' s a
+-- 'indexing64' :: 'Control.Lens.Type.View' s a        -> 'Control.Lens.Type.IndexedView' 'Int64' s a
 -- @
 --
 -- @'indexing64' :: 'Indexable' 'Int64' p => 'Control.Lens.Type.LensLike' ('Indexing64' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@

@@ -21,22 +21,9 @@ re :: Optic (Re p a b) s t a b -> Optic p b a t s
 re o = (between runRe Re) o id
 
 
--- over l id ≡ id
--- over l f . over l g ≡ over l (f . g)
---
--- ^ @
--- over :: Setter s t a b -> (a -> r) -> s -> r
--- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
--- @
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-
-
-pre :: Previewing s a -> s -> Maybe a
+preview :: Previewing s a -> s -> Maybe a
 --previewOf' o = runPre . getConst . h where Star h = o (Star $ Const . Pre . Just)
-pre o = h where Previewed h = o (Previewed Just)
-
---between (extract $ runPre . getConst) (insert $ Const . Pre . Just) o id
+preview o = h where Previewed h = o (Previewed Just)
 
 -- ^ @
 -- match :: Traversal s t a b -> s -> Either t a
@@ -55,89 +42,11 @@ validate :: Validating a s t a b -> s -> Validation t a
 validate o = swap . h where Star h = o (Star Failure)
 
 
-{-
-afolding :: (s -> Maybe a) -> AffineFold s a
-afolding f = cimap (\s -> maybe (Left s) Right (f s)) Left . right'
-
-folding :: Foldable f => (s -> f a) -> Fold s a
-folding f = cimap f (const ()) . wander traverse_
-
-folding' :: Traversable f => (s -> a) -> Fold (f s) a
-folding' f = traverse' . cimap f f
-
-
--- | Folds over a `Foldable` container.
-folded :: Foldable f => Monoid r => Folding r (f a) a
-folded (Star Const) = undefined --Star $ Const . foldMap a
-
--- | Replicates the elements of a fold.
-replicated :: Monoid r => Int -> Folding r s a
-replicated i (Star (Const a)) = Star (Const (go i a))
-  where go 0 _ = mempty
-        go n x = x <> go (n - 1) x
-
--- | Builds a `Fold` using an unfold.
-unfolded :: Monoid r => (s -> Maybe (a, s)) -> Folding r s a
-unfolded f p = Star (Const go)
-  where
-  go = maybe mempty (\(a, sn) -> runStar (Const p a <> go sn) . f)
-
-toPureOf
-  :: Applicative f 
-  => Folding (f a) s a -> s -> f a
-toPureOf o = foldMapOf o pure
-
--- | Collects the foci of a `Fold` into a list.
---toListOf :: Fold (Endo [a]) s t a b -> s -> [a]
-toListOf :: Folding (Endo [a]) s a -> s -> [a]
-toListOf o = foldrOf o (:) []
-
-(^..) :: s -> Folding (Endo [a]) s a -> [a]
-(^..) = flip toListOf
-
-(^?) :: s -> Folding (First a) s a -> Maybe a
-(^?) = flip firstOf
-
--- | The first focus of a `Fold`, if there is any. Synonym for `preview`.
-firstOf :: Folding (First a) s a -> s -> Maybe a
-firstOf l = getFirst . foldMapOf l (First . pure)
-
--- | The last focus of a `Fold`, if there is any.
-lastOf :: Folding (Last a) s a -> s -> Maybe a
-lastOf p = getLast . foldMapOf p (Last . Just)
-
--- | We can freely convert a 'Getter s (Maybe a)' into an 'AffineFold s a'.
--- getJust :: Folding (Maybe a) s (Maybe a) -> AffineFold s a
-getJust :: Choice p => (p (Maybe a) (Maybe b) -> c) -> p a b -> c
-getJust o = o . _Just
-
-{-
-firstOf
-lastOf
-previewOf
-
-λ> preview traverse' ["foo", "bar"]
-Just "foo"
-λ> preview' traverse' ["foo", "bar"]
-Just "foobar"
-
-λ> preview traverse' ['a', 'b']
-Just 'a'
-λ> preview' traverse' ['a', 'b']
-
-<interactive>:262:10: error:
-    • No instance for (Semigroup Char)
-        arising from a use of ‘traverse'’
--}
-preview' :: MonadReader s m => Folding (Maybe a) s a -> m (Maybe a)
-preview' = Reader.asks . (`previewOf` id)
--}
-
+previewOf :: AFolding r s a -> (a -> r) -> s -> Maybe r
+previewOf = between (extract runPre) (insert $ Pre . Just)
 
 foldMapOf :: Folding r s a -> (a -> r) -> s -> r
 foldMapOf = between (extract getConst) (insert Const)
-
-
 
 unfoldMapOf :: Unfolding r t b -> (r -> b) -> r -> t
 unfoldMapOf = between (coextract Const) (coinsert getConst) 

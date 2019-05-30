@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeOperators    #-}
 
-module Data.Profunctor.Optic.Getter where
+module Data.Profunctor.Optic.View where
 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
@@ -12,14 +12,14 @@ import Control.Monad.State as State
 
 
 ---------------------------------------------------------------------
--- 'Getter'
+-- 'View'
 ---------------------------------------------------------------------
 
 -- laws 
--- getter_complete :: Getter s a -> Bool
+-- getter_complete :: View s a -> Bool
 -- getter_complete o = tripping o $ to (view o)
 
--- | Build a 'Getter' from an arbitrary function.
+-- | Build a 'View' from an arbitrary function.
 --
 -- @
 -- 'to' f '.' 'to' g ≡ 'to' (g '.' f)
@@ -46,7 +46,7 @@ import Control.Monad.State as State
 -- 5
 --
 -- @
--- 'to' :: (s -> a) -> 'Getter' s a
+-- 'to' :: (s -> a) -> 'View' s a
 -- @
 --
 to :: (s -> a) -> PrimView s t a b
@@ -74,13 +74,13 @@ like a = to (const a)
 
 
 -- @
--- 'get' :: 'Folding' a s a -> 'Getter' s a
+-- 'get' :: 'Folding' a s a -> 'View' s a
 -- @
 --get :: Viewing s a -> PrimView s t a b
 --get = to . view
 
 -- @
--- 'getBoth' :: 'Folding' a s a -> 'Folding' b s b -> 'Getter' s (a, b)
+-- 'getBoth' :: 'Folding' a s a -> 'Folding' b s b -> 'View' s (a, b)
 -- @
 getBoth :: Folding a1 s a1 -> Folding a2 s a2 -> PrimView s t (a1, a2) b
 getBoth l r = to (view l &&& view r)
@@ -118,13 +118,13 @@ use :: MonadState s m => Viewing s a -> m a
 use o = State.gets (view o)
 
 
--- | Extracts the portion of a log that is focused on by a 'Getter'. 
+-- | Extracts the portion of a log that is focused on by a 'View'. 
 --
 -- Given a 'Fold' or a 'Traversal', then a monoidal summary of the parts 
 -- of the log that are visited will be returned.
 --
 -- @
--- 'listening' :: 'MonadWriter' w m             => 'Getter' w u     -> m a -> m (a, u)
+-- 'listening' :: 'MonadWriter' w m             => 'View' w u     -> m a -> m (a, u)
 -- 'listening' :: 'MonadWriter' w m             => 'Lens'' w u      -> m a -> m (a, u)
 -- 'listening' :: 'MonadWriter' w m             => 'Iso'' w u       -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Fold' w u       -> m a -> m (a, u)

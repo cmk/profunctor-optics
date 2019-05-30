@@ -19,7 +19,7 @@ module Data.Profunctor.Optic.Review
 --import Control.Monad.Reader
 import Control.Monad.Reader as Reader
 
---import Data.Profunctor.Optic.Getter
+--import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Operator
@@ -29,7 +29,7 @@ import Data.Profunctor.Optic.Operator
 ------------------------------------------------------------------------------
 
 -- | Convert a function into a 'Review'.
---  Analagous to 'to' for 'Getter'.
+--  Analagous to 'to' for 'View'.
 --
 -- @
 -- 'unto' :: (b -> t) -> 'PrimReview' s t a b
@@ -43,7 +43,7 @@ unto :: (b -> t) -> PrimReview s t a b
 unto f = icoerce . dimap id f
 
 
--- | Turn a 'Getter' around to get a 'Review'
+-- | Turn a 'View' around to get a 'Review'
 --
 -- @
 -- 'un' = 'unto' . 'view'
@@ -130,10 +130,10 @@ infixr 8 #
 
 {-
 
--- | Turn a 'Prism' or 'Control.Lens.Iso.Iso' around to build a 'Getter'.
+-- | Turn a 'Prism' or 'Control.Lens.Iso.Iso' around to build a 'View'.
 --
 -- If you have an 'Control.Lens.Iso.Iso', 'Control.Lens.Iso.from' is a more powerful version of this function
--- that will return an 'Control.Lens.Iso.Iso' instead of a mere 'Getter'.
+-- that will return an 'Control.Lens.Iso.Iso' instead of a mere 'View'.
 --
 -- >>> 5 ^.re _Left
 -- Left 5
@@ -149,10 +149,10 @@ infixr 8 #
 -- @
 --
 -- @
--- 're' :: 'Prism' s t a b -> 'Getter' b t
--- 're' :: 'Iso' s t a b   -> 'Getter' b t
+-- 're' :: 'Prism' s t a b -> 'View' b t
+-- 're' :: 'Iso' s t a b   -> 'View' b t
 -- @
-re :: (forall r. Reviewing r t b) -> Getter b t
+re :: (forall r. Reviewing r t b) -> View b t
 re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE re #-}
 

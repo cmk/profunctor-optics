@@ -1,5 +1,5 @@
-module Data.Profunctor.Optic.Setter (
-    module Data.Profunctor.Optic.Setter 
+module Data.Profunctor.Optic.Over (
+    module Data.Profunctor.Optic.Over 
   , module Export
 ) where
 
@@ -17,33 +17,31 @@ import Control.Monad.Reader as Reader
 
 
 ---------------------------------------------------------------------
--- Setter
+-- Over
 ---------------------------------------------------------------------
 
 -- import Data.Functor.Rep
--- sets :: ((a -> b) -> s -> t) -> Setter s t a b
--- sets f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- maps :: ((a -> b) -> s -> t) -> Over s t a b
+-- maps f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
 -- 
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
-sets :: ((a -> b) -> s -> t) -> Setter s t a b
-sets f = dimap (Context id) (\(Context g s) -> f g s) . map'
+maps :: ((a -> b) -> s -> t) -> Over s t a b
+maps f = dimap (Context id) (\(Context g s) -> f g s) . map'
 
---setter_complete :: Setter s t a b -> Setter s t a b
---setter_complete = sets . over
+--over_complete :: Over s t a b -> Over s t a b
+--over_complete = maps . over
 
----------------------------------------------------------------------
--- Common setters
----------------------------------------------------------------------
 
-resets :: Setter (s -> a) ((a -> b) -> s -> t) b t
-resets = sets between
 
---composed :: Setter (a -> b -> s) (a -> b -> t) s t
---composed = sets ((.)(.)(.))
+remaps :: Over (s -> a) ((a -> b) -> s -> t) b t
+remaps = maps between
 
---curried :: Setter a (b -> c) (a, b) c
---curried = sets curry
+--composed :: Over (a -> b -> s) (a -> b -> t) s t
+--composed = maps ((.)(.)(.))
+
+--curried :: Over a (b -> c) (a, b) c
+--curried = maps curry
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
@@ -56,24 +54,24 @@ resets = sets between
 --
 -- >>> set lifted b (Just a)
 -- Just b
-lifted :: Applicative f => Setter (f a) (f b) a b
-lifted = sets liftA
+lifted :: Applicative f => Over (f a) (f b) a b
+lifted = maps liftA
 {-# INLINE lifted #-}
 
-mapped :: Functor f => Setter (f a) (f b) a b
-mapped = sets fmap
+mapped :: Functor f => Over (f a) (f b) a b
+mapped = maps fmap
 
-foldMapped :: (Foldable f, Monoid m) => Setter (f a) m a m
-foldMapped = sets foldMap
+foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
+foldMapped = maps foldMap
 
 {-
 collecting
     :: (forall f. (Applicative f, Distributive f) => (a -> f b) -> s -> f t)
-    -> Setter s t a b
+    -> Over s t a b
 collecting = roam
 -}
 
--- | This 'Setter' can be used to map over the input of a 'Profunctor'.
+-- | This 'Over' can be used to map over the input of a 'Profunctor'.
 --
 -- The most common 'Profunctor' to use this with is @(->)@.
 --
@@ -93,19 +91,29 @@ collecting = roam
 -- h x (f y)
 --
 -- @
--- 'argument' :: 'Setter' (b -> r) (a -> r) a b
+-- 'argument' :: 'Over' (b -> r) (a -> r) a b
 -- @
-argument :: Profunctor p => Setter (p b r) (p a r) a b
-argument = sets lmap
+argument :: Profunctor p => Over (p b r) (p a r) a b
+argument = maps lmap
 {-# INLINE argument #-}
 
-outcome :: Profunctor p => Setter (p r a) (p r b) a b
-outcome = sets rmap
+outcome :: Profunctor p => Over (p r a) (p r b) a b
+outcome = maps rmap
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
+
+-- over l id ≡ id
+-- over l f . over l g ≡ over l (f . g)
+--
+-- ^ @
+-- over :: Over s t a b -> (a -> r) -> s -> r
+-- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- @
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
 
 infixr 4 %~
 
@@ -258,7 +266,7 @@ l ?= b = undefined --l .= Just b
 reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
 reset = set . re
 
-appendOver :: Semigroup a => Setter s t a a -> a -> s -> t
+appendOver :: Semigroup a => Over s t a a -> a -> s -> t
 appendOver o = o . (<>)
 
 {- |
@@ -270,7 +278,7 @@ appendOver o = o . (<>)
 infixr 4 <>~
 {-# INLINE (<>~) #-}
 
-(<>~) :: Semigroup a => Setter s t a a -> a -> s -> t
+(<>~) :: Semigroup a => Over s t a a -> a -> s -> t
 (<>~) p a = appendOver p a
 
 
@@ -286,7 +294,7 @@ It can be useful in combination with 'at':
 >>> Map.empty & at 3 ?~ x
 fromList [(3,x)]
 -}
---(?~) :: Setter s t a (Maybe b) -> b -> s -> t
+--(?~) :: Over s t a (Maybe b) -> b -> s -> t
 (?~) :: Optic (->) (Maybe a1) t a2 b -> a1 -> b -> t
 o ?~ b = set o (Just b)
 {-# INLINE (?~) #-}
@@ -294,12 +302,12 @@ o ?~ b = set o (Just b)
 infixr 4 ?~
 
 --setJust :: Optic (->) s t a (Maybe b) -> b -> s -> t
---setJust :: Setter s t a (Maybe b) -> b -> s -> t
+--setJust :: Over s t a (Maybe b) -> b -> s -> t
 setJust :: Optic (->) (Maybe s) t a b -> s -> b -> t
 setJust o = set o . Just
 
 
--- | Logically '||' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
+-- | Logically '||' the target(s) of a 'Bool'-valued 'Lens' or 'Over'.
 --
 -- >>> both ||~ True $ (False,True)
 -- (True,True)
@@ -308,7 +316,7 @@ setJust o = set o . Just
 -- (False,True)
 --
 -- @
--- ('||~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
+-- ('||~') :: 'Over'' s 'Bool'    -> 'Bool' -> s -> s
 -- ('||~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
 -- ('||~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
 -- ('||~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
@@ -317,7 +325,7 @@ setJust o = set o . Just
 o ||~ n = o (|| n)
 {-# INLINE (||~) #-}
 
--- | Logically '&&' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
+-- | Logically '&&' the target(s) of a 'Bool'-valued 'Lens' or 'Over'.
 --
 -- >>> both &&~ True $ (False, True)
 -- (False,True)
@@ -326,7 +334,7 @@ o ||~ n = o (|| n)
 -- (False,False)
 --
 -- @
--- ('&&~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
+-- ('&&~') :: 'Over'' s 'Bool'    -> 'Bool' -> s -> s
 -- ('&&~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
 -- ('&&~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
 -- ('&&~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
@@ -340,7 +348,7 @@ o &&~ n = o (&& n)
 -----------------------------------------------------------------------------
 
 -- | Write to a fragment of a larger 'Writer' format.
---scribe :: (MonadWriter t m, Monoid s) => ASetter s t a b -> b -> m ()
+--scribe :: (MonadWriter t m, Monoid s) => AOver s t a b -> b -> m ()
 scribe :: (MonadWriter t m, Monoid s) => Optic (->) s t a b -> b -> m ()
 scribe o b = tell (set o mempty b)
 {-# INLINE scribe #-}
@@ -355,7 +363,7 @@ passing o m = pass $ do
 
 -- | This is a generalization of 'censor' that allows you to 'censor' just a
 -- portion of the resulting 'MonadWriter'.
---censoring :: MonadWriter w m => Setter w w u v -> (u -> v) -> m a -> m a
+--censoring :: MonadWriter w m => Over w w u v -> (u -> v) -> m a -> m a
 censoring :: MonadWriter s m => Optic (->) s s a b -> (a -> b) -> m c -> m c
 censoring o uv = censor $ o uv
 {-# INLINE censoring #-}
@@ -365,7 +373,7 @@ censoring o uv = censor $ o uv
 -----------------------------------------------------------------------------
 
 -- | Modify the value of the 'Reader' environment associated with the target of a
--- 'Setter', 'Lens', or 'Traversal'.
+-- 'Over', 'Lens', or 'Traversal'.
 --
 -- @
 -- 'locally' l 'id' a ≡ a
@@ -382,7 +390,7 @@ censoring o uv = censor $ o uv
 -- locally :: MonadReader s m => 'Iso' s s a b       -> (a -> b) -> m r -> m r
 -- locally :: MonadReader s m => 'Lens' s s a b      -> (a -> b) -> m r -> m r
 -- locally :: MonadReader s m => 'Traversal' s s a b -> (a -> b) -> m r -> m r
--- locally :: MonadReader s m => 'Setter' s s a b    -> (a -> b) -> m r -> m r
+-- locally :: MonadReader s m => 'Over' s s a b    -> (a -> b) -> m r -> m r
 -- @
 locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
 locally o f = Reader.local $ o f

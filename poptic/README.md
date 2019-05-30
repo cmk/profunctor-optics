@@ -34,11 +34,11 @@ It looks like this:
 
 Credit to Oleg I think for the diagram.
 Each node in the lattice corresponds to a conjunction of type class constraints on a function of the type `p a b -> p s t`.
-For example, at the bottom (top in the diagram) of the hierarchy is a `Setter`, also known as a [semantic editor combinator](http://conal.net/blog/posts/semantic-editor-combinators).
-Setters have the following type 
+For example, at the bottom (top in the diagram) of the hierarchy is a `Over`, also known as a [semantic editor combinator](http://conal.net/blog/posts/semantic-editor-combinators).
+Overs have the following type 
 
 ```
-type Setter s t a b = forall p. c p => p a b -> p s t
+type Over s t a b = forall p. c p => p a b -> p s t
 ``` 
 
 where the constraint `c` is given by the conjunction of the `Profunctor`, `Strong`, `Choice`, `Traversing`, and `Mapping` type classes.
@@ -81,9 +81,9 @@ The constructors and characterizing operations for the remaining optics are summ
 | [Prism](#prism)                       | `prism`         | `matching`, `review` | `Choice`            |               |
 | [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    | `AffineTraversing`  | `Matched`       |
 | [PrimView](#getter)                 | `to`            | `view`               | `OutPhantom`        | `Star (Const c)` |
-| [Getter](#getter)                     | `to`            | `view`               | `Folding`           | `Star (Const c)` |
-| [PrimSetter](#setter)                 | `setting`       | `over`               | `InPhantom`         | `(->)`        |
-| [Setter](#setter)                     | `setting`       | `over`               | `Mapping`           | `(->)`        |
+| [View](#getter)                     | `to`            | `view`               | `Folding`           | `Star (Const c)` |
+| [PrimOver](#setter)                 | `setting`       | `over`               | `InPhantom`         | `(->)`        |
+| [Over](#setter)                     | `setting`       | `over`               | `Mapping`           | `(->)`        |
 | [Review](#review)                     | `unto`          | `review`             | `Reviewing`         | `Costar (Const c)`      |
 | [Traversal](#traversal)               | `traversing`    | `traverseOf`         | `Traversing`        | `Star`        |
 | [Affine Fold](#fold-and-affine-fold)  | `afolding`      | `preview`            | `AffineFolding`     | `Previewed`   |
@@ -123,7 +123,7 @@ Finally, the relationships between the associated profunctors and the profunctor
 where annotated entries indicate that the instance is entailed by constraints on the underlying functor. 
 This chart in turn is what determines which operators can be used with each optic.
 
-Consider `review` for example, which is derived from the `Costar (Const c)` profunctor. `Costar (Const c)` is not an instance of the `Strong`, `Traversing`, `Closed`, or `Mapping` classes. It follows then that a `Setter`, which as we noted above is constrained by `Profunctor`, `Strong`, `Choice`, `Traversing`, `Closed`, and `Mapping`, will not be compatible with the `review` operator.
+Consider `review` for example, which is derived from the `Costar (Const c)` profunctor. `Costar (Const c)` is not an instance of the `Strong`, `Traversing`, `Closed`, or `Mapping` classes. It follows then that a `Over`, which as we noted above is constrained by `Profunctor`, `Strong`, `Choice`, `Traversing`, `Closed`, and `Mapping`, will not be compatible with the `review` operator.
 
 
 

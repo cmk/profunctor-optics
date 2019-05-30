@@ -20,19 +20,23 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Optic
+      Data.Profunctor.Optic.AffineFold
+      Data.Profunctor.Optic.AffineTraversal
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
       Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Closure
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Getter
+      Data.Profunctor.Optic.Fold1
+      Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Review
-      Data.Profunctor.Optic.Setter
+      Data.Profunctor.Optic.Over
       Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Traversal1
 
   hs-source-dirs:
       src
