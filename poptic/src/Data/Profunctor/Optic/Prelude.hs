@@ -144,6 +144,12 @@ dup = join (,)
 dedup :: Either a a -> a
 dedup = join either id
 
+hither :: (s -> (a,b)) -> (s -> a, s -> b)
+hither h = (fst . h, snd . h)
+
+yon :: (s -> a, s -> b) -> s -> (a,b)
+yon h s = (fst h s, snd h s)
+
 -- | Infix version of 'join'
 --
 -- As an example, we could use this to rewrite

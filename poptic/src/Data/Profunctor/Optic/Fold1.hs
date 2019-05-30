@@ -41,16 +41,14 @@ folding1 f = to f . wander1 traverse1_
 folding1' :: Traversable1 f => (s -> a) -> Fold1 (f s) a
 folding1' f = wander1 traverse1 . to f
 
-cloneFold1 :: Semigroup r => Folding r s a -> Fold1 s a
-cloneFold1 f = to $ \s -> getConst (f Const s)
+--cloneFold1 :: Semigroup r => Folding r s a -> Fold1 s a
+--cloneFold1 f = to $ \s -> getConst (f Const s)
 
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
-foldOf :: Folding a s a -> s -> a
-foldOf = flip foldMapOf id
 
 fold1Of :: Semigroup a => Folding a s a -> s -> a
 fold1Of = flip foldMap1Of id

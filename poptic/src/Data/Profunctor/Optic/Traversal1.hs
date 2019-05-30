@@ -11,7 +11,7 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.Class as Export (Traversing1(..))
+import Data.Profunctor.Optic.Type.Class as Export (Traversing1(..))
 
 import Data.Semigroup.Traversable.Class as Export
 
@@ -39,7 +39,9 @@ both1 = wander1 $ \f -> bitraverse1 f f
 -- Operators
 ---------------------------------------------------------------------
 
+{-
 sequence1Of
   :: Apply f
   => Optic (Star f) s t (f a) a -> s -> f t
 sequence1Of t = traverse1Of t id
+-}

@@ -53,6 +53,8 @@ library
     , distributive
     , semigroupoids
     , mtl
+    , unliftio
+    , unliftio-core
     , profunctors
     , either
 

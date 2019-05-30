@@ -113,6 +113,7 @@ infixl 8 ^?
 (^?) :: s -> AFolding (First a) s a -> Maybe a
 s ^? o = getFirst <$> previewOf o First s
 
+{-
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.
 --
 findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
@@ -129,7 +130,7 @@ maximumOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 --
 minimumOf :: Ord a => Folding (Endo (Maybe a)) s a -> s -> Maybe a
 minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
-
+-}
 
 
 {-

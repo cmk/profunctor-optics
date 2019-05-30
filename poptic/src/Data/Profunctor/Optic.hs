@@ -3,15 +3,19 @@ module Data.Profunctor.Optic (
 ) where
 
 
-import Data.Profunctor.Optic.Type      as Export
-import Data.Profunctor.Optic.Operator  as Export
-import Data.Profunctor.Optic.Prelude   as Export
-import Data.Profunctor.Optic.Environment   as Export
-import Data.Profunctor.Optic.Fold      as Export
-import Data.Profunctor.Optic.Iso       as Export
-import Data.Profunctor.Optic.Lens      as Export
-import Data.Profunctor.Optic.Traversal as Export
-import Data.Profunctor.Optic.Prism     as Export
-import Data.Profunctor.Optic.View    as Export
-import Data.Profunctor.Optic.Over    as Export
-import Data.Profunctor.Optic.Review    as Export
+import Data.Profunctor.Optic.AffineFold      as Export
+import Data.Profunctor.Optic.AffineTraversal as Export
+import Data.Profunctor.Optic.Environment     as Export
+import Data.Profunctor.Optic.Fold            as Export
+import Data.Profunctor.Optic.Fold1           as Export
+import Data.Profunctor.Optic.Iso             as Export
+import Data.Profunctor.Optic.Lens            as Export
+import Data.Profunctor.Optic.Operator        as Export
+import Data.Profunctor.Optic.Over            as Export
+import Data.Profunctor.Optic.Prelude         as Export
+import Data.Profunctor.Optic.Prism           as Export
+import Data.Profunctor.Optic.Review          as Export
+import Data.Profunctor.Optic.Traversal       as Export
+import Data.Profunctor.Optic.Traversal1      as Export
+import Data.Profunctor.Optic.Type            as Export
+import Data.Profunctor.Optic.View            as Export
