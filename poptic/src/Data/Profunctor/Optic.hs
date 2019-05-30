@@ -6,7 +6,7 @@ module Data.Profunctor.Optic (
 import Data.Profunctor.Optic.Type      as Export
 import Data.Profunctor.Optic.Operator  as Export
 import Data.Profunctor.Optic.Prelude   as Export
-import Data.Profunctor.Optic.Closure   as Export
+import Data.Profunctor.Optic.Environment   as Export
 import Data.Profunctor.Optic.Fold      as Export
 import Data.Profunctor.Optic.Iso       as Export
 import Data.Profunctor.Optic.Lens      as Export

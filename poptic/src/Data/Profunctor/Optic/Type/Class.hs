@@ -21,7 +21,7 @@ import Data.Profunctor.Optic.Prelude hiding (extract)
 import Data.Profunctor.Types           --as Export hiding (Forget(..))
 import Data.Profunctor.Choice          as Export 
 import Data.Profunctor.Strong          as Export 
-import Data.Profunctor.Closed          as Export hiding (Closure)
+import Data.Profunctor.Closed          as Export hiding (Environment)
 import Data.Profunctor.Mapping         as Export
 import Data.Profunctor.Traversing      as Export
 

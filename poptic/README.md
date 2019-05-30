@@ -88,7 +88,7 @@ The constructors and characterizing operations for the remaining optics are summ
 | [Traversal](#traversal)               | `traversing`    | `traverseOf`         | `Traversing`        | `Star`        |
 | [Affine Fold](#fold-and-affine-fold)  | `afolding`      | `preview`            | `AffineFolding`     | `Previewed`   |
 | [Fold](#fold-and-affine-fold)         | `folding`       | `foldMapOf`          | `Folding`           | `Star (Const c)` |
-| [Closure](#closure)                   | `closed`        | `zipWithOf`          | `Closed`            | `Zipped`      |
+| [Environment](#closure)                   | `closed`        | `zipWithOf`          | `Closed`            | `Zipped`      |
 
 The laws are captured in property-driven tests in the test folder.  
 Predicates describing the laws are kept separate so that they can be used to verify downstream optics.

@@ -24,8 +24,9 @@ library
       Data.Profunctor.Optic.AffineTraversal
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
+      Data.Profunctor.Optic.Type.VL
       Data.Profunctor.Optic.Operator
-      Data.Profunctor.Optic.Closure
+      Data.Profunctor.Optic.Environment
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold1
       Data.Profunctor.Optic.View

@@ -8,6 +8,7 @@
 module Data.Profunctor.Optic.Type (
     module Data.Profunctor.Optic.Type
   , module Data.Profunctor.Optic.Type.Class
+  , module VL
 ) where
 
 import Data.Semigroup (First, Last)
@@ -15,7 +16,7 @@ import Data.Profunctor.Optic.Type.Class
 import Data.Profunctor.Optic.Prelude
 import Data.Either.Validation (Validation)
 
-
+import qualified Data.Profunctor.Optic.Type.VL as VL
 import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Fix
@@ -43,19 +44,13 @@ type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
 type Iso' s a = Iso s s a a
 
-type VLIso s t a b = forall p f. (Profunctor p, Functor f) => p a (f b) -> p s (f t)
-
 type Lens s t a b = forall p. Strong p => Optic p s t a b
 
 type Lens' s a = Lens s s a a
 
-type VLLens s t a b = forall f. Functor f => LensLike f s t a b
-
 type Prism s t a b = forall p. Choice p => Optic p s t a b
 
 type Prism' s a = Prism s s a a
-
-type VLPrism s t a b = forall p f. (Choice p, Applicative f) => p a (f b) -> p s (f t)
 
 -- An 'AffineFold' extracts at most one result, with no monoidal interactions.
 type AffineTraversal s t a b = forall p. (Strong p, Choice p) => Optic p s t a b
@@ -66,13 +61,9 @@ type Traversal s t a b = forall p. Traversing p => Optic p s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type VLTraversal s t a b = forall f. Applicative f => LensLike f s t a b
-
 type Traversal1 s t a b = forall p. Traversing1 p => Optic p s t a b
 
 type Traversal1' s a = Traversal1 s s a a
-
-type VLTraversal1 s t a b = forall f. Apply f => LensLike f s t a b
 
 -- An 'AffineFold' extracts at most one result.
 type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
@@ -90,14 +81,12 @@ type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s
 --
 -- Unlike a 'Traversal' a 'Fold' is read-only. Since a 'Fold' cannot be used to write back there are no laws that apply.
 --
-type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 
-type VLFold s a = forall f. (Contravariant f, Applicative f) => LensLike' f s a
+-- Folds are closed, corepresentable profunctors.
+type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 
 -- A 'Fold1' extracts at least one result.
 type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a 
-
-type VLFold1 s a = forall f. (Contravariant f, Apply f) => LensLike' f s a
 
 type Over s t a b = forall p. Mapping p => Optic p s t a b
 
@@ -116,9 +105,9 @@ type PrimReview' t b = PrimReview t t b b
 
 type Review t b = forall p. (InPhantom p, Choice p) => Optic' p t b
 
-type Closure s t a b = forall p. Closed p => Optic p s t a b
+type Env s t a b = forall p. Closed p => Optic p s t a b
 
-type Closure' s a = Closure s s a a
+type Env' s a = Env s s a a
 
 type Folding r s a = Optic' (Star (Const r)) s a
 
