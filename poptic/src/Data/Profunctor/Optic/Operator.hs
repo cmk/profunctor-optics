@@ -67,47 +67,47 @@ folding' f = traverse' . cimap f f
 
 
 -- | Folds over a `Foldable` container.
-folded :: Foldable f => Monoid r => Getting r (f a) a
+folded :: Foldable f => Monoid r => Folding r (f a) a
 folded (Star Const) = undefined --Star $ Const . foldMap a
 
 -- | Replicates the elements of a fold.
-replicated :: Monoid r => Int -> Getting r s a
+replicated :: Monoid r => Int -> Folding r s a
 replicated i (Star (Const a)) = Star (Const (go i a))
   where go 0 _ = mempty
         go n x = x <> go (n - 1) x
 
 -- | Builds a `Fold` using an unfold.
-unfolded :: Monoid r => (s -> Maybe (a, s)) -> Getting r s a
+unfolded :: Monoid r => (s -> Maybe (a, s)) -> Folding r s a
 unfolded f p = Star (Const go)
   where
   go = maybe mempty (\(a, sn) -> runStar (Const p a <> go sn) . f)
 
 toPureOf
   :: Applicative f 
-  => Getting (f a) s a -> s -> f a
+  => Folding (f a) s a -> s -> f a
 toPureOf o = foldMapOf o pure
 
 -- | Collects the foci of a `Fold` into a list.
 --toListOf :: Fold (Endo [a]) s t a b -> s -> [a]
-toListOf :: Getting (Endo [a]) s a -> s -> [a]
+toListOf :: Folding (Endo [a]) s a -> s -> [a]
 toListOf o = foldrOf o (:) []
 
-(^..) :: s -> Getting (Endo [a]) s a -> [a]
+(^..) :: s -> Folding (Endo [a]) s a -> [a]
 (^..) = flip toListOf
 
-(^?) :: s -> Getting (First a) s a -> Maybe a
+(^?) :: s -> Folding (First a) s a -> Maybe a
 (^?) = flip firstOf
 
 -- | The first focus of a `Fold`, if there is any. Synonym for `preview`.
-firstOf :: Getting (First a) s a -> s -> Maybe a
+firstOf :: Folding (First a) s a -> s -> Maybe a
 firstOf l = getFirst . foldMapOf l (First . pure)
 
 -- | The last focus of a `Fold`, if there is any.
-lastOf :: Getting (Last a) s a -> s -> Maybe a
+lastOf :: Folding (Last a) s a -> s -> Maybe a
 lastOf p = getLast . foldMapOf p (Last . Just)
 
 -- | We can freely convert a 'Getter s (Maybe a)' into an 'AffineFold s a'.
--- getJust :: Getting (Maybe a) s (Maybe a) -> AffineFold s a
+-- getJust :: Folding (Maybe a) s (Maybe a) -> AffineFold s a
 getJust :: Choice p => (p (Maybe a) (Maybe b) -> c) -> p a b -> c
 getJust o = o . _Just
 
@@ -129,7 +129,7 @@ Just 'a'
     • No instance for (Semigroup Char)
         arising from a use of ‘traverse'’
 -}
-preview' :: MonadReader s m => Getting (Maybe a) s a -> m (Maybe a)
+preview' :: MonadReader s m => Folding (Maybe a) s a -> m (Maybe a)
 preview' = Reader.asks . (`previewOf` id)
 -}
 

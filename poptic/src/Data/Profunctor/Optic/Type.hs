@@ -103,9 +103,9 @@ type Setter s t a b = forall p. Mapping p => Optic p s t a b
 
 type Setter' s a = Setter s s a a
 
-type PrimGetter s t a b = forall p. OutPhantom p => Optic p s t a b
+type PrimView s t a b = forall p. OutPhantom p => Optic p s t a b
 
-type PrimGetter' s a = PrimGetter s s a a
+type PrimView' s a = PrimView s s a a
 
 -- A 'Getter' extracts exactly one result.
 type Getter s a = forall p. (OutPhantom p, Strong p) => Optic' p s a
@@ -120,11 +120,17 @@ type Closure s t a b = forall p. Closed p => Optic p s t a b
 
 type Closure' s a = Closure s s a a
 
-type Getting r s a = Optic' (Star (Const r)) s a
+type Folding r s a = Optic' (Star (Const r)) s a
 
-type Getting r s a = Optic' (Star (Const r)) s a
+type AFolding r s a = Optic' (Star (Pre r)) s a
 
-type Unfolding r s a = Optic' (Costar (Const r)) s a
+type Unfolding r t b = Optic' (Costar (Const r)) t b
+
+--type Viewing s a = forall r. Folding r s a
+type Viewing s a = Folding a s a
+
+--type Reviewing t b = forall r. Unfolding r t b
+type Reviewing t b = Unfolding b t b
 
 --type Matched r = Star (Either r)
 
@@ -134,10 +140,9 @@ type Validated r = Star (Validation r)
 
 type Validating e s t a b = Optic (Validated e) s t a b
 
---type AffineFolding r = Star (Pre r)
+--type AFolding r = Star (Pre r)
 -- Folding r s a = Optic (Star (Const r)) s a
--- Getting s a = forall r. Folding r s a
-type Getting' s a = Optic' (Costar Identity) s a
+-- Folding s a = forall r. Folding r s a
 --type AffineTraversed r = 
 
 -- Retrieve either 0 or 1 subobjects, with no monoidal interactions.

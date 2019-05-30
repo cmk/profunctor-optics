@@ -80,8 +80,8 @@ The constructors and characterizing operations for the remaining optics are summ
 | [Lens](#lens)                         | `lens`          | `view`, `set`        | `Strong`            |               |
 | [Prism](#prism)                       | `prism`         | `matching`, `review` | `Choice`            |               |
 | [Affine Traversal](#affine-traversal) | `affine`        | `matching`, `set`    | `AffineTraversing`  | `Matched`       |
-| [PrimGetter](#getter)                 | `to`            | `view`               | `OutPhantom`        | `Star (Const c)` |
-| [Getter](#getter)                     | `to`            | `view`               | `Getting`           | `Star (Const c)` |
+| [PrimView](#getter)                 | `to`            | `view`               | `OutPhantom`        | `Star (Const c)` |
+| [Getter](#getter)                     | `to`            | `view`               | `Folding`           | `Star (Const c)` |
 | [PrimSetter](#setter)                 | `setting`       | `over`               | `InPhantom`         | `(->)`        |
 | [Setter](#setter)                     | `setting`       | `over`               | `Mapping`           | `(->)`        |
 | [Review](#review)                     | `unto`          | `review`             | `Reviewing`         | `Costar (Const c)`      |

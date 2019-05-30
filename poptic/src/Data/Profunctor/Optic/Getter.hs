@@ -49,7 +49,7 @@ import Control.Monad.State as State
 -- 'to' :: (s -> a) -> 'Getter' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter s t a b
+to :: (s -> a) -> PrimView s t a b
 to f = ocoerce . dimap f id
 {-# INLINE to #-}
 
@@ -59,7 +59,7 @@ to f = ocoerce . dimap f id
 -- ocoerce (Star h) = Star $ coerce . h
 
 
--- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
+-- | Build a constant-valued (index-preserving) 'PrimView' from an arbitrary value.
 --
 -- @
 -- 'like' a '.' 'like' b ≡ 'like' b
@@ -69,23 +69,23 @@ to f = ocoerce . dimap f id
 --
 -- This can be useful as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
-like :: a -> PrimGetter s t a b
+like :: a -> PrimView s t a b
 like a = to (const a)
 
 
 -- @
--- 'get' :: 'Getting' a s a -> 'Getter' s a
+-- 'get' :: 'Folding' a s a -> 'Getter' s a
 -- @
---get :: Getting a s a -> PrimGetter s t a b
+--get :: Viewing s a -> PrimView s t a b
 --get = to . view
 
 -- @
--- 'getBoth' :: 'Getting' a s a -> 'Getting' b s b -> 'Getter' s (a, b)
+-- 'getBoth' :: 'Folding' a s a -> 'Folding' b s b -> 'Getter' s (a, b)
 -- @
-getBoth :: Getting a1 s a1 -> Getting a2 s a2 -> PrimGetter s t (a1, a2) b
+getBoth :: Folding a1 s a1 -> Folding a2 s a2 -> PrimView s t (a1, a2) b
 getBoth l r = to (view l &&& view r)
 
-getEither :: Getting a s1 a -> Getting a s2 a -> PrimGetter (Either s1 s2) t a b
+getEither :: Folding a s1 a -> Folding a s2 a -> PrimView (Either s1 s2) t a b
 getEither l r = to (view l ||| view r)
 
 
@@ -94,14 +94,14 @@ getEither l r = to (view l ||| view r)
 ---------------------------------------------------------------------
 
 infixl 8 ^.
-(^.) :: s -> Getting a s a -> a
+(^.) :: s -> Viewing s a -> a
 (^.) = flip view
 
 
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
 -- @
-view :: MonadReader s m => Getting a s a -> m a
+view :: MonadReader s m => Viewing s a -> m a
 view = Reader.asks . (`foldMapOf` id)
 {-# INLINE view #-}
 
@@ -109,12 +109,12 @@ view = Reader.asks . (`foldMapOf` id)
 -- ^ @
 -- 'views o f ≡ foldMapOf o f'
 -- @
-views :: MonadReader s m => Getting r s a -> (a -> r) -> m r
+views :: MonadReader s m => Folding r s a -> (a -> r) -> m r
 views o f = Reader.asks $ foldMapOf o f
 {-# INLINE views #-}
 
 
-use :: MonadState s m => Getting a s a -> m a
+use :: MonadState s m => Viewing s a -> m a
 use o = State.gets (view o)
 
 
@@ -131,13 +131,13 @@ use o = State.gets (view o)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
-listening :: MonadWriter w m => Getting u w u -> m a -> m (a, u)
+listening :: MonadWriter w m => Folding u w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)
 {-# INLINE listening #-}
 
-listenings :: MonadWriter w m => Getting v w u -> (u -> v) -> m a -> m (a, v)
+listenings :: MonadWriter w m => Folding v w u -> (u -> v) -> m a -> m (a, v)
 listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)

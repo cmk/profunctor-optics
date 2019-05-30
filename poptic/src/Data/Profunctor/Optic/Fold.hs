@@ -53,7 +53,7 @@ toAffineFold = (. _Just)
 fromAffineFold :: AffineFold s a -> Getter s (Maybe a)
 fromAffineFold = to . preview
 
-cloneAffineFold :: Getting (Maybe a) s (Maybe a) -> AffineFold s a
+cloneAffineFold :: Folding (Maybe a) s (Maybe a) -> AffineFold s a
 cloneAffineFold = (. _Just) . to . view 
 
 
@@ -99,13 +99,13 @@ folding' f = wander traverse . to f
 
 
 {-
-cloneFold1 :: Semigroup r => Getting r s a -> Fold1 s a
+cloneFold1 :: Semigroup r => Folding r s a -> Fold1 s a
 cloneFold1 f = to $ \s -> getConst (f Const s)
 
-cloneFold :: Monoid r => Getting r s a -> Fold s a
+cloneFold :: Monoid r => Folding r s a -> Fold s a
 cloneFold f = to $ \s -> getConst (f Const s)
 
-cloneAffineFold :: Semigroup r => Getting (Maybe r) s a -> Fold s a
+cloneAffineFold :: Semigroup r => Folding (Maybe r) s a -> Fold s a
 cloneAffineFold f = to $ \s -> getConst (f Const s)
 -}
 
@@ -114,11 +114,11 @@ cloneAffineFold f = to $ \s -> getConst (f Const s)
 
 
 -- | Folds over a `Foldable` container.
-folded :: Foldable f => Monoid r => Getting r (f a) a
+folded :: Foldable f => Monoid r => Folding r (f a) a
 folded (Star Const) = undefined --Star $ Const . foldMap a
 
 -- | Folds over a `Foldable` container.
---folded :: (Foldable f, Monoid r) => (a -> r) -> Getting r (f a) a
+--folded :: (Foldable f, Monoid r) => (a -> r) -> Folding r (f a) a
 folded :: (Foldable f, Monoid r) => (a -> r) -> Star (Const r) (f a) a
 folded f = forget (foldMap f)
 
@@ -127,13 +127,13 @@ cofolded f = Costar (foldMap f)
 
 
 -- | Replicates the elements of a fold.
-replicated :: Monoid r => Int -> Getting r s a
+replicated :: Monoid r => Int -> Folding r s a
 replicated i (Star (Const a)) = Star (Const (go i a))
   where go 0 _ = mempty
         go n x = x <> go (n - 1) x
 
 -- | Builds a `Fold` using an unfold.
-unfolded :: Monoid r => (s -> Maybe (a, s)) -> Getting r s a
+unfolded :: Monoid r => (s -> Maybe (a, s)) -> Folding r s a
 unfolded f p = Star (Const go)
   where
   go = maybe mempty (\(a, sn) -> runStar (Const p a <> go sn) . f)
@@ -176,33 +176,33 @@ folding1' f = wander1 traverse1 . to f
 -- Operators
 ---------------------------------------------------------------------
 
-foldOf :: Getting a s a -> s -> a
+foldOf :: Folding a s a -> s -> a
 foldOf = flip foldMapOf id
 
-fold1Of :: Semigroup a => Getting a s a -> s -> a
+fold1Of :: Semigroup a => Folding a s a -> s -> a
 fold1Of = flip foldMap1Of id
 
 -- >>> foldMap1Of (folding1 (0 :|)) Min [1..10]
 -- Min {getMin = 0}
-foldMap1Of :: Semigroup r => Getting r s a -> (a -> r) -> s -> r
+foldMap1Of :: Semigroup r => Folding r s a -> (a -> r) -> s -> r
 foldMap1Of = foldMapOf
 
 
 
 
 -- @
--- preview :: 'Getting' ('First' a) s a -> s -> 'Maybe' a
+-- preview :: 'Folding' ('First' a) s a -> s -> 'Maybe' a
 -- @
 --
 preview 
   :: MonadReader s m 
-  => Getting (Maybe (First a)) s a  
+  => Folding (Maybe (First a)) s a  
   -> m (Maybe a)
 preview o = Reader.asks $ \s -> getFirst <$> foldMapOf o (Just . First) s 
 
 preuse 
   :: MonadState s m
-  => Getting (Maybe (First a)) s a  
+  => Folding (Maybe (First a)) s a  
   -> m (Maybe a)
 preuse o = State.gets (preview o)
 
@@ -236,7 +236,7 @@ infixl 8 ^?
 -- ('^?') :: s -> 'Iso'' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
 -- @
-(^?) :: s -> Getting (Maybe (First a)) s a -> Maybe a
+(^?) :: s -> Folding (Maybe (First a)) s a -> Maybe a
 s ^? o = getFirst <$> foldMapOf o (Just . First) s
 
 
@@ -245,15 +245,15 @@ s ^? o = getFirst <$> foldMapOf o (Just . First) s
 -- toPureOf :: (Applicative f, Monoid (f a)) => Fold s a -> s -> f a
 -- toPureOf :: Applicative f => Setter s t a b -> s -> f a
 -- @
-toPureOf :: Applicative f => Getting (f a) s a -> s -> f a
+toPureOf :: Applicative f => Folding (f a) s a -> s -> f a
 toPureOf o = foldMapOf o pure
 
 -- | Collects the foci of a `Fold1` into a non-empty list.
---toNelOf :: Getting (Endo (NonEmpty a)) s a -> s -> NonEmpty a
+--toNelOf :: Folding (Endo (NonEmpty a)) s a -> s -> NonEmpty a
 --toNelOf o = undefined
 
 -- | Collects the foci of a `Fold` into a list.
-toListOf :: Getting (Endo [a]) s a -> s -> [a]
+toListOf :: Folding (Endo [a]) s a -> s -> [a]
 toListOf o = foldrOf o (:) []
 
 
@@ -285,7 +285,7 @@ infixl 8 ^..
 -- ('^..') :: s -> 'Prism'' s a     -> [a]
 -- ('^..') :: s -> 'Affine'' s a    -> [a]
 -- @
-(^..) :: s -> Getting (Endo [a]) s a -> [a]
+(^..) :: s -> Folding (Endo [a]) s a -> [a]
 (^..) = flip toListOf
 {-# INLINE (^..) #-}
 
@@ -295,19 +295,19 @@ infixl 8 ^..
 
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.
 --
-findOf :: Getting (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f =
   foldrOf o (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
 
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
-maximumOf :: Ord a => Getting (Endo (Maybe a)) s a -> s -> Maybe a
+maximumOf :: Ord a => Folding (Endo (Maybe a)) s a -> s -> Maybe a
 maximumOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
-minimumOf :: Ord a => Getting (Endo (Maybe a)) s a -> s -> Maybe a
+minimumOf :: Ord a => Folding (Endo (Maybe a)) s a -> s -> Maybe a
 minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 
 
@@ -332,7 +332,7 @@ minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -- 'maximumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'maximumByOf' :: 'Traversal'' s a -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- @
-maximumByOf :: Getting (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+maximumByOf :: Folding (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
 maximumByOf o cmp = foldlOf' o mf Nothing where
   mf Nothing y = Just $! y
   mf (Just x) y = Just $! if cmp x y == GT then x else y
@@ -357,7 +357,7 @@ maximumByOf o cmp = foldlOf' o mf Nothing where
 -- 'minimumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Traversal'' s a -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- @
-minimumByOf :: Getting (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+minimumByOf :: Folding (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
 minimumByOf o cmp = foldlOf' o mf Nothing where
   mf Nothing y = Just $! y
   mf (Just x) y = Just $! if cmp x y == GT then y else x
@@ -389,10 +389,10 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
 -- A simpler version that didn't permit indexing, would be:
 --
 -- @
--- 'findOf' :: 'Getting' ('Endo' ('Maybe' a)) s a -> (a -> 'Bool') -> s -> 'Maybe' a
+-- 'findOf' :: 'Folding' ('Endo' ('Maybe' a)) s a -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' o p = 'foldrOf' o (\a y -> if p a then 'Just' a else y) 'Nothing'
 -- @
-findOf :: Getting (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE findOf #-}
 
@@ -429,10 +429,10 @@ findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 -- A simpler version that didn't permit indexing, would be:
 --
 -- @
--- 'findMOf' :: Monad m => 'Getting' ('Endo' (m ('Maybe' a))) s a -> (a -> m 'Bool') -> s -> m ('Maybe' a)
+-- 'findMOf' :: Monad m => 'Folding' ('Endo' (m ('Maybe' a))) s a -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' o p = 'foldrOf' o (\a y -> p a >>= \x -> if x then return ('Just' a) else y) $ return 'Nothing'
 -- @
-findMOf :: Monad m => Getting (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
+findMOf :: Monad m => Folding (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
 findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y) $ return Nothing
 {-# INLINE findMOf #-}
 
@@ -450,71 +450,71 @@ findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y)
 -- @
 -- 'lookupOf' :: 'Eq' k => 'Fold' s (k,v) -> k -> s -> 'Maybe' v
 -- @
-lookupOf :: Eq k => Getting (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
+lookupOf :: Eq k => Folding (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
 lookupOf o k = foldrOf o (\(k',v) next -> if k == k' then Just v else next) Nothing
 {-# INLINE lookupOf #-}
 -}
 
 
-sumOf :: Num a => Getting (Sum a) s a -> s -> a
+sumOf :: Num a => Folding (Sum a) s a -> s -> a
 sumOf o = getSum . foldMapOf o Sum
 
-productOf :: Num a => Getting (Product a) s a -> s -> a
+productOf :: Num a => Folding (Product a) s a -> s -> a
 productOf o = getProduct . foldMapOf o Product
 
-allOf :: Getting All s a -> (a -> Bool) -> s -> Bool
+allOf :: Folding All s a -> (a -> Bool) -> s -> Bool
 allOf o p = getAll . foldMapOf o (All . p)
 
-anyOf :: Getting Any s a -> (a -> Bool) -> s -> Bool
+anyOf :: Folding Any s a -> (a -> Bool) -> s -> Bool
 anyOf o p = getAny . foldMapOf o (Any . p)
 
-lengthOf :: Num r => Getting (Sum r) s a -> s -> r
+lengthOf :: Num r => Folding (Sum r) s a -> s -> r
 lengthOf o = getSum . foldMapOf o (const (Sum 1))
 
-nullOf :: Getting All s a -> s -> Bool
+nullOf :: Folding All s a -> s -> Bool
 nullOf o = allOf o (const False)
 
 -- | Right fold over a 'Fold'.
-foldrOf :: Getting (Endo c) s a -> (a -> c -> c) -> c -> s -> c
+foldrOf :: Folding (Endo c) s a -> (a -> c -> c) -> c -> s -> c
 foldrOf p f r = flip appEndo r . foldMapOf p (Endo . f)
 
 -- | Left fold over a 'Fold'.
-foldlOf :: Getting (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
+foldlOf :: Folding (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
 foldlOf p f r = flip appEndo r . getDual . foldMapOf p (Dual . Endo . flip f)
 
 -- | Traverse the foci of a `Fold`, discarding the results.
 traverseOf_
   :: Applicative f 
-  => Getting (Endo (f ())) s a -> (a -> f x) -> s -> f ()
+  => Folding (Endo (f ())) s a -> (a -> f x) -> s -> f ()
 traverseOf_ p f = foldrOf p (\a f' -> (() <$) (f a) *> f') $ pure ()
 
 sequenceOf_
   :: Applicative f 
-  => Getting (Endo (f ())) s (f a) -> s -> f ()
+  => Folding (Endo (f ())) s (f a) -> s -> f ()
 sequenceOf_ p = traverseOf_ p id
 
 -- | Whether a `Fold` contains a given element.
-elemOf :: Eq a => Getting Any s a -> a -> s -> Bool
+elemOf :: Eq a => Folding Any s a -> a -> s -> Bool
 elemOf p a = anyOf p (== a)
 
 -- | Whether a `Fold` not contains a given element.
-notElemOf :: Eq a => Getting All s a -> a -> s -> Bool
+notElemOf :: Eq a => Folding All s a -> a -> s -> Bool
 notElemOf p a = allOf p (/= a)
 
 -- | Determines whether a `Fold` has at least one focus.
 --
-has :: Getting Any s a -> s -> Bool
+has :: Folding Any s a -> s -> Bool
 has p = getAny . foldMapOf p (const (Any True))
 
 -- | Determines whether a `Fold` does not have a focus.
 --
-hasnt :: Getting All s a -> s -> Bool
+hasnt :: Folding All s a -> s -> Bool
 hasnt p = getAll . foldMapOf p (const (All False))
 
-toEndoOf :: Getting (Endo (a -> a)) s (a -> a) -> s -> a -> a
+toEndoOf :: Folding (Endo (a -> a)) s (a -> a) -> s -> a -> a
 toEndoOf o = foldrOf o (.) id
 
-toEndoMOf :: Monad m => Getting (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
+toEndoMOf :: Monad m => Folding (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
 toEndoMOf o = foldrOf o (<=<) pure
 
 

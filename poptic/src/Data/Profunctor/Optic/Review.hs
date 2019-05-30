@@ -52,7 +52,7 @@ unto f = icoerce . dimap id f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: Getting a s a -> PrimReview b a t s
+un :: Viewing s a -> PrimReview b a t s
 un = unto . (`foldMapOf` id)
 
 
@@ -70,10 +70,10 @@ relike t = unto (const t)
 --cloneReview :: Reviewing b t b -> PrimReview' t b
 --cloneReview = unto . review
 
-reviewBoth :: Reviewing b t1 b -> Reviewing b t2 b -> PrimReview s (t1, t2) a b
+reviewBoth :: Reviewing t1 b -> Reviewing t2 b -> PrimReview s (t1, t2) a b
 reviewBoth l r = unto (review l &&& review r)
 
-reviewEither :: Reviewing b1 t b1 -> Reviewing b2 t b2 -> PrimReview s t a (Either b1 b2)
+reviewEither :: Reviewing t b1 -> Reviewing t b2 -> PrimReview s t a (Either b1 b2)
 reviewEither l r = unto (review l ||| review r)
 
 
@@ -105,7 +105,7 @@ reviewEither l r = unto (review l ||| review r)
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
 --
-(#) :: Reviewing b t b -> b -> t
+(#) :: Reviewing t b -> b -> t
 o # b = review o b
 {-# INLINE ( # ) #-}
 
@@ -113,7 +113,7 @@ o # b = review o b
 -- 'review o ≡ unfoldMapOf o id'
 -- @
 --
-review :: MonadReader b m => Reviewing b t b -> m t
+review :: MonadReader b m => Reviewing t b -> m t
 review = Reader.asks . (`unfoldMapOf` id) 
 {-# INLINE review #-}
 
@@ -121,7 +121,7 @@ review = Reader.asks . (`unfoldMapOf` id)
 -- 'reviews o f ≡ unfoldMapOf o f'
 -- @
 --
-reviews :: MonadReader r m => Reviewing r t b -> (r -> b) -> m t
+reviews :: MonadReader r m => Unfolding r t b -> (r -> b) -> m t
 reviews o f = Reader.asks $ unfoldMapOf o f 
 {-# INLINE reviews #-}
 
