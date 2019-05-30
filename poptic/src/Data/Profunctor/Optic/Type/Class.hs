@@ -14,7 +14,9 @@ module Data.Profunctor.Optic.Type.Class (
   , module Export
 ) where
 
-import Data.Profunctor.Optic.Prelude
+import Control.Comonad (Comonad(..))
+
+import Data.Profunctor.Optic.Prelude hiding (extract)
 
 import Data.Profunctor.Types           --as Export hiding (Forget(..))
 import Data.Profunctor.Choice          as Export 
@@ -26,6 +28,11 @@ import Data.Profunctor.Traversing      as Export
 
 coerce :: (Contravariant f, Functor f) => f a -> f b
 coerce = phantom
+
+instance Comonad f => Strong (Costar f) where
+  first' (Costar f) = Costar $ \x -> (f (fmap fst x), snd (extract x))
+
+  second' (Costar f) = Costar $ \x -> (fst (extract x), f (fmap snd x))
 
 
 class Profunctor p => InPhantom p where
@@ -50,7 +57,7 @@ instance OutPhantom (Forget f) where
   ocoerce (Forget f) = (Forget f)
 
 cimap :: OutPhantom p => (a -> b) -> (c -> d) -> p b d -> p a c
-cimap f _ = lmap f . ocoerce
+cimap f _ = dimap f id . ocoerce
 
 firstDefault :: OutPhantom p => p a b -> p (a,c) (b,c)
 firstDefault = ocoerce . dimap fst id

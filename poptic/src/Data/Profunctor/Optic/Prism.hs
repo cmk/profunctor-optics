@@ -14,6 +14,9 @@ import Data.Profunctor.Choice as Export
 
 {- prism laws:
 
+Prism is the characterization of a Choice profunctor. It identifies 
+objects as consisting of a sum of two components.
+
 prism_complete :: Prism s t a b -> Bool
 prism_complete p = tripping p $ prism (preview p) (matching p)
 
@@ -84,6 +87,47 @@ clonePrism l = withPrism l $ \x y p -> prism x y p
 
 withPrism :: APrism s t a b -> ((b -> t) -> (s -> Either t a) -> r) -> r
 withPrism l f = case l (PrismRep id Right) of PrismRep g h -> f g h
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+
+-- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
+data PrismRep a b s t = PrismRep (b -> t) (s -> Either t a)
+
+instance Functor (PrismRep a b s) where
+
+  fmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
+  {-# INLINE fmap #-}
+
+instance Profunctor (PrismRep a b) where
+
+  dimap f g (PrismRep bt seta) = PrismRep (g . bt) $
+    either (Left . g) Right . seta . f
+  {-# INLINE dimap #-}
+
+  lmap f (PrismRep bt seta) = PrismRep bt (seta . f)
+  {-# INLINE lmap #-}
+
+  rmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
+  {-# INLINE rmap #-}
+
+instance Choice (PrismRep a b) where
+
+  left' (PrismRep bt seta) = PrismRep (Left . bt) $ 
+    either (either (Left . Left) Right . seta) (Left . Right)
+  {-# INLINE left' #-}
+
+  right' (PrismRep bt seta) = PrismRep (Right . bt) $ 
+    either (Left . Left) (either (Left . Right) Right . seta)
+  {-# INLINE right' #-}
+
+
+type APrism s t a b = Optic (PrismRep a b) s t a b
+
+-- | When you see this as an argument to a function, it expects a 'Prism'.
+type APrism' s a = APrism s s a a
 
 ---------------------------------------------------------------------
 -- Common prisms
@@ -169,9 +213,9 @@ without k =
 ---------------------------------------------------------------------
 
 -- | Test whether the optic matches or not.
-is :: Optic (Star (Either a)) s t a b -> s -> Bool
+is :: Matching a s t a b -> s -> Bool
 is o = either (const False) (const True) . match o
 
 -- | Test whether the optic matches or not.
-isnt :: Optic (Star (Either a)) s t a b -> s -> Bool
+isnt :: Matching a s t a b -> s -> Bool
 isnt o = not . is o

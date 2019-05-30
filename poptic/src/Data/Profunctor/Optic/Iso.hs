@@ -87,8 +87,38 @@ from' o = iso (review . Const) (getConst . get)
     Pair (Star get) (Costar review) = o (Pair (Star Const) (Costar getConst))
 
 ---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+-- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
+data IsoRep a b s t = IsoRep (s -> a) (b -> t)
+
+instance Functor (IsoRep a b s) where
+  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE fmap #-}
+
+instance Profunctor (IsoRep a b) where
+  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
+  {-# INLINE dimap #-}
+  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
+  {-# INLINE lmap #-}
+  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE rmap #-}
+
+-- | When you see this as an argument to a function, it expects an 'Iso'.
+type AnIso s t a b = Optic (IsoRep a b) s t a b
+
+type AnIso' s a = AnIso s s a a
+
+---------------------------------------------------------------------
 -- Common isos
 ---------------------------------------------------------------------
+
+forget2 :: Iso s t (a, x) (b, x) -> Lens s t a b
+forget2 = (. first')
+
+forgetR :: Iso s t (Either a c) (Either b c) -> Prism s t a b
+forgetR = (. left')
 
 curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
 curried = iso curry uncurry

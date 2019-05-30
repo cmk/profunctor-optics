@@ -2,10 +2,9 @@
 
 module Data.Profunctor.Optic.Getter where
 
-import Control.Arrow ((&&&))
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
-import Data.Profunctor.Optic.Prelude (Const(..), lmap)
+import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Prism (_Just)
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer
@@ -51,7 +50,7 @@ import Control.Monad.State as State
 -- @
 --
 to :: (s -> a) -> PrimGetter s t a b
-to f = ocoerce . lmap f
+to f = ocoerce . dimap f id
 {-# INLINE to #-}
 
 
@@ -75,17 +74,19 @@ like a = to (const a)
 
 
 -- @
--- 'cloneGetter' :: 'Getting' a s a -> 'Getter' s a
+-- 'get' :: 'Getting' a s a -> 'Getter' s a
 -- @
-cloneGetter :: Getting a s a -> PrimGetter s t a b
-cloneGetter = to . view
+--get :: Getting a s a -> PrimGetter s t a b
+--get = to . view
 
 -- @
--- 'cloneGetter' :: 'Getting' a s a -> 'Getting' b s b -> 'Getter' s (a, b)
+-- 'getBoth' :: 'Getting' a s a -> 'Getting' b s b -> 'Getter' s (a, b)
 -- @
-cloneGetters :: Getting a s a -> Getting b s b -> PrimGetter' s (a, b)
-cloneGetters l r = to (view l &&& view r)
+getBoth :: Getting a1 s a1 -> Getting a2 s a2 -> PrimGetter s t (a1, a2) b
+getBoth l r = to (view l &&& view r)
 
+getEither :: Getting a s1 a -> Getting a s2 a -> PrimGetter (Either s1 s2) t a b
+getEither l r = to (view l ||| view r)
 
 
 ---------------------------------------------------------------------

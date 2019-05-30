@@ -36,8 +36,8 @@ sets f = dimap (Context id) (\(Context g s) -> f g s) . map'
 -- Common setters
 ---------------------------------------------------------------------
 
-setlens :: Setter (s -> a) ((a -> b) -> s -> t) b t
-setlens = sets between
+resets :: Setter (s -> a) ((a -> b) -> s -> t) b t
+resets = sets between
 
 --composed :: Setter (a -> b -> s) (a -> b -> t) s t
 --composed = sets ((.)(.)(.))

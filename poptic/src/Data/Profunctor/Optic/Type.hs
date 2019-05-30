@@ -1,6 +1,9 @@
 {-# LANGUAGE UndecidableSuperClasses, TypeOperators , GADTs, DataKinds, KindSignatures, TypeFamilies #-}
 
-{-# LANGUAGE TupleSections, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE TupleSections #-}
 
 module Data.Profunctor.Optic.Type (
     module Data.Profunctor.Optic.Type
@@ -10,8 +13,18 @@ module Data.Profunctor.Optic.Type (
 import Data.Semigroup (First, Last)
 import Data.Profunctor.Optic.Type.Class 
 import Data.Profunctor.Optic.Prelude
+import Data.Either.Validation (Validation)
 
 
+import           Control.Applicative
+import           Control.Monad
+import           Control.Monad.Fix
+import           Data.Bifoldable
+import           Data.Bifunctor
+import           Data.Bitraversable
+import           Data.Coerce
+import           Data.Data
+import           GHC.Generics
 
 type Optic p s t a b = p a b -> p s t
 
@@ -30,19 +43,11 @@ type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
 type Iso' s a = Iso s s a a
 
-type AnIso s t a b = Optic (IsoRep a b) s t a b
-
-type AnIso' s a = AnIso s s a a
-
 type VLIso s t a b = forall p f. (Profunctor p, Functor f) => p a (f b) -> p s (f t)
 
 type Lens s t a b = forall p. Strong p => Optic p s t a b
 
 type Lens' s a = Lens s s a a
-
-type ALens s t a b = Optic (LensRep a b) s t a b
-
-type ALens' s a = ALens s s a a
 
 type VLLens s t a b = forall f. Functor f => LensLike f s t a b
 
@@ -50,21 +55,12 @@ type Prism s t a b = forall p. Choice p => Optic p s t a b
 
 type Prism' s a = Prism s s a a
 
-type APrism s t a b = Optic (PrismRep a b) s t a b
-
-type APrism' s a = APrism s s a a
-
 type VLPrism s t a b = forall p f. (Choice p, Applicative f) => p a (f b) -> p s (f t)
 
-type AffineTraversing p = (Strong p, Choice p)
+-- An 'AffineFold' extracts at most one result, with no monoidal interactions.
+type AffineTraversal s t a b = forall p. (Strong p, Choice p) => Optic p s t a b
 
-type Affine s t a b = forall p. AffineTraversing p => Optic p s t a b
-
-type Affine' s a = Affine s s a a
-
-type AnAffine s t a b = Optic (AffineRep a b) s t a b
-
-type AnAffine' s a = Affine s s a a
+type AffineTraversal' s a = AffineTraversal s s a a
 
 type Traversal s t a b = forall p. Traversing p => Optic p s t a b
 
@@ -80,11 +76,6 @@ type VLTraversal1 s t a b = forall f. Apply f => LensLike f s t a b
 
 -- An 'AffineFold' extracts at most one result.
 type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
-
-type Pre s a = Optic' (Star (Const (Maybe (First a)))) s a
-
-type Post s a = Optic' (Star (Const (Maybe (Last a)))) s a
-
 
 -- | A 'Fold' describes how to retrieve multiple values in a way that can be composed
 -- with other optics.
@@ -103,40 +94,21 @@ type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 
 type VLFold s a = forall f. (Contravariant f, Applicative f) => LensLike' f s a
 
-type Getting r s a = Optic' (Star (Const r)) s a
-
-type Reviewing r s a = Optic' (Costar (Const r)) s a
-
 -- A 'Fold1' extracts at least one result.
 type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a 
 
 type VLFold1 s a = forall f. (Contravariant f, Apply f) => LensLike' f s a
 
---type Getting1 r s a = Semigroup r => Optic' (Star (Const r)) s a
-
 type Setter s t a b = forall p. Mapping p => Optic p s t a b
 
 type Setter' s a = Setter s s a a
-
-type ASetter s t a b = Optic (->) s t a b 
 
 type PrimGetter s t a b = forall p. OutPhantom p => Optic p s t a b
 
 type PrimGetter' s a = PrimGetter s s a a
 
---type APrimGetter s a = Optic' Tagged s a
-
---type Getting r s a = Optic' (Star (Const r)) s a
-
--- type GetterRep r s a = Optic' (Star (Const r)) s a
--- type Getting s a = forall r. GetterRep r s a
-
---type Getting p = (OutPhantom p, Strong p) 
-
 -- A 'Getter' extracts exactly one result.
 type Getter s a = forall p. (OutPhantom p, Strong p) => Optic' p s a
-
---type Getting r s a = Optic' (Star (Const r)) s a
 
 type PrimReview s t a b = forall p. InPhantom p => Optic p s t a b
 
@@ -148,8 +120,159 @@ type Closure s t a b = forall p. Closed p => Optic p s t a b
 
 type Closure' s a = Closure s s a a
 
-type AClosure s t a b = Optic (ClosureRep a b) s t a b
+type Getting r s a = Optic' (Star (Const r)) s a
 
+type Getting r s a = Optic' (Star (Const r)) s a
+
+type Unfolding r s a = Optic' (Costar (Const r)) s a
+
+--type Matched r = Star (Either r)
+
+type Matching e s t a b = Optic (Matched e) s t a b
+
+type Validated r = Star (Validation r)
+
+type Validating e s t a b = Optic (Validated e) s t a b
+
+--type AffineFolding r = Star (Pre r)
+-- Folding r s a = Optic (Star (Const r)) s a
+-- Getting s a = forall r. Folding r s a
+type Getting' s a = Optic' (Costar Identity) s a
+--type AffineTraversed r = 
+
+-- Retrieve either 0 or 1 subobjects, with no monoidal interactions.
+type Previewing s a = Optic' (Previewed a) s a
+
+
+
+---------------------------------------------------------------------
+-- 'Matched'
+---------------------------------------------------------------------
+
+newtype Matched r a b = Matched { runMatched :: a -> Either b r }
+
+instance Profunctor (Matched r) where
+    dimap f g (Matched p) = Matched (first g . p . f)
+
+instance Choice (Matched r) where
+    right' (Matched p) = Matched (unassoc . fmap p)
+
+instance Strong (Matched r) where
+    first' (Matched p) = Matched (\(a,c) -> first (,c) (p a))
+
+{-
+instance Costrong (Matched r) where
+    unfirst (Matched f) =
+       Matched (first fst . f . (, error "Costrong Matched"))
+-}
+
+--TODO give this a Traversing instance or else use matching'
+
+---------------------------------------------------------------------
+-- 'Previewed'
+---------------------------------------------------------------------
+
+-- This is for Affine
+newtype Previewed r a b = Previewed { runPreviewed :: a -> Maybe r }
+
+instance Profunctor (Previewed r) where
+    dimap f _ (Previewed p) = Previewed (p . f)
+
+instance OutPhantom (Previewed r) where
+    ocoerce (Previewed p) = (Previewed p)
+
+instance Choice (Previewed r) where
+    right' (Previewed p) = Previewed (either (const Nothing) p)
+
+instance Strong (Previewed r) where
+    first' (Previewed p) = Previewed (p . fst)
+
+
+---------------------------------------------------------------------
+-- 'Pre'
+---------------------------------------------------------------------
+
+-- | 'Pre' is 'Maybe' with a phantom type variable.
+--
+-- 
+-- Star (Pre r) a b has Strong. Also Choice & Traversing when r is a Semigroup.
+newtype Pre a b = Pre { runPre :: Maybe a } deriving (Eq, Ord, Show, Data, Generic, Generic1)
+
+instance Functor (Pre a) where fmap f (Pre p) = Pre p
+
+instance Contravariant (Pre a) where contramap f (Pre p) = Pre p
+
+instance Semigroup a => Applicative (Pre a) where
+    pure _ = Pre $ mempty
+
+    (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
+
+{-
+instance Functor Pre where
+  fmap f (Pre a) = Pre (fmap f a)
+
+instance Applicative Pre where
+  pure a = Pre (Just a)
+  Pre a <*> Pre b = Pre (a <*> b)
+  liftA2 f (Pre x) (Pre y) = Pre (liftA2 f x y)
+
+  Pre Nothing  *>  _ = Pre Nothing
+  _               *>  b = b
+
+instance Monad Pre where
+  Pre (Just a) >>= k = k a
+  _               >>= _ = Pre Nothing
+  (>>) = (*>)
+
+instance Alternative Pre where
+  empty = Pre Nothing
+  Pre Nothing <|> b = b
+  a <|> _ = a
+
+instance MonadPlus Pre
+
+instance MonadFix Pre where
+  mfix f = Pre (mfix (runPre . f))
+
+instance Foldable Pre where
+  foldMap f (Pre (Just m)) = f m
+  foldMap _ (Pre Nothing)  = mempty
+
+instance Traversable Pre where
+  traverse f (Pre (Just a)) = Pre . Just <$> f a
+  traverse _ (Pre Nothing)  = pure (Pre Nothing)
+-}
+
+---------------------------------------------------------------------
+-- 'Re'
+---------------------------------------------------------------------
+
+
+--The 'Re' type, and its instances witness the symmetry of 'Profunctor' 
+-- and the relation between 'InPhantom' and 'OutPhantom'.
+
+newtype Re p s t a b = Re { runRe :: p b a -> p t s }
+
+instance Profunctor p => Profunctor (Re p s t) where
+    dimap f g (Re p) = Re (p . dimap g f)
+
+instance Cochoice p => Choice (Re p s t) where
+    right' (Re p) = Re (p . unright)
+
+instance Costrong p => Strong (Re p s t) where
+    first' (Re p) = Re (p . unfirst)
+
+instance Choice p => Cochoice (Re p s t) where
+    unright (Re p) = Re (p . right')
+
+instance Strong p => Costrong (Re p s t) where
+    unfirst (Re p) = Re (p . first')
+
+instance InPhantom p => OutPhantom (Re p s t) where 
+    ocoerce (Re p) = Re (p . icoerce)
+
+instance OutPhantom p => InPhantom (Re p s t) where 
+    icoerce (Re p) = Re (p . ocoerce)
 
 
 ---------------------------------------------------------------------
@@ -225,159 +348,6 @@ split lab lcd =
 splitting :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
 splitting f g = between runSplit Split (dimap f g)
 
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
-
---The 'Re' type, and its instances witness the symmetry of 'Profunctor' 
--- and the relation between 'InPhantom' and 'OutPhantom'.
-
-newtype Re p s t a b = Re { runRe :: p b a -> p t s }
-
-instance Profunctor p => Profunctor (Re p s t) where
-    dimap f g (Re p) = Re (p . dimap g f)
-
-instance Cochoice p => Choice (Re p s t) where
-    right' (Re p) = Re (p . unright)
-
-instance Costrong p => Strong (Re p s t) where
-    first' (Re p) = Re (p . unfirst)
-
-instance Choice p => Cochoice (Re p s t) where
-    unright (Re p) = Re (p . right')
-
-instance Strong p => Costrong (Re p s t) where
-    unfirst (Re p) = Re (p . first')
-
-instance InPhantom p => OutPhantom (Re p s t) where 
-    ocoerce (Re p) = Re (p . icoerce)
-
-instance OutPhantom p => InPhantom (Re p s t) where 
-    icoerce (Re p) = Re (p . ocoerce)
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
--- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
-data IsoRep a b s t = IsoRep (s -> a) (b -> t)
-
-instance Functor (IsoRep a b s) where
-  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE fmap #-}
-
-instance Profunctor (IsoRep a b) where
-  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
-  {-# INLINE dimap #-}
-  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
-  {-# INLINE lmap #-}
-  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE rmap #-}
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
-
--- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
-data PrismRep a b s t = PrismRep (b -> t) (s -> Either t a)
-
-instance Functor (PrismRep a b s) where
-
-  fmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
-  {-# INLINE fmap #-}
-
-instance Profunctor (PrismRep a b) where
-
-  dimap f g (PrismRep bt seta) = PrismRep (g . bt) $
-    either (Left . g) Right . seta . f
-  {-# INLINE dimap #-}
-
-  lmap f (PrismRep bt seta) = PrismRep bt (seta . f)
-  {-# INLINE lmap #-}
-
-  rmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
-  {-# INLINE rmap #-}
-
-instance Choice (PrismRep a b) where
-
-  left' (PrismRep bt seta) = PrismRep (Left . bt) $ 
-    either (either (Left . Left) Right . seta) (Left . Right)
-  {-# INLINE left' #-}
-
-  right' (PrismRep bt seta) = PrismRep (Right . bt) $ 
-    either (Left . Left) (either (Left . Right) Right . seta)
-  {-# INLINE right' #-}
-
-
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
-
--- | The `LensRep` profunctor precisely characterizes a 'Lens'.
-data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
-
-instance Profunctor (LensRep a b) where
-
-  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
-
-instance Strong (LensRep a b) where
-
-  first' (LensRep sa sbt) =
-    LensRep (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
-
-  second' (LensRep sa sbt) =
-    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
--- | The `LensRep` profunctor precisely characterizes a 'Lens'.
-data AffineRep a b s t = AffineRep (s -> Either t a) (s -> b -> t)
-
-idAffineRep :: AffineRep a b a b
-idAffineRep = AffineRep Right (\_ -> id)
-
-instance Profunctor (AffineRep u v) where
-    dimap f g (AffineRep getter setter) = AffineRep
-        (\a -> first g $ getter (f a))
-        (\a v -> g (setter (f a) v))
-
-instance Strong (AffineRep u v) where
-    first' (AffineRep getter setter) = AffineRep
-        (\(a, c) -> first (,c) $ getter a)
-        (\(a, c) v -> (setter a v, c))
-
-instance Choice (AffineRep u v) where
-    right' (AffineRep getter setter) = AffineRep
-        (\eca -> unassoc (second getter eca))
-        (\eca v -> second (`setter` v) eca)
-
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
-
--- | The 'ClosureRep' profunctor precisely characterizes 'Closure'.
-
-newtype ClosureRep a b s t = ClosureRep { unClosureRep :: ((s -> a) -> b) -> t }
-
-instance Profunctor (ClosureRep a b) where
-  dimap f g (ClosureRep z) = ClosureRep $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (ClosureRep a b) where
-  -- closed :: p a b -> p (x -> a) (x -> b)
-  closed (ClosureRep z) = ClosureRep $ \f x -> z $ \k -> f $ \g -> k (g x)
-
-
-
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
 
 
 -- http://hackage.haskell.org/package/lens-4.17/docs/src/Control.Lens.Internal.Context.html#Context

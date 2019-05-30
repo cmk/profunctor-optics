@@ -3,6 +3,7 @@ module Data.Profunctor.Optic.Operator (
   , swap
 ) where
 
+import Data.Profunctor.Types
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Either.Validation
@@ -10,7 +11,7 @@ import Data.Either.Validation
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 
-
+import Control.Monad
 --import Control.Monad.Reader.Class as Reader
 
 
@@ -31,22 +32,26 @@ over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 
 
+pre :: Previewing s a -> s -> Maybe a
+--previewOf' o = runPre . getConst . h where Star h = o (Star $ Const . Pre . Just)
+pre o = h where Previewed h = o (Previewed Just)
 
-
-
+--between (extract $ runPre . getConst) (insert $ Const . Pre . Just) o id
 
 -- ^ @
 -- match :: Traversal s t a b -> s -> Either t a
 -- @
-match :: Optic (Star (Either a)) s t a b -> s -> Either t a
-match o = swap . h where Star h = o (Star Left)
+match :: Matching a s t a b -> s -> Either t a
+match o = h where Matched h = o (Matched Right )
+
+--match o = swap . h where Star h = o (Star Left)
 --match = between (extract swap) (insert id Left)
 
 -- | A more restrictive variant of 'match'.
 --match' :: Optic (Matched a) s t a b -> s -> Either t a
 --match' o = (between Matched runMatched) o Right
 
-validate :: Optic (Star (Validation a)) s t a b -> s -> Validation t a
+validate :: Validating a s t a b -> s -> Validation t a
 validate o = swap . h where Star h = o (Star Failure)
 
 
@@ -105,23 +110,37 @@ lastOf p = getLast . foldMapOf p (Last . Just)
 -- getJust :: Getting (Maybe a) s (Maybe a) -> AffineFold s a
 getJust :: Choice p => (p (Maybe a) (Maybe b) -> c) -> p a b -> c
 getJust o = o . _Just
+
+{-
+firstOf
+lastOf
+previewOf
+
+λ> preview traverse' ["foo", "bar"]
+Just "foo"
+λ> preview' traverse' ["foo", "bar"]
+Just "foobar"
+
+λ> preview traverse' ['a', 'b']
+Just 'a'
+λ> preview' traverse' ['a', 'b']
+
+<interactive>:262:10: error:
+    • No instance for (Semigroup Char)
+        arising from a use of ‘traverse'’
+-}
+preview' :: MonadReader s m => Getting (Maybe a) s a -> m (Maybe a)
+preview' = Reader.asks . (`previewOf` id)
 -}
 
---previewOf :: Optic (Star (Pre a)) s t a b -> s -> Maybe a
---previewOf o = between ((runPre .) . runStar) (Star . ((Pre . Just) .)) o id
---previewOf o = runPre . h where Star h = o (Star (Pre . Just))
 
-previewOf :: Semigroup r => Getting (Maybe r) s a -> (a -> r) -> s -> Maybe r
-previewOf = between (extract getConst) (insert Const Just)
+foldMapOf :: Folding r s a -> (a -> r) -> s -> r
+foldMapOf = between (extract getConst) (insert Const)
 
-reviewOf :: Reviewing (Maybe r) t b -> (Maybe r -> b) -> r -> t
-reviewOf = between (coextract Just) (coinsert id)
 
-foldMapOf :: Getting r s a -> (a -> r) -> s -> r
-foldMapOf = between (extract getConst) (insert Const id)
 
-unfoldMapOf :: Reviewing r t b -> (r -> b) -> r -> t
-unfoldMapOf = between (coextract id) (coinsert id) 
+unfoldMapOf :: Unfolding r t b -> (r -> b) -> r -> t
+unfoldMapOf = between (coextract Const) (coinsert getConst) 
 
 --getConst . h where Star h = o . forget $ f
 
@@ -130,30 +149,8 @@ unfoldMapOf = between (coextract id) (coinsert id)
 --foldMapOf' :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
 --foldMapOf' = between runForget Forget
 
-forget :: (a -> r) -> Star (Const r) a b
-forget = insert Const id
-
-unforget :: Star (Const r) a b -> a -> r
-unforget = extract getConst
-
-insert :: (a -> f d) -> (b -> a) -> (c -> b) -> Star f c d
-insert g f = Star . (g .) . (f .)
-
-extract :: (f c1 -> b) -> Star f a c1 -> a -> b
-extract g = (g .) . runStar
-
-coinsert :: (b1 -> b2) -> (b2 -> c) -> Costar (Const b1) d c
-coinsert g = Costar . (. getConst) . (. g)
 
 
-coextract :: (a -> b1) -> Costar (Const b1) b2 c -> a -> c
-coextract g = (. g) . (. Const) . runCostar
-
-
-
-
-foo :: Getting r s a -> (a -> r) -> s -> Const r s
-foo o = between runStar forget o
 
 
 
@@ -166,25 +163,28 @@ traverseOf t (Identity . f) ≡  Identity (fmap f)
 
 Composition:
 
-Compose . fmap (traverseOf t f) . traverseOf t g ≡ traverseOf t (Compose . fmap f . g)
+Compose . fmap (traverseOf t f) . traverseOf t g == traverseOf t (Compose . fmap f . g)
+
+One consequence of this requirement is that a 'Traversal' needs to leave the same number of elements as a
+candidate for subsequent 'Traversal' that it started with. 
+
 -}
 -- ^ @
 -- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
 -- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
 -- traverseOf $ _1 . _R :: Applicative f => (a -> f b) -> (Either c a, d) -> f (Either c b, d)
+-- traverseOf == between runStar Star 
 -- @
-traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf = between runStar Star -- tf where Star tf = o (Star f)
 
+traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
+traverseOf o f = tf where Star tf = o (Star f)
+
+-- cotraverseOf == between runCostar Costar 
 cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf = between runCostar Costar -- o f = tf where Costar tf = o (Costar f) -- = between Costar runCostar
+cotraverseOf o f = tf where Costar tf = o (Costar f)
 
 zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
 zipWithOf = between runZipped Zipped
-
-
-
-
 
 
 

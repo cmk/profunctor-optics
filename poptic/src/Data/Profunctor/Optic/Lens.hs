@@ -3,7 +3,7 @@ module Data.Profunctor.Optic.Lens (
   , module Export
 ) where
 
-import Data.Profunctor.Optic.Prelude ((&&&), between, dimap)
+import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
 
@@ -15,6 +15,10 @@ import Data.Profunctor.Strong as Export
 ---------------------------------------------------------------------
 
 {- Hedgehog predicates
+
+Lens is the characterization of a Strong profunctor. It identifies 
+objects as consisting of a product of two components.
+
 viewUpdate :: Eq s => LensRep s s a a -> s -> Bool
 viewUpdate (LensRep v u) s = u ((v s), s) == s
 
@@ -37,8 +41,10 @@ set l v' (set l v s) ≡ set l v' s
 
 -}
 
+-- lens sa sbt = dimap (sa &&& id) (uncurry . flip $ sbt) . first'
+-- lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
-lens sa sbt = dimap (sa &&& id) (uncurry . flip $ sbt) . first'
+lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- Analogous to (***) from 'Control.Arrow'
 --(*|*) :: Lens s t a b -> Lens s' t' a' b' -> Lens (s * s') (t * t') (a * a') (b * b')
@@ -56,6 +62,31 @@ cloneLens l = withLens l $ \x y p -> lens x y p
 
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
+
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+
+-- | The `LensRep` profunctor precisely characterizes a 'Lens'.
+data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
+
+instance Profunctor (LensRep a b) where
+
+  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
+
+instance Strong (LensRep a b) where
+
+  first' (LensRep sa sbt) =
+    LensRep (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
+
+  second' (LensRep sa sbt) =
+    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
+
+-- | When you see this as an argument to a function, it expects a 'Lens'.
+type ALens s t a b = Optic (LensRep a b) s t a b
+
+type ALens' s a = ALens s s a a
 
 ---------------------------------------------------------------------
 -- Common lenses 

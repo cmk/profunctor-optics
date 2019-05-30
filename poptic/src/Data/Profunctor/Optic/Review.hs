@@ -12,6 +12,7 @@ module Data.Profunctor.Optic.Review
   --, reuse, reuses
   , (#)
   , retagged
+  , reviewBoth
   , reviewEither
   ) where
 
@@ -38,8 +39,8 @@ import Data.Profunctor.Optic.Operator
 -- 'unto' = 'un' . 'to'
 -- @
 --
-unto :: (b -> t) -> PrimReview' t b 
-unto f = icoerce . rmap f
+unto :: (b -> t) -> PrimReview s t a b 
+unto f = icoerce . dimap id f
 
 
 -- | Turn a 'Getter' around to get a 'Review'
@@ -51,7 +52,7 @@ unto f = icoerce . rmap f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: Getting a s a -> PrimReview' a s
+un :: Getting a s a -> PrimReview b a t s
 un = unto . (`foldMapOf` id)
 
 
@@ -63,11 +64,18 @@ un = unto . (`foldMapOf` id)
 -- 'relike' a '#' b ≡ 'unto' ('const' a) '#' b
 -- @
 --
-relike :: t -> PrimReview' t b
+relike :: t -> PrimReview s t a b
 relike t = unto (const t)
 
-reviewEither :: Reviewing b t b -> Reviewing b' t b' -> PrimReview' t (Either b b')
+--cloneReview :: Reviewing b t b -> PrimReview' t b
+--cloneReview = unto . review
+
+reviewBoth :: Reviewing b t1 b -> Reviewing b t2 b -> PrimReview s (t1, t2) a b
+reviewBoth l r = unto (review l &&& review r)
+
+reviewEither :: Reviewing b1 t b1 -> Reviewing b2 t b2 -> PrimReview s t a (Either b1 b2)
 reviewEither l r = unto (review l ||| review r)
+
 
 ---------------------------------------------------------------------
 -- Derived operators

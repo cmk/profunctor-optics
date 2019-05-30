@@ -14,7 +14,11 @@ import Control.Monad ((<=<))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 
+-- A fold can interpret 'a' in a monoid or semigroup,
+-- so long as 's' can also be interpreted that way.
 ---------------------------------------------------------------------
 -- 'AffineFold'
 ---------------------------------------------------------------------
@@ -54,7 +58,7 @@ cloneAffineFold = (. _Just) . to . view
 
 
 ---------------------------------------------------------------------
--- 'Fold' & 'Fold1'
+-- 'Fold'
 ---------------------------------------------------------------------
 
 {-
@@ -76,22 +80,21 @@ folding :: Foldable f => (s -> f a) -> Fold s a
 folding f = to f . wander traverse_
 {-# INLINE folding #-}
 
--- | Build an 'AffineFold' from an arbitrary function.
+--folding :: Foldable f => (s -> f a) -> Fold s a
+--folding sfa agb = phantom . traverse_ agb . sfa
+
+
+
+-- | Obtain a 'Fold' using a 'Traversable' functor.
 --
 -- @
 -- 'folding'' f ≡ 'traverse'' . 'lmap' f . 'ocoerce'
 -- 'folding'' f ≡ 'ocoerce' . 'wander' 'traverse_' . 'lmap' f
+-- 'folding'' f ≡ 'wander' 'traverse' . 'to' f
 -- @
 --
-
 folding' :: Traversable f => (s -> a) -> Fold (f s) a
 folding' f = wander traverse . to f
-
-folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = to f . wander1 traverse1_
-
-
-
 
 
 
@@ -154,8 +157,38 @@ unfolded f g b0 = go b0 where
 -}
 
 ---------------------------------------------------------------------
+-- 'Fold1'
+---------------------------------------------------------------------
+
+-- folding1 (0 :|) :: Fold1 [Int] Int
+folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
+folding1 f = to f . wander1 traverse1_
+
+-- folding1' First :: Traversable1 f => Fold1 (f a) (First a)
+-- folding1' Min :: Traversable1 f => Fold1 (f a) (Min a)
+folding1' :: Traversable1 f => (s -> a) -> Fold1 (f s) a
+folding1' f = wander1 traverse1 . to f
+
+
+
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
+
+foldOf :: Getting a s a -> s -> a
+foldOf = flip foldMapOf id
+
+fold1Of :: Semigroup a => Getting a s a -> s -> a
+fold1Of = flip foldMap1Of id
+
+-- >>> foldMap1Of (folding1 (0 :|)) Min [1..10]
+-- Min {getMin = 0}
+foldMap1Of :: Semigroup r => Getting r s a -> (a -> r) -> s -> r
+foldMap1Of = foldMapOf
+
+
+
 
 -- @
 -- preview :: 'Getting' ('First' a) s a -> s -> 'Maybe' a
@@ -165,7 +198,7 @@ preview
   :: MonadReader s m 
   => Getting (Maybe (First a)) s a  
   -> m (Maybe a)
-preview o = Reader.asks $ firstOf o
+preview o = Reader.asks $ \s -> getFirst <$> foldMapOf o (Just . First) s 
 
 preuse 
   :: MonadState s m
@@ -183,9 +216,6 @@ infixl 8 ^?
 -- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial 
 -- 'Getter' this can be a convenient way to extract the optional value.
 --
--- Note: if you get stack overflows due to this, you may want to use 
--- 'firstOf' instead, which can deal more gracefully with heavily left-biased 
--- trees.
 --
 -- >>> Left 4 ^? _Left
 -- Just 4
@@ -207,54 +237,60 @@ infixl 8 ^?
 -- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
 -- @
 (^?) :: s -> Getting (Maybe (First a)) s a -> Maybe a
-(^?) = flip firstOf
-
--- | The first focus of a `Fold`, if there is any. Synonym for `preview`.
-firstOf :: Getting (Maybe (First a)) s a -> s -> Maybe a
-firstOf o s = getFirst <$> previewOf o First s
-
--- | The last focus of a `Fold`, if there is any.
-lastOf :: Getting (Maybe (Last a)) s a -> s -> Maybe a
-lastOf o s = getLast <$> previewOf o Last s
+s ^? o = getFirst <$> foldMapOf o (Just . First) s
 
 
--- | Retrieve the 'Data.Semigroup.First' entry of a 'Fold1' or 'Traversal1' or the result from a 'Getter' or 'Lens'.
+-- @
+-- toPureOf :: Fold s a -> s -> [a]
+-- toPureOf :: (Applicative f, Monoid (f a)) => Fold s a -> s -> f a
+-- toPureOf :: Applicative f => Setter s t a b -> s -> f a
+-- @
+toPureOf :: Applicative f => Getting (f a) s a -> s -> f a
+toPureOf o = foldMapOf o pure
+
+-- | Collects the foci of a `Fold1` into a non-empty list.
+--toNelOf :: Getting (Endo (NonEmpty a)) s a -> s -> NonEmpty a
+--toNelOf o = undefined
+
+-- | Collects the foci of a `Fold` into a list.
+toListOf :: Getting (Endo [a]) s a -> s -> [a]
+toListOf o = foldrOf o (:) []
+
+
+infixl 8 ^..
+
+-- | A convenient infix (flipped) version of 'toListOf'.
 --
--- >>> first1Of traverse1 (1 :| [2..10])
--- 1
+-- >>> [[1,2],[3]] ^.. id
+-- [[[1,2],[3]]]
+-- >>> [[1,2],[3]] ^.. traversed
+-- [[1,2],[3]]
+-- >>> [[1,2],[3]] ^.. traversed . traversed
+-- [1,2,3]
 --
--- >>> first1Of both1 (1,2)
--- 1
---
--- /Note:/ this is different from '^.'.
---
--- >>> first1Of traverse1 ([1,2] :| [[3,4],[5,6]])
+-- >>> (1,2) ^.. both
 -- [1,2]
 --
--- >>> ([1,2] :| [[3,4],[5,6]]) ^. traverse1
--- [1,2,3,4,5,6]
---
 -- @
--- 'first1Of' :: 'Getter' s a      -> s -> a
--- 'first1Of' :: 'Fold1' s a       -> s -> a
--- 'first1Of' :: 'Lens'' s a       -> s -> a
--- 'first1Of' :: 'Iso'' s a        -> s -> a
--- 'first1Of' :: 'Traversal1'' s a -> s -> a
+-- 'Data.Foldable.toList' xs ≡ xs '^..' 'folded'
+-- ('^..') ≡ 'flip' 'toListOf'
 -- @
 --
-first1Of :: Getting (First a) s a -> s -> a
-first1Of o = getFirst . foldMapOf o First
+-- @
+-- ('^..') :: s -> 'Getter' s a     -> [a]
+-- ('^..') :: s -> 'Fold' s a       -> [a]
+-- ('^..') :: s -> 'Lens'' s a      -> [a]
+-- ('^..') :: s -> 'Iso'' s a       -> [a]
+-- ('^..') :: s -> 'Traversal'' s a -> [a]
+-- ('^..') :: s -> 'Prism'' s a     -> [a]
+-- ('^..') :: s -> 'Affine'' s a    -> [a]
+-- @
+(^..) :: s -> Getting (Endo [a]) s a -> [a]
+(^..) = flip toListOf
+{-# INLINE (^..) #-}
 
 
---afolding :: (s -> Maybe a) -> AffineFold s a
---afolding f = cimap (\s -> maybe (Left s) Right (f s)) Left . right'
---_Just = prism Just $ maybe (Left Nothing) Right
---_Just = lmap (maybe (Left Nothing) Right) . rmap (id ||| Just) . right'
 
---afolding f = ocoerce . lmap (\s -> maybe (Left s) Right (f s)) . right' 
-
-findOf' :: Getting (Maybe (First a)) s a -> (a -> Bool) -> s -> Maybe a
-findOf' o f = firstOf (o . filtering f)
 
 
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.
@@ -273,6 +309,8 @@ maximumOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 --
 minimumOf :: Ord a => Getting (Endo (Maybe a)) s a -> s -> Maybe a
 minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
+
+
 
 {-
 -- | Obtain the maximum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso',
@@ -417,57 +455,6 @@ lookupOf o k = foldrOf o (\(k',v) next -> if k == k' then Just v else next) Noth
 {-# INLINE lookupOf #-}
 -}
 
----------------------------------------------------------------------
--- Derived 'Fold' & 'Fold1' operators
----------------------------------------------------------------------
-
--- @
--- toPureOf :: Fold s a -> s -> [a]
--- toPureOf :: (Applicative f, Monoid (f a)) => Fold s a -> s -> f a
--- toPureOf :: Applicative f => Setter s t a b -> s -> f a
--- @
-toPureOf
-  :: Applicative f 
-  => Getting (f a) s a -> s -> f a
-toPureOf o = foldMapOf o pure
-
--- | Collects the foci of a `Fold` into a list.
---toListOf :: Fold (Endo [a]) s t a b -> s -> [a]
-toListOf :: Getting (Endo [a]) s a -> s -> [a]
-toListOf o = foldrOf o (:) []
-
-
-infixl 8 ^..
-
--- | A convenient infix (flipped) version of 'toListOf'.
---
--- >>> [[1,2],[3]] ^.. id
--- [[[1,2],[3]]]
--- >>> [[1,2],[3]] ^.. traversed
--- [[1,2],[3]]
--- >>> [[1,2],[3]] ^.. traversed . traversed
--- [1,2,3]
---
--- >>> (1,2) ^.. both
--- [1,2]
---
--- @
--- 'Data.Foldable.toList' xs ≡ xs '^..' 'folded'
--- ('^..') ≡ 'flip' 'toListOf'
--- @
---
--- @
--- ('^..') :: s -> 'Getter' s a     -> [a]
--- ('^..') :: s -> 'Fold' s a       -> [a]
--- ('^..') :: s -> 'Lens'' s a      -> [a]
--- ('^..') :: s -> 'Iso'' s a       -> [a]
--- ('^..') :: s -> 'Traversal'' s a -> [a]
--- ('^..') :: s -> 'Prism'' s a     -> [a]
--- ('^..') :: s -> 'Affine'' s a    -> [a]
--- @
-(^..) :: s -> Getting (Endo [a]) s a -> [a]
-(^..) = flip toListOf
-{-# INLINE (^..) #-}
 
 sumOf :: Num a => Getting (Sum a) s a -> s -> a
 sumOf o = getSum . foldMapOf o Sum

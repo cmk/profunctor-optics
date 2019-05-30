@@ -23,6 +23,7 @@ import Data.Profunctor                 as Export hiding (Forget(..))
 import Data.Void                       as Export
 import Control.Arrow                   as Export ((+++),(***),(|||),(&&&)) 
 import Control.Applicative             as Export hiding (WrappedArrow(..))
+import Control.Monad                   as Export
 
 
 import Data.Bifunctor (Bifunctor (..))
@@ -33,7 +34,6 @@ import Data.Bifunctor.Tannen (Tannen (..))
 import Data.Bifunctor.Biff (Biff (..))
 import Data.Either.Validation (Validation(..))
 
-import           Control.Monad
 import           Data.Foldable
 import           Data.Traversable
 import           Prelude             hiding (foldr)
@@ -84,6 +84,24 @@ costrong = divide id
 choice :: Decidable f => f a -> f b -> f (Either a b)
 choice = choose id
 -}
+
+insert :: (b -> f c) -> (d -> b) -> Star f d c
+insert f = Star . (f .)
+
+extract :: (f c1 -> b) -> Star f a c1 -> a -> b
+extract f = (f .) . runStar
+
+coinsert :: (f d -> b) -> (b -> c) -> Costar f d c
+coinsert g = Costar . (. g)
+
+coextract :: (a -> f d) -> Costar f d c -> a -> c
+coextract g = (. g) . runCostar
+
+iconst :: Profunctor p => b -> p b c -> p a c
+iconst = lmap . const
+
+oconst :: Profunctor p => c -> p a b -> p a c
+oconst = rmap . const
 
 _1 :: Strong p => p a b -> p (a,c) (b,c) 
 _1 = first'

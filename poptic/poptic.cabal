@@ -43,6 +43,7 @@ library
     , bifunctors
     --, constraints
     --, safe
+    , comonad
     , contravariant
     , distributive
     , semigroupoids

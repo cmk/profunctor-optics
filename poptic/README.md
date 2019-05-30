@@ -11,8 +11,8 @@ Mainly because the profunctor encoding of optics is easier to understand and wor
 This is especially true if you need a lot of control over the entailment relationships between different classes of optic.
 Such a need arose during the creation of [`pref`](https://github.com/cmk/putil/tree/master/pref), which is what led to this work in the first place. 
 
-Now onto the library. If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) and [this talk](https://www.youtube.com/watch?v=OJtGECfksds) are excellent general introductions. 
-There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page.
+If you're new to profunctors, [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) by Dan Piponi and [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman are excellent general introductions. 
+There's also some more detailed mathematical background on the [nLab](https://ncatlab.org/nlab/show/profunctor) page. Now onto the library.
 
 ## Intro
 
@@ -20,7 +20,7 @@ For day-to-day usage there are four components to keep in mind:
 
 - profunctor type classes (e.g. `Profunctor`, `Strong`, `Choice`, `Closed` etc.)
 - particular profunctors (e.g. `Star (Const Int) Text Text`, `Costar Maybe a b`, `Costar (Const c) a b`, `Star (Const c) a b c`, etc.)
-- optic 'classes' (e.g. `Lens`, `Prism`, `Affine`, `Traversal`, `Grate` etc.), induced by entailment relations between the classes above
+- optic 'classes' (e.g. `Lens`, `Prism`, `Affine`, `Traversal`, `Fold` etc.), induced by entailment relations between the classes above
 - particular optics (e.g. `_1 :: Strong p => Optic p (a, c) (b, c) a b`)
 - operators on optics (e.g. `.`, `re`, `to`, `view`, `matching`, `traverseOf`, etc.)
 
@@ -41,7 +41,7 @@ Setters have the following type
 type Setter s t a b = forall p. c p => p a b -> p s t
 ``` 
 
-where the constraint `c` is given by the conjunction of the `Profunctor`, `Strong`, `Choice`, `Traversing`, `Closed`, and `Mapping` type classes.
+where the constraint `c` is given by the conjunction of the `Profunctor`, `Strong`, `Choice`, `Traversing`, and `Mapping` type classes.
  
 At the top of the hierarchy is an `Iso`, which is restricted only by the `Profunctor` constraint.
 Imposing an additional `Strong` (<span style="color:#000080">blue</span>) constraint we get `Lens`,
