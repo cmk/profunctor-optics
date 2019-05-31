@@ -29,7 +29,7 @@ preview o = h where Previewed h = o (Previewed Just)
 -- match :: Traversal s t a b -> s -> Either t a
 -- @
 match :: Matching a s t a b -> s -> Either t a
-match o = h where Matched h = o (Matched Right )
+match o = h where Matched h = o (Matched Right)
 
 --match o = swap . h where Star h = o (Star Left)
 --match = between (extract swap) (insert id Left)

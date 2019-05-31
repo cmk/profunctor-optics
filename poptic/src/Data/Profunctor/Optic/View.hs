@@ -8,8 +8,12 @@ import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Prism (_Just)
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer
-import Control.Monad.State as State
+import Control.Monad.State as State hiding (StateT(..))
 
+import Control.Monad.Trans.State.Strict (StateT(..))
+--import Control.Monad.State.Strict (MonadState, modify', state)
+--import qualified Control.Monad.State.Lazy as MSL
+--import Data.Functor.Compose (Compose(..))
 
 ---------------------------------------------------------------------
 -- 'View'
@@ -142,3 +146,15 @@ listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)
 {-# INLINE listenings #-}
+
+
+
+zoom :: Optic' (Star (Compose m ((,) c))) ta a  -> StateT a m c -> StateT ta m c
+-- ^ @
+-- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c
+-- zoom :: (Monoid c, Applicative m) => Traversal' ta a -> StateT a m c -> StateT ta m c
+-- @
+zoom l (StateT m) = StateT . zoomOut . l . zoomIn $ m
+ where
+  zoomIn f = Star (Compose . f)
+  zoomOut (Star f) = getCompose . f

@@ -70,6 +70,13 @@ type AnAffineTraversal s t a b = Optic (AffineTraversalRep a b) s t a b
 
 type AnAffineTraversal' s a = AnAffineTraversal s s a a
 
+
+--selecting :: (k -> Bool) -> AffineTraversal' (k, v) v
+--selecting p =  affine (\kv@(k,v) -> if (p k) then Right v else Left kv) (\v' kv@(k,_) -> if (p k) then (k,v') else kv)
+
+null :: AffineTraversal' s a
+null = affine Left const 
+
 ---------------------------------------------------------------------
 -- 
 ---------------------------------------------------------------------

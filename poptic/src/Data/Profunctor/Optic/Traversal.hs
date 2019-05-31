@@ -13,6 +13,7 @@ import Data.Profunctor.Optic.Traversal.Affine    as Export
 import Data.Profunctor.Optic.Traversal.NonEmpty  as Export
 import Data.Profunctor.Traversing                as Export
 
+import Data.Traversable (fmapDefault, foldMapDefault)
 
 ---------------------------------------------------------------------
 -- 'Traversal'
@@ -47,7 +48,37 @@ both = wander $ \f -> bitraverse f f
 -- Operators
 ---------------------------------------------------------------------
 
-sequenceOf
-  :: Applicative f
-  => Optic (Star f) s t (f a) a -> s -> f t
+sequenceOf :: Applicative f => Traversal s t (f a) a -> s -> f t
 sequenceOf t = traverseOf t id
+
+
+traversalVL :: (forall f. Applicative f => (a -> f b) -> ta -> f tb) -> Traversal ta tb a b
+traversalVL l = dimap f g . traverse'
+ where
+  f ta = TraversableFreeApplicativePStore (FreeApplicativePStore (flip l ta))
+  g (TraversableFreeApplicativePStore (FreeApplicativePStore fps)) = runIdentity (fps Identity)
+
+
+newtype FreeApplicativePStore i j x = FreeApplicativePStore { runFreeApplicativePStore :: forall f. Applicative f => (i -> f j) -> f x }
+
+instance Functor (FreeApplicativePStore i j) where
+  fmap f (FreeApplicativePStore fps) = FreeApplicativePStore $ (fmap f) . fps
+
+instance Applicative (FreeApplicativePStore i j) where
+  pure x = FreeApplicativePStore $ const (pure x)
+  FreeApplicativePStore f <*> FreeApplicativePStore x = FreeApplicativePStore $ \op -> (f op) <*> (x op)
+
+idFreeApplicativePStore :: a -> FreeApplicativePStore a b b
+idFreeApplicativePStore a = FreeApplicativePStore ($ a)
+
+newtype TraversableFreeApplicativePStore j x i = TraversableFreeApplicativePStore { getTraversableFreeApplicativePStore :: FreeApplicativePStore i j x }
+
+instance Functor (TraversableFreeApplicativePStore j x) where
+  fmap = fmapDefault
+
+instance Foldable (TraversableFreeApplicativePStore j x) where
+  foldMap = foldMapDefault
+
+instance Traversable (TraversableFreeApplicativePStore j x) where
+  traverse f (TraversableFreeApplicativePStore (FreeApplicativePStore fps)) = fmap TraversableFreeApplicativePStore . getCompose $
+    fps (Compose . fmap idFreeApplicativePStore . f)

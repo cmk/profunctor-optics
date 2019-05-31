@@ -342,6 +342,9 @@ split lab lcd =
 splitting :: Profunctor p => (s -> a) -> (b -> t) -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
 splitting f g = between runSplit Split (dimap f g)
 
+---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
 
 
 -- http://hackage.haskell.org/package/lens-4.17/docs/src/Control.Lens.Internal.Context.html#Context
@@ -356,7 +359,7 @@ splitting f g = between runSplit Split (dimap f g)
 -- A 'Context' is like a 'Lens' that has already been applied to a some structure.
 --data Context a b t = Context (b -> t) a
 
-data Context a b t = Context (b -> t) a 
+data Context a b t = Context { peek :: b -> t, pos :: a }
 
 instance Functor (Context a b) where
     fmap g (Context h a) = Context (g . h) a

@@ -143,6 +143,9 @@ filtering p = dimap getter (either id id) . _Right
 filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
 filtered f = _Right . dimap (\x -> if f x then Right x else Left x) (either id id)
 
+binding :: Eq k => k -> Prism' (k, v) v
+binding i = prism ((,) i) (\kv@(k,v) -> if (i == k) then Right v else Left kv) 
+
 -- | Create a 'Prism' from a value and a predicate.
 nearly ::  a -> (a -> Bool) -> Prism' a ()
 nearly x f = prism' (const x) (guard . f)

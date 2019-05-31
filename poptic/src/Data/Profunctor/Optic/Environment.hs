@@ -15,7 +15,8 @@ import Data.Profunctor.Closed as Export
 import Control.Monad.IO.Unlift
 import UnliftIO.Exception
 
---withRunInIO :: ((forall a. m a -> IO a) -> IO b) -> m b
+
+-- | t ^ (b ^ (a ^ s)) -> Env s t a b
 environment :: (((s -> a) -> b) -> t) -> Env s t a b
 environment f pab = dimap (flip ($)) f (closed pab)
 
@@ -66,5 +67,5 @@ cloneEnv g = environment (withEnv g)
 cotraversed :: Distributive f => Env (f a) (f b) a b
 cotraversed = environment $ \f -> cotraverse f id
 
-cotraversing :: (Distributive f1, Functor f2) => (f2 a -> b) -> f2 (f1 a) -> f1 b
+cotraversing :: (Distributive t, Functor f) => (f a -> b) -> f (t a) -> t b
 cotraversing = cotraverseOf cotraversed

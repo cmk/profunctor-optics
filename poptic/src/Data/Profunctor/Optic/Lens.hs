@@ -6,9 +6,15 @@ module Data.Profunctor.Optic.Lens (
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
-
 import Data.Profunctor.Strong as Export
 
+import qualified Data.Map.Lazy as MapL
+import qualified Data.Map.Strict as MapS
+import qualified Data.Set as Set
+import qualified Data.IntMap.Lazy as IntMapL
+import qualified Data.IntMap.Strict as IntMapS
+import qualified Data.IntSet as IntSet
+import qualified Data.Profunctor.Optic.Type.VL as VL
 
 ---------------------------------------------------------------------
 -- 'Lens' 
@@ -45,6 +51,12 @@ set l v' (set l v s) ≡ set l v' s
 -- lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
+
+-- | Transform a Van Laarhoven-encoded lens into a profunctor-encoded one.
+--
+-- Use this to interoperate with optics from the 'lens' library.
+lensVL :: VL.Lens s t a b -> Lens s t a b
+lensVL o = dimap ((peek &&& pos) . o (Context id)) (uncurry id) . second'
 
 -- Analogous to (***) from 'Control.Arrow'
 --(*|*) :: Lens s t a b -> Lens s' t' a' b' -> Lens (s * s') (t * t') (a * a') (b * b')
@@ -99,3 +111,25 @@ united = lens (const ()) const
 -- | There is everything in `Void`.
 devoid :: forall a. Lens' Void a
 devoid = lens absurd const
+
+
+ix :: Eq k => k -> Lens' (k -> v) v
+ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
+
+at :: Ord k => k -> Lens' (MapL.Map k v) (Maybe v)
+at k = lens (MapL.lookup k) (flip $ maybe (MapL.delete k) (MapL.insert k))
+
+at' :: Ord k => k -> Lens' (MapS.Map k v) (Maybe v)
+at' k = lens (MapS.lookup k) (flip $ maybe (MapS.delete k) (MapS.insert k))
+
+contains :: Ord k => k -> Lens' (Set.Set k) Bool
+contains k = lens (Set.member k) (flip $ \nv -> if nv then Set.insert k else Set.delete k)
+
+intAt :: Int -> Lens' (IntMapL.IntMap v) (Maybe v)
+intAt k = lens (IntMapL.lookup k) (flip $ maybe (IntMapL.delete k) (IntMapL.insert k))
+
+intAt' :: Int -> Lens' (IntMapS.IntMap v) (Maybe v)
+intAt' k = lens (IntMapS.lookup k) (flip $ maybe (IntMapS.delete k) (IntMapS.insert k))
+
+intContains :: Int -> Lens' IntSet.IntSet Bool
+intContains k = lens (IntSet.member k) (flip $ \nv -> if nv then IntSet.insert k else IntSet.delete k)

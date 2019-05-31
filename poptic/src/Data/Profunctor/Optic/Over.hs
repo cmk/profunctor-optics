@@ -100,6 +100,9 @@ argument = maps lmap
 outcome :: Profunctor p => Over (p r a) (p r b) a b
 outcome = maps rmap
 
+fitting :: (k -> Bool) -> Over' (k -> v) v
+fitting p = maps $ \modify f k -> if p k then modify (f k) else f k
+
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------

@@ -120,6 +120,23 @@ forget2 = (. first')
 forgetR :: Iso s t (Either a c) (Either b c) -> Prism s t a b
 forgetR = (. left')
 
+eitherOne :: Iso (Maybe a) (Maybe b) (Either () a) (Either () b)
+eitherOne = iso (maybe (Left ()) Right) (const Nothing ||| Just)
+
+eitherTwo :: Iso (Bool,a) (Bool,b) (Either a a) (Either b b)
+eitherTwo = iso f ((,) False ||| (,) True)
+ where
+  f (False,a) = Left a
+  f (True,a) = Right a
+
+indexPair :: Iso (Bool -> a) (Bool -> b) (a,a) (b,b)
+indexPair = iso to fro
+ where
+  to f = (f False, f True)
+  fro p True = fst p
+  fro p False = snd p
+
+
 curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
 curried = iso curry uncurry
 
