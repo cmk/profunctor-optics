@@ -8,6 +8,7 @@ module Data.Profunctor.Optic.Environment (
 import Data.Distributive
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Operator.Task
 import Data.Profunctor.Optic.Prelude
 
 import Data.Profunctor.Closed as Export

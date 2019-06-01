@@ -4,8 +4,9 @@ module Data.Profunctor.Optic.Over (
 ) where
 
 
-import Data.Profunctor.Optic.Type 
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Operator.Task
 import Data.Profunctor.Optic.Prelude 
 
 import Data.Profunctor.Mapping as Export
@@ -30,7 +31,7 @@ import Control.Monad.Reader as Reader
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
 mapping :: ((a -> b) -> s -> t) -> Over s t a b
-mapping f = dimap (Context id) (\(Context g s) -> f g s) . map'
+mapping f = dimap (Store id) (\(Store g s) -> f g s) . map'
 
 
 -- | This 'Over' can be used to map contravariantly over the input of a 'Profunctor'.
@@ -179,6 +180,57 @@ infixr 4 .~
 (.~) :: Optic (->) s t a b -> s -> b -> t
 (.~) = set
 {-# INLINE (.~) #-}
+
+
+-- | The type of a memo table for functions of a.
+-- forall r. Over'
+type Memo a = forall r. (a -> r) -> (a -> r)
+
+-- | Given a memoizer for a and an isomorphism between a and b, build
+-- a memoizer for b.
+wrap :: (a -> b) -> (b -> a) -> Memo a -> Memo b
+wrap i j m f = m (f . i) . j
+
+-- | Memoize a two argument function (just apply the table directly for
+-- single argument functions).
+memo2 :: Memo a -> Memo b -> (a -> b -> r) -> (a -> b -> r)
+memo2 a b = a . (b .)
+
+-- | Memoize a three argument function.
+memo3 :: Memo a -> Memo b -> Memo c -> (a -> b -> c -> r) -> (a -> b -> c -> r)
+memo3 a b c = a . (memo2 b c .)
+
+-- | Memoize the second argument of a function.
+memoSecond :: Memo b -> (a -> b -> r) -> (a -> b -> r)
+memoSecond b = (b .)
+
+-- | Memoize the third argument of a function.
+memoThird :: Memo c -> (a -> b -> c -> r) -> (a -> b -> c -> r)
+memoThird c = (memoSecond c .)
+
+bool :: Memo Bool
+bool f = cond (f True) (f False)
+    where
+    cond t f True  = t
+    cond t f False = f
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 infix 4 .=

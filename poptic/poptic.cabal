@@ -23,12 +23,16 @@ library
       Data.Profunctor.Optic.Environment
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold.Affine
+      --Data.Profunctor.Optic.Fold.Indexed
       Data.Profunctor.Optic.Fold.NonEmpty
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Lens
       --Data.Profunctor.Optic.Lens.Rep
       --Data.Profunctor.Optic.Lens.Free
       Data.Profunctor.Optic.Operator
+      --Data.Profunctor.Optic.Operator.Common
+      Data.Profunctor.Optic.Operator.Indexed
+      Data.Profunctor.Optic.Operator.Task
       Data.Profunctor.Optic.Over
       --Data.Profunctor.Optic.Over.Environment
       Data.Profunctor.Optic.Prelude
@@ -36,6 +40,7 @@ library
       Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Traversal.Affine
+      --Data.Profunctor.Optic.Traversal.Indexed
       Data.Profunctor.Optic.Traversal.NonEmpty
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class

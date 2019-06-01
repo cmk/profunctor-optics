@@ -5,6 +5,7 @@ module Data.Profunctor.Optic.Lens (
 
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Operator.Task (Store(..))
 import Data.Void (Void, absurd)
 import Data.Profunctor.Strong as Export
 
@@ -56,7 +57,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 --
 -- Use this to interoperate with optics from the 'lens' library.
 lensVL :: VL.Lens s t a b -> Lens s t a b
-lensVL o = dimap ((peek &&& pos) . o (Context id)) (uncurry id) . second'
+lensVL o = dimap ((values &&& info) . o (Store id)) (uncurry id) . second'
 
 -- Analogous to (***) from 'Control.Arrow'
 --(*|*) :: Lens s t a b -> Lens s' t' a' b' -> Lens (s * s') (t * t') (a * a') (b * b')
