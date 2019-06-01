@@ -1,4 +1,4 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE GADTs #-}
 module Data.Profunctor.Optic.Traversal (
     module Data.Profunctor.Optic.Traversal 
   , module Export
@@ -14,6 +14,23 @@ import Data.Profunctor.Optic.Traversal.NonEmpty  as Export
 import Data.Profunctor.Traversing                as Export
 
 import Data.Traversable (fmapDefault, foldMapDefault)
+
+
+import Control.Applicative.Free (Ap, liftAp, runAp)
+import Data.Functor.Identity
+
+-- Free applicative over Identity if you could force Identity to be monomorphic on x.
+data Mono x y a where
+  Mono :: x -> Mono x y y
+
+liftMono :: x -> Ap (Mono x y) y
+liftMono = liftAp . Mono
+
+unMono :: (x -> y) -> Mono x y a -> a
+unMono f (Mono x) = f x
+
+runMono :: (x -> y) -> Ap (Mono x y) a -> a
+runMono f = runIdentity . runAp (Identity . unMono f)
 
 ---------------------------------------------------------------------
 -- 'Traversal'
@@ -51,6 +68,7 @@ both = wander $ \f -> bitraverse f f
 sequenceOf :: Applicative f => Traversal s t (f a) a -> s -> f t
 sequenceOf t = traverseOf t id
 
+data FunList a b t = Done t | More a (FunList a b (b -> t))
 
 traversalVL :: (forall f. Applicative f => (a -> f b) -> ta -> f tb) -> Traversal ta tb a b
 traversalVL l = dimap f g . traverse'

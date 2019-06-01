@@ -20,58 +20,20 @@ import Control.Monad.Reader as Reader
 -- Over
 ---------------------------------------------------------------------
 
+--over_complete :: Over s t a b -> Over s t a b
+--over_complete = mapping . over
+
 -- import Data.Functor.Rep
--- maps :: ((a -> b) -> s -> t) -> Over s t a b
--- maps f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- mapping :: ((a -> b) -> s -> t) -> Over s t a b
+-- mapping f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
 -- 
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
-maps :: ((a -> b) -> s -> t) -> Over s t a b
-maps f = dimap (Context id) (\(Context g s) -> f g s) . map'
-
---over_complete :: Over s t a b -> Over s t a b
---over_complete = maps . over
+mapping :: ((a -> b) -> s -> t) -> Over s t a b
+mapping f = dimap (Context id) (\(Context g s) -> f g s) . map'
 
 
-
-remaps :: Over (s -> a) ((a -> b) -> s -> t) b t
-remaps = maps between
-
---composed :: Over (a -> b -> s) (a -> b -> t) s t
---composed = maps ((.)(.)(.))
-
---curried :: Over a (b -> c) (a, b) c
---curried = maps curry
-
--- | This 'setter' can be used to modify all of the values in an 'Applicative'.
---
--- @
--- 'lift' ≡ 'over' 'lifted'
--- @
---
--- >>> over lifted f [a,b,c]
--- [f a,f b,f c]
---
--- >>> set lifted b (Just a)
--- Just b
-lifted :: Applicative f => Over (f a) (f b) a b
-lifted = maps liftA
-{-# INLINE lifted #-}
-
-mapped :: Functor f => Over (f a) (f b) a b
-mapped = maps fmap
-
-foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
-foldMapped = maps foldMap
-
-{-
-collecting
-    :: (forall f. (Applicative f, Distributive f) => (a -> f b) -> s -> f t)
-    -> Over s t a b
-collecting = roam
--}
-
--- | This 'Over' can be used to map over the input of a 'Profunctor'.
+-- | This 'Over' can be used to map contravariantly over the input of a 'Profunctor'.
 --
 -- The most common 'Profunctor' to use this with is @(->)@.
 --
@@ -93,15 +55,92 @@ collecting = roam
 -- @
 -- 'argument' :: 'Over' (b -> r) (a -> r) a b
 -- @
+-- 
 argument :: Profunctor p => Over (p b r) (p a r) a b
-argument = maps lmap
+argument = mapping lmap
 {-# INLINE argument #-}
 
-outcome :: Profunctor p => Over (p r a) (p r b) a b
-outcome = maps rmap
+-- | result :: Over (r -> b) (r -> a) b a
 
-fitting :: (k -> Bool) -> Over' (k -> v) v
-fitting p = maps $ \modify f k -> if p k then modify (f k) else f k
+result :: Profunctor p => Over (p r a) (p r b) a b
+result = mapping rmap
+
+remapping :: Over (s -> a) ((a -> b) -> s -> t) b t
+remapping = mapping between
+
+--each :: (a -> b) -> ([a] -> [b])
+
+
+
+-- |Using 'set' one can set instead of modify a value using Semantic Editor Combinators
+--  for example '(first.set) 1' will set the first value of a tuple to 1
+--sets :: a -> b -> a
+setting :: Over b (a -> b1) a b1
+setting = mapping const
+
+-- |Semantic Editor Combinator for Maybe
+--just ::  (a -> b) -> Maybe a -> Maybe b
+--just = monad
+
+-- |Semantic Editor Combinator for monads
+--monad :: Monad m => (a -> b) -> m a -> m b
+--monad = liftM -- (>>= return . f)
+
+-- |Semantic Editor Combinator for monadicaly transforming a monadic value
+--binds :: Monad m => (a -> m b) -> m a -> m b
+--binds f = mapping (>>= f)
+
+
+
+
+--composed :: Over (a -> b -> s) (a -> b -> t) s t
+--composed = mapping ((.)(.)(.))
+
+currying :: Over a (b -> c) (a, b) c
+currying = mapping curry
+
+uncurrying :: Over (a, b) c a (b -> c)
+uncurrying = mapping uncurry
+
+-- | This 'setter' can be used to modify all of the values in an 'Applicative'.
+--
+-- @
+-- 'lift' ≡ 'over' 'lifted'
+-- @
+--
+-- >>> over lifted f [a,b,c]
+-- [f a,f b,f c]
+--
+-- >>> set lifted b (Just a)
+-- Just b
+lifting :: Applicative f => Over (f a) (f b) a b
+lifting = mapping liftA
+{-# INLINE lifting #-}
+
+-- |Semantic Editor Combinator on each value of a functor
+mapped :: Functor f => Over (f a) (f b) a b
+mapped = mapping fmap
+
+foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
+foldMapped = mapping foldMap
+
+{-
+collecting
+    :: (forall f. (Applicative f, Distributive f) => (a -> f b) -> s -> f t)
+    -> Over s t a b
+collecting = roam
+-}
+
+
+-- | Semantic Editor Combinator applying the given function only when the given predicate
+--  yields true for an input value.
+
+branching' :: (a -> Bool) -> (a -> a) -> (a -> a)
+branching' p f a = if p a then f a else a
+
+-- See https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Tasks
+branching :: (k -> Bool) -> Over' (k -> v) v
+branching p = mapping $ \modify f a -> if p a then modify (f a) else f a
 
 ---------------------------------------------------------------------
 -- Operators

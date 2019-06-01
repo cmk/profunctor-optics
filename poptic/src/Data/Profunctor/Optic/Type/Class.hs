@@ -59,11 +59,17 @@ instance OutPhantom (Forget f) where
 cimap :: OutPhantom p => (a -> b) -> (c -> d) -> p b d -> p a c
 cimap f _ = dimap f id . ocoerce
 
-firstDefault :: OutPhantom p => p a b -> p (a,c) (b,c)
+firstDefault :: OutPhantom p => p a b -> p (a, c) (b, c)
 firstDefault = ocoerce . dimap fst id
+
+secondDefault :: OutPhantom p => p a b -> p (c, a) (c, b)
+secondDefault = ocoerce . dimap snd id
 
 leftDefault :: InPhantom p => p a b -> p (Either a c) (Either b c)
 leftDefault = icoerce . dimap id Left
+
+rightDefault :: InPhantom p => p a b -> p (Either c a) (Either c b)
+rightDefault = icoerce . dimap id Right
 
 
 -- Entailment relationships not already given by 'profunctors':
@@ -87,36 +93,28 @@ instance Semigroup r => Traversing1 (Forget r) where
 
 
 
-{-
 
 
 
-
-newtype ProIn p f a b = ProIn { proIn :: p (f a) b }
+newtype ProIn p f a b = ProIn { runProIn :: p (f a) b }
 
 instance (Profunctor p, Functor f) => Profunctor (ProIn p f) where
   dimap f g (ProIn pab) = ProIn $ dimap (fmap f) g pab
 
-instance (Profunctor p, Phantom f) => Choice (ProIn p f) where
-  right' = _RightDefault
+instance (Profunctor p, Contravariant f, Functor f) => Choice (ProIn p f) where
+  right' = rightDefault
 
-_RightDefault :: InPhantom p => p a b -> p (Either c a) (Either c b)
-_RightDefault = icoerce . omap Right
+instance (Profunctor p, Contravariant f, Functor f) => InPhantom (ProIn p f) where
+  icoerce (ProIn pab) = ProIn $ lmap coerce pab
 
-instance (Profunctor p, Phantom f) => InPhantom (ProIn p f) where
-  icoerce (ProIn pab) = ProIn $ imap coerce pab
-
-newtype ProOut p g a b = ProOut { proOut :: p a (g b) }
+newtype ProOut p f a b = ProOut { runProOut :: p a (f b) }
 
 instance (Profunctor p, Functor f) => Profunctor (ProOut p f) where
   dimap f g (ProOut pab) = ProOut $ dimap f (fmap g) pab
 
-instance (Profunctor p, Phantom f) => Strong (ProOut p f) where
-  second' = _2Default
+instance (Profunctor p, Contravariant f, Functor f) => Strong (ProOut p f) where
+  second' = secondDefault
 
-_2Default :: OutPhantom p => p a b -> p (c, a) (c, b)
-_2Default = ocoerce . imap snd
+instance (Profunctor p, Contravariant f, Functor f) => OutPhantom (ProOut p f) where
+  ocoerce (ProOut pab) = ProOut $ rmap coerce pab
 
-instance (Profunctor p, Phantom f) => OutPhantom (ProOut p f) where
-  ocoerce (ProOut pab) = ProOut $ omap coerce pab
--}

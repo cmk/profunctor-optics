@@ -347,6 +347,26 @@ splitting f g = between runSplit Split (dimap f g)
 ---------------------------------------------------------------------
 
 
+newtype Zipped a b = Zipped { runZipped :: a -> a -> b }
+
+instance Profunctor Zipped where
+    dimap f g (Zipped p) = Zipped (\x y -> g (p (f x) (f y)))
+
+instance Closed Zipped where
+    closed (Zipped p) = Zipped (\f g x -> p (f x) (g x))
+
+instance Choice Zipped where
+    right' (Zipped p) = Zipped (\x y -> p <$> x <*> y)
+
+instance Strong Zipped where
+    first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))
+
+
+---------------------------------------------------------------------
+-- 'Task'
+---------------------------------------------------------------------
+
+
 -- http://hackage.haskell.org/package/lens-4.17/docs/src/Control.Lens.Internal.Context.html#Context
 
 -- | The indexed store can be used to characterize a 'Lens'
@@ -370,30 +390,111 @@ instance Profunctor (Context a) where
     {-# INLINE dimap #-}
 
 -- The type ∀ f, g : Functor. (g a → f b) → g s → f t is isomorphic to the type (s → a)×(b → t). 
--- The Van Laarhoven representation of isomorphisms uses this representation of a pair of function to capture the notion of an isomorphism.
+-- The Van Laarhoven representation of isomorphisms uses this representation 
+-- of a pair of functions to capture the notion of an isomorphism.
 extractPair :: (((s -> a) -> Context (s -> a) b b) -> (s -> s) -> Context (s -> a) b t)
             -> (s -> a, b -> t)
 extractPair l = (f, g) where Context g f = l (Context id) id
 
 
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
+toContext :: Context' a b t -> Context a b t
+toContext (Task t) = t $ \a -> Context id a
+
+fromContext :: Context a b t -> Context' a b t
+fromContext (Context f a) = Task $ \afb -> fmap f (afb a)
+
+mapping' :: ((a -> b) -> s -> t) -> Over s t a b
+mapping' f = dimap (Context id) (\(Context g s) -> f g s) . map'
 
 
-newtype Zipped a b = Zipped { runZipped :: a -> a -> b }
+-- https://arxiv.org/pdf/1402.1699.pdf (sections 1.1, 4)
+-- https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Task
+newtype Task c p a b t = Task { runTask :: forall f. c f => p a (f b) -> f t }
 
-instance Profunctor Zipped where
-    dimap f g (Zipped p) = Zipped (\x y -> g (p (f x) (f y)))
+--foo :: Profunctor p => ((a -> b) -> s -> t) -> p (Context' s x x) (Context' s a b) -> p s t
 
-instance Closed Zipped where
-    closed (Zipped p) = Zipped (\f g x -> p (f x) (g x))
 
-instance Choice Zipped where
-    right' (Zipped p) = Zipped (\x y -> p <$> x <*> y)
+--foo :: Profunctor p => Task Functor p a b t -> p a b
+--foo f = dimap g h . map'  where g = Task g (Task t)
 
-instance Strong Zipped where
-    first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))
+
+pureTaskF :: a -> Task Functor (->) a b b
+pureTaskF a = Task $ \aft -> fmap id (aft a)
+
+pureTask :: a -> Task c (->) a b b
+pureTask a = Task ($ a)
+
+-- A 'Context' is like a 'Lens' that has already been applied to a some structure.
+-- @
+-- 'Context' a b t == ((b -> t), a)
+-- 'Context' a b t == exists s. (s, 'Lens' s t a b)
+-- @.
+-- https://bartoszmilewski.com/2015/07/13/from-lenses-to-yoneda-embedding/
+type Context' a b t = Task Functor (->) a b t
+
+-- A 'Bazaar' is like a 'Traversal' that has already been applied to a some structure.
+-- same as FunLists 
+-- Bazaar (->) a b t = data FunList a b t = Done t | More a (FunList a b (b -> t))
+
+-- https://bartoszmilewski.com/2018/10/12/trading-funlists-at-a-bazaar-with-yoneda/
+type Bazaar p a b t = Task Applicative p a b t
+
+{-
+-- not a profunctor, but is Invariant : invmap :: (a -> b) -> (b -> a) -> f a -> f b
+
+instance (Functor :- c) => Invariant (Task c (->)) where
+  invmap f g (Task t) = Task $ \h -> fmap f (t h) where h 
+-}
+
+-- | Lift an applicative task to @Task Monad@. Use this function when applying
+-- monadic task combinators to applicative tasks.
+liftTask :: Task Functor p a b t -> Task Applicative p a b t
+liftTask (Task task) = Task task
+
+-- TODO: instance (Functor :- c) => Functor (Task c p a b)
+instance Functor (Task Applicative p a b) where
+  fmap f (Task fps) = Task $ (fmap f) . fps
+
+instance Functor (Task Functor p a b) where
+  fmap f (Task fps) = Task $ (fmap f) . fps
+
+-- TODO: instance (Applicative :- c) => Functor (Task c p a b)
+instance Applicative (Task Applicative (->) a b) where
+  pure x = Task $ const (pure x)
+  Task f <*> Task x = Task $ \op -> (f op) <*> (x op)
+
+
+
+
+{-
+newtype TraversableFreeApplicativePStore j x i = TraversableFreeApplicativePStore { getTraversableFreeApplicativePStore :: FreeApplicativePStore i j x }
+
+instance Functor (TraversableFreeApplicativePStore j x) where
+  fmap = fmapDefault
+
+instance Foldable (TraversableFreeApplicativePStore j x) where
+  foldMap = foldMapDefault
+
+instance Traversable (TraversableFreeApplicativePStore j x) where
+  traverse f (TraversableFreeApplicativePStore (FreeApplicativePStore fps)) = fmap TraversableFreeApplicativePStore . getCompose $
+    fps (Compose . fmap idFreeApplicativePStore . f)
+-}
+
+{-
+For the case of 'h = (,)', these are Kleisli arrows built from the state monad, i.e. 
+functions of type a -> s -> (b, s) where s is our state. 
+We can write these more symmetrically as functions of type (a, s) -> (b, s)
+-}
+
+
+newtype Hughes h s t a b = Hughes { runHughes :: h a s -> h b t }
+type Circuit s t a b = Hughes (,) s t a b
+
+invert :: Swap h => Hughes h s t a b -> Hughes h a b s t
+invert (Hughes h) = Hughes $ swap . h . swap
+
+instance Bifunctor h => Profunctor (Hughes h s t) where
+  dimap f g (Hughes h) = Hughes $ first g . h . first f
 
 
 {-

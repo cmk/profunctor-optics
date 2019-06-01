@@ -23,12 +23,20 @@ environment f pab = dimap (flip ($)) f (closed pab)
 environment' :: (s -> a) -> (b -> t) -> Env s t a b
 environment' sa bt = environment $ envMod sa bt
 
+environment'' :: Functor f => (((s -> f a) -> f b) -> t) -> Over s t a b
+environment'' f = dimap pureTaskF (f . runTask) . map'
+
 unlifting :: MonadUnliftIO m => Env (m a) (m b) (IO a) (IO b)
 unlifting = environment withRunInIO
 
 masking :: MonadUnliftIO m => Env (m a) (m b) (m a) (m b)
 masking = environment mask
 
+unlifting' :: MonadUnliftIO m => Over (m a) (m b) a b
+unlifting' = environment'' withRunInIO
+
+masking' :: MonadUnliftIO m => Over (m a) (m b) a b
+masking' = environment'' mask
 
 ---------------------------------------------------------------------
 -- 
