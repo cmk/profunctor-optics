@@ -107,7 +107,7 @@ The constructors and characterizing operations for the remaining optics are summ
 | [Fold1](#fold)                 | `folding1`    | `toNelOf`         | `Semigroup r` | `Star (Const r) s a`   
 | [Fold](#fold)                  | `folding`     | `toListOf`        | `Monoid r`    | `Star (Const r) s a`   
 | [Over](#over)                  | `maps`        | `over`            | `Mapping`     | `(a -> b) -> s -> t`                 
-| [Env](#environment)            | `environment` | `cotraverseOf`    | `Closed`      | `((s -> a) -> b) -> t` 
+| [Env](#env)            | `env` | `cotraverseOf`    | `Closed`      | `((s -> a) -> b) -> t` 
 
 The laws are captured in property-driven tests in the test folder. Predicates describing the laws are kept along with the constructors so that they can be used to verify downstream optics.
 

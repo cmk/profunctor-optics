@@ -88,6 +88,10 @@ type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 -- A 'Fold1' extracts at least one result.
 type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a 
 
+type Grate s t a b = forall p. Closed p => Optic p s t a b
+
+type Grate' s a = Grate s s a a
+
 type Over s t a b = forall p. Mapping p => Optic p s t a b
 
 type Over' s a = Over s s a a
@@ -105,10 +109,6 @@ type PrimReview' t b = PrimReview t t b b
 
 type Review t b = forall p. (InPhantom p, Choice p) => Optic' p t b
 
-type Env s t a b = forall p. Closed p => Optic p s t a b
-
-type Env' s a = Env s s a a
-
 type Folding r s a = Optic' (Star (Const r)) s a
 
 type AFolding r s a = Optic' (Star (Pre r)) s a
@@ -125,9 +125,11 @@ type Reviewing t b = Unfolding b t b
 
 type Matching e s t a b = Optic (Matched e) s t a b
 
-type Validated r = Star (Validation r)
+type Validated e = Star (Validation e)
 
 type Validating e s t a b = Optic (Validated e) s t a b
+
+type Validating' e s a = Optic' (Validated e) s a
 
 --type AFolding r = Star (Pre r)
 -- Folding r s a = Optic (Star (Const r)) s a

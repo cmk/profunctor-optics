@@ -172,20 +172,20 @@ involuted = join iso
 {-# INLINE involuted #-}
 
 
-fmapping
+fover
   :: Functor f
   => Functor g
   => AnIso s t a b
   -> Iso (f s) (g t) (f a) (g b)
-fmapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
+fover l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 
-dimapping
+diover
   :: Profunctor p
   => Profunctor q
   => AnIso s t a b
   -> AnIso ss tt aa bb
   -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
-dimapping f g = 
+diover f g = 
   withIso f $ \sa bt -> 
     withIso g $ \ssaa bbtt -> 
       iso (dimap sa ssaa) (dimap bt bbtt)

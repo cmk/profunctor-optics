@@ -32,7 +32,7 @@ match :: Matching a s t a b -> s -> Either t a
 match o = h where Matched h = o (Matched Right)
 
 --match o = swap . h where Star h = o (Star Left)
---match = between (extract swap) (insert id Left)
+--match = between (dstar swap) (ustar id Left)
 
 -- | A more restrictive variant of 'match'.
 --match' :: Optic (Matched a) s t a b -> s -> Either t a
@@ -41,15 +41,14 @@ match o = h where Matched h = o (Matched Right)
 validate :: Validating a s t a b -> s -> Validation t a
 validate o = swap . h where Star h = o (Star Failure)
 
-
 previewOf :: AFolding r s a -> (a -> r) -> s -> Maybe r
-previewOf = between (extract runPre) (insert $ Pre . Just)
+previewOf = between (dstar runPre) (ustar $ Pre . Just)
 
 foldMapOf :: Folding r s a -> (a -> r) -> s -> r
-foldMapOf = between (extract getConst) (insert Const)
+foldMapOf = between (dstar getConst) (ustar Const)
 
 unfoldMapOf :: Unfolding r t b -> (r -> b) -> r -> t
-unfoldMapOf = between (coextract Const) (coinsert getConst) 
+unfoldMapOf = between (coDstar Const) (coUstar getConst) 
 
 --getConst . h where Star h = o . forget $ f
 
@@ -92,9 +91,9 @@ traverseOf o f = tf where Star tf = o (Star f)
 cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
 cotraverseOf o f = tf where Costar tf = o (Costar f)
 
+-- special case where f = (a,a)
 zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
 zipWithOf = between runZipped Zipped
-
 
 
 

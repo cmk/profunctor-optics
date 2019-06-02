@@ -3,6 +3,9 @@
 
 module Data.Profunctor.Optic.Operator.Task where
 
+import Control.Comonad
+import Control.Comonad.Store.Class
+
 import Data.Profunctor.Optic.Type.Class 
 import Data.Profunctor.Optic.Prelude
 
@@ -120,6 +123,28 @@ instance Functor (Store i k) where
 instance Profunctor (Store i) where
     dimap f g (Store h i) = Store (g . h . f) i
     {-# INLINE dimap #-}
+
+instance i ~ k => Comonad (Store i k) where
+  extract   (Store f a) = f a
+  {-# INLINE extract #-}
+  duplicate (Store f a) = Store (Store f) a
+  {-# INLINE duplicate #-}
+  extend g  (Store f a) = Store (g . Store f) a
+  {-# INLINE extend #-}
+
+instance i ~ k => ComonadStore i (Store i k) where
+  pos (Store _ i) = i
+  {-# INLINE pos #-}
+  peek b (Store h _) = h b
+  {-# INLINE peek #-}
+  peeks f (Store h i) = h (f i)
+  {-# INLINE peeks #-}
+  seek a (Store h _) = Store h a
+  {-# INLINE seek #-}
+  seeks f (Store h i) = Store h (f i)
+  {-# INLINE seeks #-}
+  experiment f (Store h i) = h <$> f i
+  {-# INLINE experiment #-}
 
 -- The type ∀ f, g : Functor. (g a → f b) → g s → f t is isomorphic to the type (s → a)×(b → t). 
 -- The Van Laarhoven representation of isomorphisms uses this representation 

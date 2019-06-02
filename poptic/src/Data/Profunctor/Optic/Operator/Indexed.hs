@@ -143,73 +143,41 @@ itraversedList = itraversing itraverseList
 {-
 
 
-
-
-
--- | A function with access to a index. This constructor may be useful when you need to store
--- an 'Indexable' in a container to avoid @ImpredicativeTypes@.
---
--- @index :: Indexed i a b -> i -> a -> b@
-newtype Indexed i a b = Indexed { runIndexed :: i -> a -> b }
-
-instance Functor (Indexed i a) where
+instance Functor (Indexed (->) i a) where
   fmap g (Indexed f) = Indexed $ \i a -> g (f i a)
   {-# INLINE fmap #-}
 
-instance Apply (Indexed i a) where
+instance Apply (Indexed (->) i a) where
   Indexed f <.> Indexed g = Indexed $ \i a -> f i a (g i a)
   {-# INLINE (<.>) #-}
 
-instance Applicative (Indexed i a) where
+instance Applicative (Indexed (->) i a) where
   pure b = Indexed $ \_ _ -> b
   {-# INLINE pure #-}
   Indexed f <*> Indexed g = Indexed $ \i a -> f i a (g i a)
   {-# INLINE (<*>) #-}
 
-instance Bind (Indexed i a) where
+instance Bind (Indexed (->) i a) where
   Indexed f >>- k = Indexed $ \i a -> runIndexed (k (f i a)) i a
   {-# INLINE (>>-) #-}
 
-instance Monad (Indexed i a) where
+instance Monad (Indexed (->) i a) where
   return = pure
   {-# INLINE return #-}
   Indexed f >>= k = Indexed $ \i a -> runIndexed (k (f i a)) i a
   {-# INLINE (>>=) #-}
 
-instance MonadFix (Indexed i a) where
+instance MonadFix (Indexed (->) i a) where
   mfix f = Indexed $ \ i a -> let o = runIndexed (f o) i a in o
   {-# INLINE mfix #-}
 
-instance Profunctor (Indexed i) where
-  dimap ab cd ibc = Indexed $ \i -> cd . runIndexed ibc i . ab
-  {-# INLINE dimap #-}
-  lmap ab ibc = Indexed $ \i -> runIndexed ibc i . ab
-  {-# INLINE lmap #-}
-  rmap bc iab = Indexed $ \i -> bc . runIndexed iab i
-  {-# INLINE rmap #-}
-#ifndef SAFE
-  ( .# ) ibc _ = coerce ibc
-  {-# INLINE ( .# ) #-}
-  ( #. ) _ = coerce'
-  {-# INLINE ( #. ) #-}
-#endif
-
-
-instance Choice (Indexed i) where
-  right' = right
-  {-# INLINE right' #-}
-
-instance Strong (Indexed i) where
-  second' = second
-  {-# INLINE second' #-}
-
-instance Category (Indexed i) where
+instance Category (Indexed (->) i) where
   id = Indexed (const id)
   {-# INLINE id #-}
   Indexed f . Indexed g = Indexed $ \i -> f i . g i
   {-# INLINE (.) #-}
 
-instance Arrow (Indexed i) where
+instance Arrow (Indexed (->) i) where
   arr f = Indexed (\_ -> f)
   {-# INLINE arr #-}
   first f = Indexed (Arrow.first . runIndexed f)
@@ -221,7 +189,7 @@ instance Arrow (Indexed i) where
   Indexed f &&& Indexed g = Indexed $ \i -> f i &&& g i
   {-# INLINE (&&&) #-}
 
-instance ArrowChoice (Indexed i) where
+instance ArrowChoice (Indexed (->) i) where
   left f = Indexed (left . runIndexed f)
   {-# INLINE left #-}
   right f = Indexed (right . runIndexed f)
@@ -231,19 +199,19 @@ instance ArrowChoice (Indexed i) where
   Indexed f ||| Indexed g = Indexed $ \i -> f i ||| g i
   {-# INLINE (|||) #-}
 
-instance ArrowApply (Indexed i) where
+instance ArrowApply (Indexed (->) i) where
   app = Indexed $ \ i (f, b) -> runIndexed f i b
   {-# INLINE app #-}
 
-instance ArrowLoop (Indexed i) where
+instance ArrowLoop (Indexed (->) i) where
   loop (Indexed f) = Indexed $ \i b -> let (c,d) = f i (b, d) in c
   {-# INLINE loop #-}
 
-instance Conjoined (Indexed i) where
+instance Conjoined (Indexed (->) i) where
   distrib (Indexed iab) = Indexed $ \i fa -> iab i <$> fa
   {-# INLINE distrib #-}
 
-instance i ~ j => Indexable i (Indexed j) where
+instance i ~ j => Indexable i (Indexed (->) j) where
   indexed = runIndexed
   {-# INLINE indexed #-}
 
@@ -254,6 +222,10 @@ instance i ~ j => Indexable i (Indexed j) where
 
 -- | 'Applicative' composition of @'Control.Monad.Trans.State.Lazy.State' 'Int'@ with a 'Functor', used
 -- by 'Control.Lens.Indexed.indexed'.
+--
+-- This is co-strong
+-- λ> :t re first'
+-- re first' :: Costrong p => Optic p b a (b, c) (a, c)
 newtype Hughes f a = Hughes { runHughes :: Int -> (Int, f a) }
 
 instance Functor f => Functor (Hughes f) where

@@ -3,8 +3,8 @@ module Data.Profunctor.Optic (
 ) where
 
 
-import Data.Profunctor.Optic.Environment     as Export
 import Data.Profunctor.Optic.Fold            as Export
+import Data.Profunctor.Optic.Grate           as Export
 import Data.Profunctor.Optic.Iso             as Export
 import Data.Profunctor.Optic.Lens            as Export
 import Data.Profunctor.Optic.Operator        as Export

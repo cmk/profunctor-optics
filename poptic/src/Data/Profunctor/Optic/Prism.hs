@@ -7,7 +7,7 @@ import Control.Monad (guard)
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operator
-import Data.Either.Validation (Validation, eitherToValidation, validationToEither)
+import Data.Either.Validation (Validation(..), eitherToValidation, validationToEither)
 
 
 import Data.Profunctor.Choice as Export
@@ -63,6 +63,12 @@ prism bt seta = dimap seta (id ||| bt) . _Right
 -- | produces a `Maybe`.
 prism' :: (a -> s) -> (s -> Maybe a) -> Prism' s a
 prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
+
+-- | 'Validation' is isomorphic to 'Either'
+_Validation :: Iso (Validation e a) (Validation g b) (Either e a) (Either g b)
+_Validation = dimap validationToEither eitherToValidation
+{-# INLINE _Validation #-}
+
 
 -- | Useful for constructing prisms from try and handle functions.
 handled :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
@@ -167,6 +173,19 @@ _Left = left'
 
 _Right :: Prism (Either c a) (Either c b) a b
 _Right = right'
+
+
+-- | dimap v2e e2v . left' == prism Failure $ validation Right (Left . Success)
+_Failure :: Prism (Validation a c) (Validation b c) a b
+_Failure = dimap v2e e2v . left'
+{-# INLINE _Failure #-}
+
+
+-- | prism dimap v2e e2v . right' == Success $ validation (Left . Failure) Right
+_Success :: Prism (Validation c a) (Validation c b) a b
+_Success = dimap v2e e2v . right'
+{-# INLINE _Success #-}
+
 
 -- | 'lift' a 'Prism' through a 'Traversable' functor, 
 -- giving a Prism that matches only if all the elements of the container

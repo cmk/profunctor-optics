@@ -32,7 +32,7 @@ import Data.Bifunctor.Product (Product (..))
 import Data.Bifunctor.Sum (Sum (..))
 import Data.Bifunctor.Tannen (Tannen (..))
 import Data.Bifunctor.Biff (Biff (..))
-import Data.Either.Validation (Validation(..))
+import Data.Either.Validation (Validation(..), eitherToValidation, validationToEither)
 
 import           Data.Foldable
 import           Data.Traversable
@@ -85,17 +85,17 @@ choice :: Decidable f => f a -> f b -> f (Either a b)
 choice = choose id
 -}
 
-insert :: (b -> f c) -> (d -> b) -> Star f d c
-insert f = Star . (f .)
+ustar :: (b -> f c) -> (d -> b) -> Star f d c
+ustar f = Star . (f .)
 
-extract :: (f c1 -> b) -> Star f a c1 -> a -> b
-extract f = (f .) . runStar
+dstar :: (f c1 -> b) -> Star f a c1 -> a -> b
+dstar f = (f .) . runStar
 
-coinsert :: (f d -> b) -> (b -> c) -> Costar f d c
-coinsert g = Costar . (. g)
+coUstar :: (f d -> b) -> (b -> c) -> Costar f d c
+coUstar g = Costar . (. g)
 
-coextract :: (a -> f d) -> Costar f d c -> a -> c
-coextract g = (. g) . runCostar
+coDstar :: (a -> f d) -> Costar f d c -> a -> c
+coDstar g = (. g) . runCostar
 
 iconst :: Profunctor p => b -> p b c -> p a c
 iconst = lmap . const
@@ -114,6 +114,16 @@ _L = left'
 
 _R :: Choice p => p a b -> p (Either c a) (Either c b)
 _R = right'
+
+v2e :: Validation :-> Either 
+v2e = validationToEither
+
+e2v :: Either :-> Validation
+e2v = eitherToValidation
+
+validation :: (a -> c) -> (b -> c) -> Validation a b -> c
+validation l _ (Failure a) = l a
+validation _ r (Success b) = r b
 
 {-
 -- | As an example:

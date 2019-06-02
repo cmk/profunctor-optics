@@ -156,7 +156,7 @@ re :: (forall r. Reviewing r t b) -> View b t
 re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 {-# INLINE re #-}
 
--- | This can be used to turn an 'Control.Lens.Iso.Iso' or 'Prism' around and 'view' a value (or the current environment) through it the other way.
+-- | This can be used to turn an 'Control.Lens.Iso.Iso' or 'Prism' around and 'view' a value (or the current env) through it the other way.
 --
 -- @
 -- 'review' ≡ 'view' '.' 're'
@@ -177,7 +177,7 @@ re p = to (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'review' :: 'Prism'' s a -> a -> s
 -- @
 --
--- However, when working with a 'Monad' transformer stack, it is sometimes useful to be able to 'review' the current environment, in which case
+-- However, when working with a 'Monad' transformer stack, it is sometimes useful to be able to 'review' the current env, in which case
 -- it may be beneficial to think of it as having one of these slightly more liberal type signatures:
 --
 -- @
@@ -194,7 +194,7 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -}
 
 
--- | This can be used to turn an 'Control.Lens.Iso.Iso' or 'Prism' around and 'view' a value (or the current environment) through it the other way,
+-- | This can be used to turn an 'Control.Lens.Iso.Iso' or 'Prism' around and 'view' a value (or the current env) through it the other way,
 -- applying a function.
 --
 -- @
@@ -216,7 +216,7 @@ review p = asks (runIdentity #. unTagged #. p .# Tagged .# Identity)
 -- 'reviews' :: 'Prism'' s a -> (s -> r) -> a -> r
 -- @
 --
--- However, when working with a 'Monad' transformer stack, it is sometimes useful to be able to 'review' the current environment, in which case
+-- However, when working with a 'Monad' transformer stack, it is sometimes useful to be able to 'review' the current env, in which case
 -- it may be beneficial to think of it as having one of these slightly more liberal type signatures:
 --
 -- @

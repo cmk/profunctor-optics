@@ -6,9 +6,10 @@ module Data.Profunctor.Optic.Over (
 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
-import Data.Profunctor.Optic.Operator.Task
-import Data.Profunctor.Optic.Prelude 
+import Data.Profunctor.Optic.Operator.Task hiding (Context)
+import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
 
+import Data.Profunctor.Optic.Grate (overGrate)
 import Data.Profunctor.Mapping as Export
 
 import Control.Applicative (liftA)
@@ -16,58 +17,151 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Control.Monad.Reader as Reader
 
+import Control.Monad.IO.Unlift
+import UnliftIO.Exception
+
+--import Data.ByteString (ByteString)
+import qualified Control.Exception as Ex
+
+import Data.Profunctor.Optic.Prism
+-- TODO put this into doctests
+--import Data.Tuple
+import Data.Char
+import Data.Either.Validation (Validation(..))
+import qualified Data.Either.Validation as V (_Success)
+import Control.Arrow
+
+--There are also "contravariant" editor combinators which take a (b -> a) instead. 
+type Errors = [String]
+type Input = Char
+type Features = String
+
+v :: Validating' Errors Input (Features,Bool)
+v = undefined
+
+v0 :: (Int, Input -> (Features,Bool))
+v0 = (3,  \c -> ([c,'q',c,'r'], isDigit c))
+
+v0' :: (Int, Input -> Validation Errors (Features,Bool))
+v0' = undefined -- (3,  \c -> ([c,'q',c,'r'], isDigit c))
+
+v1 :: (Int, Input -> (Features, Bool))
+v1 = (_2.res._1) reverse v0
+
+double x   = x+x
+--swap (x,y) = (y,x)
+
+-- negate the boolean,
+v2 :: (Int, Input -> (Features, Bool))
+v2 = (second'.res.second') not v0
+
+--v2' :: (Int, Validating' Errors Input (Features, Bool))
+
+-- WARNING: note that features was lifted outside validation
+v2' :: (Int, Input -> (Features, Validation Errors Bool))
+v2' = (_2 . res . V._Success . _2) not v0'
+
+v2'' :: (Int, Input -> Validation Errors (Features, Bool))
+v2'' = (_2 . res . _Success . _2) not v0'
+
+-- double the Int,
+v3 :: (Int, Input -> (Features, Bool))
+v3 = first double v0
+
+-- swap the inner pair, or
+v4 :: (Int, Input -> (Bool, Features))
+v4 = (second'.res) swap v0
+
+-- swap the outer pair
+v5 :: (Input -> (Features, Bool), Int)
+v5 = swap v0
+
+--arg = flip (.)     -- contravariant
+
+
+
+data Context = Context
+data Example = Example
+type ByteString = String
+
+finishExample :: Context -> Example -> IO ()
+finishExample _ _ = pure ()
+
+readExample :: Context -> ByteString -> IO Example
+readExample _ _ = pure Example
+
+--bracket :: IO a -> (a -> IO ()) -> (a -> IO c) -> IO c
+
+withExample :: Context -> ByteString -> (Example -> IO a) -> IO a
+withExample ctx bs = Ex.bracket (readExample ctx bs) (finishExample ctx)
+
+
+newtype Serializer r b e = Serializer { runSerializer :: (e -> IO r) -> b -> IO r }
+
+instance Profunctor (Serializer r) where
+  dimap f g (Serializer s) = Serializer $ \eior b -> s (eior . g) (f b)
+
+
+env' :: Functor f => (((s -> f a) -> f b) -> t) -> Over s t a b
+env' f = dimap pureTaskF (f . runTask) . map'
+
+unlifting' :: MonadUnliftIO m => Over (m a) (m b) a b
+unlifting' = env' withRunInIO
+
+masking' :: MonadUnliftIO m => Over (m a) (m b) a b
+masking' = env' mask
 
 ---------------------------------------------------------------------
 -- Over
 ---------------------------------------------------------------------
 
 --over_complete :: Over s t a b -> Over s t a b
---over_complete = mapping . over
+--over_complete = over . over
 
 -- import Data.Functor.Rep
--- mapping :: ((a -> b) -> s -> t) -> Over s t a b
--- mapping f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-- over :: ((a -> b) -> s -> t) -> Over s t a b
+-- over f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
 -- 
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
-mapping :: ((a -> b) -> s -> t) -> Over s t a b
-mapping f = dimap (Store id) (\(Store g s) -> f g s) . map'
+over :: ((a -> b) -> s -> t) -> Over s t a b
+over f = dimap (Store id) (\(Store g s) -> f g s) . map'
 
 
 -- | This 'Over' can be used to map contravariantly over the input of a 'Profunctor'.
 --
 -- The most common 'Profunctor' to use this with is @(->)@.
 --
--- >>> (argument %~ f) g x
+-- >>> (arg %~ f) g x
 -- g (f x)
 --
--- >>> (argument %~ show) length [1,2,3]
+-- >>> (arg %~ show) length [1,2,3]
 -- 7
 --
--- >>> (argument %~ f) h x y
+-- >>> (arg %~ f) h x y
 -- h (f x) y
 --
--- Map over the argument of the result of a function -- i.e., its second
--- argument:
+-- Map over the arg of the res of a function -- i.e., its second
+-- arg:
 --
--- >>> (mapped . argument %~ f) h x y
+-- >>> (mapped . arg %~ f) h x y
 -- h x (f y)
 --
 -- @
--- 'argument' :: 'Over' (b -> r) (a -> r) a b
+-- 'arg' :: 'Over' (b -> r) (a -> r) a b
 -- @
 -- 
-argument :: Profunctor p => Over (p b r) (p a r) a b
-argument = mapping lmap
-{-# INLINE argument #-}
+arg :: Profunctor p => Over (p b r) (p a r) a b
+arg = over lmap
+{-# INLINE arg #-}
 
--- | result :: Over (r -> b) (r -> a) b a
+-- | res :: Over (r -> b) (r -> a) b a
 
-result :: Profunctor p => Over (p r a) (p r b) a b
-result = mapping rmap
+res :: Profunctor p => Over (p r a) (p r b) a b
+res = over rmap
 
-remapping :: Over (s -> a) ((a -> b) -> s -> t) b t
-remapping = mapping between
+
+
 
 --each :: (a -> b) -> ([a] -> [b])
 
@@ -77,7 +171,7 @@ remapping = mapping between
 --  for example '(first.set) 1' will set the first value of a tuple to 1
 --sets :: a -> b -> a
 setting :: Over b (a -> b1) a b1
-setting = mapping const
+setting = over const
 
 -- |Semantic Editor Combinator for Maybe
 --just ::  (a -> b) -> Maybe a -> Maybe b
@@ -89,19 +183,27 @@ setting = mapping const
 
 -- |Semantic Editor Combinator for monadicaly transforming a monadic value
 --binds :: Monad m => (a -> m b) -> m a -> m b
---binds f = mapping (>>= f)
+--binds f = over (>>= f)
 
 
 
 
 --composed :: Over (a -> b -> s) (a -> b -> t) s t
---composed = mapping ((.)(.)(.))
+--composed = over ((.)(.)(.))
 
 currying :: Over a (b -> c) (a, b) c
-currying = mapping curry
+currying = over curry
 
 uncurrying :: Over (a, b) c a (b -> c)
-uncurrying = mapping uncurry
+uncurrying = over uncurry
+
+
+modding :: Over (a -> b) (s -> t) ((s -> a) -> b) t
+modding = over overGrate
+
+reover :: Over (s -> a) ((a -> b) -> s -> t) b t
+reover = over between
+
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
@@ -115,15 +217,15 @@ uncurrying = mapping uncurry
 -- >>> set lifted b (Just a)
 -- Just b
 lifting :: Applicative f => Over (f a) (f b) a b
-lifting = mapping liftA
+lifting = over liftA
 {-# INLINE lifting #-}
 
 -- |Semantic Editor Combinator on each value of a functor
 mapped :: Functor f => Over (f a) (f b) a b
-mapped = mapping fmap
+mapped = over fmap
 
 foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
-foldMapped = mapping foldMap
+foldMapped = over foldMap
 
 {-
 collecting
@@ -141,7 +243,7 @@ branching' p f a = if p a then f a else a
 
 -- See https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Tasks
 branching :: (k -> Bool) -> Over' (k -> v) v
-branching p = mapping $ \modify f a -> if p a then modify (f a) else f a
+branching p = over $ \modify f a -> if p a then modify (f a) else f a
 
 ---------------------------------------------------------------------
 -- Operators
@@ -155,8 +257,8 @@ branching p = mapping $ \modify f a -> if p a then modify (f a) else f a
 -- over :: Over s t a b -> (a -> r) -> s -> r
 -- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
+mapping :: Optic (->) s t a b -> (a -> b) -> s -> t
+mapping = id
 
 infixr 4 %~
 
@@ -165,8 +267,8 @@ infixr 4 %~
 {-# INLINE (%~) #-}
 
 
-reover :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-reover = re
+remapping :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+remapping = re
 
 -- set l y (set l x a) ≡ set l y a
 set :: Optic (->) s t a b -> s -> b -> t
@@ -180,53 +282,6 @@ infixr 4 .~
 (.~) :: Optic (->) s t a b -> s -> b -> t
 (.~) = set
 {-# INLINE (.~) #-}
-
-
--- | The type of a memo table for functions of a.
--- forall r. Over'
-type Memo a = forall r. (a -> r) -> (a -> r)
-
--- | Given a memoizer for a and an isomorphism between a and b, build
--- a memoizer for b.
-wrap :: (a -> b) -> (b -> a) -> Memo a -> Memo b
-wrap i j m f = m (f . i) . j
-
--- | Memoize a two argument function (just apply the table directly for
--- single argument functions).
-memo2 :: Memo a -> Memo b -> (a -> b -> r) -> (a -> b -> r)
-memo2 a b = a . (b .)
-
--- | Memoize a three argument function.
-memo3 :: Memo a -> Memo b -> Memo c -> (a -> b -> c -> r) -> (a -> b -> c -> r)
-memo3 a b c = a . (memo2 b c .)
-
--- | Memoize the second argument of a function.
-memoSecond :: Memo b -> (a -> b -> r) -> (a -> b -> r)
-memoSecond b = (b .)
-
--- | Memoize the third argument of a function.
-memoThird :: Memo c -> (a -> b -> c -> r) -> (a -> b -> c -> r)
-memoThird c = (memoSecond c .)
-
-bool :: Memo Bool
-bool f = cond (f True) (f False)
-    where
-    cond t f True  = t
-    cond t f False = f
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -448,7 +503,7 @@ scribe o b = tell (set o mempty b)
 {-# INLINE scribe #-}
 
 -- | This is a generalization of 'pass' that allows you to modify just a
--- portion of the resulting 'MonadWriter'.
+-- portion of the resing 'MonadWriter'.
 passing :: MonadWriter s m => Optic (->) s s a b -> m (r, a -> b) -> m r
 passing o m = pass $ do
   (a, uv) <- m
@@ -456,7 +511,7 @@ passing o m = pass $ do
 {-# INLINE passing #-}
 
 -- | This is a generalization of 'censor' that allows you to 'censor' just a
--- portion of the resulting 'MonadWriter'.
+-- portion of the resing 'MonadWriter'.
 --censoring :: MonadWriter w m => Over w w u v -> (u -> v) -> m a -> m a
 censoring :: MonadWriter s m => Optic (->) s s a b -> (a -> b) -> m c -> m c
 censoring o uv = censor $ o uv
@@ -466,7 +521,7 @@ censoring o uv = censor $ o uv
 -- Reader Operations
 -----------------------------------------------------------------------------
 
--- | Modify the value of the 'Reader' environment associated with the target of a
+-- | Modify the value of the 'Reader' env associated with the target of a
 -- 'Over', 'Lens', or 'Traversal'.
 --
 -- @

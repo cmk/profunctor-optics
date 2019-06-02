@@ -20,7 +20,6 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Optic
-      Data.Profunctor.Optic.Environment
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold.Affine
       --Data.Profunctor.Optic.Fold.Indexed
@@ -34,7 +33,7 @@ library
       Data.Profunctor.Optic.Operator.Indexed
       Data.Profunctor.Optic.Operator.Task
       Data.Profunctor.Optic.Over
-      --Data.Profunctor.Optic.Over.Environment
+      Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Review
