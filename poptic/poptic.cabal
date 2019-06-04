@@ -20,31 +20,53 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Optic
-      Data.Profunctor.Optic.Types
-      Data.Profunctor.Optic.Types.Class
-      Data.Profunctor.Optic.Operators
-      Data.Profunctor.Optic.Affine
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Getter
+      Data.Profunctor.Optic.Fold.Affine
+      --Data.Profunctor.Optic.Fold.Indexed
+      Data.Profunctor.Optic.Fold.NonEmpty
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Lens
+      --Data.Profunctor.Optic.Lens.Rep
+      --Data.Profunctor.Optic.Lens.Free
+      Data.Profunctor.Optic.Operator
+      --Data.Profunctor.Optic.Operator.Common
+      Data.Profunctor.Optic.Operator.Indexed
+      Data.Profunctor.Optic.Operator.Task
+      Data.Profunctor.Optic.Over
+      Data.Profunctor.Optic.Grate
+      Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Review
-      Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Traversal.Affine
+      --Data.Profunctor.Optic.Traversal.Indexed
+      Data.Profunctor.Optic.Traversal.NonEmpty
+      Data.Profunctor.Optic.Type
+      Data.Profunctor.Optic.Type.Class
+      Data.Profunctor.Optic.Type.VL
+      Data.Profunctor.Optic.View
 
   hs-source-dirs:
       src
-  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings
+  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings TupleSections FlexibleInstances ExistentialQuantification
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
     , bifunctors
-    , constraints
+    , containers
+    --, constraints
+    --, safe
+    , comonad
+    , contravariant
     , distributive
-    , mtl
+    , semigroupoids
     , profunctors
-    , validation
+    , either
+    , mtl
+    , transformers
+    , free
+    , unliftio
+    , unliftio-core
 
 test-suite doctests
   type:          exitcode-stdio-1.0

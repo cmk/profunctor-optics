@@ -7,5 +7,5 @@ packages:
   - pref
 
 extra-deps:
-  - unliftio-streams-0.1.0.0@sha256:8a85223d3d7e95a3a1735f4b08d1ebc9a52755a7c6d50c77112e79b9d0f7b1cd
   - bifunctor-0.1.0.0@sha256:43bfde3f3516e078054db2939d966a9aec6f63a8f98f1ff0c29ed147f39db388
+  - composition-prelude-2.0.5.0@sha256:2e18aa0baa6ba527b086261f077a10c2786594879f6c0cbcb50464b9d69b1521

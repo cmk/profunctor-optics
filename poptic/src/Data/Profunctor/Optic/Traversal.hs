@@ -4,13 +4,23 @@ module Data.Profunctor.Optic.Traversal (
 ) where
 
 import Data.Bitraversable 
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Operators
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Operator.Task
+import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Traversing as Export
+import Data.Profunctor.Optic.Traversal.Affine    as Export
+import Data.Profunctor.Optic.Traversal.NonEmpty  as Export
+import Data.Profunctor.Traversing                as Export
+
+import qualified Data.Profunctor.Optic.Type.VL as VL
+
+
+
+
 
 ---------------------------------------------------------------------
--- Traversal
+-- 'Traversal'
 ---------------------------------------------------------------------
 
 traversed :: Traversable t => Traversal (t a) (t b) a b
@@ -37,11 +47,12 @@ both :: Bitraversable t => Traversal (t a a) (t b b) a b
 both = wander $ \f -> bitraverse f f
 {-# INLINE both #-}
 
+
 ---------------------------------------------------------------------
--- Derived operators
+-- Operators
 ---------------------------------------------------------------------
 
-sequenceOf
-  :: Applicative f
-  => Optic (Star f) s t (f a) a -> s -> f t
+sequenceOf :: Applicative f => Traversal s t (f a) a -> s -> f t
 sequenceOf t = traverseOf t id
+
+

@@ -1,26 +1,47 @@
-module Data.Profunctor.Optic.Iso (
-    module Data.Profunctor.Optic.Iso 
-  , module Export
-) where
+module Data.Profunctor.Optic.Iso where
 
+import Data.Profunctor.Optic.Prelude
+import Data.Bifunctor.Product (Product(..))
 import Data.Maybe (fromMaybe)
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 
-import Data.Profunctor.Types as Export
+import Control.Monad (join)
 
+
+---------------------------------------------------------------------
+-- 'Equality' 
+---------------------------------------------------------------------
+
+type As a = Equality' a a
+
+-- 'simple' is occasionally useful to constraint excessive polymorphism, 
+-- e.g turn Optic into simple Optic'.
+-- | @foo . (simple :: As Int) . bar@.
+simple :: As a
+simple = id
+
+---------------------------------------------------------------------
+-- 'Iso' 
+---------------------------------------------------------------------
 
 {- hedgehog predicates
-fromTo :: Eq s => IsoP s s a a -> s -> Bool
-fromTo (IsoP f t) s = (t . f) s == s
 
-toFrom :: Eq a => IsoP s s a a -> a -> Bool
-toFrom (IsoP f t) a = (f . t) a == a
+fromTo :: Eq s => IsoRep s s a a -> s -> Bool
+fromTo (IsoRep f t) s = (t . f) s == s
 
+toFrom :: Eq a => IsoRep s s a a -> a -> Bool
+toFrom (IsoRep f t) a = (f . t) a == a
 
-associate :: IsoP ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
-associate = IsoP  f t where
-  f ((a, b), c) = (a, (b, c))
-  t (a', (b', c')) = ((a', b'), c')
+Since every Iso is both a valid Lens and a valid Prism the laws for those types imply the following laws for an Iso o:
+
+viewP o (reviewP o b) ≡ b
+reviewP o (viewP o s) ≡ s
+
+Or even more powerfully using re:
+
+o . re o ≡ id
+re o . o ≡ id
+
 
 λ> from associate ((1, "hi"), True)
 (1,("hi",True))
@@ -43,7 +64,7 @@ cloneIso k = withIso k iso
 -- | Extract the two functions, one from @s -> a@ and
 -- one from @b -> t@ that characterize an 'Iso'.
 withIso :: AnIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso ai k = case ai (IsoP id id) of IsoP sa bt -> k sa bt
+withIso ai k = case ai (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
 
@@ -66,8 +87,54 @@ from' o = iso (review . Const) (getConst . get)
     Pair (Star get) (Costar review) = o (Pair (Star Const) (Costar getConst))
 
 ---------------------------------------------------------------------
+-- 
+---------------------------------------------------------------------
+
+-- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
+data IsoRep a b s t = IsoRep (s -> a) (b -> t)
+
+instance Functor (IsoRep a b s) where
+  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE fmap #-}
+
+instance Profunctor (IsoRep a b) where
+  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
+  {-# INLINE dimap #-}
+  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
+  {-# INLINE lmap #-}
+  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE rmap #-}
+
+-- | When you see this as an argument to a function, it expects an 'Iso'.
+type AnIso s t a b = Optic (IsoRep a b) s t a b
+
+type AnIso' s a = AnIso s s a a
+
+---------------------------------------------------------------------
 -- Common isos
 ---------------------------------------------------------------------
+
+forget2 :: Iso s t (a, x) (b, x) -> Lens s t a b
+forget2 = (. first')
+
+forgetR :: Iso s t (Either a c) (Either b c) -> Prism s t a b
+forgetR = (. left')
+
+eitherOne :: Iso (Maybe a) (Maybe b) (Either () a) (Either () b)
+eitherOne = iso (maybe (Left ()) Right) (const Nothing ||| Just)
+
+eitherTwo :: Iso (Bool,a) (Bool,b) (Either a a) (Either b b)
+eitherTwo = iso f ((,) False ||| (,) True)
+ where
+  f (False,a) = Left a
+  f (True,a) = Right a
+
+indexPair :: Iso (Bool -> a) (Bool -> b) (a,a) (b,b)
+indexPair = iso to fro
+ where
+  to f = (f False, f True)
+  fro p True = fst p
+  fro p False = snd p
 
 
 curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
@@ -76,23 +143,47 @@ curried = iso curry uncurry
 uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a, b) -> c) ((d, e) -> f)
 uncurried = iso uncurry curry
 
+-- | Right association
+associated :: Iso ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
+associated = iso assoc unassoc
+
+swapped :: Iso (a, b) (c, d) (b, a) (d, c)
+swapped = iso swap swap
+
 flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
 flipped = iso flip flip
 
-mapping
+-- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
+--
+-- @
+-- 'involuted' ≡ 'Control.Monad.join' 'iso'
+-- @
+--
+-- >>> "live" ^. involuted reverse
+-- "evil"
+--
+-- >>> "live" & involuted reverse %~ ('d':)
+-- "lived"
+--
+involuted :: (s -> a) -> Iso s a a s
+involuted = join iso
+{-# INLINE involuted #-}
+
+
+fover
   :: Functor f
   => Functor g
   => AnIso s t a b
   -> Iso (f s) (g t) (f a) (g b)
-mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
+fover l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 
-dimapping
+diover
   :: Profunctor p
   => Profunctor q
   => AnIso s t a b
   -> AnIso ss tt aa bb
   -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
-dimapping f g = 
+diover f g = 
   withIso f $ \sa bt -> 
     withIso g $ \ssaa bbtt -> 
       iso (dimap sa ssaa) (dimap bt bbtt)
@@ -112,3 +203,19 @@ auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
 
 under :: AnIso s t a b -> (t -> s) -> b -> a
 under l = withIso l $ \sa bt ts -> sa . ts . bt
+
+
+-- | @'anon' a p@ generalizes @'non' a@ to take any value and a predicate.
+--
+-- This function assumes that @p a@ holds @'True'@ and generates an isomorphism between @'Maybe' (a | 'not' (p a))@ and @a@.
+--
+-- >>> Map.empty & at "hello" . anon Map.empty Map.null . at "world" ?~ "!!!"
+-- fromList [("hello",fromList [("world","!!!")])]
+--
+-- >>> fromList [("hello",fromList [("world","!!!")])] & at "hello" . anon Map.empty Map.null . at "world" .~ Nothing
+-- fromList []
+anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
+anon a p = iso (fromMaybe a) go where
+  go b | p b       = Nothing
+       | otherwise = Just b
+{-# INLINE anon #-}
