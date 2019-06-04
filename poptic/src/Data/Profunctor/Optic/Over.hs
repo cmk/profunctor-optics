@@ -42,8 +42,8 @@ v = undefined
 v0 :: (Int, Input -> (Features,Bool))
 v0 = (3,  \c -> ([c,'q',c,'r'], isDigit c))
 
-v0' :: (Int, Input -> Validation Errors (Features,Bool))
-v0' = undefined -- (3,  \c -> ([c,'q',c,'r'], isDigit c))
+v0a :: (Int, Input -> Validation Errors (Features,Bool))
+v0a = undefined -- (3,  \c -> ([c,'q',c,'r'], isDigit c))
 
 v1 :: (Int, Input -> (Features, Bool))
 v1 = (_2.res._1) reverse v0
@@ -58,11 +58,11 @@ v2 = (second'.res.second') not v0
 --v2' :: (Int, Validating' Errors Input (Features, Bool))
 
 -- WARNING: note that features was lifted outside validation
-v2' :: (Int, Input -> (Features, Validation Errors Bool))
-v2' = (_2 . res . V._Success . _2) not v0'
+--v2' :: (Int, Input -> (Features, Validation Errors Bool))
+--v2' = (_2 . res . V._Success . _2) not v0'
 
-v2'' :: (Int, Input -> Validation Errors (Features, Bool))
-v2'' = (_2 . res . _Success . _2) not v0'
+v2a :: (Int, Input -> Validation Errors (Features, Bool))
+v2a = (_2 . res . _Success . _2) not v0a
 
 -- double the Int,
 v3 :: (Int, Input -> (Features, Bool))
@@ -72,11 +72,6 @@ v3 = first double v0
 v4 :: (Int, Input -> (Bool, Features))
 v4 = (second'.res) swap v0
 
--- swap the outer pair
-v5 :: (Input -> (Features, Bool), Int)
-v5 = swap v0
-
---arg = flip (.)     -- contravariant
 
 
 
@@ -90,38 +85,87 @@ finishExample _ _ = pure ()
 readExample :: Context -> ByteString -> IO Example
 readExample _ _ = pure Example
 
+{-
+-- Prediction
+
+predict :: Context -> Example -> IO ()
+predict ctx ex =
+    check [C.exp| int {
+        vw_predict(
+            $with-ptr:(vw_context ctx),
+            $with-ptr:(vw_example ex))
+    }|]
+
+-- Prediction Types
+
+getScalarPrediction :: Example -> IO Float
+getScalarPrediction ex =
+    fmap realToFrac $
+        C.withPtr_ $ \valuePtr ->
+            check [C.exp| int {
+                vw_prediction_scalar(
+                    $with-ptr:(vw_example ex),
+                    $(float *valuePtr))
+            }|]
+-}
+
+
+
 --bracket :: IO a -> (a -> IO ()) -> (a -> IO c) -> IO c
 
 withExample :: Context -> ByteString -> (Example -> IO a) -> IO a
 withExample ctx bs = Ex.bracket (readExample ctx bs) (finishExample ctx)
 
-
+type Prediction i o = Star IO i o
 newtype Serializer r b e = Serializer { runSerializer :: (e -> IO r) -> b -> IO r }
+
+mkSerializer :: Context -> Serializer r ByteString Example
+mkSerializer ctx = Serializer $ flip (withExample ctx)
+
+--mask :: MonadUnliftIO m => ((forall a. m a -> m a) -> m b) -> m b
 
 instance Profunctor (Serializer r) where
   dimap f g (Serializer s) = Serializer $ \eior b -> s (eior . g) (f b)
 
+--type VW i o e = Context -> i -> ContT o IO e
 
-env' :: Functor f => (((s -> f a) -> f b) -> t) -> Over s t a b
-env' f = dimap pureTaskF (f . runTask) . map'
+type VW i r e = Context -> i -> (e -> IO r) -> IO r
+
+-- | Serialize a raw input @i@ to an example @e@, and yield it for consumption by VW.
+--type Serializer i e = forall o. VW i o e
+
+-- | Consume a raw input @i@ for learning only.
+type Learner i = VW i () ()
+
+-- | Score a raw input @i@ and produce an output label @o@.
+type Predictor i o = VW i o o
+
+--newtype MyFold m a s = MyFold { runMyFold :: (s -> m) -> a -> m }
+
+
+
+grating :: Functor f => (((s -> f a) -> f b) -> t) -> Over s t a b
+grating f = dimap pureTaskF (f . runTask) . map'
 
 unlifting' :: MonadUnliftIO m => Over (m a) (m b) a b
-unlifting' = env' withRunInIO
+unlifting' = grating withRunInIO
 
 masking' :: MonadUnliftIO m => Over (m a) (m b) a b
-masking' = env' mask
+masking' = grating mask
 
 ---------------------------------------------------------------------
 -- Over
 ---------------------------------------------------------------------
 
---over_complete :: Over s t a b -> Over s t a b
---over_complete = over . over
+{-
+ 
+over_complete :: Over s t a b -> Bool
+over_complete o = tripping o $ mapOf . over 
 
--- import Data.Functor.Rep
--- over :: ((a -> b) -> s -> t) -> Over s t a b
--- over f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
--- 
+import Data.Functor.Rep
+over :: ((a -> b) -> s -> t) -> Over s t a b
+over f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+-}
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
 over :: ((a -> b) -> s -> t) -> Over s t a b
@@ -161,16 +205,10 @@ res :: Profunctor p => Over (p r a) (p r b) a b
 res = over rmap
 
 
-
-
---each :: (a -> b) -> ([a] -> [b])
-
-
-
 -- |Using 'set' one can set instead of modify a value using Semantic Editor Combinators
 --  for example '(first.set) 1' will set the first value of a tuple to 1
 --sets :: a -> b -> a
-setting :: Over b (a -> b1) a b1
+setting :: Over b (a -> c) a c
 setting = over const
 
 -- |Semantic Editor Combinator for Maybe
@@ -191,15 +229,16 @@ setting = over const
 --composed :: Over (a -> b -> s) (a -> b -> t) s t
 --composed = over ((.)(.)(.))
 
+{-
 currying :: Over a (b -> c) (a, b) c
 currying = over curry
 
 uncurrying :: Over (a, b) c a (b -> c)
 uncurrying = over uncurry
+-}
 
-
-modding :: Over (a -> b) (s -> t) ((s -> a) -> b) t
-modding = over overGrate
+grated :: Over (a -> b) (s -> t) ((s -> a) -> b) t
+grated = over overGrate
 
 reover :: Over (s -> a) ((a -> b) -> s -> t) b t
 reover = over between
@@ -216,13 +255,13 @@ reover = over between
 --
 -- >>> set lifted b (Just a)
 -- Just b
-lifting :: Applicative f => Over (f a) (f b) a b
-lifting = over liftA
-{-# INLINE lifting #-}
+lifted :: Applicative f => Over (f a) (f b) a b
+lifted = over liftA
+{-# INLINE lifted #-}
 
 -- |Semantic Editor Combinator on each value of a functor
-mapped :: Functor f => Over (f a) (f b) a b
-mapped = over fmap
+fmapped :: Functor f => Over (f a) (f b) a b
+fmapped = over fmap
 
 foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
 foldMapped = over foldMap
@@ -234,16 +273,15 @@ collecting
 collecting = roam
 -}
 
-
 -- | Semantic Editor Combinator applying the given function only when the given predicate
 --  yields true for an input value.
 
-branching' :: (a -> Bool) -> (a -> a) -> (a -> a)
-branching' p f a = if p a then f a else a
+branched' :: (a -> Bool) -> (a -> a) -> (a -> a)
+branched' p f a = if p a then f a else a
 
 -- See https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Tasks
-branching :: (k -> Bool) -> Over' (k -> v) v
-branching p = over $ \modify f a -> if p a then modify (f a) else f a
+branched :: (k -> Bool) -> Over' (k -> v) v
+branched p = over $ \modify f a -> if p a then modify (f a) else f a
 
 ---------------------------------------------------------------------
 -- Operators
@@ -257,18 +295,17 @@ branching p = over $ \modify f a -> if p a then modify (f a) else f a
 -- over :: Over s t a b -> (a -> r) -> s -> r
 -- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
-mapping :: Optic (->) s t a b -> (a -> b) -> s -> t
-mapping = id
+mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
+mapOf = over id
 
 infixr 4 %~
 
 (%~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(%~) = over
+(%~) = mapOf
 {-# INLINE (%~) #-}
 
-
-remapping :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-remapping = re
+remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+remapOf = re
 
 -- set l y (set l x a) ≡ set l y a
 set :: Optic (->) s t a b -> s -> b -> t

@@ -78,6 +78,7 @@ cloneFold f = to $ \s -> getConst (f Const s)
 -- | Folds over a `Foldable` container.
 folded :: Foldable f => Monoid r => Folding r (f a) a
 folded (Star Const) = undefined --Star $ Const . foldMap a
+folded (Forget a) = Forget (foldMap a)
 
 -- | Folds over a `Foldable` container.
 --folded :: (Foldable f, Monoid r) => (a -> r) -> Folding r (f a) a
@@ -175,7 +176,15 @@ infixl 8 ^..
 (^..) = flip toListOf
 {-# INLINE (^..) #-}
 
+{-
+-- | The sum of all foci of a `Fold`.
+sumOf :: forall s t a b. Semiring a => Fold (Additive a) s t a b -> s -> a
+sumOf p = unwrap <<< foldMapOf p Additive
 
+-- | The product of all foci of a `Fold`.
+productOf :: forall s t a b. Semiring a => Fold (Multiplicative a) s t a b -> s -> a
+productOf p = unwrap <<< foldMapOf p Multiplicative
+-}
 
 sumOf :: Num a => Folding (Sum a) s a -> s -> a
 sumOf o = getSum . foldMapOf o Sum

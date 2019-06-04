@@ -143,11 +143,9 @@ curried = iso curry uncurry
 uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a, b) -> c) ((d, e) -> f)
 uncurried = iso uncurry curry
 
+-- | Right association
 associated :: Iso ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
 associated = iso assoc unassoc
-
-unassociated :: Iso (a, (b, c)) (a', (b', c')) ((a, b), c) ((a', b'), c') 
-unassociated = iso unassoc assoc
 
 swapped :: Iso (a, b) (c, d) (b, a) (d, c)
 swapped = iso swap swap

@@ -1,18 +1,17 @@
 [poptic](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf)
 
-`poptic` is based in large part on 
+`poptic` builds upon (and is much indebted to) prior work by: Ed Kmett, Russell O’Connor, Twan van Laarhoven, Jeremy Gibbons, Matthew Pickering, Guillaume Boisseau, Oleg Grenrus, Phil Freeman, and many others.
 
-- Edward Kmett's [`lens`](http://hackage.haskell.org/package/lens) and [`profunctors`](http://hackage.haskell.org/package/profunctors)
+Its purpose is to provide a semantically precise and performant implementation of profunctor-encoded optics, suitable for application development.
+
+Why another optics library? Mainly because for many applications the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding.
+
+The category theory behind profunctor optics is well-described in the following papers:
 - [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) by Pickering, Gibbons, and Wu
-- [Glassery](http://oleg.fi/gists/posts/2017-04-18-glassery.html) by Oleg Grenrus, which is a excellent synthesis of the paper
+- [What You Needa Know about Yoneda](https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf) by Gibbons and Boisseau 
 
+If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) by Dan Piponi are good general introductions. Oleg Grenrus has several blog excellent blog posts (notably [this one](http://oleg.fi/gists/posts/2017-04-18-glassery.html) that provide a synthesis of the Pickering paper for Haskellers.
 
-Its purpose is to provide a semantically precise and performant implementation of profunctor-encoded optics, suitable for application development. 
-
-Why another optics library?
-Mainly because for many applications the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding. 
-
-If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and [this post](http://blog.sigfpe.com/2011/07/profunctors-in-haskell.html) by Dan Piponi are excellent general introductions.
 
 ## Intro
 
@@ -97,17 +96,17 @@ The constructors and characterizing operations for the remaining optics are summ
 | [View](#view)                  | `to`          | `view`            |               | `Star (Const a) s a`                     
 | [PrimReview](#review)          | `unto`        |                   | `InPhantom`   | `b -> t`               
 | [Review](#review)              | `unto`        | `review`          |               | `Costar (Const b) t b` 
-| [Iso](#iso)                    | `iso`         | `re`              | `Profunctor`  | `(s -> a, b -> t)`      
-| [Lens](#lens)                  | `lens`        | `view`, `over`    | `Strong`      | `(s -> a, s -> b -> t)`            
+| [Iso](#iso)                    | `iso`         | `re`              | `Profunctor`  | `(s -> a, b -> t)`               
+| [Grate](#grate)                | `grate`       | `cotraverseOf`    | `Closed`      | `((s -> a) -> b) -> t`
+| [Over](#over)                  | `over`        | `mapOf`           | `Mapping`     | `(a -> b) -> s -> t`        
+| [Lens](#lens)                  | `lens`        | `view`, `mapOf`   | `Strong`      | `(s -> a, s -> b -> t)`            
 | [Prism](#prism)                | `prism`       | `match`, `review` | `Choice`      | `(s -> Either t a, b -> t)`           
-| [Affine Traversal](#traversal) | `affine`      | `match`, `over`   |               | `(s -> Either t a, s -> b -> t)`     
+| [Affine Traversal](#traversal) | `affine`      | `match`, `mapOf`  |               | `(s -> Either t a, s -> b -> t)`     
 | [Traversal1](#traversal)       | `traversing1` | `traverseOf`      | `Traversing1` | `(s -> NonEmpty a, s -> NonEmpty b -> t)`
 | [Traversal](#traversal)        | `traversing`  | `traverseOf`      | `Traversing`  | `(s -> [a], s -> [b] -> t)`              
 | [Affine Fold](#fold)           | `afolding`    | `preview`         |               | `Star (Pre a) s a`     
 | [Fold1](#fold)                 | `folding1`    | `toNelOf`         | `Semigroup r` | `Star (Const r) s a`   
 | [Fold](#fold)                  | `folding`     | `toListOf`        | `Monoid r`    | `Star (Const r) s a`   
-| [Over](#over)                  | `maps`        | `over`            | `Mapping`     | `(a -> b) -> s -> t`                 
-| [Env](#env)            | `env` | `cotraverseOf`    | `Closed`      | `((s -> a) -> b) -> t` 
 
 The laws are captured in property-driven tests in the test folder. Predicates describing the laws are kept along with the constructors so that they can be used to verify downstream optics.
 

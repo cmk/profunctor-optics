@@ -7,10 +7,11 @@ import Control.Monad (guard)
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type -- (APrism, APrism', Prism, Prism', Review, under)
 import Data.Profunctor.Optic.Operator
-import Data.Either.Validation (Validation(..), eitherToValidation, validationToEither)
+import Data.Either.Validation (Validation(..))
 
 
 import Data.Profunctor.Choice as Export
+
 
 {- prism laws:
 
@@ -56,26 +57,17 @@ Right (Nothing,"hi")
 
 -- | Create a 'Prism' from a constructor and a matcher function that
 -- | produces an 'Either'.
-prism :: (b -> t) -> (s -> Either t a) -> Prism s t a b
-prism bt seta = dimap seta (id ||| bt) . _Right
+prism :: (s -> Either t a) -> (b -> t) -> Prism s t a b
+prism seta bt = dimap seta (id ||| bt) . _Right
 
 -- | Create a `Prism` from a constructor and a matcher function that
 -- | produces a `Maybe`.
-prism' :: (a -> s) -> (s -> Maybe a) -> Prism' s a
-prism' as sma = prism as (\s -> maybe (Left s) Right (sma s))
-
--- | 'Validation' is isomorphic to 'Either'
-_Validation :: Iso (Validation e a) (Validation g b) (Either e a) (Either g b)
-_Validation = dimap validationToEither eitherToValidation
-{-# INLINE _Validation #-}
-
+prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
+prism' sma as = flip prism as (\s -> maybe (Left s) Right (sma s))
 
 -- | Useful for constructing prisms from try and handle functions.
-handled :: (Either e b -> t) -> (s -> Either e a) -> Prism s t a b
-handled eebt seea = dimap seea eebt . _Right
-
-validated :: (Validation e b -> t) -> (s -> Validation e a) -> Prism s t a b
-validated vebt svea = dimap svea vebt . dimap validationToEither eitherToValidation . _Right
+handled ::  (s -> Either e a) -> (Either e b -> t) -> Prism s t a b
+handled seea eebt = dimap seea eebt . _Right
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
 (+|+) :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
@@ -83,16 +75,16 @@ validated vebt svea = dimap svea vebt . dimap validationToEither eitherToValidat
 
 prismOf
   :: Choice p 
-  => (b -> t)
-  -> (s -> Either t a)
+  => (s -> Either t a)
+  -> (b -> t)
   -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
 prismOf f g = between runSplit Split (prism f g)
 
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism l = withPrism l $ \x y p -> prism x y p
 
-withPrism :: APrism s t a b -> ((b -> t) -> (s -> Either t a) -> r) -> r
-withPrism l f = case l (PrismRep id Right) of PrismRep g h -> f g h
+withPrism :: APrism s t a b -> ((s -> Either t a) -> (b -> t) -> r) -> r
+withPrism l f = case l (PrismRep Right id) of PrismRep g h -> f g h
 
 ---------------------------------------------------------------------
 -- 
@@ -100,33 +92,30 @@ withPrism l f = case l (PrismRep id Right) of PrismRep g h -> f g h
 
 
 -- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
-data PrismRep a b s t = PrismRep (b -> t) (s -> Either t a)
+data PrismRep a b s t = PrismRep (s -> Either t a) (b -> t)
 
 instance Functor (PrismRep a b s) where
 
-  fmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
+  fmap f (PrismRep seta bt) = PrismRep (either (Left . f) Right . seta) (f . bt)
   {-# INLINE fmap #-}
 
 instance Profunctor (PrismRep a b) where
 
-  dimap f g (PrismRep bt seta) = PrismRep (g . bt) $
-    either (Left . g) Right . seta . f
+  dimap f g (PrismRep seta bt) = PrismRep (either (Left . g) Right . seta . f) (g . bt)
   {-# INLINE dimap #-}
 
-  lmap f (PrismRep bt seta) = PrismRep bt (seta . f)
+  lmap f (PrismRep seta bt) = PrismRep (seta . f) bt
   {-# INLINE lmap #-}
 
-  rmap f (PrismRep bt seta) = PrismRep (f . bt) (either (Left . f) Right . seta)
+  rmap f (PrismRep seta bt) = PrismRep (either (Left . f) Right . seta) (f . bt)
   {-# INLINE rmap #-}
 
 instance Choice (PrismRep a b) where
 
-  left' (PrismRep bt seta) = PrismRep (Left . bt) $ 
-    either (either (Left . Left) Right . seta) (Left . Right)
+  left' (PrismRep seta bt) = PrismRep (either (either (Left . Left) Right . seta) (Left . Right)) (Left . bt)
   {-# INLINE left' #-}
 
-  right' (PrismRep bt seta) = PrismRep (Right . bt) $ 
-    either (Left . Left) (either (Left . Right) Right . seta)
+  right' (PrismRep seta bt) = PrismRep (either (Left . Left) (either (Left . Right) Right . seta)) (Right . bt)
   {-# INLINE right' #-}
 
 
@@ -150,11 +139,11 @@ filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either 
 filtered f = _Right . dimap (\x -> if f x then Right x else Left x) (either id id)
 
 binding :: Eq k => k -> Prism' (k, v) v
-binding i = prism ((,) i) (\kv@(k,v) -> if (i == k) then Right v else Left kv) 
+binding i = flip prism ((,) i) $ \kv@(k,v) -> if (i == k) then Right v else Left kv
 
 -- | Create a 'Prism' from a value and a predicate.
 nearly ::  a -> (a -> Bool) -> Prism' a ()
-nearly x f = prism' (const x) (guard . f)
+nearly x f = prism' (guard . f) (const x)
 
 -- | 'only' focuses not just on a case, but a specific value of that case.
 only :: Eq a => a -> Prism a a () ()
@@ -162,11 +151,11 @@ only x = nearly x (x==)
 
 -- | Prism for the `Nothing` constructor of `Maybe`.
 _Nothing :: Prism (Maybe a) (Maybe b) () ()
-_Nothing = prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+_Nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 
 -- | Prism for the `Just` constructor of `Maybe`.
 _Just :: Prism (Maybe a) (Maybe b) a b
-_Just = prism Just $ maybe (Left Nothing) Right
+_Just = flip prism Just $ maybe (Left Nothing) Right
 
 _Left :: Prism (Either a c) (Either b c) a b
 _Left = left'
@@ -186,7 +175,6 @@ _Success :: Prism (Validation c a) (Validation c b) a b
 _Success = dimap v2e e2v . right'
 {-# INLINE _Success #-}
 
-
 -- | 'lift' a 'Prism' through a 'Traversable' functor, 
 -- giving a Prism that matches only if all the elements of the container
 -- match the 'Prism'.
@@ -198,19 +186,18 @@ _Success = dimap v2e e2v . right'
 -- [["hail hydra!","foo","blah","woot"]]
 below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
 below k =
-  withPrism k $ \bt seta ->
-    prism (fmap bt) $ \s ->
+  withPrism k $ \seta bt ->
+    flip prism (fmap bt) $ \s ->
       case traverse seta s of
         Left _  -> Left s
         Right t -> Right t
 {-# INLINE below #-}
 
-
 -- | Use a 'Prism' to work over part of a structure.
 aside :: APrism s t a b -> Prism (e, s) (e, t) (e, a) (e, b)
 aside k =
-  withPrism k $ \bt seta ->
-    prism (fmap bt) $ \(e,s) ->
+  withPrism k $ \seta bt ->
+    flip prism (fmap bt) $ \(e,s) ->
       case seta s of
         Left t  -> Left  (e,t)
         Right a -> Right (e,a)
@@ -221,23 +208,10 @@ without :: APrism s t a b
         -> APrism u v c d
         -> Prism (Either s u) (Either t v) (Either a c) (Either b d)
 without k =
-  withPrism k $ \bt seta k' ->
-    withPrism k' $ \dv uevc ->
-      prism (bimap bt dv) $ \su ->
+  withPrism k $ \seta bt k' ->
+    withPrism k' $ \uevc dv ->
+      flip prism (bimap bt dv) $ \su ->
         case su of
           Left s  -> bimap Left Left (seta s)
           Right u -> bimap Right Right (uevc u)
 {-# INLINE without #-}
-
-
----------------------------------------------------------------------
--- Derived operators
----------------------------------------------------------------------
-
--- | Test whether the optic matches or not.
-is :: Matching a s t a b -> s -> Bool
-is o = either (const False) (const True) . match o
-
--- | Test whether the optic matches or not.
-isnt :: Matching a s t a b -> s -> Bool
-isnt o = not . is o

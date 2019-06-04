@@ -12,8 +12,11 @@ import Data.Profunctor.Optic.Prelude
 
 import Data.Profunctor.Closed as Export
 
+import Control.Monad.Trans.Cont
+
 import Control.Monad.IO.Unlift
 import UnliftIO.Exception
+import UnliftIO.Async
 
 {- 
 'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
@@ -31,7 +34,7 @@ Normal Grate: ((s -> a) -> b) -> t
 Laws:
 given a van Laarhoven Grate, 
 
-grate :: Functor F => (F a -> b) -> (F s -> t) we expect the following to hold:
+grate :: Functor f => (f a -> b) -> (f s -> t) we expect the following to hold:
 
 grate runIdentity = runIdentity
 
@@ -43,11 +46,60 @@ grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate f pab = dimap (flip ($)) f (closed pab)
 
+{-
+import Control.Monad.Trans.Cont
+import Control.Monad.IO.Unlift
+import UnliftIO.Exception
+import UnliftIO.Async
+
+
+
+
+grate shiftT :: (Monad m, Closed p) => Optic p a (ContT r m a) (m r) (ContT r m r)
+
+
+
+grate select :: Closed p => Optic p a1 (Select a2 a1) a2 a1
+
+grate SelectT :: Closed p => Optic p a (SelectT r m a) (m r) (m a)
+
+env' SelectT :: (Functor m, Mapping p) => Optic p a1 (SelectT a2 m a1) a2 a1
+
+env' ContT :: (Functor m, Mapping p) => Optic p a1 (ContT a2 m a1) a2 a2
+
+env' callCC :: Mapping p => Optic p a1 (ContT r m a1) a2 a1
+
+
+-- Pipes.Lift
+type Proxy m r = m r
+liftCatchError = undefined :: Monad m => ((e -> m (Proxy m r)) -> m (Proxy m r) -> m (Proxy m r)) -> (e -> Proxy m r) -> Proxy m r -> Proxy m r
+
+-- ResourceT
+resourceMask :: MonadResource m => ((forall a. ResourceT IO a -> ResourceT IO a) -> ResourceT IO b) -> m b
+
+
 unlifting :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
 unlifting = grate withRunInIO
 
 masking :: MonadUnliftIO m => Grate (m a) (m b) (m a) (m b)
 masking = grate mask
+
+asyncWithUnmasking :: MonadUnliftIO m => Grate (m a) (m (Async b)) (m a) (m b)
+asyncWithUnmasking = grate asyncWithUnmask
+
+λ> import Control.Concurrent
+grate Control.Concurrent.forkOSWithUnmask :: Closed p => Optic p (IO a) (IO ThreadId) (IO a) (IO ())
+
+-}
+
+shifted :: Grate a (Cont r a) r (Cont r r)
+shifted = grate shift 
+
+continued :: Grate a (Cont r a) r r
+continued = grate cont
+
+continuedWith :: Closed p => Cont r a -> Optic p b (Cont r b) r (a -> r)
+continuedWith c = grate (flip withCont c) 
 
 ---------------------------------------------------------------------
 -- 
@@ -57,6 +109,9 @@ masking = grate mask
 
 newtype GrateRep a b s t = GrateRep { unGrateRep :: ((s -> a) -> b) -> t }
 
+data GrateRep' a b s t = forall c. GrateRep' (s -> (c -> a))  ((c -> b) -> t)
+
+
 instance Profunctor (GrateRep a b) where
   dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
 
@@ -64,15 +119,15 @@ instance Closed (GrateRep a b) where
   -- closed :: p a b -> p (x -> a) (x -> b)
   closed (GrateRep z) = GrateRep $ \f x -> z $ \k -> f $ \g -> k (g x)
 
-type AGrate s t a b = Optic (GrateRep a b) s t a b
+--type AGrate s t a b = Optic (GrateRep a b) s t a b
 
-withGrate :: AGrate s t a b -> ((s -> a) -> b) -> t
-withGrate g = h where GrateRep h = (g (GrateRep $ \f -> f id))
+withGrate :: Optic (GrateRep a b) s t a b -> ((s -> a) -> b) -> t
+withGrate o = h where GrateRep h = o (GrateRep $ \f -> f id)
 
-cloneGrate :: AGrate s t a b -> Grate s t a b
+cloneGrate :: Optic (GrateRep a b) s t a b -> Grate s t a b
 cloneGrate = grate . withGrate
 
---TODO port to Grate s t a b
+
 reviewGrate :: GrateRep a b s t -> b -> t
 reviewGrate (GrateRep e) b = e (const b)
 
@@ -82,6 +137,26 @@ zipFWithOf (GrateRep e) comb fs = e (\get -> comb (fmap get fs))
 zipWithOf' :: GrateRep a b s t -> (a -> a -> b) -> (s -> s -> t)
 zipWithOf' (GrateRep e) op s1 s2 = e (\get -> get s1 `op` get s2)
 
+
+type EGrate s t a b = forall c. (s -> (c -> a), (c -> b) -> t)
+
+withGrate' :: EGrate s t a b -> ((s -> a) -> b) -> t
+withGrate' (f, g) sab = g $ sab . flip f
+
+
+zipWithNaperian :: ((c, c) -> c2) -> ((b -> c), (b -> c)) -> b -> c2 
+zipWithNaperian op (f, g) = op . (f &&& g)
+
+zipWithOf'' :: EGrate s t a b -> ((a, a) -> b) -> (s, s) -> t
+zipWithOf'' (f, g) op = g . zipWithNaperian op . (f *** f)
+
+{-
+zipWithNaperian :: (c -> c -> c2) -> (b -> c) -> (b -> c) -> b -> c2 
+zipWithNaperian op f g = uncurry op . (f &&& g)
+
+zipWithGrate :: GrateRep' a b s t -> (a -> a -> b) -> (s, s) -> t
+zipWithGrate (GrateRep' f g) op = g . uncurry (zipWithNaperian op) . (f *** f)
+-}
 --unzipFWithOf :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b
 --unzipFWithOf :: (((s -> a) -> b) -> (s -> s) -> t) -> Grate s t a b 
 --unzipFWithOf f = flip f id

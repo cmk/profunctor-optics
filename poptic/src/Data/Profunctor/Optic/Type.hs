@@ -1,5 +1,7 @@
 {-# LANGUAGE UndecidableSuperClasses, TypeOperators , GADTs, DataKinds, KindSignatures, TypeFamilies #-}
 
+{-# LANGUAGE ExistentialQuantification #-}
+
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -26,6 +28,7 @@ import           Data.Bitraversable
 import           Data.Coerce
 import           Data.Data
 import           GHC.Generics
+
 
 type Optic p s t a b = p a b -> p s t
 
@@ -68,20 +71,6 @@ type Traversal1' s a = Traversal1 s s a a
 -- An 'AffineFold' extracts at most one result.
 type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
 
--- | A 'Fold' describes how to retrieve multiple values in a way that can be composed
--- with other optics.
---
--- A @'Fold' s a@ provides a structure with operations very similar to those of the 'Data.Foldable.Foldable'
--- typeclass, see 'foldMapOf' and the other 'Fold' combinators.
---
--- By convention, if there exists a 'foo' method that expects a @'Data.Foldable.Foldable' (f a)@, then there should be a
--- @fooOf@ method that takes a @'Fold' s a@ and a value of type @s@. See 'Data.Profunctor.Optic.Fold'.
---
--- A 'View' is a legal 'Fold' that just ignores the supplied 'Data.Monoid.Monoid'.
---
--- Unlike a 'Traversal' a 'Fold' is read-only. Since a 'Fold' cannot be used to write back there are no laws that apply.
---
-
 -- Folds are closed, corepresentable profunctors.
 type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
 
@@ -121,11 +110,11 @@ type Viewing s a = Folding a s a
 --type Reviewing t b = forall r. Unfolding r t b
 type Reviewing t b = Unfolding b t b
 
---type Matched r = Star (Either r)
+type Matched r = Star (Either r)
 
 type Matching e s t a b = Optic (Matched e) s t a b
 
-type Validated e = Star (Validation e)
+--type Validated e = Star (Validation e)
 
 type Validating e s t a b = Optic (Validated e) s t a b
 
@@ -144,7 +133,7 @@ type Previewing s a = Optic' (Previewed a) s a
 ---------------------------------------------------------------------
 -- 'Matched'
 ---------------------------------------------------------------------
-
+{-
 newtype Matched r a b = Matched { runMatched :: a -> Either b r }
 
 instance Profunctor (Matched r) where
@@ -155,14 +144,75 @@ instance Choice (Matched r) where
 
 instance Strong (Matched r) where
     first' (Matched p) = Matched (\(a,c) -> first (,c) (p a))
-
+-}
 {-
 instance Costrong (Matched r) where
     unfirst (Matched f) =
        Matched (first fst . f . (, error "Costrong Matched"))
 -}
 
---TODO give this a Traversing instance or else use matching'
+---------------------------------------------------------------------
+-- 'Validated'
+---------------------------------------------------------------------
+
+
+--Validated r a b = Star (Validation r) a b = a -> Validation r b
+
+--TODO would be nicer to have: Validated r a b = a -> Validation r b
+newtype Validated r a b = Validated { runValidated :: a -> Validation b r }
+
+instance Profunctor (Validated r) where
+    dimap f g (Validated p) = Validated (first g . p . f)
+
+instance Choice (Validated r) where
+    right' (Validated p) = dimap e2v v2e $ Validated (unassoc . fmap p)
+
+instance Strong (Validated r) where
+    first' (Validated p) = Validated (\(a,c) -> first (,c) (p a))
+
+instance Monoid r => Traversing (Validated r) where
+
+    traverse' (Validated h) = Validated (fmap swap $ traverse $ swap . h)
+
+    --wander f (Validated h) = Validated (f h)
+
+instance Semigroup r => Traversing1 (Validated r) where
+
+    traverse1' (Validated h) = Validated (fmap swap $ traverse1 $ swap . h)
+
+{-
+instance Functor (Validated r a) where
+    fmap _ (Validated k) = Validated k
+    {-# INLINE fmap #-}
+
+instance Foldable (Validated r a) where
+    foldMap _ _ = mempty
+    {-# INLINE foldMap #-}
+
+instance Traversable (Validated r a) where
+    traverse _ (Validated k) = pure (Validated k)
+    {-# INLINE traverse #-}
+
+
+instance Profunctor (Validated r) where
+    dimap f g (Validated p) = Validated (second g . p . f)
+
+instance Strong (Validated r) where
+    first' (Validated p) = Validated (\(a,c) -> second (,c) (p a))
+
+instance Choice (Validated r) where
+    right' (Validated p) = dimap e2v v2e $ Validated (unassoc . fmap p)
+
+instance Monoid r => Traversing (Validated r) where
+
+    traverse' (Validated h) = Validated (traverse h)
+
+    --wander f (Validated h) = Validated (f h)
+
+--ri (Validated p) = Validated (Export.second p)
+
+-}
+
 
 ---------------------------------------------------------------------
 -- 'Previewed'

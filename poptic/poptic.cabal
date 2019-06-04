@@ -48,7 +48,7 @@ library
 
   hs-source-dirs:
       src
-  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings TupleSections FlexibleInstances
+  default-extensions: ConstraintKinds RankNTypes MultiParamTypeClasses OverloadedStrings TupleSections FlexibleInstances ExistentialQuantification
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0

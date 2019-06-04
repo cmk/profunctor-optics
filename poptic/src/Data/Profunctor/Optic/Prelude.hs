@@ -8,7 +8,7 @@ module Data.Profunctor.Optic.Prelude (
 ) where
 
 import Data.Bifunctor                  as Export
-import Data.Either.Combinators         as Export hiding (eitherToError)
+import Data.Either.Combinators         as Export hiding (whenLeft, eitherToError)
 import Data.Function                   as Export
 import Data.Functor                    as Export
 import Data.Functor.Apply              as Export
@@ -85,6 +85,9 @@ choice :: Decidable f => f a -> f b -> f (Either a b)
 choice = choose id
 -}
 
+star :: Applicative f => Star f c c
+star = Star $ pure
+
 ustar :: (b -> f c) -> (d -> b) -> Star f d c
 ustar f = Star . (f .)
 
@@ -125,6 +128,77 @@ validation :: (a -> c) -> (b -> c) -> Validation a b -> c
 validation l _ (Failure a) = l a
 validation _ r (Success b) = r b
 
+-- | The 'whenLeft' function takes an 'Either' value and a function which returns a monad.
+-- The monad is only executed when the given argument takes the form @'Left' _@, otherwise
+-- it does nothing.
+--
+--
+-- @
+-- 'whenLeft' ≡ 'traverseOf_' _Left
+-- 'whenLeft' ≡ either (\x -> f x *> pure ()) (pure ())
+-- @
+--
+-- >>> whenLeft print $ Left 12
+-- 12
+whenLeft :: Applicative f => (a -> f x) -> Either a c -> f ()
+whenLeft f = either (\x -> f x *> pure ()) (const $ pure ())
+
+
+{- $conversion
+    Use these functions to convert between 'Maybe', 'Either', 'MaybeT', and
+    'ExceptT'.
+-}
+-- | Suppress the 'Left' value of an 'Either'
+hush :: Validation a b -> Maybe b
+hush = validation (const Nothing) Just
+
+-- | Tag the 'Nothing' value of a 'Maybe'
+note :: a -> Maybe b -> Validation a b
+note a = maybe (Failure a) Success
+
+{-
+-- | Suppress the 'Left' value of an 'ExceptT'
+hushT :: (Monad m) => ExceptT a m b -> MaybeT m b
+hushT = MaybeT . liftM hush . runExceptT
+
+-- | Tag the 'Nothing' value of a 'MaybeT'
+noteT :: (Monad m) => a -> MaybeT m b -> ExceptT a m b
+noteT a = ExceptT . liftM (note a) . runMaybeT
+
+-- | Lift a 'Maybe' to the 'MaybeT' monad
+hoistMaybe :: (Monad m) => Maybe b -> MaybeT m b
+hoistMaybe = MaybeT . return
+
+-- | Convert a 'Maybe' value into the 'ExceptT' monad
+(??) :: Applicative m => Maybe a -> e -> ExceptT e m a
+(??) a e = ExceptT (pure $ note e a)
+
+-- | Convert an applicative 'Maybe' value into the 'ExceptT' monad
+(!?) :: Applicative m => m (Maybe a) -> e -> ExceptT e m a
+(!?) a e = ExceptT (note e <$> a)
+
+-- | An infix form of 'fromMaybe' with arguments flipped.
+(?:) :: Maybe a -> a -> a
+maybeA ?: b = fromMaybe b maybeA
+{-# INLINABLE (?:) #-}
+
+infixr 0 ?:
+
+{-| Convert a 'Maybe' value into the 'ExceptT' monad
+
+    Named version of ('??') with arguments flipped
+-}
+failWith :: Applicative m => e -> Maybe a -> ExceptT e m a
+failWith e a = a ?? e
+
+{- | Convert an applicative 'Maybe' value into the 'ExceptT' monad
+
+    Named version of ('!?') with arguments flipped
+-}
+failWithM :: Applicative m => e -> m (Maybe a) -> ExceptT e m a
+failWithM e a = a !? e
+-}
+
 {-
 -- | As an example:
 --
@@ -146,19 +220,15 @@ biaxe :: (Traversable t, Applicative f) => t (a -> b -> f ()) -> a -> b -> f ()
 biaxe = sequenceA_ .** bisequence'
 -}
 
---both :: (a -> b) -> (a, a) -> (b, b)
---both = join (***)
 dup :: a -> (a, a)
 dup = join (,)
 
 dedup :: Either a a -> a
 dedup = join either id
 
-hither :: (s -> (a,b)) -> (s -> a, s -> b)
-hither h = (fst . h, snd . h)
+eval :: (b -> c, b) -> c
+eval (f, b) = f b
 
-yon :: (s -> a, s -> b) -> s -> (a,b)
-yon h s = (fst h s, snd h s)
 
 -- | Infix version of 'join'
 --
@@ -237,7 +307,7 @@ noEffect = phantom $ pure ()
 -- 'swap' . 'swap' ≡ 'id'
 -- @
 --
--- If @p@ is a 'Bifunctor' the following property is assumed to hold:
+-- If @p@ is a 'Bifunctor' the following property should hold:
 --
 -- @
 -- 'swap' . 'bimap' f g ≡ 'bimap' g f . 'swap'
@@ -282,7 +352,7 @@ instance Swap Validation where
 -- 'unassoc' . 'assoc' ≡ 'id'
 -- @
 --
--- If @p@ is a 'Bifunctor' the following property is assumed to hold:
+-- If @p@ is a 'Bifunctor' the following property should to hold:
 --
 -- @
 -- 'assoc' . 'bimap' ('bimap' f g) h ≡ 'bimap' f ('bimap' g h) . 'assoc'
@@ -304,6 +374,15 @@ instance Assoc Either where
     unassoc (Left a)          = Left (Left a)
     unassoc (Right (Left b))  = Left (Right b)
     unassoc (Right (Right c)) = Right c
+
+instance Assoc Validation where
+    assoc (Failure (Failure a))   = Failure a
+    assoc (Failure (Success b))   = Success (Failure b)
+    assoc (Success c)             = Success (Success c)
+
+    unassoc (Failure a)           = Failure (Failure a)
+    unassoc (Success (Failure b)) = Failure (Success b)
+    unassoc (Success (Success c)) = Success c
 
 instance (Assoc p, Bifunctor p) => Assoc (Flip p) where
     assoc   = Flip . first Flip . unassoc . second runFlip . runFlip
