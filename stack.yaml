@@ -3,9 +3,7 @@ flags: {}
 
 packages:
   - poptic
-  - poptic-exception
-  - pref
-
+  - dioids
 extra-deps:
   - bifunctor-0.1.0.0@sha256:43bfde3f3516e078054db2939d966a9aec6f63a8f98f1ff0c29ed147f39db388
-  - composition-prelude-2.0.5.0@sha256:2e18aa0baa6ba527b086261f077a10c2786594879f6c0cbcb50464b9d69b1521
+  - categories-1.0.7@sha256:e707f8ac06eac755cb508aa67de64ab2e33ce1c54aebb6f43f64c615aa5234f6

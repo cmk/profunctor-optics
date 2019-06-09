@@ -4,7 +4,7 @@
 
 Its purpose is to provide a semantically precise and performant implementation of profunctor-encoded optics, suitable for application development.
 
-Why another optics library? Mainly because for many applications the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding.
+Why another optics library? Mainly because for many applications the profunctor encoding of optics is easier to understand and work with than the van Laarhoven encoding. This makes sense for applications, who are both heavy optic users and not worried about non-base dependencies.
 
 The category theory behind profunctor optics is well-described in the following papers:
 - [Profunctor Optics: Modular Data Accessors](https://arxiv.org/abs/1703.10857) by Pickering, Gibbons, and Wu
