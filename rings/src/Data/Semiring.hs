@@ -653,6 +653,54 @@ optional v = Just <$> v <!> pure Nothing
 sumOf :: (Foldable t, Semiring m) => (a -> m) -> t a -> m
 productOf :: (Foldable1 t, Semiring m) => (a -> m) -> t a -> m
 
+-- @Foldable@ instances are expected to satisfy the following laws:
+--
+-- > foldr f z t = appEndo (foldMap (Endo . f) t ) z
+--
+-- > foldl f z t = appEndo (getDual (foldMap (Dual . Endo . flip f) t)) z
+--
+-- > fold = foldMap id
+--
+-- > length = getSum . foldMap (Sum . const  1)
+--
+-- @sum@, @product@, @maximum@, and @minimum@ should all be essentially
+-- equivalent to @foldMap@ forms, such as
+--
+-- > sum = getSum . foldMap Sum
+--
+-- but may be less defined.
+--
+-- If the type is also a 'Functor' instance, it should satisfy
+--
+-- > foldMap f = fold . fmap f
+--
+-- which implies that
+--
+-- > foldMap f . fmap g = foldMap (f . g)
+
+class Foldable t where
+    {-# MINIMAL foldMap | foldr #-}
+
+    -- | Combine the elements of a structure using a monoid.
+    fold :: Monoid m => t m -> m
+    fold = foldMap id
+
+    -- | Map each element of the structure to a monoid,
+    -- and combine the results.
+    foldMap :: Monoid m => (a -> m) -> t a -> m
+    {-# INLINE foldMap #-}
+    -- This INLINE allows more list functions to fuse. See Trac #9848.
+    foldMap f = foldr (mappend . f) mempty
+
+class Foldable t => Foldable1 t where
+  fold1 :: Semigroup m => t m -> m
+  foldMap1 :: Semigroup m => (a -> m) -> t a -> m
+  toNonEmpty :: t a -> NonEmpty a
+
+  foldMap1 f = maybe (error "foldMap1") id . getOption . foldMap (Option . Just . f)
+  fold1 = foldMap1 id
+  toNonEmpty = foldMap1 (:|[])
+
 
 -}
 
