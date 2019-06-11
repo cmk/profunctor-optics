@@ -18,8 +18,9 @@ library
      Data.Dioid
      Data.Semiring
      Data.Hemiring
-     Data.Valid
      Data.Signed
+     Data.Valid
+     Data.Warning
   other-modules:
      P
   -- other-extensions:

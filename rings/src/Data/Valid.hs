@@ -1,7 +1,5 @@
 module Data.Valid where
 
-
---import Data.Semigroup
 import Data.Semiring
 import Data.Hemiring
 import Data.Dioid
