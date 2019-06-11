@@ -3,6 +3,7 @@ module Data.Dioid where
 import Data.Bool
 import Data.Semigroup
 import Data.Semiring
+import Data.Hemiring
 import Data.Monoid hiding (First, Last)
 import Numeric.Natural (Natural)
 
@@ -17,8 +18,24 @@ import Control.Monad.Catch.Pure
 import Control.Monad.Fail
 -}
 
+{-
+An idempotent dioid is a dioid in which the addition ⊕ is idempotent.
 
-class Semiring r => Dioid r where 
+
+Idempotent dioids form a particularly rich class of dioids which contains many
+sub-classes, in particular:
+– Doubly-idempotent dioids and distributive lattices (see Sect. 6.5);
+– Doubly selective dioids (see Sect. 6.5);
+– Idempotent-cancellative dioids and selective-cancellative dioids (see Sect. 6.6);
+– Idempotent-invertible dioids and selective-invertible dioids (see Sect. 6.7).
+
+A frequently encountered special case is one where addition ⊕ is not only
+idempotent but also selective. A selective dioid is a dioid in which the addition ⊕ is selective (i.e.: ∀a, b ∈ E: a ⊕ b = a or b).
+
+TODO- integrate selective applicative
+-}
+
+class Hemiring r => Dioid r where 
   
   -- The canonical preorder relation relative to '<>':
   -- 'ord a b' iff 'b == a <> c' for some c.
@@ -112,10 +129,10 @@ instance (Eq a, Monoid a) => Dioid [a] where
 instance (Monoid e, Monoid a, Dioid e, Dioid a) => Dioid (Either e a) where
 
   Right a `ord` Right b  = ord a b
-  Right _ `ord` _        = False --opposite from Validation
+  Right _ `ord` _        = False --opposite from Valid
   
   Left e  `ord` Left f   = ord e f
-  Left _  `ord` _        = True  --opposite from Validation
+  Left _  `ord` _        = True  --opposite from Valid
 
 
 -- natural model for shortest path problems
@@ -176,10 +193,10 @@ instance (e ~ Ex.SomeException, Semiring a)  => Dioid (Either e) where
 --instance MonadThrow m => Dioid (CatchT m a) where dempty = 
 
 
-data Validation e a = Invalid e | Valid a deriving (Show, Eq) --TODO more instances & move to module
+data Valid e a = Invalid e | Valid a deriving (Show, Eq) --TODO more instances & move to module
 
 
-instance (Semigroup e, Semigroup a) => Semigroup (Validation e a) where
+instance (Semigroup e, Semigroup a) => Semigroup (Valid e a) where
 
   Valid a <> Valid b     = Valid $ a <> b
 
@@ -190,16 +207,12 @@ instance (Semigroup e, Semigroup a) => Semigroup (Validation e a) where
   Invalid e <> _         = Invalid e 
 
 
-instance (Semigroup e, Monoid a) => Monoid (Validation e a) where
+instance (Semigroup e, Monoid a) => Monoid (Valid e a) where
 
   mempty = Valid mempty
 
 
-instance (Semiring e, Semiring a) => Semiring (Validation e a) where
-
-  zero = Valid zero
-
-  one = Valid one
+instance (Semiring e, Semiring a) => Semiring (Valid e a) where
 
   Valid a >< Valid b     = Valid $ a >< b
 
@@ -210,7 +223,14 @@ instance (Semiring e, Semiring a) => Semiring (Validation e a) where
   Invalid e >< _         = Invalid e
 
 
-instance (Semiring e, Semiring a, Dioid e, Dioid a) => Dioid (Validation e a) where
+instance (Semiring e, Hemiring a) => Hemiring (Valid e a) where
+
+  zero = Valid zero
+
+  one = Valid one
+
+
+instance (Dioid e, Dioid a) => Dioid (Valid e a) where
 
   Valid a `ord` Valid b     = ord a b
   Valid _ `ord` _           = True

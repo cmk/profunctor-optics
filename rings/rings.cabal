@@ -1,6 +1,6 @@
 name:                rings
 version:             0.0.1
-synopsis:            Rings, semirings, and dioids.
+synopsis:            Rings, semirings, hemirings, and dioids.
 -- description:         
 homepage:            github.com/cmk/rings
 license:             BSD3
@@ -15,8 +15,9 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:
-     Data.Dioid
+  --   Data.Dioid
      Data.Semiring
+     Data.Hemiring
   other-modules:
      P
   -- other-extensions:
@@ -33,6 +34,7 @@ library
     , containers
     , contravariant
     , free
+    , semigroupoids
 
   hs-source-dirs:      src
   default-language:    Haskell2010

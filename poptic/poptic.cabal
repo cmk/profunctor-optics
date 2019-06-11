@@ -21,10 +21,11 @@ library
   exposed-modules:
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Fold
-      --Data.Profunctor.Optic.Fold.Monoid
-      --Data.Profunctor.Optic.Fold.Dioid
       --Data.Profunctor.Optic.Fold.Semigroup
+      --Data.Profunctor.Optic.Fold.Monoid
+      --Data.Profunctor.Optic.Fold.Presemiring
       --Data.Profunctor.Optic.Fold.Semiring
+      --Data.Profunctor.Optic.Fold.Dioid
       Data.Profunctor.Optic.Fold.Affine
       --Data.Profunctor.Optic.Fold.Indexed
       Data.Profunctor.Optic.Fold.NonEmpty
