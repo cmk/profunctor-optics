@@ -5,7 +5,6 @@ module Data.Dioid where
 import Data.Bool
 import Data.Semigroup
 import Data.Semiring
-import Data.Hemiring
 import Data.Monoid hiding (First, Last)
 import Numeric.Natural (Natural)
 
@@ -39,28 +38,25 @@ idempotent but also selective. A selective dioid is a dioid in which the additio
 TODO- integrate selective applicative
 -}
 
--- Depend on Semiring instead and add second 'fromNatural'?
--- fromNatural should be a Dioid homomorphism (i.e. a monotone / order-preserving map)
-class Hemiring r => Dioid r where 
+-- | Pre-dioids and dioids.
+class Semiring r => Dioid r where 
   
   -- The (right) canonical preorder relation relative to '<>':
   -- 'ord a b' iff 'b == a <> c' for some c.
   ord :: r -> r -> Bool
   --   ord :: Equivalence r
 
-  fromNatural' :: Natural -> r
-  fromNatural' = fromNatural
 
 -- | Monotone pullback to naturals.
-ord' :: forall r. Dioid r => Equivalence Natural
+ord' :: forall r. (Monoid r, Dioid r) => Equivalence Natural
 ord' = contramap fromNatural (Equivalence ord :: Equivalence r)
 
 -- | aka 'left catch' law for idempotent dioids
-prop_one_absorb_right :: (Eq r, Dioid r) => r -> Bool
+prop_one_absorb_right :: (Eq r, Monoid r, Dioid r) => r -> Bool
 prop_one_absorb_right r = one <> r == one
 
 -- | 'fromNatural' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
-prop_monotone :: forall r. Dioid r => Natural -> Natural -> Bool
+prop_monotone :: forall r. (Monoid r, Dioid r) => Natural -> Natural -> Bool
 prop_monotone a b = bool (a <= b) True $ fromNatural a `ord` (fromNatural b :: r)
 
 -- | 'ord' is a preorder relation relative to '<>'
@@ -75,7 +71,7 @@ prop_order_total a b = bool True (a == b) $ ord a b && ord b a
 
 
 -- See Gondran and Minoux p. 44 (Exercise 5)
-prop_order_zero :: (Eq r, Dioid r) => r -> r -> Bool
+prop_order_zero :: (Eq r, Monoid r, Dioid r) => r -> r -> Bool
 prop_order_zero a b = bool True (a == zero && b == zero) $ a <> b /= zero
 
 --prop_idempotent_zero :: Bool
@@ -97,11 +93,11 @@ The reason it fails is that we are essentially assuming that any "effects" that 
 https://winterkoninkje.dreamwidth.org/90905.html
 -}
 
-prop_one_absorb_left :: (Eq r, Dioid r) => r -> Bool
+prop_one_absorb_left :: (Eq r, Monoid r, Dioid r) => r -> Bool
 prop_one_absorb_left r = r <> one == one
 
 -- See Gondran and Minoux p. 44 (Exercise 5)
-prop_positive :: (Eq r, Dioid r) => r -> r -> r -> Bool
+prop_positive :: (Eq r, Monoid r, Dioid r) => r -> r -> r -> Bool
 prop_positive a b c = if a <> b /= zero then True else a == zero || b == zero
 
 -- See Gondran and Minoux p. 44 (Exercise 4)
@@ -219,7 +215,7 @@ instance (e ~ Ex.SomeException, Semiring a)  => Dioid (Either e) where
 --  Instances (contravariant)
 ---------------------------------------------------------------------
 
---deriving instance Hemiring (Predicate a)
+--deriving instance Semiring (Predicate a)
 
 {-
 Let E be a set and R (E) the set of binary relations on E. 
@@ -244,7 +240,7 @@ instance Monoid (Relation a a) where
   mempty = Relation (\_ _ -> False)
 
 
---deriving instance Hemiring a => Hemiring (Op a b)
+--deriving instance Semiring a => Semiring (Op a b)
 
 
 

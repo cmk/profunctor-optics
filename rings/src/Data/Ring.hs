@@ -10,7 +10,7 @@ class Hemiring r => Ring r where
   
   neg :: r -> r
 
-
+  fromInteger :: Integer -> r
 
 -- | Provide the correct Monoid, Hemiring, and Unital instances for an arbitrary Num. Used with GHC 8.6+'s DerivingVia extension.
 newtype WrappedNum a = WrappedNum { unwrappedNum :: a } deriving (Eq, Show, Num, Ord, Functor)

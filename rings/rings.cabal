@@ -17,10 +17,9 @@ library
   exposed-modules:
      Data.Dioid
      Data.Semiring
-     Data.Hemiring
-     Data.Signed
-     Data.Valid
-     Data.Warning
+    -- Data.Signed
+    -- Data.Valid
+    -- Data.Warning
   other-modules:
      P
   -- other-extensions:
