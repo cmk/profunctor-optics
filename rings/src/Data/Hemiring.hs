@@ -32,18 +32,6 @@ import qualified Data.IntMap.Strict as IntMap
 
 {-
 
-https://math.stackexchange.com/questions/2777734/additive-identity-in-a-semiring-need-not-be-multiplicative-annihilator
-
-Consider that 𝑒 is the additive identity of a semiring 𝑆, then for any 𝑎∈𝑆, we see that 
-𝑎.𝑒=𝑎.(𝑒+𝑒)= 𝑎.𝑒+𝑎.𝑒 
-
-The step 
-𝑎.𝑒+𝑎.𝑒 = 𝑎.𝑒 => 𝑎.𝑒=𝑒 will hold if the hemiring is cancellative or − 𝑎.𝑒∈𝑆. 
-
-as a consequence of this argument, we can conclude that additive identity is not multiplicative absorber in a general semiring (unless required axiomatically). But 𝑒 being additive identity is multiplicative absorber only if semiring is cancellative. 
-
-Do we prefer to use the cancellative property rather than the absorbative one?
-
 
 [On multiplicative idempotents of a potent semiring](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC534266/pdf/pnas00712-0066.pdf)
 
@@ -96,11 +84,26 @@ one = fromNatural 1
 
 --instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Hemiring (f a) where (><) = liftF2 (<>)
 
+{-
+https://math.stackexchange.com/questions/2777734/additive-identity-in-a-semiring-need-not-be-multiplicative-annihilator
+
+Consider that 𝑒 is the additive identity of a hemiring 𝑆, then for any 𝑎∈𝑆, we see that 
+𝑎.𝑒=𝑎.(𝑒+𝑒)= 𝑎.𝑒+𝑎.𝑒 
+
+The step 
+𝑎.𝑒+𝑎.𝑒 = 𝑎.𝑒 => 𝑎.𝑒=𝑒 will hold if the hemiring is cancellative or − 𝑎.𝑒∈𝑆. 
+
+as a consequence of this argument, we can conclude that additive identity is not multiplicative absorber in a general hemiring (unless required axiomatically). But 𝑒 being additive identity is multiplicative absorber only if hemiring is cancellative. 
+
+Do we prefer to use the cancellative property rather than the absorbative one?
+-}
+
 prop_zero_absorb_right :: (Eq r, Hemiring r) => r -> Bool
 prop_zero_absorb_right r = zero >< r == zero
 
 prop_zero_neutral_right :: (Eq r, Hemiring r) => r -> Bool
 prop_zero_neutral_right r = zero <> r == r
+
 
 prop_one_neutral_right :: (Eq r, Hemiring r) => r -> Bool
 prop_one_neutral_right r = one >< r == r
@@ -284,47 +287,6 @@ instance Hemiring All where
 
   fromNatural = fromNaturalDef mempty $ All False
 
-
--- | Provide the correct Monoid, Hemiring, and Unital instances for an arbitrary Num. Used with GHC 8.6+'s DerivingVia extension.
-newtype WrappedNum a = WrappedNum { unwrappedNum :: a } deriving (Eq, Show, Num, Ord, Functor)
-{-
-  deriving
-    ( Eq
-    , Foldable
-    , Fractional
-    , Functor
-    , Generic
-    , Generic1
-    , Num
-    , Ord
-    , Real
-    , RealFrac
-    , Show
-    , Storable
-    , Traversable
-    , Typeable
-    )
--}
-
-instance Num a => Semigroup (WrappedNum a) where
-
-  (<>) = (+)
-
-
-instance Num a => Monoid (WrappedNum a) where
-
-  mempty = 0
-
-
-instance Num a => Semiring (WrappedNum a) where
-
-  (><) = (*)
-  {-# INLINE (><) #-}
-
-
-instance Num a => Hemiring (WrappedNum a) where
-
-  fromNatural = fromNaturalDef mempty 1
 
 {-
 
