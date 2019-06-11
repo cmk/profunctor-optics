@@ -65,15 +65,15 @@ Any hemiring with a multiplicative identity 1 /= 0 is called a semiring.
 
 
 -- If f is a monoid then _ should be mempty?
-class Semiring r => Hemiring r where
+class (Monoid r, Semiring r) => Hemiring r where
 
+  -- A semiring homomorphism into r. It needn't be injective or surjective.
   fromNatural :: Natural -> r
-
 
 fromNaturalDef :: Semigroup r => r -> r -> Natural -> r
 fromNaturalDef z _ 0 = z
 fromNaturalDef _ o 1 = o
-fromNaturalDef z o n = fromNaturalDef z o (n - 1) <> o
+fromNaturalDef z o n = fromNaturalDef z o (n - 1) <> o -- TODO better implementation
  
 zero :: Hemiring r => r           
 zero = fromNatural 0
@@ -81,6 +81,9 @@ zero = fromNatural 0
 one :: Hemiring r => r
 one = fromNatural 1
 
+
+--foldHemiring :: Hemiring r => (a -> r) -> [[a]] -> r
+--foldHemiring f = foldMap g where g = foldr ((><) . f) one
 
 --instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Hemiring (f a) where (><) = liftF2 (<>)
 
@@ -104,7 +107,6 @@ prop_zero_absorb_right r = zero >< r == zero
 prop_zero_neutral_right :: (Eq r, Hemiring r) => r -> Bool
 prop_zero_neutral_right r = zero <> r == r
 
-
 prop_one_neutral_right :: (Eq r, Hemiring r) => r -> Bool
 prop_one_neutral_right r = one >< r == r
 
@@ -116,8 +118,8 @@ prop_distrib_left :: (Eq r, Hemiring r) => r -> r -> r -> Bool
 prop_distrib_left a b c = a >< (b <> c) == (a >< b) <> (a >< c)
 -}
 
-
-
+--prop_one_distinct :: forall r. (Eq r, Hemiring r) => Bool
+--prop_one_distinct = zero /= (one :: r)
 
 
 
@@ -142,7 +144,12 @@ instance Semiring Natural where
 
 instance Hemiring Natural where
 
-  fromNatural = fromNaturalDef mempty 1
+  fromNatural = id
+
+
+instance Hemiring () where
+
+  fromNatural _ = ()
 
 
 instance (Bounded a, Ord a) => Hemiring (Max a) where
@@ -210,7 +217,6 @@ foo = Just $ WrappedNum 2 :: Maybe (WrappedNum Int)
 bar = Just $ WrappedNum 3 :: Maybe (WrappedNum Int)
 baz = Just $ WrappedNum 4 :: Maybe (WrappedNum Int)
 d = Nothing :: Maybe (WrappedNum Int)
-
 dempty
 c = Just $ WrappedNum 0 :: Maybe (WrappedNum Int)
 
@@ -235,6 +241,11 @@ instance Semigroup a => Semigroup (Maybe a) where
     stimes = stimesMaybe
 -}
 
+
+--orphan:
+instance Monoid e => Monoid (Either e a) where
+  
+  mempty = Left mempty
 
 instance (Monoid e, Monoid a) => Hemiring (Either e a) where
 
@@ -385,32 +396,6 @@ instance (Monoid a, Hemiring a) => Hemiring (IO a) where
   fromNatural = fromNaturalDef mempty $ pure one
 
 
--- | A polynomial in /x/ can be defined as a list of its coefficients,
--- where the /i/th element is the coefficient of /x^i/. 
-newtype Polynomial a = Polynomial { unPolynomial :: [a] } deriving (Eq, Show)
-
-instance Semigroup a => Semigroup (Polynomial a) where
-
-  (Polynomial []) <> a = a
-  a <> (Polynomial []) = a
-  (Polynomial (x:xs)) <> (Polynomial (y:ys)) = Polynomial $ x <> y : (unPolynomial $ Polynomial xs <> Polynomial ys)
-
-
-instance Semigroup a => Monoid (Polynomial a) where
-  
-  mempty = Polynomial []
-
-
-instance Hemiring a => Semiring (Polynomial a) where
-
-  (Polynomial xs) >< (Polynomial ys) = Polynomial $ foldr f [] ys where f x zs = map (x ><) xs <> (zero : zs)
-
-
-instance Hemiring a => Hemiring (Polynomial a) where
-
-  fromNatural = fromNaturalDef mempty $ Polynomial [one]
-
-
 ---------------------------------------------------------------------
 --  Instances (contravariant)
 ---------------------------------------------------------------------
@@ -420,6 +405,9 @@ instance Hemiring a => Hemiring (Polynomial a) where
 --deriving instance Hemiring a => Hemiring (Equivalence a)
 
 --deriving instance Hemiring a => Hemiring (Op a b)
+
+
+
 
 
 

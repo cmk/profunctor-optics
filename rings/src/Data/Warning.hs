@@ -24,6 +24,9 @@ import Data.Hemiring
 import Data.Dioid
 import GHC.Generics                 (Generic)
 
+-- | See also 'Data.Signed'
+-- data Warning w a = Null | Failure w | Warning w a | Success a
+
 data Warning w a = Failure w | Warning w a | Success a
   deriving (Eq, Ord, Show, Typeable, Data, Generic) 
 
@@ -65,7 +68,7 @@ partitionWarnings (t:ts) = case t of
   where
     ~(xs,ys,xys) = partitionWarnings ts
 
--- | Select 'here' and 'there' elements and partition them into separate lists.
+-- | Select elements and partition them into separate lists.
 --
 partitionWarnings' :: [Warning a b] -> ([a], [b])
 partitionWarnings' []     = ([], [])
@@ -76,6 +79,114 @@ partitionWarnings' (t:ts) = case t of
   where
     ~(xs,ys) = partitionWarnings' ts
 
+{-
+TODO
+- use nonempty-containers to create efficient 'free' structures for typeclass methods
+- a typeclass for natural transformations to (,) and Either? in categories perhaps?
+- Equivalence stuff?
+
+
+
+try to fit pre-semirings, pre-dioids, near-semirings (no one), semirings (both zero and one) into one typeclass?
+
+can we define 0/1 in terms of folds over a specific structure (e.g. [[]], NonEmpty [], etc)
+
+one = foldSemiring _ [[]]
+zero = foldSemiring _ []
+plus r1 r2 = foldSemiring id [[r1],[r2]]
+foldSemiring (const ())
+
+
+foldPresemiring :: Presemiring m => (a -> m) -> FreePresemiring a -> m
+foldSemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a)) -> r
+
+
+
+fromNatural = const 0 -- semiring w/ only a zero
+
+fromNatural 0 = ?
+
+fromNatural _ = pure mempty
+
+-- could we somehow make these useful?
+fromDList :: DList () -> r
+fromDList = ana . fromNatural?
+
+fromPositive 
+fromDNonEmpty :: DNonEmpty () -> r
+
+fromNatural' = foldMap (fromNatural
+-- warning :: (a -> r) -> Foldable1 (Foldable a) -> r
+
+-- :: (a -> r) -> Foldable (Foldable1 a) -> r
+-- foldSemiring :: Semiring r => (a -> r) -> Foldable (Foldable a) -> r
+
+
+Semiring r => (a -> r) -> AffineFold a -> Maybe r
+
+figure out Greg's newtype trick and make a 
+fmapping constraints? could do commutivity, selectivity, idempotency, etc this way? maybe watch ed kmett try on livestream?
+Commutative-Monoid
+
+
+
+
+-- | Convert an 'Either' into an 'Warning'.
+eitherWarning :: Either a b -> Warning a b
+eitherWarning (Left  a) = Fst a
+eitherWarning (Right b) = Snd b
+{-# INLINE eitherWarning #-}
+
+----------------------------------------------------------------
+
+-- | A variant of 'zip' which exhausts both lists, annotating which
+-- list the elements came from. It will return zero or more @Both@,
+-- followed by either zero or more @Fst@ or else zero or more @Snd@.
+--
+-- On GHC this is a \"good producer\" for list fusion.
+zipWarning :: [a] -> [b] -> [Warning a b]
+#ifdef __GLASGOW_HASKELL__
+zipWarning xs ys = build (\f z -> zipWarningWithBy id f z xs ys)
+#else
+zipWarning = zipWarningWithBy id (:) []
+#endif
+{-# INLINE zipWarning #-}
+
+
+-- | A variant of 'zipWarning' with a custom 'Warning'-homomorphism.
+--
+-- On GHC this is a \"good producer\" for list fusion.
+zipWarningWith :: (Warning a b -> c) -> [a] -> [b] -> [c]
+#ifdef __GLASGOW_HASKELL__
+zipWarningWith k xs ys = build (\f z -> zipWarningWithBy k f z xs ys)
+#else
+zipWarningWith k = zipWarningWithBy k (:) []
+#endif
+{-# INLINE zipWarningWith #-}
+
+
+-- | A variant of 'zipWarning' with a custom list-homomorphism.
+zipWarningBy :: (Warning a b -> c -> c) -> c -> [a] -> [b] -> c
+zipWarningBy = zipWarningWithBy id
+{-# INLINE zipWarningBy #-}
+
+
+-- | A variant of 'zipWarning' with both a custom 'Warning'-homomorphism and
+-- a custom list-homomorphism. This is no more powerful than
+-- 'zipWarningBy', but it may be more convenient to separate the handling
+-- of 'Warning' from the handling of @(:)@.
+zipWarningWithBy
+    :: (Warning a b -> c)    -- ^ 'Warning' homomorphism
+    -> (c -> d -> d)    -- ^ list homomorphism, @(:)@ part
+    -> d                -- ^ list homomorphism, @[]@ part
+    -> [a] -> [b] -> d
+zipWarningWithBy k f z = go
+    where
+    go []     []     = z
+    go []     (y:ys) = f (k (Snd    y)) (go [] ys)
+    go (x:xs) []     = f (k (Fst  x  )) (go xs [])
+    go (x:xs) (y:ys) = f (k (Both x y)) (go xs ys)
+-}
 
 -------------------------------------------------------------------------------
 -- Instances
@@ -92,33 +203,55 @@ instance Assoc Warning where
     assoc (Failure (Failure a))       = Failure a
     assoc (Failure (Success b))       = Success (Failure b)
     assoc (Success c)              = Success (Success c)
-    assoc (Warning (Success b) c)    = Success (Warning b c)
-    assoc (Failure (Warning a b))    = Warning a (Failure b)
-    assoc (Warning (Failure a) c)    = Warning a (Success c)
-    assoc (Warning (Warning a b) c) = Warning a (Warning b c)
+    assoc (Warning (Success b) c)     = Success (Warning b c)
+    assoc (Failure (Warning a b))     = Warning a (Failure b)
+    assoc (Warning (Failure a) c)     = Warning a (Success c)
+    assoc (Warning (Warning a b) c)   = Warning a (Warning b c)
 
-    unassoc (Failure a)              = Failure (Failure a)
-    unassoc (Success (Failure b))       = Failure (Success b)
-    unassoc (Success (Success c))       = Success c
-    unassoc (Success (Warning b c))    = Warning (Success b) c
-    unassoc (Warning a (Failure b))    = Failure (Warning a b)
-    unassoc (Warning a (Success c))    = Warning (Failure a) c
+    unassoc (Failure a)               = Failure (Failure a)
+    unassoc (Success (Failure b))     = Failure (Success b)
+    unassoc (Success (Success c))     = Success c
+    unassoc (Success (Warning b c))   = Warning (Success b) c
+    unassoc (Warning a (Failure b))   = Failure (Warning a b)
+    unassoc (Warning a (Success c))   = Warning (Failure a) c
     unassoc (Warning a (Warning b c)) = Warning (Warning a b) c
 
 instance Swapped Warning where
     swapped = iso swap swap
 -}
 
+-- This is the close reading of signed. but rules out an additive identity
 instance (Semigroup a, Semigroup b) => Semigroup (Warning a b) where
-    Failure  a   <> Failure  b   = Failure  (a <> b)
-    Failure  a   <> Success    y = Warning  a             y
-    Failure  a   <> Warning b y = Warning (a <> b)       y
-    Success    x <> Failure  b   = Warning       b   x
-    Success    x <> Success    y = Success           (x <> y)
-    Success    x <> Warning b y = Warning       b  (x <> y)
-    Warning a x <> Failure  b   = Warning (a <> b)  x
-    Warning a x <> Success    y = Warning  a       (x <> y)
+    Failure a   <> Failure b   = Failure (a <> b)
+    Failure a   <> Success   y = Warning  a             y
+    Failure a   <> Warning b y = Warning (a <> b)       y
+    Success   x <> Failure b   = Warning       b   x
+    Success   x <> Success   y = Success          (x <> y)
+    Success   x <> Warning b y = Warning       b  (x <> y)
+    Warning a x <> Failure b   = Warning (a <> b)  x
+    Warning a x <> Success   y = Warning  a       (x <> y)
     Warning a x <> Warning b y = Warning (a <> b) (x <> y)
+
+
+instance (Semiring a, Semiring b) => Semiring (Warning a b) where
+    Failure a   >< Failure b   = Failure (a >< b)
+    Failure a   >< Success   y = Failure  a
+    Failure a   >< Warning b y = Failure (a >< b)
+    Success   x >< Failure b   = Failure       b
+    Success   x >< Success   y = Success          (x >< y)
+    Success   x >< Warning b y = Warning       b  (x >< y)
+    Warning a x >< Failure b   = Failure (a >< b)
+    Warning a x >< Success   y = Warning  a       (x >< y)
+    Warning a x >< Warning b y = Warning (a >< b) (x >< y)
+
+{-
+
+instance (Semiring a, Hemiring b) => Hemiring (Warning a b) where
+
+    fromNatural = fromNaturalDef NoResult (Success one)
+
+--instance (Dioid a, Dioid b) => Dioid (Warning a b) where
+-}
 
 instance Functor (Warning a) where
     fmap _ (Failure x) = Failure x
@@ -163,26 +296,26 @@ instance Bitraversable1 Warning where
 
 instance Semigroup a => Apply (Warning a) where
     Failure  a   <.> _            = Failure a
-    Success    _ <.> Failure  b   = Failure b
+    Success    _ <.> Failure b    = Failure b
     Success    f <.> Success    x = Success (f x)
     Success    f <.> Warning b x  = Warning b (f x)
-    Warning a _  <.> Failure  b   = Failure (a <> b)
+    Warning a _  <.> Failure b    = Failure (a <> b)
     Warning a f  <.> Success    x = Warning a (f x)
     Warning a f  <.> Warning b x  = Warning (a <> b) (f x)
 
-instance (Semigroup a) => Applicative (Warning a) where
+instance Semigroup a => Applicative (Warning a) where
     pure = Success
     (<*>) = (<.>)
 
-instance (Semigroup a) => Bind (Warning a) where
-    Failure  a   >>- _ = Failure a
-    Success    x >>- k = k x
-    Warning a x >>- k = case k x of
-                          Failure  b   -> Failure  (a <> b)
+instance Semigroup a => Bind (Warning a) where
+    Failure a   >>- _ = Failure a
+    Success   x >>- k = k x
+    Warning a x >>- k = case k x of -- TODO check correctness
+                          Failure b    -> Failure (a <> b)
                           Success    y -> Warning a y
-                          Warning b y -> Warning (a <> b) y
+                          Warning b  y -> Warning (a <> b) y
 
-instance (Semigroup a) => Monad (Warning a) where
+instance Semigroup a => Monad (Warning a) where
     return = pure
     (>>=) = (>>-)
 

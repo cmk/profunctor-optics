@@ -1,3 +1,5 @@
+{-# Language ScopedTypeVariables #-}
+
 module Data.Dioid where
 
 import Data.Bool
@@ -7,10 +9,12 @@ import Data.Hemiring
 import Data.Monoid hiding (First, Last)
 import Numeric.Natural (Natural)
 
+import Data.Functor.Contravariant
 import Data.List (stripPrefix)
 import Data.Maybe (isJust)
 
 import qualified Control.Exception as Ex
+import qualified Data.Set as Set
 
 {-
 import Control.Monad.Catch (MonadThrow(..))
@@ -35,22 +39,35 @@ idempotent but also selective. A selective dioid is a dioid in which the additio
 TODO- integrate selective applicative
 -}
 
+-- Depend on Semiring instead and add second 'fromNatural'?
+-- fromNatural should be a Dioid homomorphism (i.e. a monotone / order-preserving map)
 class Hemiring r => Dioid r where 
   
-  -- The canonical preorder relation relative to '<>':
+  -- The (right) canonical preorder relation relative to '<>':
   -- 'ord a b' iff 'b == a <> c' for some c.
   ord :: r -> r -> Bool
+  --   ord :: Equivalence r
+
+  fromNatural' :: Natural -> r
+  fromNatural' = fromNatural
+
+-- | Monotone pullback to naturals.
+ord' :: forall r. Dioid r => Equivalence Natural
+ord' = contramap fromNatural (Equivalence ord :: Equivalence r)
 
 -- | aka 'left catch' law for idempotent dioids
 prop_one_absorb_right :: (Eq r, Dioid r) => r -> Bool
 prop_one_absorb_right r = one <> r == one
 
+-- | 'fromNatural' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
+prop_monotone :: forall r. Dioid r => Natural -> Natural -> Bool
+prop_monotone a b = bool (a <= b) True $ fromNatural a `ord` (fromNatural b :: r)
 
 -- | 'ord' is a preorder relation relative to '<>'
 prop_preorder :: (Eq r, Dioid r) => r -> r -> r -> Bool
-prop_preorder a b c = bool False True $ ord a b && a <> c == b
+prop_preorder a b c = bool True (a <> c == b) $ ord a b
 
--- | The canonical preorder relation relative to addition is a total order relation.
+-- | 'ord' is a total order relation
 prop_order_total :: (Eq r, Dioid r) => r -> r -> Bool
 prop_order_total a b = bool True (a == b) $ ord a b && ord b a 
 
@@ -60,6 +77,9 @@ prop_order_total a b = bool True (a == b) $ ord a b && ord b a
 -- See Gondran and Minoux p. 44 (Exercise 5)
 prop_order_zero :: (Eq r, Dioid r) => r -> r -> Bool
 prop_order_zero a b = bool True (a == zero && b == zero) $ a <> b /= zero
+
+--prop_idempotent_zero :: Bool
+--prop_idempotent_zero  
 
 -- a ≤ b => forall x. a ⊗ x ≤ b ⊗ x 
 --prop_order_compatible :: (Eq r, Dioid r) => r -> r -> Bool
@@ -131,10 +151,10 @@ instance (Eq a, Monoid a) => Dioid [a] where
 instance (Monoid e, Monoid a, Dioid e, Dioid a) => Dioid (Either e a) where
 
   Right a `ord` Right b  = ord a b
-  Right _ `ord` _        = False --opposite from Valid
+  Right _ `ord` _        = False
   
   Left e  `ord` Left f   = ord e f
-  Left _  `ord` _        = True  --opposite from Valid
+  Left _  `ord` _        = True
 
 
 -- natural model for shortest path problems
@@ -195,3 +215,43 @@ instance (e ~ Ex.SomeException, Semiring a)  => Dioid (Either e) where
 --instance MonadThrow m => Dioid (CatchT m a) where dempty = 
 
 
+---------------------------------------------------------------------
+--  Instances (contravariant)
+---------------------------------------------------------------------
+
+--deriving instance Hemiring (Predicate a)
+
+{-
+Let E be a set and R (E) the set of binary relations on E. 
+One verifies that R (E), endowed with the two following laws:
+
+R ⊕ R' :  x (R ⊕ R') y iff x R y or xR'y,
+R ⊗ R' : x (R ⊗ R') y iff ∃ z ∈ E with x R z and z R' y
+is an idempotent dioid.
+
+The canonical order relation corresponds to: R ≤ R' if and only if x Ry implies
+x R' y, i.e. iff R is finer than R'
+.
+-}
+
+-- | Binary Relations. This would be bicontravariant
+newtype Relation a b = Relation { runRelation :: a -> b -> Bool }
+
+instance Semigroup (Relation a a) where
+  Relation p <> Relation q = Relation $ \a b -> p a b || q a b
+
+instance Monoid (Relation a a) where
+  mempty = Relation (\_ _ -> False)
+
+
+--deriving instance Hemiring a => Hemiring (Op a b)
+
+
+
+---------------------------------------------------------------------
+--  Instances (containers)
+---------------------------------------------------------------------
+
+instance (Ord a, Monoid a) => Dioid (Set.Set a) where
+
+  ord = Set.isSubsetOf

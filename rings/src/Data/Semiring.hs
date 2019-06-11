@@ -9,6 +9,7 @@ import GHC.Generics
 import Numeric.Natural (Natural)
 
 import Data.Functor.Apply
+import Data.Semigroup.Foldable.Class
 import Data.List.NonEmpty (NonEmpty(..))
 
 import qualified Data.Foldable as Foldable
@@ -80,6 +81,13 @@ class Semigroup r => Semiring r where
   -- Multiplicative operation
   (><) :: r -> r -> r  
 
+  -- fromPostive :: Positive -> r
+  -- product1 :: (a -> r) -> Foldable1 (Foldable1 a) -> r
+foldSemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
+foldSemiring f = foldMap1 g where
+  g (a :| []) = f a
+  g (a :| b : bs) = f a >< g (b :| bs)
+
 
 
 prop_distrib_right :: (Eq r, Semiring r) => r -> r -> r -> Bool
@@ -89,7 +97,10 @@ prop_distrib_left :: (Eq r, Semiring r) => r -> r -> r -> Bool
 prop_distrib_left a b c = a >< (b <> c) == (a >< b) <> (a >< c)
 
 
+instance Semiring () where
 
+  (><) _ _ = ()
+ 
 
 instance Ord a => Semiring (Max a) where
 
@@ -293,6 +304,7 @@ instance Semiring a => Semiring (IO a) where
 ---------------------------------------------------------------------
 
 
+--TODO nonempty instances?
 instance (Ord a, Semigroup a) => Semiring (Set.Set a) where
 
   xs >< ys = Foldable.foldMap (flip Set.map xs . (<>)) ys
@@ -304,7 +316,7 @@ instance (Ord k, Semigroup a) => Semiring (Map.Map k a) where
   xs >< ys = Foldable.foldMap (flip Map.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
-
+-- http://hackage.haskell.org/package/nonempty-containers-0.2.0.0/docs/Data-IntMap-NonEmpty.html
 instance Semigroup a => Semiring (IntMap.IntMap a) where
 
   xs >< ys = Foldable.foldMap (flip IntMap.map xs . (<>)) ys

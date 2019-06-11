@@ -25,17 +25,21 @@ library
      P
   -- other-extensions:
   default-extensions:
+     AllowAmbiguousTypes
      DerivingVia
      DeriveFunctor
      DeriveGeneric
      FlexibleInstances
      GeneralizedNewtypeDeriving
+     RankNTypes
+     TypeApplications
 
   build-depends:       
       base <5.0
     , categories
     , containers
     , contravariant
+    , nonempty-containers
     , free
     , semigroupoids
 

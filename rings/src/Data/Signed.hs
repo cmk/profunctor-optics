@@ -1,5 +1,6 @@
 module Data.Signed where
 
+import Control.Applicative
 import Data.Semiring
 import Data.Hemiring
 import Data.Dioid
@@ -14,6 +15,8 @@ import Data.Dioid
 --   * 'Zero' as representing the set {0}.
 
 data Signed a = Zero | Negative a | Positive a | Indeterminate a deriving (Show, Eq)
+
+
 
 instance Semigroup a => Semigroup (Signed a) where
 
@@ -39,7 +42,12 @@ instance Semigroup a => Monoid (Signed a) where
 
   mempty = Zero
 
+{-
+instance Semigroup a => Alternative Signed where
+  empty = mempty
+  (<|>) = (<>)
 
+-}
 instance Semiring a => Semiring (Signed a) where
 
   Positive a >< Positive b           = Positive $ a >< b
@@ -59,6 +67,22 @@ instance Semiring a => Semiring (Signed a) where
   Indeterminate a >< Zero            = Zero
   Indeterminate a >< Indeterminate e = Indeterminate $ a >< e
 
+
+{-
+instance Semiring a => Apply (These a) where
+    This  a   <.> _         = This a
+    That    _ <.> This  b   = This b
+    That    f <.> That    x = That (f x)
+    That    f <.> These b x = These b (f x)
+    These a _ <.> This  b   = This (a <> b)
+    These a f <.> That    x = These a (f x)
+    These a f <.> These b x = These (a <> b) (f x)
+
+instance Semiring a => Applicative Signed where
+  
+  pure = Positive
+  (<*>) = (<.>)
+-}
 
 instance Hemiring a => Hemiring (Signed a) where
 
