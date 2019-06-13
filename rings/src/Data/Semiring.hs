@@ -6,12 +6,21 @@ import Control.Applicative
 import Data.Monoid hiding (First, Last)
 import Data.Semigroup
 import Data.Coerce (coerce)
-import GHC.Generics
 import Numeric.Natural (Natural)
 
 import Data.Functor.Apply
 import Data.Semigroup.Foldable.Class
 import Data.List.NonEmpty (NonEmpty(..))
+
+import Data.Complex (Complex(..))
+import Data.Typeable (Typeable)
+
+import GHC.Generics                (Generic, Generic1)
+import Foreign.Storable            (Storable)
+import Data.Functor.Classes
+
+import           Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
+import           Data.Functor.Identity (Identity(..))
 
 import qualified Data.Foldable as Foldable
 import qualified Data.Map.Strict as Map
@@ -19,6 +28,7 @@ import qualified Data.Set as Set
 import qualified Data.IntMap.Strict as IntMap
 
 import Control.Monad (ap)
+import Orphans ()
 
 --import Data.Functor.Apply
 --import Data.Functor.Bind.Class (WrappedApplicative(..))
@@ -139,7 +149,10 @@ prop_one_neutral_right :: (Eq r, Monoid r, Semiring r) => r -> Bool
 prop_one_neutral_right r = one >< r == r
 
 -- | 'fromNatural' is a Dioid homomorphism 
--- prop_homomorphism 
+prop_homomorphism :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
+prop_homomorphism i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
+  where fi :: r = fromNatural i
+        fj :: r = fromNatural j
 
 --prop_one_distinct :: forall r. (Eq r, Semiring r) => Bool
 --prop_one_distinct = zero /= (one :: r)
@@ -149,22 +162,19 @@ prop_one_neutral_right r = one >< r == r
 -- Instances
 -------------------------------------------------------------------------------
 
-
-instance Semigroup Natural where
-
-  (<>) = (+)
-
-
-instance Monoid Natural where
-
-  mempty = 0
-
-
 instance Semiring Natural where
  
   (><) = (*)
 
   fromNatural = id
+
+
+instance Semiring Bool where
+ 
+  (><) = (&&)
+
+  fromNatural 0 = False
+  fromNatural _ = True
 
 
 instance Semiring () where
@@ -173,17 +183,56 @@ instance Semiring () where
 
   fromNatural _ = ()
 
+--instance (Semigroup a, Semigroup b) => Semigroup (a, b)
 
+--instance Semigroup Ordering
+
+instance (Monoid b, Semiring b) => Semiring (a -> b) where
+
+  (><) f g = \x -> f x >< g x
+
+  fromNatural = const . fromNatural
+  {-# INLINE (><)  #-}
+  {-# INLINE fromNatural #-}
+
+
+instance (Monoid a, Semiring a) => Semiring (Dual a) where
+  (><) = liftA2 (><)
+  fromNatural = Dual . fromNatural
+  {-# INLINE (><)  #-}
+  {-# INLINE fromNatural #-}
+
+
+instance (Monoid a, Semiring a) => Semiring (Const a b) where
+  (Const x) >< (Const y) = Const (x >< y)
+  fromNatural = Const . fromNatural
+  {-# INLINE (><)  #-}
+  {-# INLINE fromNatural #-}
+
+{-
+-- | This instance can suffer due to floating point arithmetic.
+instance Ring a => Semiring (Complex a) where
+  --(x :+ y) >< (x' :+ y') = (x >< x' - (y >< y')) :+ (x >< y' + y >< x')
+
+  (><) = liftA2 (><)
+  {-# INLINE (><)  #-}
+
+  fromNatural n = fromNatural n :+ zero
+  {-# INLINE fromNatural #-}
+-}
+
+-- Note that if a happens to be an instance of Bounded then fromNatural will still work
+-- but one will equal zero
 instance Ord a => Semiring (Max a) where
 
-  (><) = flip const
+  (><) = const
 
   --fromNatural = fromNaturalDef maxBound
 
-
+-- TODO: pick an instance. Is this one a dioid?
 instance (Bounded a, Ord a) => Semiring (Min a) where
 
-  (><) = flip const
+  (><) = max
 
   fromNatural = fromNaturalDef minBound
 
@@ -199,6 +248,12 @@ foo = Min 2 :: Min Int
 bar = Min 3 :: Min Int
 baz = Min 1 :: Min Int
 
+
+foldSemiring1 id $ ( foo :| [bar]) :| [bar :| [baz]] -- 1
+foldSemiring id [ foo :| [bar], bar :| [baz]] -- 1
+foldSemiring01 id [[foo, bar], [bar, baz], [baz], []] -- -9223372036854775808
+
+foldSemiring01 id [[bar, foo]]
 prop_zero_absorb_right foo
 prop_zero_ident_right foo
 prop_one_ident_right foo
@@ -308,6 +363,7 @@ instance Semigroup a => Semiring (Either e a) where
 
   (><) = liftA2 (<>)
 
+  -- fromNatural = fromNaturalDef $ pure mempty
 {-
 
 foo = Right $ Sum 2 :: Either () (Sum Int)
@@ -392,6 +448,39 @@ instance Semiring a => Semiring (IO a) where
   --fromNatural = fromNaturalDef $ pure mempty
 
 
+
+-- | Monoid under '<.>'. Analogous to 'Data.Monoid.Product', but uses the
+-- 'Semiring' constraint, rather than 'Num'.
+newtype Mul a = Mul { getMul :: a }
+  deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Storable,Functor)
+
+instance Applicative Mul where
+  pure = Mul
+  Mul f <*> Mul a = Mul (f a)
+
+instance Eq1 Mul where
+  liftEq = coerce
+  {-# INLINE liftEq #-}
+
+instance Ord1 Mul where
+  liftCompare = coerce
+  {-# INLINE liftCompare #-}
+
+{-
+instance Show1 Mul where
+  liftShowsPrec = showsNewtype "Mul" "getMul"
+  {-# INLINE liftShowsPrec #-}
+-}
+
+instance Semiring a => Semigroup (Mul a) where
+  (<>) = liftA2 (><)
+  {-# INLINE (<>) #-}
+
+instance (Monoid a, Semiring a) => Monoid (Mul a) where
+  mempty = Mul one
+  {-# INLINE mempty #-}
+
+
 {-
 
 -- | The semiring of endomorphisms of a semigroup under composition.
@@ -407,7 +496,7 @@ If A is the additive monoid of natural numbers we obtain the semiring of natural
 This is a very useful construct. For instance, the type @forall a. 'End' ('End' a)@ is a valid encoding of church numerals, with addition and multiplication being their semiring variants.
 -}
 
-newtype End a = End { runEnd :: a -> a } deriving Generic
+newtype End a = End { runEnd :: a -> a } -- deriving Generic
 
 -- Note that @a@ must be a commutative semigroup for this instance to be legal.
 instance Semigroup a => Semigroup (End a) where 
@@ -427,8 +516,13 @@ instance Monoid a => Semiring (End a) where
 
   fromNatural = fromNaturalDef $ End id
 
-
 {-
+
+
+abst :: (Monoid a, Semiring a) => End (a -> a) -> a -> a
+abst (End f) = f (one <>)
+
+
 
 a = End $ fmap (2*) :: End (Sum Int)
 b = End $ fmap (3*) :: End (Sum Int)
@@ -463,7 +557,6 @@ lhs = (a >< c) <> (b >< c)
 
 runEnd rhs $ Sum 0 -- Sum {getSum = -3}
 runEnd lhs $ Sum 0 -- Sum {getSum = -3}
-
 
 -}
 

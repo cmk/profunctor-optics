@@ -1,7 +1,6 @@
 module Data.Valid where
 
 import Data.Semiring
-import Data.Hemiring
 import Data.Dioid
 
 import Control.Applicative
@@ -88,16 +87,12 @@ instance (Semiring e, Semiring a) => Semiring (Valid e a) where
   Invalid e >< _         = Invalid e
 
 
+  --fromNatural = fromNaturalDef $ Valid one
 
 
-instance (Hemiring e, Hemiring a) => Hemiring (Valid e a) where
+instance (Dioid e, Semiring a, Eq a) => Dioid (Valid e a) where
 
-  fromNatural = fromNaturalDef mempty (Valid one)
-
-
-instance (Dioid e, Dioid a) => Dioid (Valid e a) where
-
-  Valid a `ord` Valid b     = ord a b
+  Valid a `ord` Valid b     = a == b
   Valid _ `ord` _           = False
   
   Invalid e `ord` Invalid f = ord e f
@@ -130,21 +125,16 @@ instance Semiring e => Applicative (Valid e) where
   (<*>) = (<.>)
 
 
--- | For two errors, this instance reports both of them.
 instance Semigroup e => Alt (Valid e) where
 
-  (Invalid e1) <!> (Invalid e2) = Invalid $ e1 <> e2
-
-  a@Valid{} <!> _ = a
-
-  _ <!> b@Valid{} = b
+  (<!>) = (<>)
 
 
-instance Hemiring e => Alternative (Valid e) where
+instance (Monoid e, Semiring e) => Alternative (Valid e) where
 
-  empty = Invalid zero
+  empty = Invalid mempty
 
-  (<|>) = (<!>)
+  (<|>) = (<>)
 
 
 instance Foldable (Valid e) where

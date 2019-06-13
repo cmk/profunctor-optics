@@ -2,7 +2,6 @@ module Data.Signed where
 
 import Control.Applicative
 import Data.Semiring
-import Data.Hemiring
 import Data.Dioid
 
 
@@ -48,7 +47,7 @@ instance Semigroup a => Alternative Signed where
   (<|>) = (<>)
 
 -}
-instance Semiring a => Semiring (Signed a) where
+instance (Monoid a, Semiring a) => Semiring (Signed a) where
 
   Positive a >< Positive b           = Positive $ a >< b
   Positive a >< Negative b           = Negative $ a >< b
@@ -68,6 +67,8 @@ instance Semiring a => Semiring (Signed a) where
   Indeterminate a >< Indeterminate e = Indeterminate $ a >< e
 
 
+  fromNatural = fromNaturalDef $ Positive mempty
+
 {-
 instance Semiring a => Apply (These a) where
     This  a   <.> _         = This a
@@ -84,15 +85,11 @@ instance Semiring a => Applicative Signed where
   (<*>) = (<.>)
 -}
 
-instance Hemiring a => Hemiring (Signed a) where
-
-  fromNatural = fromNaturalDef mempty $ Positive one
-
 
 -- | This instance superimposes a 4-part ordering on top of the 
 -- ordering of @a@.
 -- 
-instance Dioid a => Dioid (Signed a) where
+instance (Monoid a, Dioid a) => Dioid (Signed a) where
 
   Positive a `ord` Positive b           = ord a b
   Positive a `ord` Indeterminate b      = ord a b

@@ -12,6 +12,8 @@ import Data.Functor.Contravariant
 import Data.List (stripPrefix)
 import Data.Maybe (isJust)
 
+import Orphans ()
+
 import qualified Control.Exception as Ex
 import qualified Data.Set as Set
 
@@ -51,28 +53,12 @@ class Semiring r => Dioid r where
 ord' :: forall r. (Monoid r, Dioid r) => Equivalence Natural
 ord' = contramap fromNatural (Equivalence ord :: Equivalence r)
 
--- | aka 'left catch' law for idempotent dioids
-prop_one_absorb_right :: (Eq r, Monoid r, Dioid r) => r -> Bool
-prop_one_absorb_right r = one <> r == one
-
--- | 'fromNatural' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
-prop_monotone :: forall r. (Monoid r, Dioid r) => Natural -> Natural -> Bool
-prop_monotone a b = bool (a <= b) True $ fromNatural a `ord` (fromNatural b :: r)
-
--- | 'ord' is a preorder relation relative to '<>'
-prop_preorder :: (Eq r, Dioid r) => r -> r -> r -> Bool
-prop_preorder a b c = bool True (a <> c == b) $ ord a b
-
--- | 'ord' is a total order relation
-prop_order_total :: (Eq r, Dioid r) => r -> r -> Bool
-prop_order_total a b = bool True (a == b) $ ord a b && ord b a 
+implies :: Bool -> Bool -> Bool
+implies a b = not a || b
 
 --instance (Presemiring (f a), Monoid a, Applicative f) => Dioid (f a) where one = pure mempty
 
 
--- See Gondran and Minoux p. 44 (Exercise 5)
-prop_order_zero :: (Eq r, Monoid r, Dioid r) => r -> r -> Bool
-prop_order_zero a b = bool True (a == zero && b == zero) $ a <> b /= zero
 
 --prop_idempotent_zero :: Bool
 --prop_idempotent_zero  
@@ -80,9 +66,40 @@ prop_order_zero a b = bool True (a == zero && b == zero) $ a <> b /= zero
 -- a ≤ b => forall x. a ⊗ x ≤ b ⊗ x 
 --prop_order_compatible :: (Eq r, Dioid r) => r -> r -> Bool
 
+------------------------------------------------------------------------------------
+-- Properties of pre-dioids
+
+-- | 'ord' is a preorder relation relative to '<>'
+prop_order_preorder :: (Eq r, Dioid r) => r -> r -> r -> Bool
+prop_order_preorder a b c = bool True (a <> c == b) $ ord a b
+
+-- | 'ord' is a total order relation
+prop_order_total :: (Eq r, Dioid r) => r -> r -> Bool
+prop_order_total a b = bool True (a == b) $ ord a b && ord b a 
+
+-- | If 'zero' is non-absorbing then the pre-dioid '(zero ><)' is an idempotent pre-dioid.
+--prop_zero_nonabsorb_right :: (Eq r, Monoid r, Dioid r) => r -> Bool
+--prop_zero_nonabsorb_right r = 
 
 ------------------------------------------------------------------------------------
--- Additional (optional) properties for certain subclasses of diads.
+-- Properties of dioids
+
+-- | 'fromNatural' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
+prop_monotone :: forall r. (Monoid r, Dioid r) => Natural -> Natural -> Bool
+prop_monotone a b = bool (a <= b) True $ fromNatural a `ord` (fromNatural b :: r)
+
+
+-- | aka 'left catch' law for idempotent dioids
+prop_one_absorb_right :: (Eq r, Monoid r, Dioid r) => r -> Bool
+prop_one_absorb_right r = one <> r == one
+
+
+-- See Gondran and Minoux p. 44 (Exercise 5)
+prop_order_zero :: (Eq r, Monoid r, Dioid r) => r -> r -> Bool
+prop_order_zero a b = bool True (a == zero && b == zero) $ a <> b /= zero
+
+------------------------------------------------------------------------------------
+-- Additional (optional) properties of certain subclasses of dioids.
 
 {-
 
@@ -104,7 +121,11 @@ prop_positive a b c = if a <> b /= zero then True else a == zero || b == zero
 prop_idempotent :: (Eq r, Dioid r) => r -> r -> r -> Bool
 prop_idempotent a b c = (a >< b) <> c == (a <> c) >< (a <> b)
 
+prop_selective_additive :: (Eq r, Dioid r) => r -> r -> Bool
+prop_selective_additive a b = ab == a || ab == b where ab = a <> b
 
+prop_selective_multiplicative :: (Eq r, Dioid r) => r -> r -> Bool
+prop_selective_multiplicative a b = ab == a || ab == b where ab = a >< b
 
 {-
 -- | aka 'left catch' law for idempotent dioids
@@ -124,9 +145,25 @@ fromNatural 0 = mempty
 fromNatural _ = dempty
 -}
 
+
+-------------------------------------------------------------------------------
+-- Instances
+-------------------------------------------------------------------------------
+
+
 instance Dioid Natural where
 
   ord = (<=)
+
+
+instance Dioid () where
+
+  ord _ _ = True
+
+
+instance Dioid Bool where
+
+  ord = implies
 
 
 instance (Bounded a, Ord a) => Dioid (Max a) where
@@ -144,14 +181,19 @@ instance (Eq a, Monoid a) => Dioid [a] where
   ord a b = isJust $ stripPrefix a b
 
 
-instance (Monoid e, Monoid a, Dioid e, Dioid a) => Dioid (Either e a) where
+instance (Semigroup a, Eq e, Eq a) => Dioid (Either e a) where
 
-  Right a `ord` Right b  = ord a b
+  Right a `ord` Right b  = a == b
   Right _ `ord` _        = False
   
-  Left e  `ord` Left f   = ord e f
+  Left e  `ord` Left f   = e == f
   Left _  `ord` _        = True
 
+{-
+instance Semigroup (Either a b) where
+    Left _ <> b = b
+    a      <> _ = a
+-}
 
 -- natural model for shortest path problems
 newtype Path a = Path { runPath :: a } deriving (Eq, Show, Ord, Functor)
@@ -172,6 +214,10 @@ The dioid P(A∗) is the set of all languages on the alphabet
 A, endowed with the operations of union ∪ and concatenation o, which is at the
 basis of the theory of languages and automata.
 -}
+
+-- instance Dioid (ZipList a) where
+--  ord x y = ---- analagous to 'isPrefixOf'
+
 
 --instance (Monoid a, Dioid a) => Dioid (End a) where ord (End f) (End g) = 
 

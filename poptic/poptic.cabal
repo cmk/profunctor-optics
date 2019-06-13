@@ -21,14 +21,12 @@ library
   exposed-modules:
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Fold
-      --Data.Profunctor.Optic.Fold.Semigroup
+      Data.Profunctor.Optic.Fold.Semigroup
       --Data.Profunctor.Optic.Fold.Monoid
-      --Data.Profunctor.Optic.Fold.Presemiring
       --Data.Profunctor.Optic.Fold.Semiring
       --Data.Profunctor.Optic.Fold.Dioid
       Data.Profunctor.Optic.Fold.Affine
       --Data.Profunctor.Optic.Fold.Indexed
-      Data.Profunctor.Optic.Fold.NonEmpty
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Lens
       --Data.Profunctor.Optic.Lens.Rep
@@ -45,7 +43,7 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Traversal.Affine
       --Data.Profunctor.Optic.Traversal.Indexed
-      Data.Profunctor.Optic.Traversal.NonEmpty
+      Data.Profunctor.Optic.Traversal.Semigroup
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
       Data.Profunctor.Optic.Type.VL

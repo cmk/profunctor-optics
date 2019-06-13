@@ -18,6 +18,16 @@ import Control.Monad.IO.Unlift
 import UnliftIO.Exception
 import UnliftIO.Async
 
+{-
+import Data.Semiring.Endomorphism
+
+abst' :: (Monoid a, Semiring a) => ((a -> a) -> t) -> t
+abst' f = f (one <>)
+
+abstracted :: (Monoid s, Semiring s) => Grate s t s t
+abstracted = grate abst' 
+-}
+
 {- 
 'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
 In the special case where the indexing type is finitary (e.g. 'Bool') then the tabulated type is isomorphic to a fixed length vector (e.g. '(,)').

@@ -20,7 +20,6 @@ import Data.Semigroup               (Semigroup (..))
 import Data.Semigroup.Bifoldable    (Bifoldable1 (..))
 import Data.Semigroup.Bitraversable (Bitraversable1 (..))
 import Data.Semiring
-import Data.Hemiring
 import Data.Dioid
 import GHC.Generics                 (Generic)
 

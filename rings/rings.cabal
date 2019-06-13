@@ -1,6 +1,6 @@
 name:                rings
 version:             0.0.1
-synopsis:            Rings, semirings, hemirings, and dioids.
+synopsis:            Rings, semirings, and dioids.
 -- description:         
 homepage:            github.com/cmk/rings
 license:             BSD3
@@ -17,9 +17,15 @@ library
   exposed-modules:
      Data.Dioid
      Data.Semiring
-    -- Data.Signed
-    -- Data.Valid
-    -- Data.Warning
+     Data.Semiring.Cayley
+     Data.Semiring.Free
+     -- Data.Semiring.Free.Unital
+     Data.Signed
+     Data.Valid
+     Data.Warning
+     -- Data.Ring
+     -- Zoo
+     Orphans
   other-modules:
      P
   -- other-extensions:
@@ -31,7 +37,9 @@ library
      FlexibleInstances
      GeneralizedNewtypeDeriving
      RankNTypes
+     ScopedTypeVariables
      TypeApplications
+     --NoImplicitPrelude
 
   build-depends:       
       base <5.0
@@ -40,6 +48,7 @@ library
     , contravariant
     , nonempty-containers
     , free
+    , profunctors
     , semigroupoids
 
   hs-source-dirs:      src

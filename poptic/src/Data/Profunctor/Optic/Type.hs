@@ -242,16 +242,49 @@ instance Strong (Previewed r) where
 --
 -- 
 -- Star (Pre r) a b has Strong. Also Choice & Traversing when r is a Semigroup.
+-- idea: 
+
 newtype Pre a b = Pre { runPre :: Maybe a } deriving (Eq, Ord, Show, Data, Generic, Generic1)
 
 instance Functor (Pre a) where fmap f (Pre p) = Pre p
 
 instance Contravariant (Pre a) where contramap f (Pre p) = Pre p
 
-instance Semigroup a => Applicative (Pre a) where
-    pure _ = Pre $ mempty
+{-
 
-    (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
+instance Semigroup (Pre a) where
+
+  Pre Nothing <> x = x
+
+  Pre a <> _ = Pre a
+
+
+instance Monoid (Pre a) where
+
+  mempty = Pre Nothing
+
+
+instance Semigroup a => Apply (Pre a) where
+
+    (Pre pbc) <.> (Pre pb) = Pre $ pbc <> pb
+
+instance Alt (Pre a) where
+
+    (<!>) = (<>)
+
+instance Monoid a => Applicative (Pre a) where
+
+    pure _ = Pre mempty
+
+    (<*>) = (<.>)
+
+instance Monoid a => Alternative (Pre a) where
+
+    empty = mempty
+
+    (<|>) = (<>)
+
+-}
 
 {-
 instance Functor Pre where

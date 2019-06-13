@@ -1,14 +1,16 @@
-
+{-# Language ExistentialQuantification #-}
 module Data.Semiring.Free where
 
 import Data.Semiring
-
+--import Data.Functor.Kan.Ran
+--import Data.Functor.Day
 import Control.Applicative
+import Control.Monad
 import Data.Monoid
 import GHC.Generics
 
-import Numeric.Natural (Natural)
 
+import Numeric.Natural (Natural)
 
 
 -- http://hackage.haskell.org/package/free-5.1/docs/Control-Applicative-Trans-Free.html#t:Alt
@@ -22,8 +24,9 @@ import Numeric.Natural (Natural)
 Kmett’s `free` package does contain a definition of the free
 Alternative construction that is, implicitly, based on the right-based
 definition of the Day convolution:
-data Day f g a = ∀b.Day (f b) (g (b → a))
+data Day f g a = ∀b.Day (f b) (g (b -> a))
 -}
+
 {-
 
 Given an object A, if the initial algebra for the endofunctor 1 + (I + A >< _) * _ exists, 
@@ -52,6 +55,9 @@ type Forest a = [Tree a]
 -- | The base functor for a free monad.
 --data FreeF f a b = Pure a | Free (f b)
 
+--data Free◦ f x = Free◦ {unFree◦ :: [FFree◦ f x ]}
+--data FFree◦ f x = Pure◦ x | Con◦ (f (Free◦ f x ))
+
 data Forest a = Forest [Tree a]
 data Tree a = Leaf | Node a (Forest a)
 
@@ -71,24 +77,20 @@ instance Semiring (Forest a) where
     where g Leaf = ys
           g (Node a n) =[Node a (n >< (Forest ys))]
 
-
-instance Unital (Forest a) where
-
-  uempty = Forest [Leaf]
-  {-# INLINE uempty #-}
+  fromNatural = fromNaturalDef $ Forest [Leaf]
 
 inj :: a -> Forest a
-inj a = Forest [Node a uempty]
+inj a = Forest [Node a one]
 
-univ :: Unital r => (a -> r) -> Forest a -> r
+
+
+univ :: (Monoid r, Semiring r) => (a -> r) -> Forest a -> r
 univ h (Forest xs) = foldr (<>) mempty (map univT xs)
-  where univT Leaf = uempty
+  where univT Leaf = one
         univT (Node a ts) = h a >< univ h ts
 
-foo :: Num a => Forest a -> WrappedNum a
-foo = univ WrappedNum
 
-
+{-
 -- 2 * 0 + 1 + 2 * (1 + 2 * 0) == 3
 ex0 :: Forest Int
 ex0 = Forest [tree1, tree2, tree3] 
@@ -99,3 +101,4 @@ ex0 = Forest [tree1, tree2, tree3]
 -- 2 + 3 + 6 = 11
 ex1 :: Forest Int
 ex1 = Forest [Node 1 $ inj 2, Node 1 $ inj 3, Node 2 $ inj 3]
+-}
