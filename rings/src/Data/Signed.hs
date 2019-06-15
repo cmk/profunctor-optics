@@ -67,7 +67,7 @@ instance (Monoid a, Semiring a) => Semiring (Signed a) where
   Indeterminate a >< Indeterminate e = Indeterminate $ a >< e
 
 
-  fromNatural = fromNaturalDef $ Positive mempty
+  fromBoolean = fromBooleanDef $ Positive mempty
 
 {-
 instance Semiring a => Apply (These a) where

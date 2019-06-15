@@ -87,7 +87,7 @@ instance (Semiring e, Semiring a) => Semiring (Valid e a) where
   Invalid e >< _         = Invalid e
 
 
-  --fromNatural = fromNaturalDef $ Valid one
+  --fromBoolean = fromBooleanDef $ Valid one
 
 
 instance (Dioid e, Semiring a, Eq a) => Dioid (Valid e a) where

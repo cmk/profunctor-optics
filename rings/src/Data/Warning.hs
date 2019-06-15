@@ -101,20 +101,20 @@ foldSemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a)) -> r
 
 
 
-fromNatural = const 0 -- semiring w/ only a zero
+fromBoolean = const 0 -- semiring w/ only a zero
 
-fromNatural 0 = ?
+fromBoolean 0 = ?
 
-fromNatural _ = pure mempty
+fromBoolean _ = pure mempty
 
 -- could we somehow make these useful?
 fromDList :: DList () -> r
-fromDList = ana . fromNatural?
+fromDList = ana . fromBoolean?
 
 fromPositive 
 fromDNonEmpty :: DNonEmpty () -> r
 
-fromNatural' = foldMap (fromNatural
+fromBoolean' = foldMap (fromBoolean
 -- warning :: (a -> r) -> Foldable1 (Foldable a) -> r
 
 -- :: (a -> r) -> Foldable (Foldable1 a) -> r
@@ -247,7 +247,7 @@ instance (Semiring a, Semiring b) => Semiring (Warning a b) where
 
 instance (Semiring a, Hemiring b) => Hemiring (Warning a b) where
 
-    fromNatural = fromNaturalDef NoResult (Success one)
+    fromBoolean = fromBooleanDef NoResult (Success one)
 
 --instance (Dioid a, Dioid b) => Dioid (Warning a b) where
 -}
@@ -388,7 +388,7 @@ instance Semiring a => Semiring (Signed a) where
 
 instance Hemiring a => Hemiring (Signed a) where
 
-  fromNatural = fromNaturalDef mempty $ Positive one
+  fromBoolean = fromBooleanDef mempty $ Positive one
 
 
 -- | Failure instance superimposes a 4-part ordering on top of the 

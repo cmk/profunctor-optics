@@ -6,10 +6,10 @@ import Data.Bool
 import Data.Semigroup
 import Data.Semiring
 import Data.Monoid hiding (First, Last)
-import Numeric.Natural (Natural)
 import Data.Functor.Contravariant
 import Data.List (stripPrefix)
 import Data.Maybe (isJust)
+import Numeric.Natural (Natural)
 
 
 import Orphans ()
@@ -17,6 +17,8 @@ import Control.Selective (Under(..), Over(..), ifS)
 
 import qualified Control.Exception as Ex
 import qualified Data.Set as Set
+
+import P (implies, (==>))
 
 {-
 import Control.Monad.Catch (MonadThrow(..))
@@ -56,22 +58,15 @@ dplus f g = bool f g $ ord f g
 dzero :: (Monoid r, Dioid r) => r
 dzero = zero
 
--- | Monotone pullback to naturals.
-ord' :: forall r. (Monoid r, Dioid r) => Equivalence Natural
-ord' = contramap fromNatural (Equivalence ord :: Equivalence r)
+-- | Monotone pullback to booleans.
+ord' :: forall r. (Monoid r, Dioid r) => Equivalence Bool
+ord' = contramap fromBoolean (Equivalence ord :: Equivalence r)
 
 
 
 --instance (Semiring (f a), Monoid a, Applicative f) => Dioid (f a) where one = pure mempty
 
-implies :: Bool -> Bool -> Bool
-implies a b = not a || b
-{-# INLINEABLE implies #-}
 
-infixr 0 ==>
-
-(==>) :: Bool -> Bool -> Bool
-(==>) = implies
 
 --prop_idempotent_zero :: Bool
 --prop_idempotent_zero  
@@ -97,10 +92,9 @@ prop_order_total a b = ord a b && ord b a ==> a == b
 ------------------------------------------------------------------------------------
 -- | Properties of dioids
 
--- | 'fromNatural' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
-prop_monotone :: forall r. (Monoid r, Dioid r) => Natural -> Natural -> Bool
-prop_monotone a b = a <= b ==> fromNatural a `ord` (fromNatural b :: r)
-
+-- | 'fromBoolean' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
+prop_monotone_boolean :: forall r. (Monoid r, Dioid r) => Bool -> Bool -> Bool
+prop_monotone_boolean a b = a <= b ==> fromBoolean a `ord` (fromBoolean b :: r)
 
 -- | This is the 'left catch' law for idempotent dioids, e.g:
 -- @'pure' a <|> x ≡ 'pure' a@
@@ -157,9 +151,9 @@ fromBoolean :: Dioid r => Bool -> r
 fromBoolean False = mempty
 fromBoolean True = dempty
 
-fromNatural :: Dioid r => Natural -> r
-fromNatural 0 = mempty
-fromNatural _ = dempty
+fromBoolean :: Dioid r => Bool -> r
+fromBoolean 0 = mempty
+fromBoolean _ = dempty
 -}
 
 -------------------------------------------------------------------------------

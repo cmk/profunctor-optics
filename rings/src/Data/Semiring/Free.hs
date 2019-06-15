@@ -71,7 +71,7 @@ instance Semiring (Forest a) where
     where g Leaf = ys
           g (Node a n) =[Node a (n >< (Forest ys))]
 
-  fromNatural = fromNaturalDef $ Forest [Leaf]
+  fromBoolean = fromBooleanDef $ Forest [Leaf]
 
 inj :: a -> Forest a
 inj a = Forest [Node a one]

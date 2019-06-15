@@ -83,7 +83,7 @@ instance Num a => Semiring (WrappedNum a) where
   (><) = (*)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef 1
+  fromBoolean = fromBooleanDef 1
 
 instance Num a => Ring (WrappedNum a) where
 

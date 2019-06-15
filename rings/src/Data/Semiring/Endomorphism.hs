@@ -24,10 +24,12 @@ module Data.Semiring.Endomorphism (
 
 import Control.Applicative
 import Control.Arrow ((***))
-import Control.Category.Associative (disassociate)
-import Control.Category.Braided (swap)
+--import Control.Category.Associative (disassociate)
+--import Control.Category.Braided (swap)
 import Control.Monad
 import Data.Semiring
+import Data.Bifunctor.Swap
+import Data.Bifunctor.Assoc
 
 
 {-# RULES
@@ -84,7 +86,7 @@ instance Monoid a => Semiring (End a) where
   End f >< End g = End $ f . g
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ End id
+  fromBoolean = fromBooleanDef $ End id
 
 
 
@@ -138,7 +140,7 @@ instance Functor f => Applicative (EndT f) where
 
   pure v = EndT $ \f -> fmap (\y -> (v, y)) f
 
-  EndT h <*> EndT v = fmap (uncurry ($)) $ EndT $ \f -> fmap ((swap *** id) . disassociate) (v (h f))
+  EndT h <*> EndT v = fmap (uncurry ($)) $ EndT $ \f -> fmap ((swap *** id) . unassoc) (v (h f))
 
 instance Functor f => Alternative (EndT f) where
 

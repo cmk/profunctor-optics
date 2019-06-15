@@ -42,7 +42,7 @@ library
 
   build-depends:       
       base <5.0
-    , categories
+    , assoc
     , containers
     , contravariant
     , nonempty-containers

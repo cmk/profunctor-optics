@@ -85,26 +85,29 @@ class Semigroup r => Semiring r where
   -- Multiplicative operation
   (><) :: r -> r -> r  
 
-  -- A semiring homomorphism from the natural numbers to @r@.
-  -- It needn't be injective or surjective.
-  fromNatural :: Monoid r => Natural -> r
-
+  -- A semiring homomorphism from the Boolean semiring to @r@. 
+  -- If this map is injective then @r@ has a distinct unit.
+  fromBoolean :: Monoid r => Bool -> r
 
 zero :: (Monoid r, Semiring r) => r           
-zero = fromNatural 0
+zero = fromBoolean False
 
 -- | Note one may or may not equal zero.
 one :: (Monoid r, Semiring r) => r
-one = fromNatural 1
+one = fromBoolean True
 
+fromBooleanDef :: Monoid r => r -> Bool -> r
+fromBooleanDef _ False = mempty
+fromBooleanDef o True = o
+
+{-
+-- A semiring homomorphism from the natural numbers to @r@.
 -- TODO use End instead to avoid n^2 asymptotics
-fromNaturalDef :: Monoid r => r -> Natural -> r
-fromNaturalDef _ 0 = mempty
-fromNaturalDef o 1 = o
-fromNaturalDef o n = fromNaturalDef o (n - 1) <> o
-
-zeroMorphism :: Monoid r => r -> Natural -> r
-zeroMorphism _ _ = mempty
+fromNatural :: (Monoid r, Semiring r) => Natural -> r
+fromNatural 0 = zero
+fromNatural 1 = one
+fromNatural n = fromNatural (n - 1) <> one
+-}
 
 foldProduct :: Semiring r => (a -> r) -> NonEmpty a -> r
 foldProduct f (a :| []) = f a
@@ -158,12 +161,19 @@ prop_right_neutral_one r = one >< r == r
 prop_right_neutral_zero :: (Eq r, Monoid r, Semiring r) => r -> Bool
 prop_right_neutral_zero r = zero <> r == r
 
+-- | 'fromBoolean' is a semiring homomorphism.
+prop_homomorphism_boolean :: forall r. (Eq r, Monoid r, Semiring r) => Bool -> Bool -> Bool 
+prop_homomorphism_boolean i j = fromBoolean (i && j) == fi >< fj && fromBoolean (i || j) == fi <> fj 
+  where fi :: r = fromBoolean i
+        fj :: r = fromBoolean j
+
+{-
 -- | 'fromNatural' is a semiring homomorphism.
-prop_homomorphism_naturals :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
-prop_homomorphism_naturals i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
+prop_homomorphism_natural :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
+prop_homomorphism_natural i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
   where fi :: r = fromNatural i
         fj :: r = fromNatural j
-
+-}
 ------------------------------------------------------------------------------------
 -- | Additional (optional) properties of certain subclasses of 'Semiring'.
 
@@ -196,14 +206,14 @@ instance Semigroup a => Semiring (Last a) where
   {-# INLINE (><)  #-}
 
 
--- Note that if a happens to be an instance of Bounded then fromNatural will still work
+-- Note that if a happens to be an instance of Bounded then fromBoolean will still work
 -- but one will equal zero
 instance Ord a => Semiring (Max a) where
 
   (><) = const
   {-# INLINE (><)  #-}
 
-  --fromNatural = fromNaturalDef maxBound
+  --fromBoolean = fromBooleanDef maxBound
 
 -- TODO: pick an instance. Is this one a dioid?
 instance (Bounded a, Ord a) => Semiring (Min a) where
@@ -211,7 +221,7 @@ instance (Bounded a, Ord a) => Semiring (Min a) where
   (><) = max
   {-# INLINE (><)  #-}
 
-  fromNatural = fromNaturalDef minBound
+  fromBoolean = fromBooleanDef minBound
 
 
 
@@ -252,24 +262,23 @@ prop_distrib_right bar baz foo
 instance Semiring () where
   (><) _ _ = ()
 
-  fromNatural _ = ()
+  fromBoolean _ = ()
 
 
 instance Semiring Bool where
   (><) = (&&)
 
-  fromNatural 0 = False
-  fromNatural _ = True
-
+  fromBoolean = id
 
 instance Semiring Natural where
   (><) = (*)
 
-  fromNatural = id
+  fromBoolean = fromBooleanDef 1
+
 
 instance Semiring Int where
   (><) = (*)
-  fromNatural = fromNaturalDef 1
+  fromBoolean = fromBooleanDef 1
 
 --instance (Semigroup a, Semigroup b) => Semigroup (a, b)
 
@@ -280,16 +289,16 @@ instance (Monoid b, Semiring b) => Semiring (a -> b) where
   (><) f g = \x -> f x >< g x
   {-# INLINE (><)  #-}
 
-  fromNatural = const . fromNatural
-  {-# INLINE fromNatural #-}
+  fromBoolean = const . fromBoolean
+  {-# INLINE fromBoolean #-}
 
 
 instance (Monoid a, Semiring a) => Semiring (Dual a) where
   (><) = liftA2 (><)
   {-# INLINE (><)  #-}
 
-  fromNatural = Dual . fromNatural
-  {-# INLINE fromNatural #-}
+  fromBoolean = Dual . fromBoolean
+  {-# INLINE fromBoolean #-}
 
 
 instance (Monoid a, Semiring a) => Semiring (Const a b) where
@@ -297,15 +306,15 @@ instance (Monoid a, Semiring a) => Semiring (Const a b) where
   (Const x) >< (Const y) = Const (x >< y)
   {-# INLINE (><)  #-}
 
-  fromNatural = Const . fromNatural
-  {-# INLINE fromNatural #-}
+  fromBoolean = Const . fromBoolean
+  {-# INLINE fromBoolean #-}
 
 instance (Monoid a, Semiring a) => Semiring (Identity a) where
 
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ pure mempty
+  fromBoolean = fromBooleanDef $ pure mempty
 
 
 instance Semigroup r => Semigroup (Over r a) where
@@ -323,7 +332,7 @@ instance (Monoid r, Semiring r) => Semiring (Over r a) where
   Over x >< Over y = Over (x >< y)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ Over mempty
+  fromBoolean = fromBooleanDef $ Over mempty
 
 -- ord (Over a) (Over b) = ord a b
 
@@ -341,7 +350,7 @@ instance (Monoid r, Semiring r) => Semiring (Under r a) where
   Under x >< Under y = Under (x >< y)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ Under mempty
+  fromBoolean = fromBooleanDef $ Under mempty
 
 -- ord (Under a) (Under b) = ord a b
 
@@ -353,8 +362,8 @@ instance Ring a => Semiring (Complex a) where
   (><) = liftA2 (><)
   {-# INLINE (><)  #-}
 
-  fromNatural n = fromNatural n :+ zero
-  {-# INLINE fromNatural #-}
+  fromBoolean n = fromBoolean n :+ zero
+  {-# INLINE fromBoolean #-}
 -}
 
 
@@ -392,7 +401,7 @@ instance Monoid a => Semiring [a] where
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ pure mempty
+  fromBoolean = fromBooleanDef $ pure mempty
 
 {-
 foo = [WrappedNum 2] :: [WrappedNum Int]
@@ -415,7 +424,7 @@ instance (Monoid a, Semiring a) => Semiring (Maybe a) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ pure mempty
+  fromBoolean = fromBooleanDef $ pure mempty
 
 {-
 
@@ -456,7 +465,7 @@ instance Semigroup a => Semiring (Either e a) where
   (><) = liftA2 (<>)
   {-# INLINE (><)  #-}
 
-  -- fromNatural = fromNaturalDef $ pure mempty
+  -- fromBoolean = fromBooleanDef $ pure mempty
 {-
 
 foo = Right $ Sum 2 :: Either () (Sum Int)
@@ -498,7 +507,7 @@ instance Semiring Any where
   (><) = coerce (&&)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ Any True
+  fromBoolean = fromBooleanDef $ Any True
 
 -- Note that this instance uses 'False' as its multiplicative unit. 
 instance Semiring All where 
@@ -506,7 +515,7 @@ instance Semiring All where
   (><) = coerce (||)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ All False
+  fromBoolean = fromBooleanDef $ All False
 
 
 --instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Semiring (f a) where (><) = liftF2 (<>)
@@ -518,7 +527,7 @@ instance Monoid a => Semiring (Free.Alt f a) where
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ pure mempty
+  fromBoolean = fromBooleanDef $ pure mempty
 
 -- Note: if 'Alternative' is ever refactored to fix the left distribution law issue then 'Alt' should be updated here as well.
 instance (Monoid a, Alternative f) => Semiring (Alt f a) where
@@ -526,7 +535,7 @@ instance (Monoid a, Alternative f) => Semiring (Alt f a) where
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ pure mempty
+  fromBoolean = fromBooleanDef $ pure mempty
 
 
 -- Note: this instance uses the 'Applicative' monoid as the underlying semigroup.
@@ -537,14 +546,14 @@ instance (Semiring a, Applicative f) => Semiring (Ap f a) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
-  --fromNatural = fromNaturalDef $ pure mempty
+  --fromBoolean = fromBooleanDef $ pure mempty
 
 instance Semiring a => Semiring (IO a) where 
 
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
-  --fromNatural = fromNaturalDef $ pure mempty
+  --fromBoolean = fromBooleanDef $ pure mempty
 
 
 
@@ -604,14 +613,14 @@ instance (Ord a, Monoid a) => Semiring (Set.Set a) where
   xs >< ys = Foldable.foldMap (flip Set.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ Set.singleton mempty
+  fromBoolean = fromBooleanDef $ Set.singleton mempty
 
 instance (Ord k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
 
   xs >< ys = Foldable.foldMap (flip Map.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ Map.singleton mempty mempty
+  fromBoolean = fromBooleanDef $ Map.singleton mempty mempty
 
 -- http://hackage.haskell.org/package/nonempty-containers-0.2.0.0/docs/Data-IntMap-NonEmpty.html
 instance Monoid a => Semiring (IntMap.IntMap a) where
@@ -619,7 +628,7 @@ instance Monoid a => Semiring (IntMap.IntMap a) where
   xs >< ys = Foldable.foldMap (flip IntMap.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
-  fromNatural = fromNaturalDef $ IntMap.singleton 0 mempty
+  fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
 
 
 {-
@@ -684,7 +693,7 @@ instance (Ord k, Semigroup k, Semiring a) => Semiring (WrappedMap k a) where
      [ (k <> l, v >< u) | (k, v) <- Map.toList xs, (l, u) <- Map.toList ys ]
   {-# INLINE (><) #-}
 
-  --fromNatural = fromNaturalDef $ WrappedMap (Map.singleton mempty one)
+  --fromBoolean = fromBooleanDef $ WrappedMap (Map.singleton mempty one)
 
 
 {-
