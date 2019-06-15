@@ -38,11 +38,10 @@ import           Data.Foldable
 import           Data.Traversable
 import           Prelude             hiding (foldr)
 
-import qualified Data.Tuple
+import qualified Data.Tuple 
 {-
 import Control.Applicative
 import Control.Exception (Exception(..))
-import Data.Functor.Contravariant.Divisible
 
 instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
 
@@ -63,27 +62,8 @@ infixl 6 *
 (+++.) = x . x . x where x = assoc @(+)
 
 
-infixr 3 >*<
-
-(>*<) :: Divisible f => f a -> f b -> f (a , b)
-(>*<) = divided
-
-infixr 3 >+<
-
-(>+<) :: Decidable f => f a -> f b -> f (a + b)
-(>+<) = chosen
 -}
 
-{-
-strong :: Apply f => f a -> f b -> f (a, b)
-strong = liftF2 (,)
-
-costrong :: Divisible f => f a -> f b -> f (a, b)
-costrong = divide id
-
-choice :: Decidable f => f a -> f b -> f (Either a b)
-choice = choose id
--}
 
 star :: Applicative f => Star f c c
 star = Star $ pure

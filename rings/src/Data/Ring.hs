@@ -5,9 +5,8 @@ import Data.Semigroup
 import Data.Monoid
 import Data.Semiring
 
-import P
 
-{-
+
 class Semiring r => Ring r where 
   
   neg :: r -> r
@@ -15,6 +14,7 @@ class Semiring r => Ring r where
   fromInteger :: Integer -> r
   --fromInteger i = if i >= 0 then 
 
+{-
 --sgn :: a -> Signed a
 --sgn :: a -> Sign
 --abs :: a -> a

@@ -7,3 +7,4 @@ packages:
 extra-deps:
   - bifunctor-0.1.0.0@sha256:43bfde3f3516e078054db2939d966a9aec6f63a8f98f1ff0c29ed147f39db388
   - categories-1.0.7@sha256:e707f8ac06eac755cb508aa67de64ab2e33ce1c54aebb6f43f64c615aa5234f6
+  - selective-0.2@sha256:ef277b5ade99b513664c9a6682b34d3ebbd96906ad50309d91b25832935c11fe

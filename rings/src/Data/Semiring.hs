@@ -27,6 +27,10 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Set as Set
 import qualified Data.IntMap.Strict as IntMap
 
+import Control.Selective
+import qualified Control.Selective.Free as Free
+import qualified Control.Alternative.Free.Final as Free
+
 import Control.Monad (ap)
 import Orphans ()
 
@@ -84,31 +88,6 @@ class Semigroup r => Semiring r where
   -- A semiring homomorphism from the natural numbers to @r@.
   -- It needn't be injective or surjective.
   fromNatural :: Monoid r => Natural -> r
-  fromNatural _ = mempty
-
-
-
-fromNaturalDef :: Monoid r => r -> Natural -> r
-fromNaturalDef _ 0 = mempty
-fromNaturalDef o 1 = o
-fromNaturalDef o n = fromNaturalDef o (n - 1) <> o -- TODO better implementation
-
-foldSemiring :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
-foldSemiring = foldMap . foldProduct
-
-foldSemiring1 :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
-foldSemiring1 = foldMap1 . foldProduct
-
-foldProduct :: Semiring r => (a -> r) -> NonEmpty a -> r
-foldProduct f (a :| []) = f a
-foldProduct f (a :| b : bs) = f a >< foldProduct f (b :| bs)
-
---foldSum :: (Monoid r, Semiring r) => (a -> r) -> [a] -> r
-
--- TODO is this the same as foldSemiring when zero = one?
-foldSemiring01 :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
-foldSemiring01 f = foldMap g where g = foldr ((><) . f) one
-
 
 
 zero :: (Monoid r, Semiring r) => r           
@@ -118,114 +97,111 @@ zero = fromNatural 0
 one :: (Monoid r, Semiring r) => r
 one = fromNatural 1
 
+-- TODO use End instead to avoid n^2 asymptotics
+fromNaturalDef :: Monoid r => r -> Natural -> r
+fromNaturalDef _ 0 = mempty
+fromNaturalDef o 1 = o
+fromNaturalDef o n = fromNaturalDef o (n - 1) <> o
 
-prop_distrib_right :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distrib_right a b c = (a <> b) >< c == (a >< c) <> (b >< c)
+zeroMorphism :: Monoid r => r -> Natural -> r
+zeroMorphism _ _ = mempty
 
-prop_distrib_left :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distrib_left a b c = a >< (b <> c) == (a >< b) <> (a >< c)
+foldProduct :: Semiring r => (a -> r) -> NonEmpty a -> r
+foldProduct f (a :| []) = f a
+foldProduct f (a :| b : bs) = f a >< foldProduct f (b :| bs)
 
-{-
-https://math.stackexchange.com/questions/2777734/additive-identity-in-a-semiring-need-not-be-multiplicative-annihilator
+--foldSum :: (Monoid r, Semiring r) => (a -> r) -> [a] -> r
 
-Consider that 𝑒 is the additive identity of a hemiring 𝑆, then for any 𝑎∈𝑆, we see that 
-𝑎.𝑒=𝑎.(𝑒+𝑒)= 𝑎.𝑒+𝑎.𝑒 
+-- TODO is this the same as foldSemiring when zero = one?
+foldSemiring0 :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
+foldSemiring0 f = foldMap g where g = foldr ((><) . f) one
 
-The step 
-𝑎.𝑒+𝑎.𝑒 = 𝑎.𝑒 => 𝑎.𝑒=𝑒 will hold if the hemiring is cancellative or − 𝑎.𝑒∈𝑆. 
+foldSemiring1 :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
+foldSemiring1 = foldMap . foldProduct
 
-as a consequence of this argument, we can conclude that additive identity is not multiplicative absorber in a general hemiring (unless required axiomatically). But 𝑒 being additive identity is multiplicative absorber only if hemiring is cancellative. 
+foldSemiring2 :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
+foldSemiring2 = foldMap1 . foldProduct
 
-Do we prefer to use the cancellative property rather than the absorbative one?
--}
 
-prop_zero_absorb_right :: (Eq r, Monoid r, Semiring r) => r -> Bool
-prop_zero_absorb_right r = zero >< r == zero
 
-prop_zero_neutral_right :: (Eq r, Monoid r, Semiring r) => r -> Bool
-prop_zero_neutral_right r = zero <> r == r
 
-prop_one_neutral_right :: (Eq r, Monoid r, Semiring r) => r -> Bool
-prop_one_neutral_right r = one >< r == r
 
--- | 'fromNatural' is a Dioid homomorphism 
-prop_homomorphism :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
-prop_homomorphism i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
+
+------------------------------------------------------------------------------------
+-- | Properties of pre-semirings
+
+-- | When @r@ is a functor and the semiring structure is derived from 'Alternative', 
+-- this translates to: @(f <|> g) <*> a = (f <*> a) <|> (g <*> a)@  
+-- See https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus#Other_suggested_laws
+
+-- When @r@ is a functor and the semiring structure is derived from 'Selective'
+prop_right_distributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
+prop_right_distributive a b c = (a <> b) >< c == (a >< c) <> (b >< c)
+
+--prop_universal_addition / foldSemiring1
+
+--prop_universal_multiplication
+
+
+------------------------------------------------------------------------------------
+-- | Properties of semirings
+
+-- | When @r@ is a functor and the semiring structure is derived from 'Alternative', 
+-- this translates to: @empty <*> a = empty@
+-- See https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus#Other_suggested_laws
+prop_right_absorbative_zero :: (Eq r, Monoid r, Semiring r) => r -> Bool
+prop_right_absorbative_zero r = zero >< r == zero
+
+prop_right_neutral_one :: (Eq r, Monoid r, Semiring r) => r -> Bool
+prop_right_neutral_one r = one >< r == r
+
+prop_right_neutral_zero :: (Eq r, Monoid r, Semiring r) => r -> Bool
+prop_right_neutral_zero r = zero <> r == r
+
+-- | 'fromNatural' is a semiring homomorphism.
+prop_homomorphism_naturals :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
+prop_homomorphism_naturals i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
   where fi :: r = fromNatural i
         fj :: r = fromNatural j
 
---prop_one_distinct :: forall r. (Eq r, Semiring r) => Bool
---prop_one_distinct = zero /= (one :: r)
+------------------------------------------------------------------------------------
+-- | Additional (optional) properties of certain subclasses of 'Semiring'.
 
+-- | The existence of distinguished additive and multiplicative units distinguishes 
+-- a semiring (resp. dioid) from a pre-semiring (pre-dioid).
+prop_distinct_zero_one :: forall r. (Eq r, Monoid r, Semiring r) => Bool
+prop_distinct_zero_one = zero /= (one :: r)
+
+prop_left_distributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
+prop_left_distributive a b c = a >< (b <> c) == (a >< b) <> (a >< c)
+
+prop_commutative_addition :: (Eq r, Semigroup r) => r -> r -> Bool
+prop_commutative_addition a b = a <> b == b <> a
+
+prop_commutative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
+prop_commutative_multiplication a b = a >< b == b >< a
 
 -------------------------------------------------------------------------------
--- Instances
+-- Pre-semirings
 -------------------------------------------------------------------------------
 
-instance Semiring Natural where
- 
-  (><) = (*)
-
-  fromNatural = id
-
-
-instance Semiring Bool where
- 
-  (><) = (&&)
-
-  fromNatural 0 = False
-  fromNatural _ = True
-
-
-instance Semiring () where
-
-  (><) _ _ = ()
-
-  fromNatural _ = ()
-
---instance (Semigroup a, Semigroup b) => Semigroup (a, b)
-
---instance Semigroup Ordering
-
-instance (Monoid b, Semiring b) => Semiring (a -> b) where
-
-  (><) f g = \x -> f x >< g x
-
-  fromNatural = const . fromNatural
-  {-# INLINE (><)  #-}
-  {-# INLINE fromNatural #-}
-
-
-instance (Monoid a, Semiring a) => Semiring (Dual a) where
-  (><) = liftA2 (><)
-  fromNatural = Dual . fromNatural
-  {-# INLINE (><)  #-}
-  {-# INLINE fromNatural #-}
-
-
-instance (Monoid a, Semiring a) => Semiring (Const a b) where
-  (Const x) >< (Const y) = Const (x >< y)
-  fromNatural = Const . fromNatural
-  {-# INLINE (><)  #-}
-  {-# INLINE fromNatural #-}
-
-{-
--- | This instance can suffer due to floating point arithmetic.
-instance Ring a => Semiring (Complex a) where
-  --(x :+ y) >< (x' :+ y') = (x >< x' - (y >< y')) :+ (x >< y' + y >< x')
-
-  (><) = liftA2 (><)
+-- | 'First a' forms a pre-semiring.
+instance Semigroup a => Semiring (First a) where
+  (><) = liftA2 (<>)
   {-# INLINE (><)  #-}
 
-  fromNatural n = fromNatural n :+ zero
-  {-# INLINE fromNatural #-}
--}
+
+instance Semigroup a => Semiring (Last a) where
+  (><) = liftA2 (<>)
+  {-# INLINE (><)  #-}
+
 
 -- Note that if a happens to be an instance of Bounded then fromNatural will still work
 -- but one will equal zero
 instance Ord a => Semiring (Max a) where
 
   (><) = const
+  {-# INLINE (><)  #-}
 
   --fromNatural = fromNaturalDef maxBound
 
@@ -233,6 +209,7 @@ instance Ord a => Semiring (Max a) where
 instance (Bounded a, Ord a) => Semiring (Min a) where
 
   (><) = max
+  {-# INLINE (><)  #-}
 
   fromNatural = fromNaturalDef minBound
 
@@ -267,12 +244,127 @@ prop_distrib_right bar baz foo
 -}
 
 
+-------------------------------------------------------------------------------
+-- Semirings
+-------------------------------------------------------------------------------
+
+
+instance Semiring () where
+  (><) _ _ = ()
+
+  fromNatural _ = ()
+
+
+instance Semiring Bool where
+  (><) = (&&)
+
+  fromNatural 0 = False
+  fromNatural _ = True
+
+
+instance Semiring Natural where
+  (><) = (*)
+
+  fromNatural = id
+
+instance Semiring Int where
+  (><) = (*)
+  fromNatural = fromNaturalDef 1
+
+--instance (Semigroup a, Semigroup b) => Semigroup (a, b)
+
+--instance Semigroup Ordering
+
+
+instance (Monoid b, Semiring b) => Semiring (a -> b) where
+  (><) f g = \x -> f x >< g x
+  {-# INLINE (><)  #-}
+
+  fromNatural = const . fromNatural
+  {-# INLINE fromNatural #-}
+
+
+instance (Monoid a, Semiring a) => Semiring (Dual a) where
+  (><) = liftA2 (><)
+  {-# INLINE (><)  #-}
+
+  fromNatural = Dual . fromNatural
+  {-# INLINE fromNatural #-}
+
+
+instance (Monoid a, Semiring a) => Semiring (Const a b) where
+
+  (Const x) >< (Const y) = Const (x >< y)
+  {-# INLINE (><)  #-}
+
+  fromNatural = Const . fromNatural
+  {-# INLINE fromNatural #-}
+
+instance (Monoid a, Semiring a) => Semiring (Identity a) where
+
+  (><) = liftA2 (><)
+  {-# INLINE (><) #-}
+
+  fromNatural = fromNaturalDef $ pure mempty
+
+
+instance Semigroup r => Semigroup (Over r a) where
+
+  Over x <> Over y = Over (x <> y)
+
+
+instance Monoid r => Monoid (Over r a) where
+
+   mempty = Over mempty
+
+
+instance (Monoid r, Semiring r) => Semiring (Over r a) where
+
+  Over x >< Over y = Over (x >< y)
+  {-# INLINE (><) #-}
+
+  fromNatural = fromNaturalDef $ Over mempty
+
+-- ord (Over a) (Over b) = ord a b
+
+
+instance Semigroup r => Semigroup (Under r a) where
+
+  (<>) = const
+
+instance Monoid r => Monoid (Under r a) where
+
+   mempty = Under mempty
+
+instance (Monoid r, Semiring r) => Semiring (Under r a) where
+
+  Under x >< Under y = Under (x >< y)
+  {-# INLINE (><) #-}
+
+  fromNatural = fromNaturalDef $ Under mempty
+
+-- ord (Under a) (Under b) = ord a b
+
+{-
+-- | This instance can suffer due to floating point arithmetic.
+instance Ring a => Semiring (Complex a) where
+  --(x :+ y) >< (x' :+ y') = (x >< x' - (y >< y')) :+ (x >< y' + y >< x')
+
+  (><) = liftA2 (><)
+  {-# INLINE (><)  #-}
+
+  fromNatural n = fromNatural n :+ zero
+  {-# INLINE fromNatural #-}
+-}
+
+
 
 
 
 instance Semigroup a => Semiring (NonEmpty a) where
 
   (><) = liftA2 (<>) 
+  {-# INLINE (><)  #-}
 
 --instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Semiring (f a) where (><) = liftF2 (<>)
 
@@ -362,6 +454,7 @@ instance Semigroup a => Semigroup (Maybe a) where
 instance Semigroup a => Semiring (Either e a) where
 
   (><) = liftA2 (<>)
+  {-# INLINE (><)  #-}
 
   -- fromNatural = fromNaturalDef $ pure mempty
 {-
@@ -420,7 +513,13 @@ instance Semiring All where
 
 
 
--- Note: this instance uses the 'Alternative' monoid as the underlying semigroup.
+instance Monoid a => Semiring (Free.Alt f a) where
+
+  (><) = liftA2 (<>)
+  {-# INLINE (><) #-}
+
+  fromNatural = fromNaturalDef $ pure mempty
+
 -- Note: if 'Alternative' is ever refactored to fix the left distribution law issue then 'Alt' should be updated here as well.
 instance (Monoid a, Alternative f) => Semiring (Alt f a) where
 
@@ -449,7 +548,7 @@ instance Semiring a => Semiring (IO a) where
 
 
 
--- | Monoid under '<.>'. Analogous to 'Data.Monoid.Product', but uses the
+-- | Monoid under '><'. Analogous to 'Data.Monoid.Product', but uses the
 -- 'Semiring' constraint, rather than 'Num'.
 newtype Mul a = Mul { getMul :: a }
   deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Storable,Functor)
@@ -476,89 +575,10 @@ instance Semiring a => Semigroup (Mul a) where
   (<>) = liftA2 (><)
   {-# INLINE (<>) #-}
 
+-- Note that 'one' must be distinct from 'zero' for this instance to be legal.
 instance (Monoid a, Semiring a) => Monoid (Mul a) where
   mempty = Mul one
   {-# INLINE mempty #-}
-
-
-{-
-
--- | The semiring of endomorphisms of a semigroup under composition.
---
--- >>> let computation = End ("Hello, " ++) >< End (++ "!")
--- >>> runEnd computation "Haskell"
--- "Hello, Haskell!"
-
-If 'a' is a commutative semigroup, the set 'End a' of endomorphisms forms a semiring, where addition is pointwise addition and multiplication is function composition. The zero morphism and the identity are the respective neutral elements. 
-
-If A is the additive monoid of natural numbers we obtain the semiring of natural numbers as End(A), and if A = Sn with S a semiring, we obtain (after associating each morphism to a matrix) the semiring of square n-by-n matrices with coefficients in S.
-
-This is a very useful construct. For instance, the type @forall a. 'End' ('End' a)@ is a valid encoding of church numerals, with addition and multiplication being their semiring variants.
--}
-
-newtype End a = End { runEnd :: a -> a } -- deriving Generic
-
--- Note that @a@ must be a commutative semigroup for this instance to be legal.
-instance Semigroup a => Semigroup (End a) where 
-
-  End f <> End g = End $ (<>) <$> f <*> g 
-
-
-instance Monoid a => Monoid (End a) where 
-  
-  mempty = End (mempty <>)
-
-
-instance Monoid a => Semiring (End a) where 
-
-  End f >< End g = End $ f . g
-  {-# INLINE (><) #-}
-
-  fromNatural = fromNaturalDef $ End id
-
-{-
-
-
-abst :: (Monoid a, Semiring a) => End (a -> a) -> a -> a
-abst (End f) = f (one <>)
-
-
-
-a = End $ fmap (2*) :: End (Sum Int)
-b = End $ fmap (3*) :: End (Sum Int)
-c = End $ fmap (4*) :: End (Sum Int)
-
---(a <> b) >< c == (a >< c) <> (b >< c)
-
-rhs = (a <> b) >< c
-lhs = (a >< c) <> (b >< c)
-
-runEnd rhs $ Sum 1 -- Sum {getSum = 20}
-runEnd lhs $ Sum 1 -- Sum {getSum = 20}
-
-
-a = End $ fmap (2+) :: End (Sum Int)
-b = End $ fmap (3+) :: End (Sum Int)
-c = End $ fmap (4+) :: End (Sum Int)
-
-rhs = (a <> b) >< c
-lhs = (a >< c) <> (b >< c)
-
-runEnd rhs $ Sum 0 -- Sum {getSum = 13}
-runEnd lhs $ Sum 0 -- Sum {getSum = 13}
-
-
-a = End $ fmap (2-) :: End (Sum Int)
-b = End $ fmap (3-) :: End (Sum Int)
-c = End $ fmap (4-) :: End (Sum Int)
-
-rhs = (a <> b) >< c
-lhs = (a >< c) <> (b >< c)
-
-runEnd rhs $ Sum 0 -- Sum {getSum = -3}
-runEnd lhs $ Sum 0 -- Sum {getSum = -3}
-
--}
 
 
 ---------------------------------------------------------------------

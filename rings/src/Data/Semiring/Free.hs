@@ -9,6 +9,8 @@ import Control.Monad
 import Data.Monoid
 import GHC.Generics
 
+--import Control.Selective.Free
+--import Control.Alternative.Free.Final
 
 import Numeric.Natural (Natural)
 
@@ -19,13 +21,6 @@ import Numeric.Natural (Natural)
 --data Forest a = Forest [Tree a ]
 --data Tree a = Leaf | Node a (Forest a)
 --data Forest a = Forest [Leaf | Node a (Forest a) ]
-
-{-
-Kmett’s `free` package does contain a definition of the free
-Alternative construction that is, implicitly, based on the right-based
-definition of the Day convolution:
-data Day f g a = ∀b.Day (f b) (g (b -> a))
--}
 
 {-
 
@@ -44,7 +39,6 @@ data Tree a = Node {
     }
 
 type Forest a = [Tree a]
-
 -}
 
 -- see section 3.3 Generalised Free unital semiring
