@@ -69,6 +69,7 @@ Consequently a `Fold` can make use of far fewer operators than an `Iso`.
 For a more detailed example consider the `review` operator, which is derived from the `Costar (Const c)` profunctor (via `unfoldMapOf`). However `Costar (Const c)` is not an instance of `Mapping` (because its contravariant type paramater is phantom).
 It follows then that an `Over s t a b`, which as we noted above is constrained by `Mapping`, will not be compatible with the `review` operator.
 
+Finally note that intra-module imports also follow the entailment DAG. So for example an operator with `Profunctor` and `Choice` constraints will be located in `Data.Profunctor.Optic.Prism` (i.e. in the module corresponding to the conjuction of the constraints). 
 
 ## Laws
 For each optic there is a 'constructor' and characteristic operators, which are analogous to the introduction and elimination rules in logic. 

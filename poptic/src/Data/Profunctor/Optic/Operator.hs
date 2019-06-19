@@ -1,9 +1,8 @@
 module Data.Profunctor.Optic.Operator (
     module Data.Profunctor.Optic.Operator
-  , swap
 ) where
 
-import Data.Profunctor.Types
+import Data.Profunctor.Types hiding (Forget(..))
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Either.Validation
@@ -15,6 +14,10 @@ import Control.Monad
 --import Control.Monad.Reader.Class as Reader
 
 import Data.List.NonEmpty (NonEmpty(..), nonEmpty)
+--import Data.NonEmpty
+import Data.Valid
+import Data.Semiring
+import Orphans
 
 data ValidationError
     = InvalidRecord String
@@ -27,16 +30,13 @@ data ValidationError
 type ValidationErrors = NonEmpty ValidationError
 type ValidationErrors' = [ValidationError]
 
+msg = "empty list"
+
 validateNel :: String -> [a] -> Validation ValidationErrors (NonEmpty a)
 validateNel s = note (pure . InvalidRecord $ s) . nonEmpty
 
-msg = "empty list"
-
 nel :: Validating ValidationErrors s t [a] (NonEmpty a) -> s -> Validation ValidationErrors t
 nel = validate $ validateNel msg
-
-{-
-
 
 validateNel' :: String -> [a] -> Validation ValidationErrors' (NonEmpty a)
 validateNel' s = note (pure . InvalidRecord $ s) . nonEmpty
@@ -44,12 +44,35 @@ validateNel' s = note (pure . InvalidRecord $ s) . nonEmpty
 nel' :: Validating ValidationErrors' s t [a] (NonEmpty a) -> s -> Validation ValidationErrors' t
 nel' = validate $ validateNel' msg
 
+{-
+advantages of profunctor optics
+- better semantic fit 
+  - conceptually simpler
 
+- build your own profunctors (& lots of things are profunctors)
+  - more precise semantics (since you control the typeclass instances)
+
+- other stuff like grates and free profunctors
+
+disadvantages
+- need to have a profunctor to do anything
+- performance???
+
+
+
+--TODO bad example use a different non-empty structure to accumulate errors
+λ> nel traverse1' ([2] :| [[],[],[1]])
+Failure (InvalidRecord "empty list" :| [InvalidRecord "empty list"])
 
 λ> nel _2 (7,[])
-Failure (MissingField "empty list" :| [])
-λ> nel both ([],[])
-Failure (MissingField "empty list" :| [MissingField "empty list"])
+Failure (InvalidRecord "empty list" :| [])
+
+λ> nel _R $ Left [1]
+Success (Left [1])
+λ> nel _L $ Left [1]
+Success (Left (1 :| []))
+λ> nel _R $ Right []
+Failure (InvalidRecord "empty list" :| [])
 
 
 λ> nel _R $ Left [1]
@@ -57,41 +80,41 @@ Success (Left [1])
 λ> nel _L $ Left [1]
 Success (Left (1 :| []))
 
-λ> nel _R $ Left [1]
-Success (Left [1])
-λ> nel _L $ Left [1]
-Success (Left (1 :| []))
+λ> nel' _R $ Right []
+Failure [InvalidRecord "empty list"]
 λ> nel' _L $ Left [1]
 Success (Left (1 :| []))
 λ> nel' _R $ Left [1]
 Success (Left [1])
 λ> nel' _R $ Left []
 Success (Left [])
+
+-- Problem #1: we aren't failing correctly. we never even tested the list b/c the prism failed to match
+
+-- change choice instance to use alternative
 λ> nel' _R $ Right []
-Failure [MissingField "empty list"]
+Failure [InvalidRecord "empty list"]
+λ> nel' _R $ Left [1]
+Failure []
+λ> nel _R $ Left [1]
+error: Could not deduce (Monoid (NonEmpty ValidationError))
+-- this is good! now both nel and nel' fail when the prism misses, and the nonempty version doesn't typecheck b/c it can't show anything on a miss
 
--- problem is we are moving the Either into the errors
-nel _L :: Either [a] c -> Validation ValidationErrors (Either (NonEmpty a) c)
-nel _1 :: ([a], c) -> Validation ValidationErrors (NonEmpty a, c)
+λ> nel' _Just $ Nothing
+Failure []
+λ> nel' _Just $ Just []
+Failure [InvalidRecord "empty list"]
+λ> nel' _Just $ Just [1,2]
+Success (Just (1 :| [2]))
 
-validated $ validateNel msg
+nel' _Just $ Nothing
+nel' _Just $ Just [1,2]
+λ> nel' (traverse' . _Just) $ [Nothing, Nothing, Just [1,2]]
+Failure []
+-- Problem #1: now we're failing too fast. the whole point of a Valid is to try and validate everything and return all the errors. can we extend this to include the optic?
 
-validate _Success $ validateNel msg [1]
-Success (1 :| [])
+-- change instance again to use semiring semantics
 
-validate  $ validateNel msg []
-
-λ> nel _2 (7,[])
-Failure (MissingField "empty list" :| [])
-
-λ> nel _2 ([],[])
-Failure (MissingField "empty list" :| [])
-
-λ> nel both ([],[])
-Failure (MissingField "empty list" :| [MissingField "empty list"])
-
-nel both ([1,2],[3])
-Success (1 :| [2],3 :| [])
 -}
 
 
@@ -100,7 +123,8 @@ validate
      -> Validating r s t a b
      -> s
      -> Validation r t
-validate f o = swap . h where Validated h = o (Validated $ swap . f)
+--validate f o = swap . h where Validated h = o (Validated $ swap . f)
+validate f o = h where Validated h = o (Validated $ f)
 
 {-
 
@@ -130,31 +154,12 @@ validate f o = swap . h where Validated h = o (Validated $ swap . f)
 
 
 
-re :: Optic (Re p a b) s t a b -> Optic p b a t s
-re o = (between runRe Re) o id
 
 
-preview :: Previewing s a -> s -> Maybe a
---previewOf' o = runPre . getConst . h where Star h = o (Star $ Const . Pre . Just)
-preview o = h where Previewed h = o (Previewed Just)
 
--- ^ @
--- match :: Traversal s t a b -> s -> Either t a
--- @
---match :: Matching a s t a b -> s -> Either t a
---match o = h where Matched h = o (Matched Right)
+--preview :: Previewing s a -> s -> Maybe a
+--preview o = h where Previewed h = o (Previewed Just)
 
-match :: Matching a s t a b -> s -> Either t a
-match o = swap . h where Star h = o (Star Left)
-
-
--- | Test whether the optic matches or not.
-isMatched :: Matching a s t a b -> s -> Bool
-isMatched o = either (const False) (const True) . match o
-
--- | Test whether the optic matches or not.
-isntMatched :: Matching a s t a b -> s -> Bool
-isntMatched o = not . isMatched o
 
 --match o = swap . h where Star h = o (Star Left)
 --match = between (dstar swap) (ustar id Left)
@@ -163,62 +168,26 @@ isntMatched o = not . isMatched o
 --match' :: Optic (Matched a) s t a b -> s -> Either t a
 --match' o = (between Matched runMatched) o Right
 
-previewOf :: AFolding r s a -> (a -> r) -> s -> Maybe r
-previewOf = between (dstar runPre) (ustar $ Pre . Just)
 
-foldMapOf :: Folding r s a -> (a -> r) -> s -> r
-foldMapOf = between (dstar getConst) (ustar Const)
 
-foldMapping :: ((a -> r) -> s -> r) -> Folding r s a
-foldMapping = between (ustar Const) (dstar getConst) 
 
-unfoldMapOf :: Unfolding r t b -> (r -> b) -> r -> t
+--foldMapOf = between (dstar getConst) (ustar Const)
+
+--foldMapping :: ((a -> r) -> s -> r) -> AFold r s a
+--foldMapping = between (ustar Const) (dstar getConst) 
+
+unfoldMapOf :: ACofold r t b -> (r -> b) -> r -> t
 unfoldMapOf = between (coDstar Const) (coUstar getConst) 
 
 --getConst . h where Star h = o . forget $ f
 
 --foldMapMOf = (betweenM unforget forget)
 
---foldMapOf' :: Optic (Forget r) s t a b -> (a -> r) -> s -> r
---foldMapOf' = between runForget Forget
+
+--foo :: Alternative f => Optic (Forget (Alt f a)) s t a b -> s -> f a
+--foo o = runAlt . foldMapOf o (Alt . pure)
 
 
-
-
-
-
-{-
-The laws for a 'Traversal' follow from the laws for 'Traversable' as stated in "The Essence of the Iterator Pattern".
-
-Identity:
-
-traverseOf t (Identity . f) ≡  Identity (fmap f)
-
-Composition:
-
-Compose . fmap (traverseOf t f) . traverseOf t g == traverseOf t (Compose . fmap f . g)
-
-One consequence of this requirement is that a 'Traversal' needs to leave the same number of elements as a
-candidate for subsequent 'Traversal' that it started with. 
-
--}
--- ^ @
--- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
--- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
--- traverseOf $ _1 . _R :: Applicative f => (a -> f b) -> (Either c a, d) -> f (Either c b, d)
--- traverseOf == between runStar Star 
--- @
-
-traverseOf :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-traverseOf o f = tf where Star tf = o (Star f)
-
--- cotraverseOf == between runCostar Costar 
-cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf o f = tf where Costar tf = o (Costar f)
-
--- special case where f = (a,a)
-zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
-zipWithOf = between runZipped Zipped
 
 
 

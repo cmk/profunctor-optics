@@ -86,10 +86,13 @@ clonePrism l = withPrism l $ \x y p -> prism x y p
 withPrism :: APrism s t a b -> ((s -> Either t a) -> (b -> t) -> r) -> r
 withPrism l f = case l (PrismRep Right id) of PrismRep g h -> f g h
 
----------------------------------------------------------------------
--- 
----------------------------------------------------------------------
+iso2prism :: Iso s t (Either a x) (Either b x) -> Prism s t a b
+iso2prism iso pab = iso (left' pab)
 
+
+---------------------------------------------------------------------
+-- Rep
+---------------------------------------------------------------------
 
 -- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
 data PrismRep a b s t = PrismRep (s -> Either t a) (b -> t)
@@ -121,7 +124,6 @@ instance Choice (PrismRep a b) where
 
 type APrism s t a b = Optic (PrismRep a b) s t a b
 
--- | When you see this as an argument to a function, it expects a 'Prism'.
 type APrism' s a = APrism s s a a
 
 ---------------------------------------------------------------------
@@ -134,9 +136,9 @@ filtering p = dimap getter (either id id) . _Right
     getter x | p x       = Right x
              | otherwise = Left x
 
--- | Filters on a predicate.
-filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
-filtered f = _Right . dimap (\x -> if f x then Right x else Left x) (either id id)
+-- | Filters on a predicate. TODO: Name conlict 
+--filtered :: (a -> Bool) -> Prism (Either c a) (Either c b) (Either a a) (Either b b)
+--filtered f = _Right . dimap (\x -> if f x then Right x else Left x) (either id id)
 
 binding :: Eq k => k -> Prism' (k, v) v
 binding i = flip prism ((,) i) $ \kv@(k,v) -> if (i == k) then Right v else Left kv
@@ -215,3 +217,30 @@ without k =
           Left s  -> bimap Left Left (seta s)
           Right u -> bimap Right Right (uevc u)
 {-# INLINE without #-}
+
+---------------------------------------------------------------------
+-- Primitive Operators
+---------------------------------------------------------------------
+
+-- ^ @
+-- match :: Traversal s t a b -> s -> Either t a
+-- @
+--match :: Matching a s t a b -> s -> Either t a
+--match o = h where Matched h = o (Matched Right)
+
+match :: Matching a s t a b -> s -> Either t a
+match o = swap . h where Star h = o (Star Left)
+
+
+---------------------------------------------------------------------
+-- Derived Operators
+---------------------------------------------------------------------
+
+-- | Test whether the optic matches or not.
+isMatched :: Matching a s t a b -> s -> Bool
+isMatched o = either (const False) (const True) . match o
+
+-- | Test whether the optic matches or not.
+isntMatched :: Matching a s t a b -> s -> Bool
+isntMatched o = not . isMatched o
+

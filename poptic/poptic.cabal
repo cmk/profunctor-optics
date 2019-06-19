@@ -21,10 +21,9 @@ library
   exposed-modules:
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Fold
+      Data.Profunctor.Optic.Fold.Monoid
       Data.Profunctor.Optic.Fold.Semigroup
-      --Data.Profunctor.Optic.Fold.Monoid
       --Data.Profunctor.Optic.Fold.Semiring
-      --Data.Profunctor.Optic.Fold.Dioid
       Data.Profunctor.Optic.Fold.Affine
       --Data.Profunctor.Optic.Fold.Indexed
       Data.Profunctor.Optic.Iso
@@ -42,6 +41,7 @@ library
       Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Traversal.Affine
+      Data.Profunctor.Optic.Traversal.Monoid
       --Data.Profunctor.Optic.Traversal.Indexed
       Data.Profunctor.Optic.Traversal.Semigroup
       Data.Profunctor.Optic.Type
@@ -62,6 +62,8 @@ library
     , comonad
     , contravariant
     , distributive
+    , dlist
+    , dlist-nonempty
     , semigroupoids
     , profunctors
     , either
@@ -70,6 +72,8 @@ library
     , free
     , unliftio
     , unliftio-core
+    , dioids
+    --, nonempty-alternative
 
 test-suite doctests
   type:          exitcode-stdio-1.0

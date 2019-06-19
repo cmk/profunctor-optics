@@ -5,7 +5,9 @@ module Data.Profunctor.Optic.Grate (
   , Costar (..)
 ) where
 
+
 import Data.Distributive
+import Data.Profunctor.Sieve
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Prelude
@@ -18,15 +20,11 @@ import Control.Monad.IO.Unlift
 import UnliftIO.Exception
 import UnliftIO.Async
 
-{-
-import Data.Semiring.Endomorphism
+import Data.Semiring
 
-abst' :: (Monoid a, Semiring a) => ((a -> a) -> t) -> t
-abst' f = f (one <>)
 
-abstracted :: (Monoid s, Semiring s) => Grate s t s t
-abstracted = grate abst' 
--}
+lowered :: (Monoid s, Semiring s) => Grate s t s t
+lowered = grate $ \f -> f (one <>)
 
 {- 
 'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
@@ -56,14 +54,16 @@ grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate f pab = dimap (flip ($)) f (closed pab)
 
+cotraversed :: Distributive f => Grate (f a) (f b) a b
+cotraversed = grate $ \f -> cotraverse f id
+
 {-
+
+
 import Control.Monad.Trans.Cont
 import Control.Monad.IO.Unlift
 import UnliftIO.Exception
 import UnliftIO.Async
-
-
-
 
 grate shiftT :: (Monad m, Closed p) => Optic p a (ContT r m a) (m r) (ContT r m r)
 
@@ -108,8 +108,51 @@ shifted = grate shift
 continued :: Grate a (Cont r a) r r
 continued = grate cont
 
-continuedWith :: Closed p => Cont r a -> Optic p b (Cont r b) r (a -> r)
+continuedWith :: Cont r a -> Grate b (Cont r b) r (a -> r)
 continuedWith c = grate (flip withCont c) 
+
+-- | Translate between different 'Star's.
+starred :: Grate (Star f1 d1 c1) (Star f2 d2 c2) (d1 -> f1 c1) (d2 -> f2 c2)
+starred = grate $ \o -> Star $ o runStar
+
+-- | Translate between different 'Costar's.
+costarred :: Grate (Costar f d c) (Costar f1 d1 c1) (f d -> c) (f1 d1 -> c1)
+costarred = grate $ \o -> Costar $ o runCostar
+
+-- | Translate between different 'Forget's.
+forgotten :: Grate (Forget r1 a1 b1) (Forget r2 a2 b2) (a1 -> r1) (a2 -> r2)
+forgotten = grate $ \o -> Forget $ o runForget
+
+--sieved :: Grate (p1 a b) (a1 -> f0 b1) (f1 a -> b) (p0 a1 b1)
+--sieved :: Grate (p0 a b) (Forget r a1 b1) (f0 a -> b) (a1 -> r)
+--sieved :: Grate (Forget r a b) (a1 -> Const r b1) (a -> r) (p0 a1 b1)
+--sieved = grate $ \o -> sieve $ o runForget
+
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- Grate s t a b -> Over s t a b
+-- Every 'Grate' is an 'Over'.
+overGrate :: (((s -> a) -> b) -> t) -> (a -> b) -> s -> t
+overGrate sabt ab s = sabt $ \sa -> ab (sa s)
+
+-- Iso s t a b -> Grate s t a b
+-- Every 'Iso' is an 'Grate'.
+envMod :: (s -> a) -> (b -> t) -> ((s -> a) -> b) -> t
+envMod sa bt sab = bt (sab sa)
+
+-- special case of cotraverse where f = (a,a)
+zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
+zipWithOf = between runZipped Zipped
+
+-- cotraverseOf == between runCostar Costar 
+cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
+cotraverseOf o f = tf where Costar tf = o (Costar f)
+
+cotraversing :: (Distributive t, Functor f) => (f a -> b) -> f (t a) -> t b
+cotraversing = cotraverseOf cotraversed
 
 ---------------------------------------------------------------------
 -- 
@@ -171,22 +214,4 @@ zipWithGrate (GrateRep' f g) op = g . uncurry (zipWithNaperian op) . (f *** f)
 --unzipFWithOf :: (((s -> a) -> b) -> (s -> s) -> t) -> Grate s t a b 
 --unzipFWithOf f = flip f id
 
----------------------------------------------------------------------
--- Operators
----------------------------------------------------------------------
 
--- Grate s t a b -> Over s t a b
--- Every 'Grate' is an 'Over'.
-overGrate :: (((s -> a) -> b) -> t) -> (a -> b) -> s -> t
-overGrate sabt ab s = sabt $ \sa -> ab (sa s)
-
--- Iso s t a b -> Grate s t a b
--- Every 'Iso' is an 'Grate'.
-envMod :: (s -> a) -> (b -> t) -> ((s -> a) -> b) -> t
-envMod sa bt sab = bt (sab sa)
-
-cotraversed :: Distributive f => Grate (f a) (f b) a b
-cotraversed = grate $ \f -> cotraverse f id
-
-cotraversing :: (Distributive t, Functor f) => (f a -> b) -> f (t a) -> t b
-cotraversing = cotraverseOf cotraversed

@@ -1,5 +1,3 @@
-{-# LANGUAGE TypeOperators    #-}
-
 module Data.Profunctor.Optic.View where
 
 import Data.Profunctor.Optic.Type
@@ -20,8 +18,8 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 ---------------------------------------------------------------------
 
 -- laws 
--- getter_complete :: View s a -> Bool
--- getter_complete o = tripping o $ to (view o)
+-- view_complete :: View s a -> Bool
+-- view_complete o = tripping o $ to (view o)
 
 -- | Build a 'View' from an arbitrary function.
 --
@@ -58,11 +56,6 @@ to f = ocoerce . dimap f id
 {-# INLINE to #-}
 
 
---to' :: (Profunctor p, Contravariant f) => (s -> a) -> p a (f a) -> p s (f s)
---to' k = dimap k (contramap k)
--- ocoerce (Star h) = Star $ coerce . h
-
-
 -- | Build a constant-valued (index-preserving) 'PrimView' from an arbitrary value.
 --
 -- @
@@ -78,18 +71,20 @@ like a = to (const a)
 
 
 -- @
--- 'get' :: 'Folding' a s a -> 'View' s a
+-- 'get' :: 'AFold' a s a -> 'View' s a
 -- @
---get :: Viewing s a -> PrimView s t a b
---get = to . view
+get :: AView s a -> PrimView s t a b
+get = to . view
 
 -- @
--- 'getBoth' :: 'Folding' a s a -> 'Folding' b s b -> 'View' s (a, b)
+-- 'getBoth' :: 'AFold' a s a -> 'AFold' b s b -> 'View' s (a, b)
 -- @
-getBoth :: Folding a1 s a1 -> Folding a2 s a2 -> PrimView s t (a1, a2) b
+getBoth :: AFold a1 s a1 -> AFold a2 s a2 -> PrimView s t (a1, a2) b
 getBoth l r = to (view l &&& view r)
 
-getEither :: Folding a s1 a -> Folding a s2 a -> PrimView (Either s1 s2) t a b
+-- | TODO: Document
+--
+getEither :: AFold a s1 a -> AFold a s2 a -> PrimView (Either s1 s2) t a b
 getEither l r = to (view l ||| view r)
 
 
@@ -97,28 +92,70 @@ getEither l r = to (view l ||| view r)
 -- Derived operators
 ---------------------------------------------------------------------
 
+-- | Map each part of a structure viewed through a 'Lens', 'View',
+-- 'Fold' or 'Traversal' to a monoid and combine the results.
+--
+-- >>> viewOf both id (["foo"], ["bar", "baz"])
+-- ["foo","bar","baz"]
+--
+-- @
+-- 'Data.Foldable.foldMap' = 'viewOf' 'folded'
+-- @
+--
+-- @
+-- 'viewOf' ≡ 'views'
+-- @
+--
+-- @
+-- 'viewOf' ::                  'Iso'' s a        -> (a -> r) -> s -> r
+-- 'viewOf' ::                  'Lens'' s a       -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Monoid' r    => 'Prism'' s a      -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Monoid' r    => 'Traversal0'' s a -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
+-- 'viewOf' ::                  'AFold' s a       -> (a -> r) -> s -> r
+-- @
+--
+-- @
+-- 'viewOf' :: 'AFold' r s a -> (a -> r) -> s -> r
+-- @
+viewOf :: AFold r s a -> (a -> r) -> s -> r
+viewOf = between (dstar getConst) (ustar Const)
+
+
+---------------------------------------------------------------------
+-- Derived Operators
+---------------------------------------------------------------------
+
 infixl 8 ^.
-(^.) :: s -> Viewing s a -> a
+
+-- | TODO: Document
+--
+(^.) :: s -> AView s a -> a
 (^.) = flip view
 
 
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
 -- @
-view :: MonadReader s m => Viewing s a -> m a
-view = Reader.asks . (`foldMapOf` id)
+view :: MonadReader s m => AView s a -> m a
+view = (`views` id)
 {-# INLINE view #-}
 
 
 -- ^ @
 -- 'views o f ≡ foldMapOf o f'
 -- @
-views :: MonadReader s m => Folding r s a -> (a -> r) -> m r
-views o f = Reader.asks $ foldMapOf o f
+views :: MonadReader s m => AFold r s a -> (a -> r) -> m r
+views o f = Reader.asks $ viewOf o f
 {-# INLINE views #-}
 
 
-use :: MonadState s m => Viewing s a -> m a
+-- | TODO: Document
+--
+use :: MonadState s m => AView s a -> m a
 use o = State.gets (view o)
 
 
@@ -135,25 +172,27 @@ use o = State.gets (view o)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
-listening :: MonadWriter w m => Folding u w u -> m a -> m (a, u)
+listening :: MonadWriter w m => AFold u w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)
 {-# INLINE listening #-}
 
-listenings :: MonadWriter w m => Folding v w u -> (u -> v) -> m a -> m (a, v)
+
+-- | TODO: Document
+--
+listenings :: MonadWriter w m => AFold v w u -> (u -> v) -> m a -> m (a, v)
 listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)
 {-# INLINE listenings #-}
 
 
-
-zoom :: Optic' (Star (Compose m ((,) c))) ta a  -> StateT a m c -> StateT ta m c
 -- ^ @
 -- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c
 -- zoom :: (Monoid c, Applicative m) => Traversal' ta a -> StateT a m c -> StateT ta m c
 -- @
+zoom :: Optic' (Star (Compose m ((,) c))) ta a  -> StateT a m c -> StateT ta m c
 zoom l (StateT m) = StateT . zoomOut . l . zoomIn $ m
  where
   zoomIn f = Star (Compose . f)

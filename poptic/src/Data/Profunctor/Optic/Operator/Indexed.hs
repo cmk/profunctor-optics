@@ -106,7 +106,7 @@ itraversing itr (Indexed pab) = wander (\f s -> itr (curry f) s) pab
 --ifoldMapOf o f = getConst . runStar (o (Indexed (Star $ Const (uncurry f))))
 
 
---foldMapOf :: Folding r s a -> (a -> r) -> s -> r
+--foldMapOf :: AFold r s a -> (a -> r) -> s -> r
 --foldMapOf = between (extract getConst) (insert Const)
 
 

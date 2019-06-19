@@ -16,7 +16,7 @@ module Data.Profunctor.Optic.Type (
 import Data.Semigroup (First, Last)
 import Data.Profunctor.Optic.Type.Class 
 import Data.Profunctor.Optic.Prelude
-import Data.Either.Validation (Validation)
+import Data.Either.Validation (Validation(..))
 
 import qualified Data.Profunctor.Optic.Type.VL as VL
 import           Control.Applicative
@@ -29,6 +29,7 @@ import           Data.Coerce
 import           Data.Data
 import           GHC.Generics
 
+import Data.Semiring
 
 type Optic p s t a b = p a b -> p s t
 
@@ -55,24 +56,25 @@ type Prism s t a b = forall p. Choice p => Optic p s t a b
 
 type Prism' s a = Prism s s a a
 
--- An 'AffineFold' extracts at most one result, with no monoidal interactions.
-type AffineTraversal s t a b = forall p. (Strong p, Choice p) => Optic p s t a b
-
-type AffineTraversal' s a = AffineTraversal s s a a
-
 type Traversal s t a b = forall p. Traversing p => Optic p s t a b
 
 type Traversal' s a = Traversal s s a a
 
+-- A 'Traversal0' extracts at most one result, with no monoidal interactions.
+type Traversal0 s t a b = forall p. (Strong p, Choice p) => Optic p s t a b
+
+type Traversal0' s a = Traversal0 s s a a
+
+-- A 'Traversal1' extracts at least one result.
 type Traversal1 s t a b = forall p. Traversing1 p => Optic p s t a b
 
 type Traversal1' s a = Traversal1 s s a a
 
--- An 'AffineFold' extracts at most one result.
-type AffineFold s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
-
 -- Folds are closed, corepresentable profunctors.
 type Fold s a = forall p. (OutPhantom p, Traversing p) => Optic' p s a
+
+-- A 'Fold0' extracts at most one result.
+type Fold0 s a = forall p. (OutPhantom p, Strong p, Choice p) => Optic' p s a
 
 -- A 'Fold1' extracts at least one result.
 type Fold1 s a = forall p. (OutPhantom p, Traversing1 p) => Optic' p s a 
@@ -98,17 +100,23 @@ type PrimReview' t b = PrimReview t t b b
 
 type Review t b = forall p. (InPhantom p, Choice p) => Optic' p t b
 
-type Folding r s a = Optic' (Star (Const r)) s a
+type ATraversal f s t a b = Optic (Star f) s t a b
 
-type AFolding r s a = Optic' (Star (Pre r)) s a
+type AFold r s a = Optic' (Star (Const r)) s a
 
-type Unfolding r t b = Optic' (Costar (Const r)) t b
+type AFold0 r s a = Optic' (Star (Pre r)) s a
 
---type Viewing s a = forall r. Folding r s a
-type Viewing s a = Folding a s a
+--type AFold r s a = Optic' (Forget r) s a
 
---type Reviewing t b = forall r. Unfolding r t b
-type Reviewing t b = Unfolding b t b
+--type AFold0 r s a = Optic' (Forget (Maybe r)) s a
+
+type ACofold r t b = Optic' (Costar (Const r)) t b
+
+--type AView s a = forall r. AFold r s a
+type AView s a = AFold a s a
+
+--type AReview t b = forall r. ACofold r t b
+type AReview t b = ACofold b t b
 
 type Matched r = Star (Either r)
 
@@ -120,35 +128,101 @@ type Validating e s t a b = Optic (Validated e) s t a b
 
 type Validating' e s a = Optic' (Validated e) s a
 
---type AFolding r = Star (Pre r)
--- Folding r s a = Optic (Star (Const r)) s a
--- Folding s a = forall r. Folding r s a
+--type AFold0 r = Star (Pre r)
+-- AFold r s a = Optic (Star (Const r)) s a
+-- AFold s a = forall r. AFold r s a
 --type AffineTraversed r = 
 
 -- Retrieve either 0 or 1 subobjects, with no monoidal interactions.
-type Previewing s a = Optic' (Previewed a) s a
+--type Previewing s a = Optic' (Previewed a) s a
 
-
-
----------------------------------------------------------------------
--- 'Matched'
----------------------------------------------------------------------
 {-
-newtype Matched r a b = Matched { runMatched :: a -> Either b r }
+newtype Affine f a b = Affine { runAffine :: a -> f b }
 
-instance Profunctor (Matched r) where
-    dimap f g (Matched p) = Matched (first g . p . f)
+instance Alternative f => Choice (Affine f) where
 
-instance Choice (Matched r) where
-    right' (Matched p) = Matched (unassoc . fmap p)
+  left' (Affine f) = Affine $ either (fmap Left . f) (const empty) 
 
-instance Strong (Matched r) where
-    first' (Matched p) = Matched (\(a,c) -> first (,c) (p a))
+foldMapOf' (traverse' . traverse1') id $ [(0 :: Int) :| [], 0 :| []]
+[] :| [[] :: [Int]]
+
+
+foldMapOf'' @(Valid Int) traverse1' id $ 2 :| [2,3 :: Int]
+
+foldMapOf'' @(Valid Int) _Just Nothing
+
+foldMapOf' (traverse1' . traverse') id $ [] :| [[] :: [Int]]
+[[1,2,3 :: Int]]
+
+foldMapOf' traverse' id [2,2,3 :: Int]
+foldMapOf' traverse1' id $ 2 :| [2,3 :: Int]
+
+λ> foldMapOf' (traverse' . _Just) Mul [Just True , Nothing]
+Nothing
+
+λ> foldMapOf' (traverse') id [Nothing :: Maybe Int]
+Nothing
+λ> foldMapOf' (traverse' . _Just) id [Nothing :: Maybe Int]
+0
+λ> foldMapOf' (traverse' . _Just) id ([] :: [Maybe Int])
+1
+
+foldMapOf' (traverse' . _Just) id [Nothing :: Maybe Int, Just 3]
+
+
+
+
 -}
+
+
+newtype Forget' r a b = Forget' { runForget' :: a -> r }
+
+instance Profunctor (Forget' r) where
+  dimap f _ (Forget' k) = Forget' (k . f)
+  {-# INLINE dimap #-}
+  lmap f (Forget' k) = Forget' (k . f)
+  {-# INLINE lmap #-}
+  rmap _ (Forget' k) = Forget' k
+  {-# INLINE rmap #-}
+
+instance Functor (Forget' r a) where
+  fmap _ (Forget' k) = Forget' k
+  {-# INLINE fmap #-}
+
+
+instance OutPhantom (Forget' f) where
+  ocoerce (Forget' f) = (Forget' f)
+
+instance Strong (Forget' r) where
+  first' (Forget' k) = Forget' (k . fst)
+  {-# INLINE first' #-}
+  second' (Forget' k) = Forget' (k . snd)
+  {-# INLINE second' #-}
+
+instance (Monoid r, Semiring r) => Choice (Forget' r) where
+  left' (Forget' k) = Forget' (either k (const one))
+  {-# INLINE left' #-}
+  right' (Forget' k) = Forget' (either (const one) k)
+  {-# INLINE right' #-}
+
+--instance (Semiring r) => Traversing1 (Forget' r) where
+  --traverse' (Forget h) = Forget (foldMap1 $ Mul . h)
+  --wander1 f (Forget h) = Forget (getConst . f (Const . h))
+
+instance (Monoid r, Semiring r) => Traversing (Forget' r) where
+  traverse' (Forget' h) = Forget' (foldMap' h)
+  --wander f (Forget h) = Forget (getMul . getConst . f (Const . Mul . h))
+  --wander f (Forget h) = Forget (getConst . f (Const . h))
+
+
 {-
-instance Costrong (Matched r) where
-    unfirst (Matched f) =
-       Matched (first fst . f . (, error "Costrong Matched"))
+instance Foldable (Forget r a) where
+  foldMap _ _ = mempty
+  {-# INLINE foldMap #-}
+
+instance Traversable (Forget r a) where
+  traverse _ (Forget k) = pure (Forget k)
+  {-# INLINE traverse #-}
 -}
 
 ---------------------------------------------------------------------
@@ -159,79 +233,53 @@ instance Costrong (Matched r) where
 --Validated r a b = Star (Validation r) a b = a -> Validation r b
 
 --TODO would be nicer to have: Validated r a b = a -> Validation r b
-newtype Validated r a b = Validated { runValidated :: a -> Validation b r }
+newtype Validated r a b = Validated { runValidated :: a -> Validation r b }
 
 instance Profunctor (Validated r) where
-    dimap f g (Validated p) = Validated (first g . p . f)
+    dimap f g (Validated p) = Validated (fmap g . p . f)
 
-instance Choice (Validated r) where
-    right' (Validated p) = dimap e2v v2e $ Validated (unassoc . fmap p)
-
-instance Strong (Validated r) where
-    first' (Validated p) = Validated (\(a,c) -> first (,c) (p a))
-
-instance Monoid r => Traversing (Validated r) where
-
-    traverse' (Validated h) = Validated (fmap swap $ traverse $ swap . h)
-
-    --wander f (Validated h) = Validated (f h)
-
-instance Semigroup r => Traversing1 (Validated r) where
-
-    traverse1' (Validated h) = Validated (fmap swap $ traverse1 $ swap . h)
-
-{-
-instance Functor (Validated r a) where
-    fmap _ (Validated k) = Validated k
-    {-# INLINE fmap #-}
-
-instance Foldable (Validated r a) where
-    foldMap _ _ = mempty
-    {-# INLINE foldMap #-}
-
-instance Traversable (Validated r a) where
-    traverse _ (Validated k) = pure (Validated k)
-    {-# INLINE traverse #-}
-
-
-instance Profunctor (Validated r) where
-    dimap f g (Validated p) = Validated (second g . p . f)
+instance Monoid r => Choice (Validated r) where
+    --right' (Validated p) = dimap e2v v2e $ Validated (unassoc . fmap p) -- code too stable
+    --left' (Validated f) = Validated $ either (fmap Left . f) (pure . Right) -- code too stable
+    left' (Validated f) = Validated $ either (fmap Left . f) (const empty)
 
 instance Strong (Validated r) where
-    first' (Validated p) = Validated (\(a,c) -> second (,c) (p a))
-
-instance Choice (Validated r) where
-    right' (Validated p) = dimap e2v v2e $ Validated (unassoc . fmap p)
+    first' (Validated p) = Validated (\(a,c) -> fmap (,c) (p a))
 
 instance Monoid r => Traversing (Validated r) where
 
     traverse' (Validated h) = Validated (traverse h)
 
-    --wander f (Validated h) = Validated (f h)
+    wander f (Validated h) = Validated (f h)
 
---ri (Validated p) = Validated (Export.second p)
+instance Semigroup r => Traversing1 (Validated r) where
 
--}
+    traverse1' (Validated h) = Validated (traverse1 h)
+
+    wander1 f (Validated h) = Validated (f h)
+
 
 
 ---------------------------------------------------------------------
--- 'Previewed'
+-- 'Alt'
 ---------------------------------------------------------------------
 
--- This is for Affine
-newtype Previewed r a b = Previewed { runPreviewed :: a -> Maybe r }
 
-instance Profunctor (Previewed r) where
-    dimap f _ (Previewed p) = Previewed (p . f)
+newtype Alt f a = Alt { runAlt :: f a } deriving (Eq, Ord, Show, Data, Generic, Generic1)
 
-instance OutPhantom (Previewed r) where
-    ocoerce (Previewed p) = (Previewed p)
+--instance Functor (Alt a) where fmap f (Alt p) = Alt p
 
-instance Choice (Previewed r) where
-    right' (Previewed p) = Previewed (either (const Nothing) p)
+instance Functor f => Functor (Alt f) where fmap f (Alt p) = Alt $ fmap f p
 
-instance Strong (Previewed r) where
-    first' (Previewed p) = Previewed (p . fst)
+--instance Contravariant (Alt a) where contramap f (Alt p) = Alt p
+
+
+instance Alternative f => Semigroup (Alt f a) where
+  Alt a <> Alt b = Alt (a <|> b)
+
+instance Alternative f => Monoid (Alt f a) where 
+  mempty = Alt empty
+
 
 
 ---------------------------------------------------------------------
@@ -250,33 +298,36 @@ instance Functor (Pre a) where fmap f (Pre p) = Pre p
 
 instance Contravariant (Pre a) where contramap f (Pre p) = Pre p
 
-{-
-
-instance Semigroup (Pre a) where
-
-  Pre Nothing <> x = x
-
-  Pre a <> _ = Pre a
-
-
-instance Monoid (Pre a) where
-
-  mempty = Pre Nothing
-
 
 instance Semigroup a => Apply (Pre a) where
 
     (Pre pbc) <.> (Pre pb) = Pre $ pbc <> pb
 
-instance Alt (Pre a) where
-
-    (<!>) = (<>)
 
 instance Monoid a => Applicative (Pre a) where
 
     pure _ = Pre mempty
 
     (<*>) = (<.>)
+
+{-
+
+instance Semigroup (Pre a b) where
+
+  Pre Nothing <> x = x
+
+  Pre a <> _ = Pre a
+
+
+instance Monoid (Pre a b) where
+
+  mempty = Pre Nothing
+
+
+instance Alt (Pre a) where
+
+    (<!>) = (<>)
+
 
 instance Monoid a => Alternative (Pre a) where
 
@@ -320,6 +371,26 @@ instance Foldable Pre where
 instance Traversable Pre where
   traverse f (Pre (Just a)) = Pre . Just <$> f a
   traverse _ (Pre Nothing)  = pure (Pre Nothing)
+-}
+
+---------------------------------------------------------------------
+-- 'Re'
+---------------------------------------------------------------------
+
+{-
+
+-- | A 'Monoid' for a 'Contravariant' 'Applicative'.
+newtype AFold f a = AFold { getAFold :: f a }
+
+instance (Contravariant f, Applicative f) => Semigroup (AFold f a) where
+  AFold fr <> AFold fs = AFold (fr *> fs)
+  {-# INLINE (<>) #-}
+
+instance (Contravariant f, Applicative f) => Monoid (AFold f a) where
+  mempty = AFold noEffect
+  {-# INLINE mempty #-}
+  AFold fr `mappend` AFold fs = AFold (fr *> fs)
+  {-# INLINE mappend #-}
 -}
 
 ---------------------------------------------------------------------

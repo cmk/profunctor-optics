@@ -149,7 +149,7 @@ instance Profunctor (PRefs AffineTraversing rt rs) where dimap bt sa (PRefs o rs
 
 instance Profunctor (PRefs Folding rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
 
-instance Profunctor (PRefs AffineFolding rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
+instance Profunctor (PRefs Fold0ing rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
 
 instance Profunctor (PRefs Getting rt rs) where dimap bt sa (PRefs o rs rt) = PRefs (o . dimap sa bt) rs rt
 

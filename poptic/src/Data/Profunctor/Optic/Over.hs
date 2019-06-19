@@ -5,6 +5,7 @@ module Data.Profunctor.Optic.Over (
 
 
 import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Review (re)
 import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Operator.Task hiding (Context)
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
@@ -288,12 +289,12 @@ branched p = over $ \modify f a -> if p a then modify (f a) else f a
 ---------------------------------------------------------------------
 
 
--- over l id ≡ id
--- over l f . over l g ≡ over l (f . g)
+-- mapOf l id ≡ id
+-- mapOf l f . mapOf l g ≡ mapOf l (f . g)
 --
 -- ^ @
--- over :: Over s t a b -> (a -> r) -> s -> r
--- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- mapOf :: Over s t a b -> (a -> r) -> s -> r
+-- mapOf :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
 mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
 mapOf = over id

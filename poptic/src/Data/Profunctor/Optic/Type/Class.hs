@@ -18,16 +18,17 @@ import Control.Comonad (Comonad(..))
 
 import Data.Profunctor.Optic.Prelude hiding (extract)
 
-import Data.Profunctor.Types           --as Export hiding (Forget(..))
+import Data.Profunctor.Types           as Export
 import Data.Profunctor.Choice          as Export 
 import Data.Profunctor.Strong          as Export 
-import Data.Profunctor.Closed          as Export hiding (Environment)
+import Data.Profunctor.Closed          as Export
 import Data.Profunctor.Mapping         as Export
 import Data.Profunctor.Traversing      as Export
 
 
-coerce :: (Contravariant f, Functor f) => f a -> f b
-coerce = phantom
+-- Orphan instances
+instance Cochoice (Forget r) where 
+  unleft (Forget adr) = Forget $ adr . Left
 
 instance Comonad f => Strong (Costar f) where
   first' (Costar f) = Costar $ \x -> (f (fmap fst x), snd (extract x))
@@ -35,11 +36,15 @@ instance Comonad f => Strong (Costar f) where
   second' (Costar f) = Costar $ \x -> (fst (extract x), f (fmap snd x))
 
 
+
 class Profunctor p => InPhantom p where
   icoerce :: p a c -> p b c
 
 --instance (Bifunctor p, Profunctor p) => InPhantom p where
 --  icoerce = pretagged
+
+coerce :: (Contravariant f, Functor f) => f a -> f b
+coerce = phantom
 
 instance (Contravariant f, Functor f) => InPhantom (Costar f) where
   icoerce (Costar h) = Costar $ h . coerce
@@ -82,6 +87,8 @@ rightDefault = icoerce . dimap id Right
 
 class Strong p => Traversing1 p where
   traverse1' :: Traversable1 f => p a b -> p (f a) (f b)
+  traverse1' = wander1 traverse1
+
   wander1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> p a b -> p s t
 
 instance Apply f => Traversing1 (Star f) where

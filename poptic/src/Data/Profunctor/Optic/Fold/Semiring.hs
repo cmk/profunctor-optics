@@ -1,4 +1,4 @@
-module Data.Profunctor.Optic.Fold.Affine where
+module Data.Profunctor.Optic.Fold.Semiring where
 
 import Data.Semigroup
 import Data.Profunctor.Optic.Type 
@@ -9,7 +9,6 @@ import Data.Profunctor.Optic.View (view, to)
 import Data.Profunctor.Optic.Prism (_Just, filtering)
 import Data.Foldable (traverse_)
 --import Data.Functor.Const (Const(..))
---import Data.Profunctor.Optic.Fold.Monoid (foldlOf')
 
 import Control.Monad ((<=<))
 import Control.Monad.Reader as Reader
@@ -18,168 +17,83 @@ import Control.Monad.State as State
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
-import Data.Profunctor.Optic.Grate
-import Data.Profunctor.Optic.Over
 
-
--- A 'Fold0' can interpret 'a' in a dioid, so long as 's' can also be interpreted that way.
----------------------------------------------------------------------
--- 'Fold0'
----------------------------------------------------------------------
-
-
-
-
-{-
-
-See also 
-- https://hackage.haskell.org/package/witherable
-- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
-
-Fold0 laws:
-
-fold0_complete :: Fold0 s a -> Bool
-fold0_complete o = tripping o $ folding0 (toMaybeOf o)
--}
-
-
--- | Build a 'Fold0' from an arbitrary function.
+-- | Try to map a function over this 'Traversal', failing if the 'Traversal' has no targets.
 --
--- @
--- 'folding0' ('view' o) ≡ o . '_Just'
--- @
---
--- folding0 :: (s -> Maybe a) -> Fold0 s a
-folding0 :: (s -> Maybe a) -> Fold0 s a
-folding0 f = ocoerce . lmap (\s -> maybe (Left s) Right (f s)) . right' 
---folding0 f = cimap (\s -> maybe (Left s) Right (f s)) Left . right'
---_Just = prism Just $ maybe (Left Nothing) Right
---_Just = lmap (maybe (Left Nothing) Right) . rmap (id ||| Just) . right'
-
--- | Build a 'Fold0' from an affine 'View'.
---
--- @
--- 'toFold0' o ≡ o . '_Just'
--- 'toFold0' o ≡ 'folding0' ('view' o)
--- @
-toFold0 :: View s (Maybe a) -> Fold0 s a
-toFold0 = (. _Just)
-
-
---fromFold0 :: Fold0 s a -> View s (Maybe a)
---fromFold0 = to . preview
-
-cloneFold0 :: AFold (Maybe a) s (Maybe a) -> Fold0 s a
-cloneFold0 = (. _Just) . to . view 
-
-clonem :: Forget r1 a1 b1 -> Forget (Maybe r1) a1 b2
-clonem = mapOf forgotten (Just .)
-
----------------------------------------------------------------------
--- Primitive Operators
----------------------------------------------------------------------
-
-previewOf :: AFold0 r s a -> (a -> r) -> s -> Maybe r
---previewOf o f = g where Forget g = o (Forget $ Just . f)
---previewOf' o = runPre . getConst . h where Star h = o (Star $ Const . Pre . Just)
-
-previewOf = between (dstar runPre) (ustar $ Pre . Just)
-
---toMaybeOf :: AFold (Maybe a) s a -> s -> Maybe a
-toMaybeOf :: AFold0 a s a -> s -> Maybe a
-toMaybeOf = flip previewOf id
-
----------------------------------------------------------------------
--- Derived Operators
----------------------------------------------------------------------
-
-preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
-preview o = Reader.asks $ toMaybeOf o
-
-{-
-
--- @
--- preview :: 'AFold' ('First' a) s a -> s -> 'Maybe' a
--- @
---
-preview 
-  :: MonadReader s m 
-  => AFold (Maybe (First a)) s a  
-  -> m (Maybe a)
-preview o = Reader.asks $ \s -> getFirst <$> foldMapOf o (Just . First) s 
-
-preuse 
-  :: MonadState s m
-  => AFold (Maybe (First a)) s a  
-  -> m (Maybe a)
-preuse o = State.gets (preview o)
--}
-
-infixl 8 ^?
-
--- | A more permissive infix variant of 'preview''.
---
--- Performs a safe 'head' of a 'Fold' or 'Traversal' or retrieve 'Just' 
--- the result from a 'View' or 'Lens'.
---
--- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial 
--- 'View' this can be a convenient way to extract the optional value.
---
---
--- >>> Left 4 ^? _Left
--- Just 4
---
--- >>> Right 4 ^? _Left
+-- >>> failover (element 3) (*2) [1,2] :: Maybe [Int]
 -- Nothing
 --
--- @
--- ('^?') ≡ 'flip' 'preview''
--- @
+-- >>> failover _Left (*2) (Right 4) :: Maybe (Either Int Int)
+-- Nothing
+--
+-- >>> failover _Right (*2) (Right 4) :: Maybe (Either Int Int)
+-- Just (Right 8)
 --
 -- @
--- ('^?') :: s -> 'View' s a         -> 'Maybe' a
--- ('^?') :: s -> 'Fold' s a         -> 'Maybe' a
--- ('^?') :: s -> 'Lens'' s a        -> 'Maybe' a
--- ('^?') :: s -> 'Prism'' s a       -> 'Maybe' a
--- ('^?') :: s -> 'Affine'' s a      -> 'Maybe' a
--- ('^?') :: s -> 'Iso'' s a         -> 'Maybe' a
--- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
+-- 'failover' :: Alternative m => Traversal s t a b -> (a -> b) -> s -> m t
 -- @
---(^?) :: s -> AFold0 (First a) s a -> Maybe a
---s ^? o = getFirst <$> previewOf o First s
---(^?) :: s -> AFold (Maybe a) s a -> Maybe a
-(^?) :: s -> AFold0 a s a -> Maybe a
-s ^? o = toMaybeOf o s
+{-
+failover :: Alternative m => LensLike ((,) Any) s t a b -> (a -> b) -> s -> m t
+failover l afb s = case l ((,) (Any True) . afb) s of
+  (Any True, t)  -> pure t
+  (Any False, _) -> Applicative.empty
+{-# INLINE failover #-}
+-}
+
+
 
 {-
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.
 --
-findOf :: AFold (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f =
   foldrOf o (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
 
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
-maximumOf :: Ord a => AFold (Endo (Maybe a)) s a -> s -> Maybe a
+maximumOf :: Ord a => Folding (Endo (Maybe a)) s a -> s -> Maybe a
 maximumOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
-minimumOf :: Ord a => AFold (Endo (Maybe a)) s a -> s -> Maybe a
+minimumOf :: Ord a => Folding (Endo (Maybe a)) s a -> s -> Maybe a
 minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -}
 
 
-
 {-
+-- | Obtain the maximum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso',
+-- or 'View' according to a user supplied 'Ordering'.
+--
+-- >>> maximumByOf traverse (compare `on` length) ["mustard","relish","ham"]
+-- Just "mustard"
+--
+-- In the interest of efficiency, This operation has semantics more strict than strictly necessary.
+--
+-- @
+-- 'Data.Foldable.maximumBy' cmp ≡ 'Data.Maybe.fromMaybe' ('error' \"empty\") '.' 'maximumByOf' 'folded' cmp
+-- @
+--
+-- @
+-- 'maximumByOf' :: 'View' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'maximumByOf' :: 'Fold' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'maximumByOf' :: 'Iso'' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'maximumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'maximumByOf' :: 'Traversal'' s a -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- @
+maximumByOf :: Folding (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+maximumByOf o cmp = foldlOf' o mf Nothing where
+  mf Nothing y = Just $! y
+  mf (Just x) y = Just $! if cmp x y == GT then x else y
+{-# INLINE maximumByOf #-}
 
 -- | Obtain the minimum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso'
 -- or 'View' according to a user supplied 'Ordering'.
 --
 -- In the interest of efficiency, This operation has semantics more strict than strictly necessary.
 --
--- >>> minimumByOf traverse' (compare `on` length) ["mustard","relish","ham"]
+-- >>> minimumByOf traverse (compare `on` length) ["mustard","relish","ham"]
 -- Just "ham"
 --
 -- @
@@ -193,7 +107,7 @@ minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -- 'minimumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Traversal'' s a -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- @
-minimumByOf :: AFold (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+minimumByOf :: Folding (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
 minimumByOf o cmp = foldlOf' o mf Nothing where
   mf Nothing y = Just $! y
   mf (Just x) y = Just $! if cmp x y == GT then y else x
@@ -225,10 +139,10 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
 -- A simpler version that didn't permit indexing, would be:
 --
 -- @
--- 'findOf' :: 'AFold' ('Endo' ('Maybe' a)) s a -> (a -> 'Bool') -> s -> 'Maybe' a
+-- 'findOf' :: 'Folding' ('Endo' ('Maybe' a)) s a -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' o p = 'foldrOf' o (\a y -> if p a then 'Just' a else y) 'Nothing'
 -- @
-findOf :: AFold (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE findOf #-}
 
@@ -265,10 +179,10 @@ findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 -- A simpler version that didn't permit indexing, would be:
 --
 -- @
--- 'findMOf' :: Monad m => 'AFold' ('Endo' (m ('Maybe' a))) s a -> (a -> m 'Bool') -> s -> m ('Maybe' a)
+-- 'findMOf' :: Monad m => 'Folding' ('Endo' (m ('Maybe' a))) s a -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' o p = 'foldrOf' o (\a y -> p a >>= \x -> if x then return ('Just' a) else y) $ return 'Nothing'
 -- @
-findMOf :: Monad m => AFold (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
+findMOf :: Monad m => Folding (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
 findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y) $ return Nothing
 {-# INLINE findMOf #-}
 
@@ -286,7 +200,7 @@ findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y)
 -- @
 -- 'lookupOf' :: 'Eq' k => 'Fold' s (k,v) -> k -> s -> 'Maybe' v
 -- @
-lookupOf :: Eq k => AFold (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
+lookupOf :: Eq k => Folding (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
 lookupOf o k = foldrOf o (\(k',v) next -> if k == k' then Just v else next) Nothing
 {-# INLINE lookupOf #-}
 -}

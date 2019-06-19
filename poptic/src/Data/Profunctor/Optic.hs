@@ -3,6 +3,12 @@ module Data.Profunctor.Optic (
 ) where
 
 
+{-
+import Data.Profunctor.Optic.Fold.Affine     as Export
+import Data.Profunctor.Optic.Fold.Monoid     as Export
+import Data.Profunctor.Optic.Fold.Semigroup  as Export
+import Data.Profunctor.Optic.Fold.Semiring   as Export
+-}
 import Data.Profunctor.Optic.Fold            as Export
 import Data.Profunctor.Optic.Grate           as Export
 import Data.Profunctor.Optic.Iso             as Export

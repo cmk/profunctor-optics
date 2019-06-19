@@ -19,7 +19,7 @@ import Data.Functor.Contravariant.Divisible      as Export
 import Data.Functor.Identity           as Export
 import Data.Semigroup.Traversable      as Export
 import Data.Semigroup.Foldable         as Export
-import Data.Profunctor                 as Export hiding (Forget(..))
+import Data.Profunctor                 as Export
 import Data.Void                       as Export
 import Control.Arrow                   as Export ((+++),(***),(|||),(&&&)) 
 import Control.Applicative             as Export hiding (WrappedArrow(..))
@@ -63,6 +63,7 @@ infixl 6 *
 
 
 -}
+
 
 
 star :: Applicative f => Star f c c
@@ -228,27 +229,6 @@ eval (f, b) = f b
 (-$) :: (a -> b -> c) -> b -> a -> c
 (-$) = flip
 
-{-# RULES
-    "endo" forall f g.   endo [f, g]    = f . g;
-    "endo" forall f g h. endo [f, g, h] = f . g . h;
-    "endo" forall f fs.  endo (f:fs)    = f . endo fs
-  #-}
-
-endo :: Foldable t => t (a -> a) -> a -> a
-endo = foldr (.) id
-
-{-# INLINE [1] endo #-}
-
-endoM :: (Monad m, Foldable t, Applicative m) => t (a -> m a) -> a -> m a
-endoM = foldr (<=<) pure
-
-{-# INLINE [1] endoM #-}
-
-{-# RULES
-    "endoM" forall f g.   endoM [f, g]    = f <=< g;
-    "endoM" forall f g h. endoM [f, g, h] = f <=< g <=< h;
-    "endoM" forall f fs.  endoM (f:fs)    = f <=< endoM fs
-  #-}
 
 
 -- | Can be used to rewrite
