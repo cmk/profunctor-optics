@@ -1,14 +1,17 @@
 {-# Language ConstrainedClassMethods #-}
+{-# Language NoImplicitPrelude #-}
 
 module Data.Semiring where
 
 import Control.Applicative
-import Data.Monoid hiding (First, Last)
+import Data.Monoid (Alt(..),Ap(..)) --hiding (First(..), Last(..))
 import Data.Semigroup
 import Data.Coerce (coerce)
 import Numeric.Natural (Natural)
 
 import Data.Functor.Apply
+import Data.Functor.Contravariant.Divisible
+import Data.Functor.Contravariant
 import Data.Semigroup.Foldable.Class as Foldable
 import Data.List.NonEmpty (NonEmpty(..))
 
@@ -31,13 +34,12 @@ import Control.Selective
 import qualified Control.Selective.Free as Free
 import qualified Control.Alternative.Free.Final as Free
 
-import P ((==>))
+import P -- hiding (Num(..))
 
 import Control.Monad (ap)
 import Orphans ()
 
---import Data.Functor.Apply
---import Data.Functor.Bind.Class (WrappedApplicative(..))
+
 
 --http://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Tree.html#g:1
 -- ^ free structure for NearSemirings w/o mult identity
@@ -121,6 +123,44 @@ fromNatural 1 = one
 fromNatural n = fromNatural (n - 1) <> one
 -}
 
+
+-- | Fold over a collection using the multiplicative operation of a semiring.
+-- 
+-- @
+-- 'foldMap'' f ≡ 'Data.Foldable.foldr'' ((><) . f) 'one'
+-- @
+--
+-- >>> (foldMap . foldMap') id [[1, 2], [3, (4 :: Int)]] -- 1 >< 2 <> 3 >< 4
+-- 14
+--
+-- >>> (foldMap' . foldMap) id [[1, 2], [3, (4 :: Int)]] -- 1 <> 2 >< 3 <> 4
+-- 21
+--
+-- See also 'Data.Semiring.Endomorphism.productWith'.
+--
+-- For semirings without a distinct multiplicative unit this is equivalent to @const zero@:
+--
+-- >>> foldMap' Just [1..(5 :: Int)]
+-- Just 0
+--
+-- In this situation you most likely want to use 'foldMap1''.
+--
+foldMap' :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
+foldMap' f = foldr' ((><) . f) one
+
+
+-- | Fold over a non-empty collection using the multiplicative operation of a semiring.
+--
+--
+--
+-- As the collection is non-empty this does not require a distinct multiplicative unit:
+--
+-- >>> foldMap1' Just $ 1 :| [2..(5 :: Int)]
+-- Just 120
+--
+foldMap1' :: (Foldable1 t, Semiring r) => (a -> r) -> t a -> r
+foldMap1' f = getProd . foldMap1 (Prod . f)
+
 -- | Cross-multiply two collections.
 --
 -- >>> cross [1,2,3 ::Int] [1,2,3]
@@ -132,39 +172,11 @@ fromNatural n = fromNatural (n - 1) <> one
 cross :: (Foldable t, Applicative t, Monoid r, Semiring r) => t r -> t r -> r
 cross a b = Foldable.fold $ liftA2 (><) a b
 
+-- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
+-- Right 4
 cross1 :: (Foldable1 t, Apply t, Semiring r) => t r -> t r -> r
 cross1 a b = Foldable.fold1 $ liftF2 (><) a b
 
--- | Fold over a collection using the multiplicative operation of a semiring.
-foldMap' :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
-foldMap' f = getProd . foldMap (Prod . f)
---foldMap' f = foldr' ((><) . f) one
-
--- | Fold over a non-empty collection using the multiplicative operation of a semiring.
-foldMap1' :: (Foldable1 t, Semiring r) => (a -> r) -> t a -> r
-foldMap1' f = getProd . foldMap1 (Prod . f)
-
-
-
---foldSum :: (Monoid r, Semiring r) => (a -> r) -> [a] -> r
-
---foldSemiring :: (Functor m, Foldable r, Applicative r, Monoid a, Semiring a) => m (r a) -> r a -> m a
---foldSemiring m v = fmap (\r -> Foldable.fold $ liftA2 (><) r v) m
-
-
--- Note this function will zero out if there is no multiplicative unit. 
--- For semirings w/o a multiplicative unit use 'foldSemiring'.
-foldUnital :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
-foldUnital = foldMap . foldMap'
---foldSemiring0 f = foldMap g where g = foldr ((><) . f) one
-
--- No multiplicative unit.
-foldSemiring :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
-foldSemiring = foldMap . foldMap1'
-
--- No additive or multiplicative unit.
-foldPresemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
-foldPresemiring = foldMap1 . foldMap1'
 
 ------------------------------------------------------------------------------------
 -- | Properties of pre-semirings
@@ -271,85 +283,43 @@ prop_left_distributive a b c = a >< (b <> c) == (a >< b) <> (a >< c)
 -- Pre-semirings
 -------------------------------------------------------------------------------
 
--- | 'First a' forms a pre-semiring.
+-- | 'First a' forms a pre-semiring for any semigroup @a@.
+--
+-- >>> foldMap1 First $ 1 :| [2..(5 :: Int)] >< 1 :| [2..(5 :: Int)]
+-- First {getFirst = 1}
+--
+-- >>> foldMap1' First $ 1 :| [2..(5 :: Int)]
+-- First {getFirst = 15}
+--
+-- >>> foldMap1 First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Nothing}
+--
+-- >>> foldMap1' First $ Nothing :| [Just (5 :: Int), Just 6,  Nothing]
+-- First {getFirst = Just 11}
+--
 instance Semigroup a => Semiring (First a) where
-  (><) = liftA2 (<>)
+  (><) = liftF2 (<>)
   {-# INLINE (><)  #-}
 
 
 instance Semigroup a => Semiring (Last a) where
-  (><) = liftA2 (<>)
+  (><) = liftF2 (<>)
   {-# INLINE (><)  #-}
 
-
+-- >>> (1 :| [2 :: Int]) >< (3 :| [4 :: Int])
+-- 4 :| [5,5,6]
 instance Semigroup a => Semiring (NonEmpty a) where
 
-  (><) = liftA2 (<>) 
+  (><) = liftF2 (<>) 
   {-# INLINE (><)  #-}
-
---instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Semiring (f a) where (><) = liftF2 (<>)
 
 
 --instance Semigroup a => Semiring (NE.Set a) where
 
-{-
-foo = Sum 2 :| [] :: NonEmpty (Sum Int)
-bar = Sum 3 :| [] :: NonEmpty (Sum Int)
-baz = Sum 3 :| [] :: NonEmpty (Sum Int)
-
-baz = Sum 4 :| [Sum 4] :: NonEmpty (Sum Int)
-
-prop_zero_absorb_right foo
-
-prop_distrib_right baz foo bar
-prop_distrib_right baz bar foo
-prop_distrib_right foo bar baz
-prop_distrib_right foo baz bar
-prop_distrib_right bar foo baz
-prop_distrib_right bar baz foo
-
--}
-
-
 instance Semigroup a => Semiring (Either e a) where
 
-  (><) = liftA2 (<>)
+  (><) = liftF2 (<>)
   {-# INLINE (><)  #-}
-
-  -- fromBoolean = fromBooleanDef $ pure mempty
-{-
-
-foo = Right $ Sum 2 :: Either () (Sum Int)
-bar = Right $ Sum 3 :: Either () (Sum Int)
-baz = Right $ Sum 4 :: Either () (Sum Int)
-
-baz = Left () :: Either () (Sum Int)
-
-
-prop_distrib_right baz foo bar
-prop_distrib_right baz bar foo
-prop_distrib_right foo bar baz
-prop_distrib_right foo baz bar
-prop_distrib_right bar foo baz
-prop_distrib_right bar baz foo
-
-instance Alternative Maybe where
-    empty = Nothing
-    Nothing <|> r = r
-    l       <|> _ = l
-
-
-instance Semigroup (Either a b) where
-    Left _ <> b = b
-    a      <> _ = a
-
-instance Applicative (Either e) where
-    pure          = Right
-    Left  e <*> _ = Left e
-    Right f <*> r = fmap f r
-
--}
-
 
 
 
@@ -360,18 +330,27 @@ instance Applicative (Either e) where
 
 instance Semiring () where
   (><) _ _ = ()
-
   fromBoolean _ = ()
 
+-- See 'Data.Semiring.Signed'.
+instance Semiring Ordering where
+  LT >< LT = GT
+  LT >< EQ = EQ
+  LT >< GT = LT
+
+  EQ >< x = EQ
+
+  GT >< x = x
+
+  fromBoolean = fromBooleanDef GT
 
 instance Semiring Bool where
   (><) = (&&)
-
   fromBoolean = id
+
 
 instance Semiring Natural where
   (><) = (*)
-
   fromBoolean = fromBooleanDef 1
 
 
@@ -379,7 +358,10 @@ instance Semiring Int where
   (><) = (*)
   fromBoolean = fromBooleanDef 1
 
---instance (Semigroup a, Semigroup b) => Semigroup (a, b)
+
+instance (Semiring a, Semiring b) => Semiring (a, b) where
+  (a,b) >< (c, d) = (a><c, b><d)
+  --fromBoolean b = (fromBoolean b, fromBoolean b)
 
 --instance Semigroup Ordering
 
@@ -392,7 +374,14 @@ instance (Monoid b, Semiring b) => Semiring (a -> b) where
 
 --instance (Monoid b, Semiring b) => Semiring (Op a b) where
 
+-- Note that due to the underlying 'Monoid' instance this instance
+-- has 'All' semiring semantics rather than 'Any'.
+instance (Monoid a, Semiring a) => Semiring (Predicate a) where
+  Predicate f >< Predicate g = Predicate $ \x -> f x || g x
+  {-# INLINE (><)  #-}
 
+  fromBoolean True = Predicate $ const True
+  fromBoolean False = Predicate $ const False
 
 instance Monoid a => Semiring [a] where 
 
@@ -564,30 +553,21 @@ instance Semiring Any where
 
 -- Note that this instance uses 'False' as its multiplicative unit. 
 instance Semiring All where 
-
   (><) = coerce (||)
   {-# INLINE (><) #-}
-
   fromBoolean = fromBooleanDef $ All False
 
 
---instance (forall a. Semigroup (f a), Semigroup a, Apply f) => Semiring (f a) where (><) = liftF2 (<>)
-
-
-
 instance Monoid a => Semiring (Free.Alt f a) where
-
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
-
   fromBoolean = fromBooleanDef $ pure mempty
+
 
 -- Note: if 'Alternative' is ever refactored to fix the left distribution law issue then 'Alt' should be updated here as well.
 instance (Monoid a, Alternative f) => Semiring (Alt f a) where
-
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
-
   fromBoolean = fromBooleanDef $ pure mempty
 
 
@@ -608,7 +588,7 @@ instance Semiring a => Semiring (IO a) where
 
   --fromBoolean = fromBooleanDef $ pure mempty
 
-
+{-
 -- | Translate between semiring ops and Applicative / Alternative ops. 
 -- >>> Semi 2 <|> Semi (3::Int)
 -- Semi {getSemi = 5}
@@ -647,7 +627,7 @@ instance (Monoid a, Semiring a) => Alternative (Semi a) where
   empty = Semi zero
 
   Semi a <|> Semi b = Semi (a <> b)
-
+-}
 
 
 
@@ -686,15 +666,52 @@ instance (Monoid a, Semiring a) => Monoid (Prod a) where
   {-# INLINE mempty #-}
 
 
+
+
+-- Provide a 'Num' instance for a 'Semiring' (or 'Dioid') in which negation has no effect.
+newtype Number a = Number { unNumber :: a }
+  deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Storable,Functor)
+
+
+instance Semigroup r => Semigroup (Number r) where
+  (<>) = liftA2 (<>)
+  {-# INLINE (<>) #-}
+
+-- Note that 'one' must be distinct from 'zero' for this instance to be legal.
+instance Monoid r => Monoid (Number r) where
+  mempty = Number mempty
+  {-# INLINE mempty #-}
+
+instance (Monoid r, Semiring r) => Semiring (Number r) where
+  (><) = liftA2 (><)
+  fromBoolean = Number . fromBoolean
+
+instance Applicative Number where
+  pure = Number
+  Number f <*> Number a = Number $ f a
+
+instance (Monoid r, Semiring r) => Num (Number r) where
+  (+) = liftA2 (<>)
+  (*) = liftA2 (><)
+  negate = id
+  abs = id
+  signum zero = zero
+  signum _ = one
+  fromInteger 0 = zero
+  fromInteger 1 = one
+  fromInteger x = fromInteger (abs x - 1) <> one --TODO improve
+
 ---------------------------------------------------------------------
 --  Instances (contravariant)
 ---------------------------------------------------------------------
 
---deriving instance Semiring (Predicate a)
+-- https://www.fewbutripe.com/swift/math/algebra/monoid/2017/04/18/algbera-of-predicates-and-sorting-functions.html
 
---deriving instance Semiring a => Semiring (Equivalence a)
+--instance Semiring (Predicate a)
+--instance Semiring (Comparison a)
+--instance Semiring a => Semiring (Equivalence a)
 
---deriving instance Semiring a => Semiring (Op a b)
+--instance Semiring a => Semiring (Op a b)
 
 
 

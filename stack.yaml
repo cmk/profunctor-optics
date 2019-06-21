@@ -2,7 +2,7 @@ resolver: lts-13.10
 flags: {}
 
 packages:
-  - poptic
+  - optics
   - dioids
 extra-deps:
   - bifunctor-0.1.0.0@sha256:43bfde3f3516e078054db2939d966a9aec6f63a8f98f1ff0c29ed147f39db388

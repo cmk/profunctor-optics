@@ -47,7 +47,9 @@ library
     , assoc
     , containers
     , contravariant
+    , microlens
     , nonempty-containers
+    , errors
     , free
     , selective
     , semigroupoids

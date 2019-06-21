@@ -10,7 +10,7 @@ import Data.Functor.Contravariant
 import Data.List (stripPrefix)
 import Data.Maybe (isJust)
 import Numeric.Natural (Natural)
-
+import Data.Foldable
 import Data.List.NonEmpty (NonEmpty(..))
 import Orphans ()
 import Control.Selective -- (Under(..), Over(..), ifS)
@@ -82,8 +82,6 @@ instance (Dioid a, Selective f, Semiring f) => Dioid (f a) where
 --prop_idempotent_zero :: Bool
 --prop_idempotent_zero  
 
--- a ≤ b => forall x. a ⊗ x ≤ b ⊗ x 
---prop_order_compatible :: (Eq r, Dioid r) => r -> r -> Bool
 
 ------------------------------------------------------------------------------------
 -- | Properties of pre-dioids & dioids
@@ -110,6 +108,13 @@ prop_monotone_boolean a b = a <= b ==> fromBoolean a `ord` (fromBoolean b :: r)
 prop_positive_additive :: (Eq r, Monoid r, Dioid r) => r -> r -> Bool
 prop_positive_additive a b = a <> b == zero ==> a == zero && b == zero
 
+-- a ≤ b => forall x. x ⊗ a ≤ x ⊗ b 
+prop_left_order_multiplicative :: (Eq r, Dioid r) => r -> r -> r -> Bool
+prop_left_order_multiplicative a b c = a `ord` b ==> c >< a `ord` (c >< b)
+
+-- a ≤ b => forall x. a ⊗ x ≤ b ⊗ x 
+prop_right_order_multiplicative :: (Eq r, Dioid r) => r -> r -> r -> Bool
+prop_right_order_multiplicative a b c = a `ord` b ==> a >< c `ord` (b >< c)
 
 ------------------------------------------------------------------------------------
 -- | Additional properties of certain subclasses of dioid.
@@ -164,6 +169,12 @@ prop_interchange a b =
   prop_right_absorbative_one a &&
   prop_right_neutral_one b ==> a == a <> b >< a
 
+-- See Gondran and Minoux p. 31
+prop_left_complete :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
+prop_left_complete a bs = a >< fold bs == foldMap (a><) bs
+
+prop_right_complete :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
+prop_right_complete a bs = fold bs >< a == foldMap (><a) bs
 
 -------------------------------------------------------------------------------
 -- Pre-dioids
@@ -196,32 +207,41 @@ instance (Eq e, Eq a, Semigroup a) => Dioid (Either e a) where
 
 -- | Only the trivial dioid can have a total order relation that is constantly true.
 instance Dioid () where
-
   ord _ _ = True
+
+-- Note that the partial ordering is distict from the 'Ord' instance. See 'Data.Semiring.Signed'.
+instance Dioid Ordering where
+  ord GT GT = True
+  ord GT EQ = True
+  ord GT LT = False
+
+  ord LT LT = True
+  ord LT EQ = True
+  ord LT GT = False
+
+  ord EQ EQ = True
+  ord EQ _  = False
 
 
 instance Dioid Bool where
-
-  ord = implies
+  ord = (==>)
 
 
 instance Dioid Natural where
-
   ord = (<=)
 
+instance (Dioid a, Dioid b) => Dioid (a, b) where
+  ord (a,b) (c, d) = ord a c && ord b d 
 
 instance (Bounded a, Ord a) => Dioid (Max a) where
-
   ord = (<=)
 
 
 instance (Bounded a, Ord a) => Dioid (Min a) where
-
   ord = (>=)
 
 
 instance (Monoid a, Dioid a) => Dioid (Dual a) where
-
   ord (Dual a) (Dual b) = ord b a
 
 -- Note that @b@ must be an idempotent?

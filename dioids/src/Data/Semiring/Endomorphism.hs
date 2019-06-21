@@ -1,4 +1,6 @@
-module Data.Semiring.Endomorphism (
+module Data.Semiring.Endomorphism where
+{-
+(
     endo
   , endoM
   -- * 'End'
@@ -21,7 +23,7 @@ module Data.Semiring.Endomorphism (
   , curry'
   , uncurry'
 ) where
-
+-}
 
 import Control.Applicative
 import Control.Arrow ((***))
@@ -33,28 +35,61 @@ import Data.Dioid
 import Data.Bifunctor.Swap
 import Data.Bifunctor.Assoc
 
+import Data.Functor.Identity
 import Data.List.NonEmpty (NonEmpty)
-{-# RULES
-    "endo" forall f g.   endo [f, g]    = f . g;
-    "endo" forall f g h. endo [f, g, h] = f . g . h;
-    "endo" forall f fs.  endo (f:fs)    = f . endo fs
-  #-}
 
-endo :: Foldable t => t (a -> a) -> a -> a
-endo = foldr (.) id
 
-{-# INLINE [1] endo #-}
 
-endoM :: (Monad m, Foldable t, Applicative m) => t (a -> m a) -> a -> m a
-endoM = foldr (<=<) pure
 
-{-# INLINE [1] endoM #-}
 
-{-# RULES
-    "endoM" forall f g.   endoM [f, g]    = f <=< g;
-    "endoM" forall f g h. endoM [f, g, h] = f <=< g <=< h;
-    "endoM" forall f fs.  endoM (f:fs)    = f <=< endoM fs
-  #-}
+--import Data.Functor.Apply
+--import Data.Functor.Bind.Class (WrappedApplicative(..))
+
+import Lens.Micro (ASetter', (%~), over, sets)
+
+import Prelude hiding ((+))
+
+
+
+-- >>> lower . endo $ fmap lift [1 .. (4::Int)]
+-- 24
+lift :: (Monoid a, Semiring a) => a -> ASetter' a a
+lift a = sets $ \ f y -> a >< f zero <> y
+
+infixl 6 +
+
+(+) :: (Monoid a, Semiring a) => ASetter' a a -> ASetter' a a -> ASetter' a a
+(+) = add
+
+-- >>> lower $ lift 3 . lift 3 + lift 4 . lift 4 :: Int
+-- 25
+add :: (Monoid a, Semiring a) => ASetter' a a -> ASetter' a a -> ASetter' a a
+add f g = sets $ \h -> (f %~ h) . (g %~ h)
+
+lower :: (Monoid a, Semiring a) => ASetter' a a -> a
+lower a = over a (one <>) zero
+
+-- >>> lower $ zero' + one' :: Int
+-- 1
+-- >>> lower $ zero' . one' :: Int
+-- 0
+zero' :: (Monoid a, Semiring a) => ASetter' a a
+zero' = sets $ const id
+
+one' :: (Monoid a, Semiring a) => ASetter' a a
+one' = sets id
+
+productWith :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
+productWith f = lower . foldr ((.) . lift . f) one'
+
+product :: (Foldable t, Monoid r, Semiring r) => t r -> r
+product = productWith id
+
+sumWith :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
+sumWith f = lower . foldr ((+) . lift . f) zero'
+
+sum :: (Foldable t, Monoid r, Semiring r) => t r -> r
+sum = sumWith id
 
 {- |
 Note that the property of right distributivity follows from the defining property of semigroup endomorphisms:
@@ -91,6 +126,8 @@ which has no reason to be true unless 'h' is a full moniod endomorphism.
 -- If @a@ is the additive monoid of natural numbers we obtain the semiring of natural numbers as 'End a'.
 -- If @a@ is a finite semiring over n values, we obtain (after associating each morphism to a matrix) the semiring of square n-by-n matrices with coefficients in @a@.
 
+
+{-
 newtype End a = End { appEnd :: a -> a } -- deriving Generic
 
 -- Note that @a@ must be commutative for this instance to be legal?
@@ -159,23 +196,6 @@ liftProd a = End (a `prod`)
 
 lowerProd :: (Monoid a, Semiring a) => End (End a) -> End a
 lowerProd (End f) = f $ lift one
-
-{-
-foldrOf :: (Foldable t, Monoid c) => (a -> c -> c) -> c -> t a -> c
-foldrOf f r = (`appEnd` r) . foldMap (End . f)
-
-foldlOf' f c0 s = foldrOf (foo f) (End id) s 
--}
-
-
-{-
-lift'' a = (lift' a `mul'`)
-mul' f g = lift' $ lower' f >< lower' g
-
-liftProd' a = End (a `mul'`)
-
---liftAdd :: (Monoid a, Semiring a) => End a -> End (End a)
---liftAdd a = End $ const a
 -}
 
 -- | Represents the closure of Day convolution over 'Exp'.

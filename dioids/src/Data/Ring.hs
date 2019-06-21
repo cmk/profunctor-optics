@@ -47,8 +47,10 @@ instance Ring a => Ring (Dual a) where
 
 -}
 
--- | Provide the correct Monoid, Hemiring, and Unital instances for an arbitrary Num. Used with GHC 8.6+'s DerivingVia extension.
-newtype WrappedNum a = WrappedNum { unwrappedNum :: a } deriving (Eq, Show, Num, Ord, Functor)
+
+-- | Provide the correct Semigroup, Monoid, Semiring, & Ring instances for an arbitrary Num. 
+-- Used with GHC 8.6+'s DerivingVia extension.
+newtype WrappedNum a = WrappedNum { unWrappedNum :: a } deriving (Eq, Show, Num, Ord, Functor)
 {-
   deriving
     ( Eq
