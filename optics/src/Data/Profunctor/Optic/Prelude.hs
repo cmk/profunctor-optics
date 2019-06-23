@@ -133,26 +133,7 @@ _R = right'
 
 
 
-{-
--- | As an example:
---
--- > λ:> ((*2) .* (+)) 1 3 4
--- > 16
-(.*) :: (c -> d) -> (a -> b -> c) -> a -> b -> d
-(.*) f g = \x y -> f (g x y)
 
-(.**) :: (d -> e) -> (a -> b -> c -> d) -> a -> b -> c -> e
-(.**) f g = \x y z -> f (g x y z)
-
-axe :: (Traversable t, Applicative f) => t (a -> f ()) -> a -> f ()
-axe = sequenceA_ .* sequenceA
-
-bisequence' :: (Traversable t, Applicative f) => t (a -> b -> f c) -> a -> b -> t (f c)
-bisequence' = sequenceA .* sequenceA
-
-biaxe :: (Traversable t, Applicative f) => t (a -> b -> f ()) -> a -> b -> f ()
-biaxe = sequenceA_ .** bisequence'
--}
 
 branchOn :: (a -> Bool) -> a -> b -> c -> Either b c
 branchOn f a b c = if f a then Right c else Left b

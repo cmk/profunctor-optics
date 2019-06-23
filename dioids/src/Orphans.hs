@@ -12,6 +12,8 @@ import Control.Selective (Over(..), Under(..))
 import Control.Exception (Exception(..))
 import Data.Functor.Contravariant.Divisible
 
+import P
+
 instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
 
   toException = either toException toException

@@ -1,6 +1,6 @@
 name:                dioids
 version:             0.0.1
-synopsis:            Dioids, rings, and semirings.
+synopsis:            Semirings & dioids.
 -- description:         
 homepage:            github.com/cmk/dioids
 license:             BSD3
@@ -16,17 +16,17 @@ cabal-version:       >=1.10
 library
   exposed-modules:
      Data.Dioid
+     --Data.Dioid.Tropical
+     Data.Dioid.Signed
+     Data.Dioid.Valid
+     Data.Dioid.Warning
      Data.Semiring
      Data.Semiring.Endomorphism
      --Data.Semiring.Free
      --Data.Semiring.Free.Unital
      --Data.Semiring.Polynomial
      --Data.Semiring.Matrix
-     --Data.Semiring.Tropical
-     Data.Semiring.Signed
-     Data.Valid
-     Data.Warning
-     Data.Ring
+     --Data.Ring
      Orphans
      P
   -- other-modules:
@@ -41,16 +41,19 @@ library
      RankNTypes
      ScopedTypeVariables
      TypeApplications
+     NoImplicitPrelude
 
   build-depends:       
       base <5.0
     , assoc
     , containers
     , contravariant
-    , microlens
-    , nonempty-containers
     , errors
     , free
+    , lattices
+    , microlens
+    , nonempty-containers
+    , safe
     , selective
     , semigroupoids
     , transformers
