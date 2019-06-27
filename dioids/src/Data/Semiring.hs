@@ -2,43 +2,47 @@
 
 module Data.Semiring where
 
-import Control.Applicative
-import Data.Monoid (Alt(..),Ap(..)) --hiding (First(..), Last(..))
-import Data.Semigroup
+import Control.Applicative (Const(..))
+import Control.Monad (ap)
+import Data.Monoid (Alt(..),Ap(..))
 import Data.Coerce (coerce)
-import Numeric.Natural (Natural)
 
 import Data.Functor.Apply
 import Data.Functor.Contravariant.Divisible
 import Data.Functor.Contravariant
-import Data.Semigroup.Foldable.Class as Foldable
 import Data.List.NonEmpty (NonEmpty(..))
 
 import Data.Complex (Complex(..))
 import Data.Typeable (Typeable)
+import Data.Validity
+import Data.Validity.Map
+import Data.GenValidity
+import Data.GenValidity.Map
 
 import GHC.Real (even)
 import GHC.Generics                (Generic, Generic1)
 import Foreign.Storable            (Storable)
 import Data.Functor.Classes
 
-import           Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
-import           Data.Functor.Identity (Identity(..))
-
-import qualified Data.Foldable as Foldable
-import qualified Data.Map.Strict as Map
-import qualified Data.Set as Set
-import qualified Data.IntMap.Strict as IntMap
+import Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
+import Data.Functor.Identity (Identity(..))
 
 import Control.Selective
+
+import P
+import Orphans ()
+
 import qualified Control.Selective.Free as Free
 import qualified Control.Alternative.Free.Final as Free
 
-import P
-
-import Control.Monad (ap)
-import Orphans ()
-
+import qualified Data.Map as Map
+import qualified Data.Map.NonEmpty as NEMap
+import qualified Data.Sequence as Seq
+import qualified Data.Sequence.NonEmpty as NESeq
+import qualified Data.Set as Set
+import qualified Data.Set.NonEmpty as NESet
+import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.NonEmpty as NEIntMap
 
 
 --http://hackage.haskell.org/package/containers-0.6.0.1/docs/Data-Tree.html#g:1
@@ -127,7 +131,7 @@ fromNatural n = fromNatural (n - 1) <> one
 -- | Fold over a collection using the multiplicative operation of a semiring.
 -- 
 -- @
--- 'foldMap'' f ≡ 'Data.Foldable.foldr'' ((><) . f) 'one'
+-- 'foldMap'' f ≡ 'Data.foldr'' ((><) . f) 'one'
 -- @
 --
 -- >>> (foldMap . foldMap') id [[1, 2], [3, (4 :: Int)]] -- 1 >< 2 <> 3 >< 4
@@ -170,12 +174,12 @@ foldMap1' f = getProd . foldMap1 (Prod . f)
 -- 0
 --
 cross :: (Foldable t, Applicative t, Monoid r, Semiring r) => t r -> t r -> r
-cross a b = Foldable.fold $ liftA2 (><) a b
+cross a b = fold $ liftA2 (><) a b
 
 -- >>> cross1 (Right 2 :| [Left "oops"]) (Right 2 :| [Right 3]) :: Either [Char] Int
 -- Right 4
 cross1 :: (Foldable1 t, Apply t, Semiring r) => t r -> t r -> r
-cross1 a b = Foldable.fold1 $ liftF2 (><) a b
+cross1 a b = fold1 $ liftF2 (><) a b
 
 rep :: Monoid m => m -> Natural -> m
 rep x = go
@@ -189,177 +193,64 @@ rep x = go
         r = go (n `div` 2)
 {-# INLINE rep #-}
 
-------------------------------------------------------------------------------------
--- | Properties of pre-semirings & semirings.
 
--- | When @r@ is a functor and the semiring structure is derived from 'Alternative', 
--- this translates to: @(f <|> g) <*> a = (f <*> a) <|> (g <*> a)@  
--- See https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus#Other_suggested_laws
+-------------------------------------------------------------------------------
+-- 'Closed'
+-------------------------------------------------------------------------------
 
--- When @r@ is a functor and the semiring structure is derived from 'Selective'
-prop_distributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distributive a b c = (a <> b) >< c == (a >< c) <> (b >< c)
-
-prop_associative_multiplication :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_associative_multiplication a b c = (a >< b) >< c == a >< (b >< c)
-
---prop_universal_addition / foldSemiring1
-
---prop_universal_multiplication
-
-
-------------------------------------------------------------------------------------
--- | Properties of semirings
-
-
--- | A pre-semiring with a (right) absorbative addititive unit must satisfy:
+-- | A <https://en.wikipedia.org/wiki/Semiring#Closed_semirings Closed semiring>
+-- adds one operation, 'star' to a 'Semiring', such that it follows the
+-- law:
 --
--- @
--- 'prop_absorbative_multiplcation' 'zero' ≡ const True
--- @
+-- @'star' x = 'one' '<>' (x '><' 'star' x) = 'one' '<>' 'star' x '><' x@
 --
--- For 'Alternative' instances this property translates to:
+-- Another operation, 'plus', can be defined in terms of 'star':
 --
--- @
--- 'empty' <*> x ≡ 'empty'
--- @
---
--- All (right) semirings must have a (right) absorbative addititive unit.
---
-prop_absorbative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_multiplication o r = o >< r == o
+-- @'plus' x = x '><' ('one' '<>' 'plus' x) @
 
--- | 'fromBoolean' is a semiring homomorphism.
-prop_homomorphism_boolean :: forall r. (Eq r, Monoid r, Semiring r) => Bool -> Bool -> Bool 
-prop_homomorphism_boolean i j = fromBoolean (i && j) == fi >< fj && fromBoolean (i || j) == fi <> fj 
-  where fi :: r = fromBoolean i
-        fj :: r = fromBoolean j
+-- star is left adjoint to plus TODO: always true?
+
+-- Note that if @r@ is a dioid then 'star' must be a monotone map.
+class (Monoid a, Semiring a) => Closed a where
+  {-# MINIMAL star | plus #-} 
+  star :: a -> a
+  star a = one <> plus a
+
+  plus :: a -> a -- TODO does this satisfy properties of an interior operator?
+  plus a = a >< star a -- = a >< (one <> plus a)
+
+--interior :: (r -> r) -> r -> r
+--interior f r = (r ><) . f
+--adjoint . star = plus . adjoint
+
+--star = (>< zero) . (<> zero)
+--plus = (<> one) . (>< one)
+--star = fmap fold . some
+--plus = fmap fold . many
+
+instance Closed b => Closed (a -> b) where
+  star = (.) star
+  plus = (.) plus
+  {-# INLINE star #-}
+  {-# INLINE plus #-}
+
+instance Closed Bool where
+  star = const True -- == (|| True)
+  plus = id -- == (&& True)
+
+  {-# INLINE star #-}
+  {-# INLINE plus #-}
+
+instance Closed () where
+  star  _ = ()
+  plus _ = ()
+  {-# INLINE star #-}
+  {-# INLINE plus #-}
 
 {-
--- | 'fromNatural' is a semiring homomorphism.
-prop_homomorphism_natural :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
-prop_homomorphism_natural i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
-  where fi :: r = fromNatural i
-        fj :: r = fromNatural j
+prop_closed_idempotent
+
 -}
-
----- Neutrality.
-
--- | A pre-semiring with a (right) neutral multiplicative unit must satisfy:
---
--- @
--- 'prop_neutral_multiplcation' 'one' ≡ const True
--- @
--- 
--- All (right) semirings must have a (right) neutral multiplicative unit.
--- 
-prop_neutral_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_multiplication o r = o >< r == r
-
--- | Left multiplicative neutrality of 'zero' and/or 'one'.
-prop_neutral_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_multiplication' o r = r >< o == r
-
-
-------------------------------------------------------------------------------------
--- | Additional (optional) properties of certain subclasses of 'Semiring'.
-
--- | The existence of distinguished additive and multiplicative units distinguishes 
--- a semiring (resp. dioid) from a pre-semiring (pre-dioid).
-prop_unital :: (Eq r, Monoid r, Semiring r) => r -> Bool
-prop_unital o = zero /= o
-
-
----- Absorbativity
-
--- A semiring with a (right) absorbative muliplicative unit must satisfy:
---
--- @
--- 'one' <> r ≡ 'one'
--- @
---
--- For a dioid this is equivalent to:
--- 
--- @
--- ('one' <~) ≡ ('one' ==)
--- @
---
--- For 'Alternative' instances this is the so-called 'left catch' law:
---
--- @
--- 'pure' a <|> x ≡ 'pure' a
--- @
---
-prop_absorbative_addition :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_addition o r = o <> r == o
-
-
-
--- A semiring with a (left) absorbative muliplicative unit must satisfy:
---
--- @
--- r <> 'one' ≡ 'one'
--- @
---
--- Note that the left absorbtion property is too strong for many instances. 
--- This is because it requires that any effects that @r@ has can be undone.
--- See https://winterkoninkje.dreamwidth.org/90905.html
---
-prop_absorbative_addition' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_addition' o r = r <> o == o
-
-
----- Cancellativity
-
--- | Right cancellativity:
---
--- @m >< m' == m >< m''@ implies @m' == m''@
---
-prop_cancellative :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_cancellative a b c = a >< b == a >< c ==> b == c
-
--- | Left cancellativity:
---
--- @m' >< m == m'' >< m@ implies @m' == m''@
---
-prop_cancellative' :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_cancellative' a b c = a >< c == b >< c ==> a == c
-
----- Selectivity
-
-prop_selective_addition :: (Eq r, Semigroup r) => r -> r -> Bool
-prop_selective_addition a b = ab == a || ab == b where ab = a <> b
-
--- A semiring is said to be doubly selective if both operations are selective
-prop_selective_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_selective_multiplication a b = ab == a || ab == b where ab = a >< b
-
-
----- Commutativity
-
-prop_commutative_addition :: (Eq r, Semigroup r) => r -> r -> Bool
-prop_commutative_addition a b = a <> b == b <> a
-
-prop_commutative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_commutative_multiplication a b = a >< b == b >< a
-
----- Left-handed versions of some common properties.
-
-prop_distributive' :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distributive' a b c = a >< (b <> c) == (a >< b) <> (a >< c)
-
-prop_absorbative_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_multiplication' o r = r >< o == o
-
-
----- Idempotency
-
--- G & M p. 15, Proposition 3.4.5 .
-prop_idempotent_addition :: (Eq r, Semigroup r) => Natural -> r -> Bool
-prop_idempotent_addition n r = n >= 1 ==> r == foldMap1 id (r :| rep [r] (n-1))
-
-
----- Completeness
 
 -------------------------------------------------------------------------------
 -- Pre-semirings
@@ -380,12 +271,12 @@ prop_idempotent_addition n r = n >= 1 ==> r == foldMap1 id (r :| rep [r] (n-1))
 -- First {getFirst = Just 11}
 --
 instance Semigroup a => Semiring (First a) where
-  (><) = liftF2 (<>)
+  (><) = liftA2 (<>)
   {-# INLINE (><)  #-}
 
 
 instance Semigroup a => Semiring (Last a) where
-  (><) = liftF2 (<>)
+  (><) = liftA2 (<>)
   {-# INLINE (><)  #-}
 
 instance Ord a => Semiring (Max a) where
@@ -398,22 +289,37 @@ instance Ord a => Semiring (Min a) where
   {-# INLINE (><)  #-}
 
 
+instance Semigroup a => Semiring (Either e a) where
+  (><) = liftA2 (<>)
+  {-# INLINE (><) #-}
+
+
 -- See also 'Data.Dioid.Warning' and 'Data.Dioid.Valid'.
 -- >>> (1 :| [2 :: Int]) >< (3 :| [4 :: Int])
 -- 4 :| [5,5,6]
 instance Semigroup a => Semiring (NonEmpty a) where
-
-  (><) = liftF2 (<>) 
-  {-# INLINE (><)  #-}
-
-
-instance Semigroup a => Semiring (Either e a) where
-
-  (><) = liftF2 (<>)
-  {-# INLINE (><)  #-}
+  (><) = liftA2 (<>) 
+  {-# INLINE (><) #-}
 
 
---instance Semigroup a => Semiring (NE.Set a) where
+instance Semigroup a => Semiring (NESeq.NESeq a) where
+  (><) = liftA2 (<>) 
+  {-# INLINE (><) #-}
+
+
+instance (Ord a, Semigroup a) => Semiring (NESet.NESet a) where
+  xs >< ys = foldMap1 (flip NESet.map xs . (<>)) ys
+  {-# INLINE (><) #-}
+
+
+instance (Ord k, Semigroup a) => Semiring (NEMap.NEMap k a) where
+  xs >< ys = foldMap1 (flip NEMap.map xs . (<>)) ys
+  {-# INLINE (><) #-}
+
+
+instance Semigroup a => Semiring (NEIntMap.NEIntMap a) where
+  xs >< ys = foldMap1 (flip NEIntMap.map xs . (<>)) ys
+  {-# INLINE (><) #-}
 
 -------------------------------------------------------------------------------
 -- Semirings
@@ -443,17 +349,15 @@ instance Semiring Natural where
   (><) = (*)
   fromBoolean = fromBooleanDef 1
 
-
 instance Semiring Int where
   (><) = (*)
   fromBoolean = fromBooleanDef 1
 
 
-instance (Semiring a, Semiring b) => Semiring (a, b) where
-  (a,b) >< (c, d) = (a><c, b><d)
-  {-# INLINE (><) #-}
+instance Semiring Word where
+  (><) = (*)
+  fromBoolean = fromBooleanDef 1
 
-  --fromBoolean b = (fromBoolean b, fromBoolean b)
 
 -- >>> (> (0::Int)) >< ((< 10) <> (== 15)) $ 10
 -- False
@@ -472,7 +376,13 @@ instance (Monoid a, Semiring a) => Semiring (Op a b) where
   fromBoolean = fromBooleanDef $ Op (const one)
 
 
---TODO use Monoid instances here or no?
+instance (Monoid a, Monoid b, Semiring a, Semiring b) => Semiring (a, b) where
+  (a, b) >< (c, d) = (a><c, b><d)
+  {-# INLINE (><) #-}
+
+  fromBoolean = liftA2 (,) fromBoolean fromBoolean
+
+
 instance Monoid a => Semiring [a] where 
   (><) = liftA2 (<>)
   {-# INLINE (><) #-}
@@ -486,43 +396,6 @@ instance (Monoid a, Semiring a) => Semiring (Maybe a) where
 
   fromBoolean = fromBooleanDef $ pure mempty
 
-{-
-
-
-foo = Just $ WrappedNum 2 :: Maybe (WrappedNum Int)
-bar = Just $ WrappedNum 3 :: Maybe (WrappedNum Int)
-baz = Just $ WrappedNum 4 :: Maybe (WrappedNum Int)
-d = Nothing :: Maybe (WrappedNum Int)
-dempty
-c = Just $ WrappedNum 0 :: Maybe (WrappedNum Int)
-
-prop_distrib_right baz foo bar
-prop_distrib_right baz bar foo
-prop_distrib_right foo bar baz
-prop_distrib_right foo baz bar
-prop_distrib_right bar foo baz
-prop_distrib_right bar baz foo
-
-
-instance Alternative Maybe where
-    empty = Nothing
-    Nothing <|> r = r
-    l       <|> _ = l
-
-instance Semigroup a => Semigroup (Maybe a) where
-    Nothing <> b       = b
-    a       <> Nothing = a
-    Just a  <> Just b  = Just (a <> b)
-
-    stimes = stimesMaybe
--}
-
-
-
-
-
-
-
 
 instance (Monoid a, Semiring a) => Semiring (Dual a) where
   (><) = liftA2 $ flip (><)
@@ -533,7 +406,6 @@ instance (Monoid a, Semiring a) => Semiring (Dual a) where
 
 
 instance (Monoid a, Semiring a) => Semiring (Const a b) where
-
   (Const x) >< (Const y) = Const (x >< y)
   {-# INLINE (><)  #-}
 
@@ -541,7 +413,6 @@ instance (Monoid a, Semiring a) => Semiring (Const a b) where
   {-# INLINE fromBoolean #-}
 
 instance (Monoid a, Semiring a) => Semiring (Identity a) where
-
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
@@ -549,7 +420,6 @@ instance (Monoid a, Semiring a) => Semiring (Identity a) where
 
 
 instance (Monoid r, Semiring r) => Semiring (Over r a) where
-
   Over x >< Over y = Over (x >< y)
   {-# INLINE (><) #-}
 
@@ -559,7 +429,6 @@ instance (Monoid r, Semiring r) => Semiring (Over r a) where
 
 
 instance (Monoid r, Semiring r) => Semiring (Under r a) where
-
   Under x >< Under y = Under (x >< y)
   {-# INLINE (><) #-}
 
@@ -571,7 +440,6 @@ instance (Monoid r, Semiring r) => Semiring (Under r a) where
 -- | This instance can suffer due to floating point arithmetic.
 instance Ring a => Semiring (Complex a) where
   --(x :+ y) >< (x' :+ y') = (x >< x' - (y >< y')) :+ (x >< y' + y >< x')
-
   (><) = liftA2 (><)
   {-# INLINE (><)  #-}
 
@@ -581,7 +449,6 @@ instance Ring a => Semiring (Complex a) where
 
 
 instance Semiring Any where 
-
   (><) = coerce (&&)
   {-# INLINE (><) #-}
 
@@ -616,14 +483,12 @@ instance (Monoid a, Alternative f) => Semiring (Alt f a) where
 -- Note: this instance should only be used with 'Applicative's that have no 'Alternative' instance
 -- as it provides a 'Monoid' instance based on 'pure zero'.
 instance (Semiring a, Applicative f) => Semiring (Ap f a) where 
-
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
   --fromBoolean = fromBooleanDef $ pure mempty
 
 instance Semiring a => Semiring (IO a) where 
-
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
 
@@ -668,9 +533,6 @@ instance Semiring (Comparison a) where
   Comparison f >< Comparison g = Comparison $ \x y -> f x y >< g x y
   {-# INLINE (><) #-}
 
-  --Note that the truth values are flipped here to create a
-  --valid semiring homomorphism. Users should precompose with 'not'
-  --where necessary. 
   fromBoolean = fromBooleanDef $ Comparison $ \_ _ -> GT
 
 
@@ -678,118 +540,30 @@ instance Semiring (Comparison a) where
 --  Instances (containers)
 ---------------------------------------------------------------------
 
+instance Ord a => Semiring (Set.Set a) where
+  (><) = Set.intersection
 
---TODO nonempty instances
-instance (Ord a, Monoid a) => Semiring (Set.Set a) where
-
-  xs >< ys = Foldable.foldMap (flip Set.map xs . (<>)) ys
+instance Monoid a => Semiring (Seq.Seq a) where
+  (><) = liftA2 (<>)
   {-# INLINE (><) #-}
 
-  fromBoolean = fromBooleanDef $ Set.singleton mempty
+  fromBoolean = fromBooleanDef $ Seq.singleton mempty
 
 instance (Ord k, Monoid k, Monoid a) => Semiring (Map.Map k a) where
-
-  xs >< ys = Foldable.foldMap (flip Map.map xs . (<>)) ys
+  xs >< ys = foldMap (flip Map.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ Map.singleton mempty mempty
 
--- http://hackage.haskell.org/package/nonempty-containers-0.2.0.0/docs/Data-IntMap-NonEmpty.html
 instance Monoid a => Semiring (IntMap.IntMap a) where
-
-  xs >< ys = Foldable.foldMap (flip IntMap.map xs . (<>)) ys
+  xs >< ys = foldMap (flip IntMap.map xs . (<>)) ys
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ IntMap.singleton 0 mempty
 
 
-{-
-
-foo = IntMap.fromList [(1,Sum (1 :: Int)), (3, Sum 2)]
-bar = IntMap.fromList [(1,Sum (1 :: Int)), (2, Sum 2)]
-baz = IntMap.fromList [(2,Sum (1 :: Int)), (3, Sum 2)]
-
-foo = Map.fromList [("hi",Sum (1 :: Int)), ("there", Sum 2)]
-bar = Map.fromList [("hi",Sum (1 :: Int)), ("you", Sum 2)]
-baz = Map.fromList [("you",Sum (1 :: Int)), ("there", Sum 2)]
-
-prop_zero_absorb_right baz
-
-prop_distrib_right baz foo bar
-prop_distrib_right baz bar foo
-prop_distrib_right foo bar baz
-prop_distrib_right foo baz bar
-prop_distrib_right bar foo baz
-prop_distrib_right bar baz foo
-
-prop_distrib_left baz foo bar 
-prop_distrib_left baz bar foo
-prop_distrib_left foo bar baz
-prop_distrib_left foo baz bar -- False!
-prop_distrib_left bar foo baz
-prop_distrib_left bar baz foo -- False!
-
-
-foo >< (bar <> baz) == (foo >< bar) <> (foo >< baz)
-
-rhs = bar >< (foo <> baz) 
-lhs = (bar >< foo) <> (bar >< baz)
-
-λ> rhs
-fromList [("hi",Sum {getSum = 2}),("there",Sum {getSum = 3}),("you",Sum {getSum = 3})]
-λ> lhs
-fromList [("hi",Sum {getSum = 2}),("there",Sum {getSum = 3}),("you",Sum {getSum = 3})]
--}
-
-
-
-
-
--- A wrapper for 'Map' that implements a non-destructive addition.
-newtype WrappedMap k a = WrappedMap { unWrappedMap :: Map.Map k a } deriving ( Eq , Ord , Show )
-
-
-instance (Ord k, Semigroup a) => Semigroup (WrappedMap k a) where
-
-  (WrappedMap xs) <> (WrappedMap ys) = WrappedMap $ Map.unionWith (<>) xs ys
-
-
-instance (Ord k, Semigroup a) => Monoid (WrappedMap k a) where
-
-  mempty = WrappedMap Map.empty
-
--- This semiring has both right and left distributivity.
-instance (Ord k, Semigroup k, Semiring a) => Semiring (WrappedMap k a) where
-
-  (WrappedMap xs) >< (WrappedMap ys) = WrappedMap $ Map.fromListWith (<>) 
-     [ (k <> l, v >< u) | (k, v) <- Map.toList xs, (l, u) <- Map.toList ys ]
-  {-# INLINE (><) #-}
-
-  --fromBoolean = fromBooleanDef $ WrappedMap (Map.singleton mempty one)
-
-
-{-
-λ> foo = Map.fromList [("hi",WrappedNum (1 :: Int)), ("there", WrappedNum 2)]
-λ> bar = Map.fromList [("hi",WrappedNum (1 :: Int)), ("you", WrappedNum 2)]
-λ> foo >< bar
-
-foo = WrappedMap $ Map.fromList [("hi",WrappedNum (1 :: Int)), ("there", WrappedNum 2)]
-bar = WrappedMap $ Map.fromList [("hi",WrappedNum (1 :: Int)), ("you", WrappedNum 2)]
-baz = WrappedMap $ Map.fromList [("you",WrappedNum (1 :: Int)), ("there", WrappedNum 2)]
-
-prop_zero_absorb_right baz
-
-prop_distrib_right baz foo bar
-prop_distrib_right baz bar foo
-prop_distrib_right foo bar baz
-prop_distrib_right foo baz bar
-prop_distrib_right bar foo baz
-prop_distrib_right bar baz foo
--}
-
-
 ---------------------------------------------------------------------
--- Newtypes
+-- Newtype wrappers
 ---------------------------------------------------------------------
 
 {-
@@ -872,30 +646,31 @@ instance (Monoid a, Semiring a) => Monoid (Prod a) where
 
 
 
--- Provide a 'Num' instance for a 'Semiring' (or 'Dioid') in which negation has no effect.
-newtype Number a = Number { unNumber :: a }
+-- | Provide a 'Num' instance for a 'Semiring' in which negation has no effect.
+--
+-- Used with GHC 8.6+'s DerivingVia extension.
+--
+newtype N a = N { runN :: a }
   deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Storable,Functor)
 
-
-instance Semigroup r => Semigroup (Number r) where
+instance Semigroup r => Semigroup (N r) where
   (<>) = liftA2 (<>)
   {-# INLINE (<>) #-}
 
-
-instance Monoid r => Monoid (Number r) where
-  mempty = Number mempty
+instance Monoid r => Monoid (N r) where
+  mempty = N mempty
   {-# INLINE mempty #-}
 
-instance (Monoid r, Semiring r) => Semiring (Number r) where
+instance (Monoid r, Semiring r) => Semiring (N r) where
   (><) = liftA2 (><)
-  fromBoolean = Number . fromBoolean
+  fromBoolean = N . fromBoolean
 
-instance Applicative Number where
-  pure = Number
-  Number f <*> Number a = Number $ f a
+instance Applicative N where
+  pure = N
+  N f <*> N a = N $ f a
 
--- Note that 'one' must be distinct from 'zero' for this instance to be legal.
-instance (Monoid r, Semiring r) => Num (Number r) where
+-- | Note that 'one' must be distinct from 'zero' for this instance to be legal.
+instance (Monoid r, Semiring r) => Num (N r) where
   (+) = liftA2 (<>)
   (*) = liftA2 (><)
   negate = id
@@ -904,6 +679,7 @@ instance (Monoid r, Semiring r) => Num (Number r) where
   signum _ = one
   fromInteger 0 = zero
   fromInteger 1 = one
+  fromInteger (-1) = one
   fromInteger x = fromInteger (abs x - 1) <> one --TODO improve
 
 

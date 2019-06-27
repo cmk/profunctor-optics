@@ -16,17 +16,20 @@ cabal-version:       >=1.10
 library
   exposed-modules:
      Data.Dioid
-     --Data.Dioid.Tropical
-     Data.Dioid.Signed
-     Data.Dioid.Valid
-     Data.Dioid.Warning
+     Data.Dioid.Property
      Data.Semiring
+     Data.Semiring.Property
      Data.Semiring.Endomorphism
      --Data.Semiring.Free
      --Data.Semiring.Free.Unital
-     --Data.Semiring.Polynomial
-     --Data.Semiring.Matrix
-     --Data.Ring
+     Data.Semiring.Polynomial
+     Data.Semiring.Matrix
+     --Data.Positive
+     --Data.Interval
+     Data.Tropical
+     Data.Signed
+     Data.Valid
+     Data.Warning
      Orphans
      P
   -- other-modules:
@@ -50,13 +53,19 @@ library
     , contravariant
     , errors
     , free
-    , lattices
+    , genvalidity
+    , genvalidity-containers
+    , linear
     , microlens
     , nonempty-containers
     , safe
     , selective
     , semigroupoids
     , transformers
+    , validity
+    , validity-containers
+    , vector
+    --, genvalidity-property
 
   hs-source-dirs:      src
   default-language:    Haskell2010

@@ -19,7 +19,7 @@ module P (
 
   -- ** Natural
   , Natural
-  , Word8, Word16, Word32, Word64
+  , Word, Word8, Word16, Word32, Word64
 
   -- ** Integer
   , Integer
@@ -78,7 +78,10 @@ module P (
 
   -- ** Semigroup
   , Semigroup (..)
-
+  , All(..), Any(..)
+  , Min(..), Max(..)
+  , First(..), Last(..)
+  , Dual(..)
   -- ** Monoid
   , Monoid (..)
 
@@ -188,14 +191,14 @@ import Data.Int as Int (Int, Int8, Int16, Int32, Int64)
 import Data.Maybe as Maybe (Maybe (..), fromMaybe, maybe)
 import Data.Monoid as Monoid (Monoid (..))
 import Data.Ord as Ord ( Ord (..), Ordering (..), comparing)
-import Data.Semigroup as Semigroup (Semigroup(..))
+import Data.Semigroup as Semigroup
 import Data.Semigroup.Bifoldable as Bifoldable1 (Bifoldable1 (..))
 import Data.Semigroup.Bitraversable as Bitraversable1 (Bitraversable1 (..))
 import Data.Semigroup.Foldable as Foldable1 (Foldable1 (..))
 import Data.Semigroup.Traversable as Traversable1 (Traversable1 (..))
 import Data.Traversable as Traversable (Traversable (..), for)
 import Data.Tuple as Tuple (fst, snd, curry, uncurry)
-import Data.Word as Word ( Word8, Word16, Word32, Word64)
+import Data.Word as Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Real as Real (Ratio, Rational, numerator, denominator, fromIntegral, fromRational, realToFrac, mod, div, floor, ceiling)
 import Numeric.Natural as Natural
 import Prelude as Prelude (Bounded (..), Enum (..), Num (..), Floating, Double, Integer, seq, ($!))

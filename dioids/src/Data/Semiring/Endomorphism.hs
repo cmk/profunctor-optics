@@ -52,7 +52,7 @@ infixl 6 %
 
 infix 4 <%
 
-(<%) = (Monoid a, Dioid a) :: Cayley a -> Cayley a -> Bool
+(<%) :: (Monoid a, Dioid a) => Cayley a -> Cayley a -> Bool
 f <% g = lower f `ord` lower g
 
 -- >>> lower $ lift 3 . lift 3 % lift 4 . lift 4 :: Int
@@ -77,7 +77,7 @@ sum :: (Foldable t, Monoid r, Semiring r) => t r -> r
 sum = sumWith id
 
 sumWith :: (Foldable t, Monoid r, Semiring r) => (a -> r) -> t a -> r
-sumWith f = lower . foldr ((+) . lift . f) zero'
+sumWith f = lower . foldr ((<>) . lift . f) zero'
 
 product :: (Foldable t, Monoid r, Semiring r) => t r -> r
 product = productWith id

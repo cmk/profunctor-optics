@@ -32,6 +32,15 @@ instance Monoid e => Alternative (Either e) where
 
 --instance Monoid e => Monoid (Either e a) where mempty = Left mempty
 
+instance Semigroup Word where
+
+  (<>) = (+)
+
+
+instance Monoid Word where
+
+  mempty = 0
+
 
 instance Semigroup Int where
 

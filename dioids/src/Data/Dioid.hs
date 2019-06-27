@@ -15,8 +15,15 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Orphans ()
 import Control.Selective -- (Under(..), Over(..), ifS)
 
-import qualified Control.Exception as Ex
 import qualified Data.Set as Set
+import qualified Data.Map as Map
+import qualified Data.Map.NonEmpty as NEMap
+import qualified Data.Sequence as Seq
+import qualified Data.Sequence.NonEmpty as NESeq
+import qualified Data.Set as Set
+import qualified Data.Set.NonEmpty as NESet
+import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.NonEmpty as NEIntMap
 
 import P
 
@@ -25,6 +32,8 @@ import Control.Monad.Catch (MonadThrow(..))
 import Control.Monad.Catch.Pure
 import Control.Monad.Fail
 -}
+
+infix 4 <~
 
 {-
 An idempotent dioid is a dioid in which the addition ⊕ is idempotent.
@@ -46,18 +55,26 @@ TODO- integrate selective applicative
 -- | Pre-dioids and dioids.
 --
 -- A pre-dioid is a pre-semiring with a (right) canonical order relation relative to '<>':
--- @'ord' a b@ iff @b ≡ a <> c@ for some @c@.
+-- @'<~' a b@ iff @b ≡ a <> c@ for some @c@.
 --
 -- A dioid is a semiring with the same relation .
 class (Eq r, Semiring r) => Dioid r where 
-  
+
+  -- If @r@ implements 'Ord' then ideally '<~' ≡ '<='
   ord :: r -> r -> Bool
-  --   ord :: Equivalence r
 
-infix 4 <~
+  (<~) :: r -> r -> Bool
+  (<~) = ord
 
-(<~) :: Dioid r => r -> r -> Bool
-(<~) = ord
+  -- monus :: r -> r -> r -- smallest c st a + c = b 
+  --TODO only worth refining if this op is going to get used heavily
+  --(<~) :: r -> r -> Bool
+  --(<~~) :: Eq r => r -> r -> Bool
+  --(<~~) a b = lt a b || a == b
+
+
+
+
 
 
 
@@ -80,18 +97,19 @@ infix 4 =~
 -- Transitive: a =~ b && b =~ c ==> a =~ c
 -- @
 (=~) :: Dioid r => r -> r -> Bool
-a =~ b = a `ord` b && b `ord` a
+a =~ b = a <~ b && b <~ a
 
 
 infix 4 <~?
 
--- | Check whether two elements are ordered with respect to the relation. 
+-- | Check whether two elements are comparable with respect to the relation. 
 --
 -- @
 -- x '<~?' y = x '<~' y '||' y '<~' x
 -- @
+--
 (<~?) :: Dioid r => r -> r -> Bool
-a <~? b = a `ord` b || b `ord` a
+a <~? b = a <~ b || b <~ a
 
 
 {-
@@ -100,129 +118,22 @@ instance (Dioid a, Selective f) => Semigroup (f a) where
 
 -}
 
-
---prop_idempotent_zero :: Bool
---prop_idempotent_zero  
-
-iff = xnor
-
-------------------------------------------------------------------------------------
--- | Properties of (right) pre-dioids & dioids
-
--- | 'ord' is a (right) preorder relation relative to '<>'
-prop_order_preorder :: (Eq r, Dioid r) => r -> r -> r -> Bool
-prop_order_preorder a b c = a `ord` b ==> a <> c == b
- 
--- | 'ord' is a total (right) order relation 
-prop_order_complete :: (Eq r, Dioid r) => r -> r -> Bool
-prop_order_complete a b = (a =~ b) `iff` (a == b)
-
--- | 'ord' is reflexive (right) order relation 
-prop_order_reflexive :: Dioid r => r -> Bool
-prop_order_reflexive a = a `ord` a
-
--- | 'ord' is transitive (right) order relation 
-prop_order_transitive :: Dioid r => r -> r -> r -> Bool
-prop_order_transitive a b c = a `ord` b && b `ord` c ==> a `ord` c
-
-------------------------------------------------------------------------------------
--- | Properties of dioids
-
--- | 'fromBoolean' is a Dioid homomorphism (i.e. a monotone or order-preserving function)
-prop_monotone_boolean :: forall r. (Monoid r, Dioid r) => Bool -> Bool -> Bool
-prop_monotone_boolean a b = a <= b ==> fromBoolean a `ord` (fromBoolean b :: r)
-
-prop_positive_addition :: (Monoid r, Dioid r) => r -> r -> Bool
-prop_positive_addition a b = a <> b =~ zero ==> a =~ zero && b =~ zero
-
--- @a <~ b@ implies @forall x. a >< x <~ b >< x@
-prop_order_multiplication :: Dioid r => r -> r -> r -> Bool
-prop_order_multiplication a b c = a `ord` b ==> a >< c `ord` (b >< c)
-
--- @a <~ b@ implies @forall x. x >< a <~ x >< b@
-prop_order_multiplication' :: Dioid r => r -> r -> r -> Bool
-prop_order_multiplication' a b c = a `ord` b ==> c >< a `ord` (c >< b)
-
-------------------------------------------------------------------------------------
--- | Additional properties of certain subclasses of dioid.
-
-
----- Positivity
-
--- See Gondran and Minoux p. 44 (Exercise 5)
-prop_positive_multiplication :: (Dioid r, Monoid r, Semiring r) => r -> r -> Bool
-prop_positive_multiplication a b = a >< b =~ zero ==> a =~ zero || b =~ zero
-
----- Absorbativity
-
--- | The canonical order relation must be compatible with any additive absorbitivity. 
---
--- This means that a dioid with an absorbative multiplicative unit must satisfy:
---
--- @
--- ('one' <~) ≡ ('one' =~)
--- @
---
-prop_absorbative :: (Eq r, Monoid r, Dioid r) => r -> Bool
-prop_absorbative r = 
-  prop_absorbative_addition one r ==> (one <~ r) `iff` (one =~ r)
-
----- Idempotency
--- See Gondran and Minoux p. 44 (Exercise 4)
-
--- | @(a >< b) <> c ≡ a >< (b <> c)@
--- When @r@ is a functor and the semiring structure is derived from 'Selective', 
--- this translates to: @(x *> y) <*? z ≡ x *> (y <*? z)@
-prop_idempotent :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_idempotent a b c = (a >< b) <> c == a >< (b <> c)
-
----- Commutivity
-
-{-
--- See Gondran and Minoux p. 12
-prop_commutative_preorder :: (Eq r, Dioid r) => r -> r -> Bool
-prop_commutative_preorder a b c =
-  prop_commutative_addition b c ==> 
-
-
--- See Gondran and Minoux p. 15 (Proposition 3.4.5)
-prop_commutative_order :: (Eq r, Dioid r) => Natural -> r -> r -> r -> Bool
-prop_commutative_order n a b c =
-  prop_commutative_addition b c &&
-  prop_preorder_addition a b c &&
-  prop_idempotent_addition n a ==> prop_order_addition_complete b c
--}
-
----- Selectivity
-
--- | If @<>@ is selective then 'ord' defines a total order relation.
-prop_selective_total :: (Eq r, Dioid r) => r -> r -> Bool
-prop_selective_total a b = --prop_selective_additive a b ==> ord a b || ord b a
-  prop_selective_addition a b ==> ord a b `xor` ord b a
-
--- Given 'prop_absorbative_multiplication', 'prop_distributive' & 'prop_neutral_mulitplication'
--- we can derive the following interchange property: @a == a <> b >< a@
-prop_interchange :: (Eq r, Monoid r, Semiring r) => r -> r -> Bool
-prop_interchange a b =
-  prop_distributive one a b &&
-  prop_absorbative_multiplication one a &&
-  prop_neutral_multiplication one b ==> a == a <> b >< a
-
--- See Gondran and Minoux p. 31
-prop_distributive_complete :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
-prop_distributive_complete a bs = fold bs >< a == foldMap (>< a) bs
-
-prop_distributive_complete' :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
-prop_distributive_complete' a bs = a >< fold bs == foldMap (a ><) bs
-
-
 -------------------------------------------------------------------------------
--- Fixed point utilities
+-- Fixed points
 -------------------------------------------------------------------------------
+
+-- | Implementation of the Kleene fixed-point theorem <http://en.wikipedia.org/wiki/Kleene_fixed-point_theorem>.
+-- Forces the function to be monotone.
+{-# INLINE lfp #-}
+lfp :: (Monoid a, Dioid a) => (a -> a) -> a
+lfp = lfpFrom zero
+
+lfpFrom :: Dioid a => a -> (a -> a) -> a
+lfpFrom init f = lfpFrom' ord init $ \x -> f x <> x
 
 -- | Least point of a partially ordered monotone function. Checks that the function is monotone.
-lfpFrom :: (Eq a, Dioid a) => a -> (a -> a) -> a
-lfpFrom = lfpFrom' ord
+--lfpFrom :: Dioid a => a -> (a -> a) -> a
+--lfpFrom = lfpFrom' ord
 
 -- | Least point of a partially ordered monotone function. Does not checks that the function is monotone.
 unsafeLfpFrom :: Eq a => a -> (a -> a) -> a
@@ -236,24 +147,6 @@ lfpFrom' check init_x f = go init_x
              | otherwise    = error "lfpFrom: non-monotone function"
           where x' = f x
 
-
--- | Greatest fixed point of a partially ordered antinone function. Checks that the function is antinone.
-{-# INLINE gfpFrom #-}
-gfpFrom :: (Eq a, Dioid a) => a -> (a -> a) -> a
-gfpFrom = gfpFrom' ord
-
--- | Greatest fixed point of a partially ordered antinone function. Does not check that the function is antinone.
-{-# INLINE unsafeGfpFrom #-}
-unsafeGfpFrom :: Eq a => a -> (a -> a) -> a
-unsafeGfpFrom = gfpFrom' (\_ _ -> True)
-
-{-# INLINE gfpFrom' #-}
-gfpFrom' :: Eq a => (a -> a -> Bool) -> a -> (a -> a) -> a
-gfpFrom' check init_x f = go init_x
-  where go x | x' == x      = x
-             | x' `check` x = go x'
-             | otherwise    = error "gfpFrom: non-antinone function"
-          where x' = f x
 
 -------------------------------------------------------------------------------
 -- Pre-dioids
@@ -272,19 +165,37 @@ instance Ord a => Dioid (Min a) where
   ord = (>=)
 
 
-instance (Eq a, Monoid a) => Dioid (NonEmpty a) where
+instance (Eq e, Eq a, Semigroup a) => Dioid (Either e a) where
+  Right a <~ Right b  = a == b
+  Right _ <~ _        = False
+  
+  Left e  <~ Left f   = e == f
+  Left _  <~ _        = True
 
+
+instance (Eq a, Monoid a) => Dioid (NonEmpty a) where
   ord (a :| as) (b :| bs) = a == b && ord as bs
 
+{-
+instance Semigroup a => Semiring (NESeq.NESeq a) where
+  (><) = liftA2 (<>) 
+  {-# INLINE (><) #-}
 
-instance (Eq e, Eq a, Semigroup a) => Dioid (Either e a) where
 
-  Right a `ord` Right b  = a == b
-  Right _ `ord` _        = False
-  
-  Left e  `ord` Left f   = e == f
-  Left _  `ord` _        = True
+instance (Ord a, Semigroup a) => Semiring (NESet.NESet a) where
+  xs >< ys = foldMap1 (flip NESet.map xs . (<>)) ys
+  {-# INLINE (><) #-}
 
+
+instance (Ord k, Semigroup a) => Semiring (NEMap.NEMap k a) where
+  xs >< ys = foldMap1 (flip NEMap.map xs . (<>)) ys
+  {-# INLINE (><) #-}
+
+
+instance Semigroup a => Semiring (NEIntMap.NEIntMap a) where
+  xs >< ys = foldMap1 (flip NEIntMap.map xs . (<>)) ys
+  {-# INLINE (><) #-}
+-}
 
 -------------------------------------------------------------------------------
 -- Dioids
@@ -322,15 +233,29 @@ instance Dioid All where
 instance Dioid Natural where
   ord = (<=)
 
-instance (Dioid a, Dioid b) => Dioid (a, b) where
+instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b) where
   ord (a, b) (c, d) = ord a c && ord b d 
+
+-- | The free monoid on @a@ is a (right and left-cancellative) dioid. 
+--
+instance (Eq a, Monoid a) => Dioid [a] where
+  ord a b = isJust $ stripPrefix a b
+
+instance (Eq a, Monoid a, Dioid a) => Dioid (Maybe a) where
+  Just a <~ Just b = a <~ b
+  x@Just{} <~ Nothing = False
+  Nothing <~ x = Nothing == x
+
+
+-- instance Dioid (ZipList a) where
+--  ord x y = ---- analagous to 'isPrefixOf'
 
 instance (Monoid a, Dioid a) => Dioid (Dual a) where
   ord (Dual a) (Dual b) = ord b a
 
 
 instance (Monoid r, Dioid r, Semiring r) => Dioid (Over r a) where
-  Over a `ord` Over b = a `ord` b
+  Over a <~ Over b = a <~ b
 
 instance (Eq r, Monoid r, Semiring r) => Dioid (Under r a) where
   ord = (==)
@@ -357,81 +282,39 @@ instance Monoid m => Applicative (Select m) where
 instance (Monoid m, Dioid m) => Selective (Select m) where
   select (Select x) (Select y) = Select (y `sel` x)
 
--- | The free monoid on @a@ is a (right and left-cancellative) dioid. 
---
-instance (Eq a, Monoid a) => Dioid [a] where
-  ord a b = isJust $ stripPrefix a b
-
-
-
-
-
-
-
--- instance Dioid (ZipList a) where
---  ord x y = ---- analagous to 'isPrefixOf'
-
-
--- Dioid instances for (R, Min, +)
-
--- This is a very important class of dioids underlying a wide variety of problems, in particular many non classical path-finding problems in graphs
---instance Dioid End where
-
-
-
---instance Dioid Any where dempty = Any True
-
--- Note that this instance uses 'False' as its multiplicative unit. 
---instance Dioid All where dempty = All False
-
---instance Dioid a => Dioid (Maybe a) where  dempty = Just dempty -- relies on a's dempty to satisfy the right absorbtion law
-
---instance Monoid a => Dioid (Either e a) where dempty = pure mempty
-
-
---instance Monad m => Monoid (Kleisli m a)
---instance Monad m => Semigroup (Signed (Kleisli m a) ...
-
-
+  
 ---------------------------------------------------------------------
---  Instances (contravariant)
+-- QuickCheck
 ---------------------------------------------------------------------
-
---deriving instance Semiring (Predicate a)
-
 {-
-Let E be a set and R (E) the set of binary relations on E. 
-One verifies that R (E), endowed with the two following laws:
+import qualified Test.QuickCheck   as QC
 
-R ⊕ R' :  x (R ⊕ R') y iff x R y or xR'y,
-R ⊗ R' : x (R ⊗ R') y iff ∃ z ∈ E with x R z and z R' y
-is an idempotent dioid.
+instance Semiring QC.Property where
+  (<>) = (QC..||.)
+  (><) = (QC..&&.)
 
-The canonical order relation corresponds to: R ≤ R' if and only if x Ry implies
-x R' y, i.e. iff R is finer than R'
-.
+  zero = QC.property False
+  one = QC.property True
+
+instance Dioid QC.Property where
+  ord = (==)
 -}
-
--- | Binary Relations. This would be bicontravariant
-newtype Relation a b = Relation { runRelation :: a -> b -> Bool }
-
-instance Semigroup (Relation a a) where
-  Relation p <> Relation q = Relation $ \a b -> p a b || q a b
-
-instance Monoid (Relation a a) where
-  mempty = Relation (\_ _ -> False)
-
-
-
-
 
 ---------------------------------------------------------------------
 --  Instances (containers)
 ---------------------------------------------------------------------
 
-instance (Ord a, Monoid a) => Dioid (Set.Set a) where
-
+instance Ord a => Dioid (Set.Set a) where
   ord = Set.isSubsetOf
+
+instance (Ord k, Monoid k, Monoid a, Dioid a) => Dioid (Map.Map k a) where
+  ord = Map.isSubmapOfBy ord
+
+instance (Monoid a, Dioid a) => Dioid (IntMap.IntMap a) where
+  ord = IntMap.isSubmapOfBy ord
+
+
+
 
 {-
 import qualified Data.HashMap.Lazy as HM
@@ -441,21 +324,27 @@ import qualified Data.IntSet       as IS
 import qualified Data.List.Compat  as L
 import qualified Data.Map          as M
 
+instance Ord a => Lattice (S.Set a) where
+    (\/) = S.union
+    (/\) = S.intersection
+
+instance Ord a => BoundedJoinSemiLattice (S.Set a) where
+    bottom = S.empty
+
+instance (Ord a, Finite a) => BoundedMeetSemiLattice (S.Set a) where
+    top = S.fromList universeF
+
+
 instance Dioid IS.IntSet where
     ord = IS.isSubsetOf
 
 instance (Eq k, Hashable k) => Dioid (HS.HashSet k) where
     ord a b = HS.null (HS.difference a b)
 
-instance (Ord k, Dioid v) => Dioid (M.Map k v) where
-    ord = M.isSubmapOfBy ord
-
-instance Dioid v => Dioid (IM.IntMap v) where
-    ord = IM.isSubmapOfBy ord
 
 instance (Eq k, Hashable k, Dioid v) => Dioid (HM.HashMap k v) where
-    x `ord` y = {- wish: HM.isSubmapOfBy ord -}
-        HM.null (HM.difference x y) && getAll (fold $ HM.intersectionWith (\vx vy -> All (vx `ord` vy)) x y)
+    x <~ y = {- wish: HM.isSubmapOfBy ord -}
+        HM.null (HM.difference x y) && getAll (fold $ HM.intersectionWith (\vx vy -> All (vx <~ vy)) x y)
 
 
 concat :: NonEmpty (NonEmpty a) -> NonEmpty a
