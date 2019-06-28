@@ -2,6 +2,7 @@
 
 module Data.Semiring.Property where
 
+import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Semiring
 import P
@@ -222,6 +223,14 @@ prop_distributive_cross as bs = fold as >< fold bs == cross as bs
 
 ---- Idempotency
 
+prop_idempotent :: Eq r => (r -> r) -> r -> Bool
+prop_idempotent f r = f (f r) == f r
+
+prop_idempotent_k :: Eq r => Natural -> (r -> r) -> r -> Bool
+prop_idempotent_k k f r = k >= 1 ==> endo fs r == f r
+  where fs = (`unfoldr` k) $ \m -> bool (Just (f,m-1)) Nothing (m==1)
+
+
 -- G & M p. 15, Proposition 3.4.5 .
 prop_idempotent_addition :: (Eq r, Semigroup r) => Natural -> r -> Bool
 prop_idempotent_addition n r = n >= 1 ==> r == foldMap1 id (r :| rep [r] (n-1))
@@ -239,14 +248,15 @@ prop_absorbative_weak a b =
   prop_neutral_multiplication one b &&
   prop_annihilative_multiplication zero a ==> a == a <> b >< a
 
+
 -- See Gondran and Minoux p. 44 (Exercise 4)
 
 
 -- | @(a >< b) <> c ≡ a >< (b <> c)@
 -- When @r@ is a functor and the semiring structure is derived from 'Selective', 
 -- this translates to: @(x *> y) <*? z ≡ x *> (y <*? z)@
-prop_idempotent :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_idempotent a b c = a >< b <> c == a >< (b <> c)
+prop_absorbative :: (Eq r, Semiring r) => r -> r -> r -> Bool
+prop_absorbative a b c = a >< b <> c == a >< (b <> c)
 
 -- | A generalized form of multiplicative idempotency.
 --
@@ -277,14 +287,14 @@ prop_absorbative_addition' o a = a <> a >< o == a
 
 -- | Right cancellativity:
 --
--- @m >< m' == m >< m''@ implies @m' == m''@
+-- @m >< m' ≡ m >< m''@ implies @m' ≡ m''@
 --
 prop_cancellative :: (Eq r, Semiring r) => r -> r -> r -> Bool
 prop_cancellative a b c = a >< b == a >< c ==> b == c
 
 -- | Left cancellativity:
 --
--- @m' >< m == m'' >< m@ implies @m' == m''@
+-- @m' >< m ≡ m'' >< m@ implies @m' ≡ m''@
 --
 prop_cancellative' :: (Eq r, Semiring r) => r -> r -> r -> Bool
 prop_cancellative' a b c = a >< c == b >< c ==> a == c
@@ -298,4 +308,43 @@ prop_selective_addition a b = ab == a || ab == b where ab = a <> b
 prop_selective_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
 prop_selective_multiplication a b = ab == a || ab == b where ab = a >< b
 
+
+---- Closure
+
+-- | Finite closure property of a semiring.
+--
+-- If this property holds for some /x/ and /p/, then we have:
+--
+-- @
+-- 'powers' p x ≡ x '><' 'powers' p x '<>' 'one'  ≡ 'powers' p x '><' x '<>' 'one' 
+-- @
+--
+-- If '<>' and '><' are idempotent then every element is 1-stable:
+--
+-- @ 'one' '<>' a '<>' a '><' a = 'one' '<>' a '<>' a = 'one' <> a @
+--
+-- See Gondran and Minoux, Definition 7.1 (p. 97).
+--
+prop_closure_pstable :: (Eq r, Monoid r, Semiring r) => Natural -> r -> Bool
+prop_closure_pstable p a = powers p a == powers (p <> one) a
+
+prop_closure_paffine :: (Eq r, Monoid r, Semiring r) => Natural -> r -> r -> Bool
+prop_closure_paffine p a b = prop_closure_pstable p a ==> x == a >< x <> b 
+  where x = powers p a >< b
+
+prop_closure_stable :: (Eq r, Monoid r, Closed r) => r -> Bool
+prop_closure_stable a = star a == star a >< a <> one
+
+prop_closure_stable' :: (Eq r, Monoid r, Closed r) => r -> Bool
+prop_closure_stable' a = star a == one <> a >< star a
+
+prop_closure_affine :: (Eq r, Monoid r, Closed r) => r -> r -> Bool
+prop_closure_affine a b = x == a >< x <> b where x = star a >< b
+
+-- If @r@ is a closed dioid then 'star' must be idempotent:
+--
+-- @'star' ('star' x) == 'star' x@
+--
+prop_idempotent_star :: (Eq r, Closed r) => r -> Bool
+prop_idempotent_star = prop_idempotent star
 

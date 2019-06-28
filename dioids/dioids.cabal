@@ -24,7 +24,7 @@ library
      --Data.Semiring.Free.Unital
      Data.Semiring.Polynomial
      Data.Semiring.Matrix
-     --Data.Positive
+     Data.Positive
      --Data.Interval
      Data.Tropical
      Data.Signed
@@ -39,6 +39,7 @@ library
      DerivingVia
      DeriveFunctor
      DeriveGeneric
+     DeriveDataTypeable
      FlexibleInstances
      GeneralizedNewtypeDeriving
      RankNTypes
@@ -61,7 +62,9 @@ library
     , safe
     , selective
     , semigroupoids
+    , text
     , transformers
+    , template-haskell
     , validity
     , validity-containers
     , vector

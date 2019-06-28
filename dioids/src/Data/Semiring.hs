@@ -10,6 +10,7 @@ import Data.Coerce (coerce)
 import Data.Functor.Apply
 import Data.Functor.Contravariant.Divisible
 import Data.Functor.Contravariant
+import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
 
 import Data.Complex (Complex(..))
@@ -181,7 +182,22 @@ cross a b = fold $ liftA2 (><) a b
 cross1 :: (Foldable1 t, Apply t, Semiring r) => t r -> t r -> r
 cross1 a b = fold1 $ liftF2 (><) a b
 
-rep :: Monoid m => m -> Natural -> m
+
+infixr 8 ^
+
+(^) :: (Monoid r, Semiring r) => r -> Natural -> r
+(^) x = go
+  where
+    go 0 = one
+    go 1 = x
+    go n
+      | even n = r >< r
+      | otherwise = x >< r >< r
+      where
+        r = go (n `div` 2)
+{-# INLINE (^) #-}
+
+rep :: Monoid r => r -> Natural -> r
 rep x = go
   where
     go 0 = mempty
@@ -193,24 +209,33 @@ rep x = go
         r = go (n `div` 2)
 {-# INLINE rep #-}
 
+powers :: (Monoid r, Semiring r) => Natural -> r -> r
+powers n a = foldr' (<>) one . flip unfoldr n $ \m -> 
+  if m == 0 then Nothing else Just (a^m,m-1)
+
+{-
+powers1 :: Semiring r => r -> Positive Natural -> r
+powers1 a n = foldr' (<>) a . flip unfoldr (unPositive n) $ \m -> 
+  if m == 1 then Nothing else Just (a^m,m-1)
+-}
 
 -------------------------------------------------------------------------------
 -- 'Closed'
 -------------------------------------------------------------------------------
 
--- | A <https://en.wikipedia.org/wiki/Semiring#Closed_semirings Closed semiring>
--- adds one operation, 'star' to a 'Semiring', such that it follows the
--- law:
+-- | A <https://en.wikipedia.org/wiki/Semiring#Closed_semirings closed semiring>
+-- adds one operation, 'star' to a 'Semiring', with an infinite closure property:
 --
--- @'star' x = 'one' '<>' (x '><' 'star' x) = 'one' '<>' 'star' x '><' x@
+-- @'star' x ≡ 'star' x '><' x '<>' 'one' ≡ x '><' 'star' x '<>' 'one'@
 --
--- Another operation, 'plus', can be defined in terms of 'star':
+-- 'plus' can then be defined in terms of 'star':
 --
--- @'plus' x = x '><' ('one' '<>' 'plus' x) @
-
--- star is left adjoint to plus TODO: always true?
-
--- Note that if @r@ is a dioid then 'star' must be a monotone map.
+-- @'plus' x ≡ ('plus' x '<>' 'one') '><' x@
+--
+-- If @r@ is a dioid then 'star' must be monotone:
+--
+-- @x '<~' y ==> 'star' x '<~' 'star' y
+--
 class (Monoid a, Semiring a) => Closed a where
   {-# MINIMAL star | plus #-} 
   star :: a -> a
@@ -227,6 +252,7 @@ class (Monoid a, Semiring a) => Closed a where
 --plus = (<> one) . (>< one)
 --star = fmap fold . some
 --plus = fmap fold . many
+
 
 instance Closed b => Closed (a -> b) where
   star = (.) star
@@ -247,10 +273,6 @@ instance Closed () where
   {-# INLINE star #-}
   {-# INLINE plus #-}
 
-{-
-prop_closed_idempotent
-
--}
 
 -------------------------------------------------------------------------------
 -- Pre-semirings
@@ -348,6 +370,7 @@ instance Semiring Bool where
 instance Semiring Natural where
   (><) = (*)
   fromBoolean = fromBooleanDef 1
+
 
 instance Semiring Int where
   (><) = (*)

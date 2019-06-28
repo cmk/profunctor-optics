@@ -54,13 +54,12 @@ TODO- integrate selective applicative
 
 -- | Pre-dioids and dioids.
 --
--- A pre-dioid is a pre-semiring with a (right) canonical order relation relative to '<>':
+-- A pre-dioid is a pre-semiring with a (right) canonical (<~)er relation relative to '<>':
 -- @'<~' a b@ iff @b ≡ a <> c@ for some @c@.
 --
 -- A dioid is a semiring with the same relation .
 class (Eq r, Semiring r) => Dioid r where 
 
-  -- If @r@ implements 'Ord' then ideally '<~' ≡ '<='
   ord :: r -> r -> Bool
 
   (<~) :: r -> r -> Bool
@@ -80,16 +79,16 @@ class (Eq r, Semiring r) => Dioid r where
 
 
 sel :: Dioid r => r -> r -> r
-sel a b = bool a b $ ord a b
+sel a b = bool a b $ a <~ b
 
 -- | Monotone pullback to booleans.
 ord' :: forall r. (Monoid r, Dioid r) => Equivalence Bool
-ord' = contramap fromBoolean (Equivalence ord :: Equivalence r)
+ord' = contramap fromBoolean (Equivalence (<~) :: Equivalence r)
 
 
 infix 4 =~
 
--- | The equality relation induced by the partial-order structure. It satisfies
+-- | The equality relation induced by the partial-(<~)er structure. It satisfies
 -- the laws of an equivalence relation:
 -- @
 -- Reflexive:  a =~ a
@@ -129,13 +128,13 @@ lfp :: (Monoid a, Dioid a) => (a -> a) -> a
 lfp = lfpFrom zero
 
 lfpFrom :: Dioid a => a -> (a -> a) -> a
-lfpFrom init f = lfpFrom' ord init $ \x -> f x <> x
+lfpFrom init f = lfpFrom' (<~) init $ \x -> f x <> x
 
--- | Least point of a partially ordered monotone function. Checks that the function is monotone.
+-- | Least point of a partially (<~)ered monotone function. Checks that the function is monotone.
 --lfpFrom :: Dioid a => a -> (a -> a) -> a
---lfpFrom = lfpFrom' ord
+--lfpFrom = lfpFrom' (<~)
 
--- | Least point of a partially ordered monotone function. Does not checks that the function is monotone.
+-- | Least point of a partially (<~)ered monotone function. Does not checks that the function is monotone.
 unsafeLfpFrom :: Eq a => a -> (a -> a) -> a
 unsafeLfpFrom = lfpFrom' (\_ _ -> True)
 
@@ -154,15 +153,15 @@ lfpFrom' check init_x f = go init_x
 
 -- | 'First a' forms a pre-dioid for any semigroup @a@.
 instance (Eq a, Semigroup a) => Dioid (First a) where
-  ord = (==)
+  (<~) = (==)
 
 
 instance Ord a => Dioid (Max a) where
-  ord = (<=)
+  (<~) = (<=)
 
 
 instance Ord a => Dioid (Min a) where
-  ord = (>=)
+  (<~) = (>=)
 
 
 instance (Eq e, Eq a, Semigroup a) => Dioid (Either e a) where
@@ -174,7 +173,7 @@ instance (Eq e, Eq a, Semigroup a) => Dioid (Either e a) where
 
 
 instance (Eq a, Monoid a) => Dioid (NonEmpty a) where
-  ord (a :| as) (b :| bs) = a == b && ord as bs
+  (<~) (a :| as) (b :| bs) = a == b && (<~) as bs
 
 {-
 instance Semigroup a => Semiring (NESeq.NESeq a) where
@@ -205,41 +204,38 @@ instance Semigroup a => Semiring (NEIntMap.NEIntMap a) where
 
 -- | Only the trivial dioid can have a total order relation that is constantly true.
 instance Dioid () where
-  ord _ _ = True
+  (<~) _ _ = True
 
--- Note that the partial ordering is distict from the 'Ord' instance. See 'Data.Semiring.Signed'.
+-- Note that the partial ordering is derived from the monoid instance, and is distict from the 'Ord' instance. See 'Data.Semiring.Signed'.
 instance Dioid Ordering where
-  ord GT GT = True
-  ord GT EQ = True
-  ord GT LT = False
+  (<~) GT a = (== GT) a
 
-  ord LT LT = True
-  ord LT EQ = True
-  ord LT GT = False
+  (<~) LT a = (== LT) a
 
-  ord EQ EQ = True
-  ord EQ _  = False
-
+  (<~) EQ _  = True
 
 instance Dioid Bool where
-  ord = (<=)
+  (<~) = (<=)
 
 instance Dioid Any where
-  ord = (<=)
+  (<~) = (<=)
 
 instance Dioid All where
-  ord = (<=)
+  (<~) = (>=)
 
 instance Dioid Natural where
-  ord = (<=)
+  (<~) = (<=)
+
+instance Dioid Word where
+  (<~) = (<=)
 
 instance (Monoid a, Monoid b, Dioid a, Dioid b) => Dioid (a, b) where
-  ord (a, b) (c, d) = ord a c && ord b d 
+  (<~) (a, b) (c, d) = a <~ c && b <~ d 
 
 -- | The free monoid on @a@ is a (right and left-cancellative) dioid. 
 --
 instance (Eq a, Monoid a) => Dioid [a] where
-  ord a b = isJust $ stripPrefix a b
+  (<~) a b = isJust $ stripPrefix a b
 
 instance (Eq a, Monoid a, Dioid a) => Dioid (Maybe a) where
   Just a <~ Just b = a <~ b
@@ -248,41 +244,18 @@ instance (Eq a, Monoid a, Dioid a) => Dioid (Maybe a) where
 
 
 -- instance Dioid (ZipList a) where
---  ord x y = ---- analagous to 'isPrefixOf'
+--  (<~) x y = ---- analagous to 'isPrefixOf'
 
 instance (Monoid a, Dioid a) => Dioid (Dual a) where
-  ord (Dual a) (Dual b) = ord b a
+  (<~) (Dual a) (Dual b) = (<~) b a
 
 
 instance (Monoid r, Dioid r, Semiring r) => Dioid (Over r a) where
   Over a <~ Over b = a <~ b
 
 instance (Eq r, Monoid r, Semiring r) => Dioid (Under r a) where
-  ord = (==)
+  (<~) = (==)
 
-{-
-ifS (Select ["a"]) (Select ["b"]) (Select ["c"]) *> Select ["d"] *> whenS (Select ["e"]) (Select ["f"])
-Select {runSelect = ["a","d","e"]}
-Select {runSelect = ["c","d","f"]} -- flipped 'Select' instance
-
-ifS (Dual $ Select ["a"]) (Dual $ Select ["b"]) (Dual $ Select ["c"]) *> (Dual $ Select ["d"]) *> whenS (Dual $ Select ["e"]) (Dual $ Select ["f"])
-
-ifS (Select ["a"]) (Select ["ab"]) (Select ["ac"]) *> Select ["ad"] *> whenS (Select ["de"]) (Select ["df"])
-
-λ>  ifS (Under "a") (Under "b") (Under "c") *> Under "d" *> whenS (Under "e") (Under "f")
--}
-
-newtype Select m a = Select { runSelect :: m }
-  deriving (Eq, Functor, Ord, Show)
-
-instance Monoid m => Applicative (Select m) where
-  pure _            = Select mempty
-  Select x <*> Select y = Select (mappend x y)
-
-instance (Monoid m, Dioid m) => Selective (Select m) where
-  select (Select x) (Select y) = Select (y `sel` x)
-
-  
 ---------------------------------------------------------------------
 -- QuickCheck
 ---------------------------------------------------------------------
@@ -297,7 +270,7 @@ instance Semiring QC.Property where
   one = QC.property True
 
 instance Dioid QC.Property where
-  ord = (==)
+  (<~) = (==)
 -}
 
 ---------------------------------------------------------------------
@@ -305,13 +278,13 @@ instance Dioid QC.Property where
 ---------------------------------------------------------------------
 
 instance Ord a => Dioid (Set.Set a) where
-  ord = Set.isSubsetOf
+  (<~) = Set.isSubsetOf
 
 instance (Ord k, Monoid k, Monoid a, Dioid a) => Dioid (Map.Map k a) where
-  ord = Map.isSubmapOfBy ord
+  (<~) = Map.isSubmapOfBy (<~)
 
 instance (Monoid a, Dioid a) => Dioid (IntMap.IntMap a) where
-  ord = IntMap.isSubmapOfBy ord
+  (<~) = IntMap.isSubmapOfBy (<~)
 
 
 
@@ -324,28 +297,15 @@ import qualified Data.IntSet       as IS
 import qualified Data.List.Compat  as L
 import qualified Data.Map          as M
 
-instance Ord a => Lattice (S.Set a) where
-    (\/) = S.union
-    (/\) = S.intersection
-
-instance Ord a => BoundedJoinSemiLattice (S.Set a) where
-    bottom = S.empty
-
-instance (Ord a, Finite a) => BoundedMeetSemiLattice (S.Set a) where
-    top = S.fromList universeF
-
-
 instance Dioid IS.IntSet where
-    ord = IS.isSubsetOf
+    (<~) = IS.isSubsetOf
 
 instance (Eq k, Hashable k) => Dioid (HS.HashSet k) where
-    ord a b = HS.null (HS.difference a b)
-
+    (<~) a b = HS.null (HS.difference a b)
 
 instance (Eq k, Hashable k, Dioid v) => Dioid (HM.HashMap k v) where
-    x <~ y = {- wish: HM.isSubmapOfBy ord -}
+    x <~ y = {- ideally: HM.isSubmapOfBy (<~) -}
         HM.null (HM.difference x y) && getAll (fold $ HM.intersectionWith (\vx vy -> All (vx <~ vy)) x y)
-
 
 concat :: NonEmpty (NonEmpty a) -> NonEmpty a
 concat m = m >>= id

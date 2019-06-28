@@ -30,7 +30,7 @@ module P (
   , numerator, denominator
 
   -- ** Real
-  , Floating, Double
+  , Floating, Float, Double
   , fromIntegral
   , fromRational
   , realToFrac
@@ -201,7 +201,7 @@ import Data.Tuple as Tuple (fst, snd, curry, uncurry)
 import Data.Word as Word (Word, Word8, Word16, Word32, Word64)
 import GHC.Real as Real (Ratio, Rational, numerator, denominator, fromIntegral, fromRational, realToFrac, mod, div, floor, ceiling)
 import Numeric.Natural as Natural
-import Prelude as Prelude (Bounded (..), Enum (..), Num (..), Floating, Double, Integer, seq, ($!))
+import Prelude as Prelude (Bounded (..), Enum (..), Num (..), Floating, Float, Double, Integer, seq, ($!))
 import Safe.Foldable as SafeF (foldl1Def, foldr1Def, findJustDef, minimumDef, maximumDef, minimumByDef, maximumByDef)
 import Safe as SafeE (headMay, tailMay, initMay, lastMay)
 import Safe (succSafe, predSafe, toEnumMay)
