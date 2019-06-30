@@ -1,6 +1,50 @@
 {-# Language ConstrainedClassMethods #-}
 
-module Data.Semiring.Property where
+module Data.Semiring.Property (
+  -- * Properties of pre-semirings & semirings
+    neutral_addition
+  , neutral_multiplication 
+  , associative_addition 
+  , associative_multiplication 
+  , distributive 
+  , distributive_finite1 
+
+  -- * Properties of non-unital semirings
+  , nonunital
+
+  -- * Properties of unital semirings
+  , unital 
+  , annihilative_multiplication 
+  , distributive_finite 
+  , homomorphism_boolean 
+
+  -- * Properties of closed semirings
+  , closure_pstable
+  , closure_paffine 
+  , closure_stable 
+  , closure_affine 
+  , idempotent_star
+
+  -- * Additional optional properties
+  -- ** Absorbativity
+  , absorbative_addition
+  , absorbative_addition'
+  , absorbative_multiplication
+  , absorbative_multiplication' 
+  -- ** Annihilativity 
+  , annihilative_addition 
+  , annihilative_addition' 
+  -- ** Cancellativity  
+  , cancellative_addition 
+  , cancellative_multiplication 
+  -- ** Commutativity
+  , commutative_addition 
+  , commutative_multiplication
+  -- ** Distributivity  
+  , distributive_cross1 
+  , distributive_cross 
+  , codistributive
+) where
 
 import Data.List (unfoldr)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -8,343 +52,407 @@ import Data.Semiring
 import P
 import Orphans ()
 
-iff = xnor
+import Test.Property.Util ((<==>),(==>))
+import qualified Test.Property as Prop
+
+
+-- No additive or multiplicative unit.
+foldPresemiring :: Semiring r => (a -> r) -> NonEmpty (NonEmpty a) -> r
+foldPresemiring = foldMap1 . foldMap1'
+
+-- No multiplicative unit.
+foldNonunital :: (Monoid r, Semiring r) => (a -> r) -> [NonEmpty a] -> r
+foldNonunital = foldMap . foldMap1'
+
+-- Additive & multiplicative units.
+-- Note this function will zero out if there is no multiplicative unit. 
+foldUnital :: (Monoid r, Semiring r) => (a -> r) -> [[a]] -> r
+foldUnital = foldMap . foldMap'
+
 
 ------------------------------------------------------------------------------------
--- | Properties of pre-semirings & semirings.
+-- Properties of pre-semirings & semirings
 
--- | The map @('><' c)@ preserves '<>'. See Fong and Spivak (Definition 1.92.)
+-- | \( \forall a \in R: (z + a) = a \)
 --
--- When @r@ is a functor and the semiring structure is derived from 'Alternative', 
--- this translates to: @(f <|> g) <*> a = (f <*> a) <|> (g <*> a)@  
--- See https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus#Other_suggested_laws
---
--- When @r@ is a functor and the semiring structure is derived from 'Selective'
-
--- | Multiplication should right-distribute across addition.
-prop_distributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distributive a b c = (a <> b) >< c == (a >< c) <> (b >< c)
-
--- | Multiplication should right-distribute across finite non-empty sums.
-prop_distributive_finite1 :: (Eq r, Semiring r) => r -> NonEmpty r -> Bool
-prop_distributive_finite1 a bs = fold1 bs >< a == foldMap1 (>< a) bs
-
-prop_associative_addition :: (Eq r, Monoid r) => r -> r -> r -> Bool
-prop_associative_addition a b c = (a <> b) <> c == a <> (b <> c)
-
-prop_associative_multiplication :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_associative_multiplication a b c = (a >< b) >< c == a >< (b >< c)
-
---prop_universal_addition / foldSemiring1
-
---prop_universal_multiplication
-
----- Neutrality.
-
--- | A pre-semiring with a (right) neutral additive unit must satisfy:
+-- A (pre-)semiring with a right-neutral additive unit must satisfy:
 --
 -- @
--- 'prop_neutral_addition' 'zero' ≡ const True
+-- 'neutral_addition' 'zero' ≡ const True
 -- @
 -- 
 -- Or, equivalently:
 --
 -- @
--- 'zero' <> r ≡ r
+-- 'zero' '<>' r ≡ r
 -- @
 --
--- All (right) semirings must have a (right) neutral multiplicative unit.
--- 
-prop_neutral_addition :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_addition o r = o <> r == r
+neutral_addition :: (Eq r, Semigroup r) => r -> r -> Bool
+neutral_addition = Prop.neutral (<>)
 
 
--- | A pre-semiring with a (right) neutral multiplicative unit must satisfy:
+-- | \( \forall a \in R: (o * a) = a \)
+--
+-- A (pre-)semiring with a right-neutral multiplicative unit must satisfy:
 --
 -- @
--- 'prop_neutral_multiplication' 'one' ≡ const True
+-- 'neutral_multiplication' 'one' ≡ const True
 -- @
 -- 
 -- Or, equivalently:
 --
 -- @
--- 'one' >< r ≡ r
+-- 'one' '><' r ≡ r
 -- @
 --
--- All (right) semirings must have a (right) neutral multiplicative unit.
+neutral_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
+neutral_multiplication = Prop.neutral (><) 
+
+
+
+-- | \( \forall a, b, c \in R: (a + b) + c = a + (b + c) \)
+--
+-- Addition in /R/ must be associative.
+--
+-- This should be verified by the underlying 'Semigroup' instance,
+-- but is included here for completeness.
+--
+associative_addition :: (Eq r, Semigroup r) => r -> r -> r -> Bool
+associative_addition = Prop.associative (<>)
+
+
+-- | \( \forall a, b, c \in R: (a * b) * c = a * (b * c) \)
+--
+-- Multiplication in /R/ must be associative.
+--
+associative_multiplication :: (Eq r, Semiring r) => r -> r -> r -> Bool
+associative_multiplication = Prop.associative (><)
+
+
+-- | \( \forall a, b, c \in R: (a + b) * c = (a * c) + (b * c) \)
+--
+-- /R/ must right-distribute multiplication.
+--
+-- When /R/ is a functor and the semiring structure is derived from 'Alternative', 
+-- this translates to: 
+--
+-- @
+-- (a '<|>' b) '*>' c = (a '*>' c) '<|>' (b '*>' c)
+-- @  
+--
+-- See < https://en.wikibooks.org/wiki/Haskell/Alternative_and_MonadPlus >.
+--
+distributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
+distributive = Prop.distributive (<>) (><)
+
+
+-- | \( \forall M \geq 1; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b = \sum_{i=1}^M a_i * b \)
+--
+-- /R/ must right-distribute multiplication over finite (non-empty) sums.
+--
+-- This follows from 'distributive' and the universality of 'fold1'.
+--
+distributive_finite1 :: (Eq r, Semiring r) => NonEmpty r -> r -> Bool
+distributive_finite1 as b = fold1 as >< b == foldMap1 (>< b) as
+
+
+------------------------------------------------------------------------------------
+-- Properties of non-unital semirings
+
+-- | \( \forall a, b \in R: a * b = a * b + b \)
+--
+-- If /R/ is non-unital (i.e. one equals zero) then it will instead satisfy 
+-- a right-absorbtion property. 
+--
+-- This follows from right-neutrality and right-distributivity.
+--
+-- Compare 'codistributive' and 'closure_stable'.
+--
+-- When /R/ is also left-distributive we get: \( \forall a, b \in R: a * b = a + a * b + b \)
+--
+-- See also 'Data.Warning' and < https://blogs.ncl.ac.uk/andreymokhov/united-monoids/#whatif >.
+--
+nonunital :: forall r. (Eq r, Monoid r, Semiring r) => r -> r -> Bool
+nonunital a b = not (unital (one @r)) ==> a >< b == a >< b <> b
+
+
+------------------------------------------------------------------------------------
+-- Properties of unital semirings
+
+-- | \( 1 \neq 0 \)
 -- 
-prop_neutral_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_multiplication o r = o >< r == r
-
-
--- | A pre-semiring with a (right) annihilative addititive unit must satisfy:
+-- If /R/ is unital then it must have a distinguished multiplicative unit:
 --
 -- @
--- 'prop_annihilative_multiplcation' 'zero' ≡ const True
+-- 'unital' one ≡ True
+-- @
+--
+unital :: (Eq r, Monoid r, Semiring r) => r -> Bool
+unital o = zero /= o
+
+
+-- | \( \forall a \in R: (z * a) = u \)
+--
+-- A /R/ is unital then its addititive unit must be right-annihilative, i.e.:
+--
+-- @
+-- 'annihilative_multiplcation' 'zero' ≡ const True
 -- @
 --
 -- Or, equivalently:
 --
 -- @
--- 'zero' >< r ≡ 'zero'
+-- 'zero' '><' r ≡ 'zero'
 -- @
 --
 -- For 'Alternative' instances this property translates to:
 --
 -- @
--- 'empty' <*> x ≡ 'empty'
+-- 'empty' '<*>' x ≡ 'empty'
 -- @
 --
--- All (right) semirings must have a (right) absorbative addititive unit.
+-- All right semirings must have a right-absorbative addititive unit.
 --
-prop_annihilative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_annihilative_multiplication z r = z >< r == z
+annihilative_multiplication :: (Eq r, Monoid r, Semiring r) => r -> Bool
+annihilative_multiplication r = Prop.annihilative (><) zero r
 
 
-------------------------------------------------------------------------------------
--- | Properties of semirings
+-- | \( \forall M \geq 0; a_1 \dots a_M, b \in R: (\sum_{i=1}^M a_i) * b = \sum_{i=1}^M a_i * b \)
+--
+-- /R/ must right-distribute multiplication between finite sums.
+--
+-- This follows from 'distributive' & 'neutral_multiplication'.
+--
+distributive_finite :: (Eq r, Monoid r, Semiring r) => [r] -> r -> Bool
+distributive_finite as b = fold as >< b == foldMap (>< b) as
 
--- See Gondran and Minoux p. 31
--- | Multiplication should right-distribute across finite sums.
-prop_distributive_finite :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
-prop_distributive_finite a bs = fold bs >< a == foldMap (>< a) bs
 
+-- | 'fromBoolean' must be a semiring homomorphism into /R/.
+--
+homomorphism_boolean :: forall r. (Eq r, Monoid r, Semiring r) => Bool -> Bool -> Bool
+homomorphism_boolean i j =
+  fromBoolean True     == (one @r) &&
+  fromBoolean False    == (zero @r) &&
+  fromBoolean (i && j) == fi >< fj    && 
+  fromBoolean (i || j) == fi <> fj 
 
--- | 'fromBoolean' is a semiring homomorphism.
-prop_homomorphism_boolean :: forall r. (Eq r, Monoid r, Semiring r) => Bool -> Bool -> Bool 
-prop_homomorphism_boolean i j = fromBoolean (i && j) == fi >< fj && fromBoolean (i || j) == fi <> fj 
   where fi :: r = fromBoolean i
         fj :: r = fromBoolean j
 
-{-
--- | 'fromNatural' is a semiring homomorphism.
-prop_homomorphism_natural :: forall r. (Eq r, Monoid r, Semiring r) => Natural -> Natural -> Bool 
-prop_homomorphism_natural i j = fromNatural (i * j) == fi >< fj && fromNatural (i + j) == fi <> fj 
-  where fi :: r = fromNatural i
-        fj :: r = fromNatural j
--}
+
+------------------------------------------------------------------------------------
+-- Properties of closed semirings
+
+
+-- | \( 1 + \sum_{i=1}^{P+1} a^i = 1 + \sum_{i=1}^{P} a^i \)
+--
+-- If /a/ is p-stable for some /p/, then we have:
+--
+-- @
+-- 'powers' p a ≡ a '><' 'powers' p a '<>' 'one'  ≡ 'powers' p a '><' a '<>' 'one' 
+-- @
+--
+-- If '<>' and '><' are idempotent then every element is 1-stable:
+--
+-- @ a '><' a '<>' a '<>' 'one' = a '<>' a '<>' 'one' = a '<>' 'one' @
+--
+closure_pstable :: (Eq r, Monoid r, Semiring r) => Natural -> r -> Bool
+closure_pstable p a = powers p a == powers (p <> one) a
+
+-- | \( x = a * x + b \Rightarrow x = (1 + \sum_{i=1}^{P} a^i) * b \)
+--
+-- If /a/ is p-stable for some /p/, then we have:
+--
+closure_paffine :: (Eq r, Monoid r, Semiring r) => Natural -> r -> r -> Bool
+closure_paffine p a b = closure_pstable p a ==> x == a >< x <> b 
+  where x = powers p a >< b
+
+
+-- | \( \forall a \in R : a^* = a^* * a + 1 \)
+--
+-- Closure is /p/-stability for all /a/ in the limit as \( p \to \infinity \).
+--
+-- One way to think of this property is that all geometric series
+-- "converge":
+--
+-- \( \forall a \in R : 1 + \sum_{i \geq 1} a^i \in R \)
+--
+closure_stable :: (Eq r, Monoid r, Closed r) => r -> Bool
+closure_stable a = star a == star a >< a <> one
+
+closure_stable' :: (Eq r, Monoid r, Closed r) => r -> Bool
+closure_stable' a = star a == one <> a >< star a
+
+closure_affine :: (Eq r, Monoid r, Closed r) => r -> r -> Bool
+closure_affine a b = x == a >< x <> b where x = star a >< b
+
+-- If /R/ is closed then 'star' must be idempotent:
+--
+-- @'star' ('star' x) == 'star' x@
+--
+idempotent_star :: (Eq r, Closed r) => r -> Bool
+idempotent_star = Prop.idempotent star
 
 
 ------------------------------------------------------------------------------------
--- | Additional (optional) properties of certain subclasses of 'Semiring'.
-
--- | The existence of distinguished additive and multiplicative units distinguishes 
--- a semiring (resp. dioid) from a pre-semiring (pre-dioid).
-prop_unital :: (Eq r, Monoid r, Semiring r) => r -> Bool
-prop_unital o = zero /= o
+-- Additional optional properties of certain subclasses of 'Semiring'.
 
 
----- Annihilativity
-
--- A semiring with a (right) annihilative muliplicative unit must satisfy:
+-- | \( \forall a, b \in R: a * b + b = b \)
+--
+-- Right-additive absorbativity is a generalized form of idempotency:
 --
 -- @
--- 'one' <> r ≡ 'one'
+-- 'absorbative_addition' 'one' a ≡ a <> a == a
+-- @
+--
+absorbative_addition :: (Eq r, Semiring r) => r -> r -> Bool
+absorbative_addition a b = a >< b <> b == b
+
+
+-- | \( \forall a, b \in R: b + b * a = b \)
+--
+-- Left-additive absorbativity is a generalized form of idempotency:
+--
+-- @
+-- 'absorbative_addition' 'one' a ≡ a <> a == a
+-- @
+--
+absorbative_addition' :: (Eq r, Semiring r) => r -> r -> Bool
+absorbative_addition' a b = b <> b >< a == b
+
+
+
+-- | \( \forall a, b \in R: (a + b) * b = b \)
+--
+-- Right-mulitplicative absorbativity is a generalized form of idempotency:
+--
+-- @
+-- 'absorbative_multiplication' 'zero' a ≡ a '><' a == a
+-- @
+--
+-- See < https://en.wikipedia.org/wiki/Absorption_law >.
+--
+absorbative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
+absorbative_multiplication a b = (a <> b) >< b == b
+
+
+-- | \( \forall a, b \in R: b * (b + a) = b \)
+--
+-- Left-mulitplicative absorbativity is a generalized form of idempotency:
+--
+-- @
+-- 'absorbative_multiplication'' 'zero' a ≡ a '><' a == a
+-- @
+--
+-- See < https://en.wikipedia.org/wiki/Absorption_law >.
+--
+absorbative_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
+absorbative_multiplication' a b = b >< (b <> a) == b
+
+
+-- | \( \forall a \in R: o + a = o \)
+--
+-- A unital semiring with a right-annihilative muliplicative unit must satisfy:
+--
+-- @
+-- 'one' <> a ≡ 'one'
 -- @
 --
 -- For a dioid this is equivalent to:
 -- 
 -- @
--- ('one' <~) ≡ ('one' ==)
+-- ('one' '<~') ≡ ('one' '==')
 -- @
 --
--- For 'Alternative' instances this is the so-called 'left catch' law:
+-- For 'Alternative' instances this is the left-catch law:
 --
 -- @
--- 'pure' a <|> x ≡ 'pure' a
+-- 'pure' a '<|>' x ≡ 'pure' a
 -- @
 --
-prop_annihilative_addition :: (Eq r, Semiring r) => r -> r -> Bool
-prop_annihilative_addition o r = o <> r == o
+annihilative_addition :: (Eq r, Monoid r, Semiring r) => r -> Bool
+annihilative_addition r = Prop.annihilative (<>) one r
 
 
-
--- A semiring with a (left) annihilative muliplicative unit must satisfy:
+-- | \( \forall a \in R: a + o = o \)
+--
+-- A unital semiring with a left-annihilative muliplicative unit must satisfy:
 --
 -- @
--- r <> 'one' ≡ 'one'
+-- a '<>' 'one' ≡ 'one'
 -- @
 --
--- Note that the left absorbtion property is too strong for many instances. 
--- This is because it requires that any effects that @r@ has can be undone.
--- See https://winterkoninkje.dreamwidth.org/90905.html
+-- Note that the left-annihilative property is too strong for many instances. 
+-- This is because it requires that any effects that /r/ generates be undone.
 --
-prop_annihilative_addition' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_annihilative_addition' = flip prop_annihilative_addition
-
-
-
-
----- Commutativity
-
-prop_commutative_addition :: (Eq r, Semigroup r) => r -> r -> Bool
-prop_commutative_addition a b = a <> b == b <> a
-
-prop_commutative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_commutative_multiplication a b = a >< b == b >< a
-
----- Left-sided versions of the common properties.
-
--- | Left multiplicative distributivity. 
-prop_distributive' :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_distributive' a b c = a >< (b <> c) == (a >< b) <> (a >< c)
-
--- | Left additive neutrality (typically of 'zero').
-prop_neutral_addition' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_addition' = flip prop_neutral_addition
-
--- | Left multiplicative neutrality (typically of 'one').
-prop_neutral_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_neutral_multiplication' = flip prop_neutral_multiplication
-
--- | Left multiplicative absorbtion (typically of 'zero').
-prop_annihilative_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_annihilative_multiplication' = flip prop_annihilative_multiplication
-
-
--- | Multiplication should left-distribute across finite sums.
-prop_distributive_finite1' :: (Eq r, Semiring r) => r -> NonEmpty r -> Bool
-prop_distributive_finite1' a bs = a >< fold1 bs == foldMap1 (a ><) bs
-
--- | Multiplication should left-distribute across finite sums.
-prop_distributive_finite' :: (Eq r, Monoid r, Semiring r) => r -> [r] -> Bool
-prop_distributive_finite' a bs = a >< fold bs == foldMap (a ><) bs
-
-
--- | Multiplication should bi-directionally distribute across finite sums.
--- 
-prop_distributive_cross1 :: (Eq r, Semiring r) => NonEmpty r -> NonEmpty r -> Bool
-prop_distributive_cross1 as bs = fold1 as >< fold1 bs == cross1 as bs
-
--- | Multiplication should bi-directionally distribute across finite sums.
-prop_distributive_cross :: (Eq r, Monoid r, Semiring r) => [r] -> [r] -> Bool
-prop_distributive_cross as bs = fold as >< fold bs == cross as bs
-
-
----- Idempotency
-
-prop_idempotent :: Eq r => (r -> r) -> r -> Bool
-prop_idempotent f r = f (f r) == f r
-
-prop_idempotent_k :: Eq r => Natural -> (r -> r) -> r -> Bool
-prop_idempotent_k k f r = k >= 1 ==> endo fs r == f r
-  where fs = (`unfoldr` k) $ \m -> bool (Just (f,m-1)) Nothing (m==1)
-
-
--- G & M p. 15, Proposition 3.4.5 .
-prop_idempotent_addition :: (Eq r, Semigroup r) => Natural -> r -> Bool
-prop_idempotent_addition n r = n >= 1 ==> r == foldMap1 id (r :| rep [r] (n-1))
-
-
----- Absorbativity & Idempotency 
--- (See https://en.wikipedia.org/wiki/Absorption_law)
--- https://en.wikipedia.org/wiki/Lattice_(order)#Lattices_as_algebraic_structures
-
--- Given 'prop_absorbative_multiplication', 'prop_distributive' & 'prop_neutral_mulitplication'
--- we can derive the following weak absorbtion property: @a == a <> b >< a@.
-prop_absorbative_weak :: (Eq r, Monoid r, Semiring r) => r -> r -> Bool
-prop_absorbative_weak a b =
-  prop_distributive one a b &&
-  prop_neutral_multiplication one b &&
-  prop_annihilative_multiplication zero a ==> a == a <> b >< a
-
-
--- See Gondran and Minoux p. 44 (Exercise 4)
-
-
--- | @(a >< b) <> c ≡ a >< (b <> c)@
--- When @r@ is a functor and the semiring structure is derived from 'Selective', 
--- this translates to: @(x *> y) <*? z ≡ x *> (y <*? z)@
-prop_absorbative :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_absorbative a b c = a >< b <> c == a >< (b <> c)
-
--- | A generalized form of multiplicative idempotency.
+-- See < https://winterkoninkje.dreamwidth.org/90905.html >.
 --
--- @
--- 'prop_absorbative_multiplication' 'zero' a = a >< a == a
--- @
+annihilative_addition' :: (Eq r, Monoid r, Semiring r) => r -> Bool
+annihilative_addition' r = Prop.annihilative' (<>) one r
+
+
+-- | \( \forall a, b, c \in R: a + b = a + c \Rightarrow b = c \)
 --
-prop_absorbative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_multiplication z a = (z <> a) >< a == a
-
-prop_absorbative_multiplication' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_multiplication' z a = a >< (a <> z) == a
-
--- | A generalized form of additive idempotency.
+-- If /R/ is right-cancellative wrt addition then for all /a/
+-- the section /(a <>)/ is injective.
 --
--- @
--- 'prop_absorbative_addition' 'one' a = a <> a == a
--- @
+cancellative_addition :: (Eq r, Semigroup r) => r -> r -> r -> Bool
+cancellative_addition a = Prop.injective (a <>)
+
+
+-- | \( \forall a, b, c \in R: a * b = a * c \Rightarrow b = c \)
 --
-prop_absorbative_addition :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_addition o a = o >< a <> a == a
-
-prop_absorbative_addition' :: (Eq r, Semiring r) => r -> r -> Bool
-prop_absorbative_addition' o a = a <> a >< o == a
-
-
----- Cancellativity
-
--- | Right cancellativity:
+-- If /R/ is right-cancellative wrt multiplication then for all /a/
+-- the section /(a ><)/ is injective.
 --
--- @m >< m' ≡ m >< m''@ implies @m' ≡ m''@
+cancellative_multiplication :: (Eq r, Semiring r) => r -> r -> r -> Bool
+cancellative_multiplication a = Prop.injective (a ><)
+
+
+-- | \( \forall a, b \in R: a + b = b + a \)
 --
-prop_cancellative :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_cancellative a b c = a >< b == a >< c ==> b == c
+commutative_addition :: (Eq r, Semigroup r) => r -> r -> Bool
+commutative_addition = Prop.commutative (<>)
 
--- | Left cancellativity:
+
+-- | \( \forall a, b \in R: a * b = b * a \)
 --
--- @m' >< m ≡ m'' >< m@ implies @m' ≡ m''@
+commutative_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
+commutative_multiplication = Prop.commutative (><)
+
+
+-- | \( \forall M,N \geq 1; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) = \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
-prop_cancellative' :: (Eq r, Semiring r) => r -> r -> r -> Bool
-prop_cancellative' a b c = a >< c == b >< c ==> a == c
-
----- Selectivity
-
-prop_selective_addition :: (Eq r, Semigroup r) => r -> r -> Bool
-prop_selective_addition a b = ab == a || ab == b where ab = a <> b
-
--- A semiring is said to be doubly selective if both operations are selective
-prop_selective_multiplication :: (Eq r, Semiring r) => r -> r -> Bool
-prop_selective_multiplication a b = ab == a || ab == b where ab = a >< b
-
-
----- Closure
-
--- | Finite closure property of a semiring.
+-- If /R/ is also left-distributive then it supports (non-empty) cross-multiplication.
 --
--- If this property holds for some /x/ and /p/, then we have:
---
--- @
--- 'powers' p x ≡ x '><' 'powers' p x '<>' 'one'  ≡ 'powers' p x '><' x '<>' 'one' 
--- @
---
--- If '<>' and '><' are idempotent then every element is 1-stable:
---
--- @ 'one' '<>' a '<>' a '><' a = 'one' '<>' a '<>' a = 'one' <> a @
---
--- See Gondran and Minoux, Definition 7.1 (p. 97).
---
-prop_closure_pstable :: (Eq r, Monoid r, Semiring r) => Natural -> r -> Bool
-prop_closure_pstable p a = powers p a == powers (p <> one) a
+distributive_cross1 :: (Eq r, Semiring r) => NonEmpty r -> NonEmpty r -> Bool
+distributive_cross1 as bs = fold1 as >< fold1 bs == cross1 as bs
 
-prop_closure_paffine :: (Eq r, Monoid r, Semiring r) => Natural -> r -> r -> Bool
-prop_closure_paffine p a b = prop_closure_pstable p a ==> x == a >< x <> b 
-  where x = powers p a >< b
 
-prop_closure_stable :: (Eq r, Monoid r, Closed r) => r -> Bool
-prop_closure_stable a = star a == star a >< a <> one
-
-prop_closure_stable' :: (Eq r, Monoid r, Closed r) => r -> Bool
-prop_closure_stable' a = star a == one <> a >< star a
-
-prop_closure_affine :: (Eq r, Monoid r, Closed r) => r -> r -> Bool
-prop_closure_affine a b = x == a >< x <> b where x = star a >< b
-
--- If @r@ is a closed dioid then 'star' must be idempotent:
+-- | \( \forall M,N \geq 0; a_1 \dots a_M, b_1 \dots b_N \in R: (\sum_{i=1}^M a_i) * (\sum_{j=1}^N b_j) = \sum_{i=1 j=1}^{i=M j=N} a_i * b_j \)
 --
--- @'star' ('star' x) == 'star' x@
+-- If /R/ is also left-distributive then it supports cross-multiplication.
 --
-prop_idempotent_star :: (Eq r, Closed r) => r -> Bool
-prop_idempotent_star = prop_idempotent star
+distributive_cross :: (Eq r, Monoid r, Semiring r) => [r] -> [r] -> Bool
+distributive_cross as bs = fold as >< fold bs == cross as bs
 
+
+-- | \( \forall a, b, c \in R: c + (a * b) \equiv (c + a) * (c + b) \)
+--
+-- A right-codistributive semiring has a right-annihilative muliplicative unit:
+--
+-- @ 'codistributive' 'one' a 'zero' ≡ 'one' == 'one' '<>' a @
+--
+-- idempotent mulitiplication:
+--
+-- @ 'codistributive' 'zero' 'zero' a ≡ a == a '><' a @
+--
+-- and idempotent addition:
+--
+-- @ 'codistributive' a 'zero' a ≡ a == a '<>' a @
+--
+-- Furthermore if /R/ is commutative then it is a right-distributive lattice.
+--
+codistributive :: (Eq r, Semiring r) => r -> r -> r -> Bool
+codistributive = Prop.distributive' (><) (<>)

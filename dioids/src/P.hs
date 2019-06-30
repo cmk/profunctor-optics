@@ -10,8 +10,6 @@ module P (
   -- ** Bool
     Bool (..), bool
   , (&&), (||), not
-  , (==>), implies
-  , xor, xnor
   , otherwise
 
   -- ** Char
@@ -116,10 +114,6 @@ module P (
   , Applicative (..)
   , collect
 
-  -- ** Selective
-  , Selective (..)
-  , branch
-
   -- ** Alternative
   , Alternative (..)
   , asum
@@ -176,7 +170,6 @@ import Control.Arrow as Arrow ((***),(&&&),(+++),(|||))
 import Control.Error.Safe as ErrorS
 import Control.Error.Util as ErrorU hiding (bool)
 import Control.Monad as Monad (Monad (..), MonadPlus (..), (=<<), (>>=), (<=<), guard, join, forM, forM_, mapM, mapM_, when)
-import Control.Selective as Selective (Selective (..), branch)
 import Data.Bifunctor as Bifunctor (Bifunctor (..))
 import Data.Bifunctor.Assoc as Bifunctor (Assoc (..))
 import Data.Bifunctor.Swap as Bifunctor (Swap (..))
@@ -216,8 +209,6 @@ import qualified Prelude as Unsafe
 import qualified Debug.Trace as Trace
 
 
-
-import Control.Selective hiding ((<||>))
 
 {-
 type (+) = Either
@@ -268,10 +259,7 @@ implies :: Bool -> Bool -> Bool
 implies a b = not a || b
 {-# INLINEABLE implies #-}
 
-infixr 0 ==>
 
-(==>) :: Bool -> Bool -> Bool
-(==>) = implies
 
 with :: Functor f => f a -> (a -> b) -> f b
 with = flip fmap
@@ -303,18 +291,7 @@ infixr 2 <||>
 (<||>) :: Alternative f => (a -> f b) -> (a -> f b) -> a -> f b
 (<||>) f g s = fmap dedup $ (fmap Left $ f s) <|> (fmap Right $ g s)
 
--- A functor from @Kleisli Maybe@ to @Hask@.
--- [/identity/]
---   @'mapMaybe' Just ≡ id@
---
--- [/composition/]
---   @'mapMaybe' f . 'mapMaybe' g ≡ 'mapMaybe' (f <=< g)@
---
-mapMaybe :: (Selective f, Alternative f) => (s -> Maybe a) -> f s -> f a
-mapMaybe f = fromMaybeS empty . fmap f
 
-filter' :: (Selective f, Alternative f) => (a -> Bool) -> f a -> f a
-filter' f = mapMaybe $ \a -> if f a then Just a else Nothing
 
 
 {-# RULES

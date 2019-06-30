@@ -129,14 +129,15 @@ pn = let
 -- 'Unit'
 -------------------------------------------------------------------------------
 
-
 -- | The unit interval dioid.
 newtype Unit a = Unit { unUnit :: a }
   deriving (Eq, Ord, Show, Data, Generic, GenUnchecked, GenValid, Typeable, Validity)
 
+
 instance Num a => Bounded (Unit a) where
   minBound = Unit 0
   maxBound = Unit 1
+
 
 instance Ord a => Semigroup (Unit a) where
   Unit a <> Unit b  = Unit $ max a b
@@ -152,6 +153,7 @@ instance (Ord a, Num a) => Semiring (Unit a) where
 
   fromBoolean = fromBooleanDef $ Unit 1
 
+
 instance (Ord a, Num a) => Dioid (Unit a) where
   Unit a <~ Unit b = a <= b
 
@@ -159,6 +161,7 @@ instance (Ord a, Num a) => Dioid (Unit a) where
 instance (Ord a, Num a) => Closed (Unit a) where
   star _ = one
   plus = id
+
 
 inRange :: Ord a => a -> a -> a -> Bool
 inRange low high = (&&) <$> (low <=) <*> (<= high)
@@ -177,6 +180,7 @@ uf = let
     mk s = readMaybe @Float s >>= unit
     in qq $ justErr msg . mk
 
+
 -- | A quasiquoter for safely constructing a 'Unit Double' from a constant.
 --
 -- >>> [ud|1.0|]
@@ -192,9 +196,10 @@ ud = let
 complement :: Num a => Unit a -> Unit a
 complement (Unit a) = Unit $ 1 - a
 
+
 -- | Safe `Unit` division
---div' :: Unit a -> Positive Natural -> Unit a
---div' (Unit n) (Positive d) = Unit $ n / fromIntegral d
+--div' :: Unit a -> Positive a -> Unit a
+--div' (Unit n) (Positive d) = Unit $ n / d
 
 -------------------------------------------------------------------------------
 -- Internal
@@ -221,4 +226,3 @@ qqLift l f = QuasiQuoter {
   , quoteDec = no "declarations"
   }
   where no c = const (fail ("This QQ produces expressions, not " <> c))
-

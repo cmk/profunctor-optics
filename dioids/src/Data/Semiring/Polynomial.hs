@@ -12,6 +12,8 @@ import Data.GenValidity.Map
 import Data.Functor.Classes
 import GHC.Generics (Generic, Generic1)
 
+import Data.Tropical
+
 import P
 import Orphans ()
 import qualified Data.Map as Map
@@ -64,6 +66,8 @@ instance (Monoid a, Closed a) => Closed (Polynomial a) where
   star (Polynomial []) = mempty
   star (Polynomial (a:p)) = 
     r where r = (Polynomial [star a]) >< (Polynomial $ one:(runPolynomial (Polynomial p >< r)))
+
+
 {-
 --TODO how is this related to These / Warning?.
 
@@ -140,5 +144,4 @@ instance (Monoid a, Semiring a) => Semiring (Poly2 a) where
   {-# INLINE (><) #-}
 
   fromBoolean = fromBooleanDef $ Poly2 (Map.singleton mempty one)
-
 

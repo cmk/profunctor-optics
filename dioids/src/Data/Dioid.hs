@@ -13,7 +13,6 @@ import Numeric.Natural (Natural)
 import Data.Foldable
 import Data.List.NonEmpty (NonEmpty(..))
 import Orphans ()
-import Control.Selective -- (Under(..), Over(..), ifS)
 
 import qualified Data.Set as Set
 import qualified Data.Map as Map
@@ -52,12 +51,28 @@ idempotent but also selective. A selective dioid is a dioid in which the additio
 TODO- integrate selective applicative
 -}
 
--- | Pre-dioids and dioids.
+-- | Right pre-dioids and dioids.
 --
--- A pre-dioid is a pre-semiring with a (right) canonical (<~)er relation relative to '<>':
+-- A right-dioid is a semiring with a right-canonical pre-order relation relative to '<>':
 -- @'<~' a b@ iff @b ≡ a <> c@ for some @c@.
+-- 
+-- In other words we have that:
 --
--- A dioid is a semiring with the same relation .
+-- @
+-- a '<~' (a '<>' b) ≡ 'True'
+-- @
+--
+-- Consequently '<~' is both reflexive and transitive:
+--
+-- @
+-- a '<~' a ≡ 'True'
+-- a '<~' b && b '<~' c ==> a '<~' c ≡ 'True'
+-- @
+--
+-- Finally '<~' is an order relation:
+--
+-- @(a '=~' b) <==> (a '==' b)@
+--
 class (Eq r, Semiring r) => Dioid r where 
 
   ord :: r -> r -> Bool
@@ -72,12 +87,6 @@ class (Eq r, Semiring r) => Dioid r where
   --(<~~) a b = lt a b || a == b
 
 
-
-
-
-
-
-
 sel :: Dioid r => r -> r -> r
 sel a b = bool a b $ a <~ b
 
@@ -88,13 +97,16 @@ ord' = contramap fromBoolean (Equivalence (<~) :: Equivalence r)
 
 infix 4 =~
 
--- | The equality relation induced by the partial-(<~)er structure. It satisfies
--- the laws of an equivalence relation:
+-- | The equality relation induced by the partial-(<~)er structure. 
+--
+-- '(=~)' satisfies the laws of an equivalence relation:
+--
 -- @
--- Reflexive:  a =~ a
--- Symmetric:  a =~ b ==> b =~ a
--- Transitive: a =~ b && b =~ c ==> a =~ c
+-- a =~ a -- Reflexivity
+-- a =~ b ==> b =~ a -- Symmetry
+-- a =~ b && b =~ c ==> a =~ c -- Transitivity
 -- @
+--
 (=~) :: Dioid r => r -> r -> Bool
 a =~ b = a <~ b && b <~ a
 
@@ -111,11 +123,7 @@ infix 4 <~?
 a <~? b = a <~ b || b <~ a
 
 
-{-
-instance (Dioid a, Selective f) => Semigroup (f a) where 
-  f <> g = ifS (liftA2 (<~) f g ) f g 
 
--}
 
 -------------------------------------------------------------------------------
 -- Fixed points
@@ -249,29 +257,6 @@ instance (Eq a, Monoid a, Dioid a) => Dioid (Maybe a) where
 instance (Monoid a, Dioid a) => Dioid (Dual a) where
   (<~) (Dual a) (Dual b) = (<~) b a
 
-
-instance (Monoid r, Dioid r, Semiring r) => Dioid (Over r a) where
-  Over a <~ Over b = a <~ b
-
-instance (Eq r, Monoid r, Semiring r) => Dioid (Under r a) where
-  (<~) = (==)
-
----------------------------------------------------------------------
--- QuickCheck
----------------------------------------------------------------------
-{-
-import qualified Test.QuickCheck   as QC
-
-instance Semiring QC.Property where
-  (<>) = (QC..||.)
-  (><) = (QC..&&.)
-
-  zero = QC.property False
-  one = QC.property True
-
-instance Dioid QC.Property where
-  (<~) = (==)
--}
 
 ---------------------------------------------------------------------
 --  Instances (containers)

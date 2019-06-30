@@ -28,12 +28,9 @@ import Data.Functor.Classes
 import Data.Functor.Contravariant (Predicate(..), Equivalence(..), Op(..))
 import Data.Functor.Identity (Identity(..))
 
-import Control.Selective
-
 import P
 import Orphans ()
 
-import qualified Control.Selective.Free as Free
 import qualified Control.Alternative.Free.Final as Free
 
 import qualified Data.Map as Map
@@ -91,11 +88,12 @@ Any hemiring with a multiplicative identity 1 /= 0 is called a semiring.
 -}
 
 
--- | Pre-semirings and semirings.
+-- | Right pre-semirings and semirings.
 -- 
--- A pre-semiring is a type @r@ endowed with two associative binary operations
--- (><) and (<>), along with a right-distributivity property between them:
- 
+-- A right pre-semiring is a type /R/ endowed with two associative binary 
+-- (i.e. semigroup) operations: (<>) and (><), along with a right-distributivity 
+-- property connecting them:
+--
 -- @(a <> b) >< c ≡ (a >< c) <> (b >< c)@
 --
 class Semigroup r => Semiring r where
@@ -111,22 +109,13 @@ class Semigroup r => Semiring r where
 zero :: (Monoid r, Semiring r) => r           
 zero = mempty
 
--- | Note one may or may not equal zero.
+-- | Note 'Semiring' does not require that 'one' be distinct from 'zero'.
 one :: (Monoid r, Semiring r) => r
 one = fromBoolean True
 
 fromBooleanDef :: (Monoid r, Semiring r) => r -> Bool -> r
 fromBooleanDef _ False = zero
 fromBooleanDef o True = o
-
-{-
--- A semiring homomorphism from the natural numbers to @r@.
--- TODO use End instead to avoid n^2 asymptotics
-fromNatural :: (Monoid r, Semiring r) => Natural -> r
-fromNatural 0 = zero
-fromNatural 1 = one
-fromNatural n = fromNatural (n - 1) <> one
--}
 
 
 -- | Fold over a collection using the multiplicative operation of a semiring.
@@ -213,12 +202,6 @@ powers :: (Monoid r, Semiring r) => Natural -> r -> r
 powers n a = foldr' (<>) one . flip unfoldr n $ \m -> 
   if m == 0 then Nothing else Just (a^m,m-1)
 
-{-
-powers1 :: Semiring r => r -> Positive Natural -> r
-powers1 a n = foldr' (<>) a . flip unfoldr (unPositive n) $ \m -> 
-  if m == 1 then Nothing else Just (a^m,m-1)
--}
-
 -------------------------------------------------------------------------------
 -- 'Closed'
 -------------------------------------------------------------------------------
@@ -241,8 +224,8 @@ class (Monoid a, Semiring a) => Closed a where
   star :: a -> a
   star a = one <> plus a
 
-  plus :: a -> a -- TODO does this satisfy properties of an interior operator?
-  plus a = a >< star a -- = a >< (one <> plus a)
+  plus :: a -> a
+  plus a = a >< star a
 
 --interior :: (r -> r) -> r -> r
 --interior f r = (r ><) . f
@@ -352,6 +335,7 @@ instance Semiring () where
   (><) _ _ = ()
   fromBoolean _ = ()
 
+
 -- See also 'Data.Semiring.Sign'.
 instance Semiring Ordering where
   LT >< LT = LT
@@ -361,6 +345,7 @@ instance Semiring Ordering where
   GT >< x  = x
 
   fromBoolean = fromBooleanDef GT
+
 
 instance Semiring Bool where
   (><) = (&&)
@@ -391,6 +376,7 @@ instance (Monoid b, Semiring b) => Semiring (a -> b) where
   {-# INLINE (><) #-}
 
   fromBoolean = const . fromBoolean
+
 
 instance (Monoid a, Semiring a) => Semiring (Op a b) where
   Op f >< Op g = Op $ \x -> f x >< g x
@@ -435,6 +421,7 @@ instance (Monoid a, Semiring a) => Semiring (Const a b) where
   fromBoolean = Const . fromBoolean
   {-# INLINE fromBoolean #-}
 
+
 instance (Monoid a, Semiring a) => Semiring (Identity a) where
   (><) = liftA2 (><)
   {-# INLINE (><) #-}
@@ -442,22 +429,6 @@ instance (Monoid a, Semiring a) => Semiring (Identity a) where
   fromBoolean = fromBooleanDef $ pure mempty
 
 
-instance (Monoid r, Semiring r) => Semiring (Over r a) where
-  Over x >< Over y = Over (x >< y)
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ Over mempty
-
--- ord (Over a) (Over b) = ord a b
-
-
-instance (Monoid r, Semiring r) => Semiring (Under r a) where
-  Under x >< Under y = Under (x >< y)
-  {-# INLINE (><) #-}
-
-  fromBoolean = fromBooleanDef $ Under mempty
-
--- ord (Under a) (Under b) = ord a b
 
 {-
 -- | This instance can suffer due to floating point arithmetic.
@@ -630,9 +601,27 @@ instance (Monoid a, Semiring a) => Alternative (Semi a) where
   Semi a <|> Semi b = Semi (a <> b)
 -}
 
+{-
+--presemiring
+newtype Sort a = Sort { getSort :: a }
+  deriving (Eq,Ord,Show,Bounded,Generic,Generic1,Typeable,Storable,Functor)
 
+instance Applicative Sort where
+  pure = Sort
+  Sort f <*> Sort a = Sort (f a)
 
+instance Semigroup r => Semigroup (Sort r) where
+  (<>) = liftA2 (<>)
+  {-# INLINE (<>) #-}
 
+instance Monoid r => Monoid (Sort r) where
+  mempty = Sort mempty
+  {-# INLINE mempty #-}
+
+instance (Monoid r, Ord r) => Semiring (Sort r) where
+  Sort a >< Sort b = Sort $ if a < b then a <> b else b <> a
+
+-}
 
 -- | Monoid under '><'. Analogous to 'Data.Monoid.Product', but uses the
 -- 'Semiring' constraint, rather than 'Num'.

@@ -31,6 +31,7 @@ import P
 data Warning w a = Failure w | Warning w a | Success a
   deriving (Eq, Ord, Show, Typeable, Data, Generic) 
 
+-- (|&|) :: (r -> Maybe w) -> (r -> Maybe a) -> r -> Warning w a
 
 -------------------------------------------------------------------------------
 -- Eliminators
@@ -222,6 +223,9 @@ instance Swapped Warning where
 -}
 
 -- This is the close reading of signed. but rules out an additive identity
+-- instead it canonically satisfies prop_absorbative:
+-- prop_absorbative a b = a >< b <> a <> b = a >< b
+
 instance (Semigroup a, Semigroup b) => Semigroup (Warning a b) where
     Failure a   <> Failure b   = Failure (a <> b)
     Failure a   <> Success   y = Warning  a             y

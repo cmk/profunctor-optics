@@ -54,21 +54,20 @@ library
     , contravariant
     , errors
     , free
-    , genvalidity
-    , genvalidity-containers
     , linear
     , microlens
     , nonempty-containers
+    , properties
     , safe
-    , selective
     , semigroupoids
     , text
     , transformers
     , template-haskell
     , validity
     , validity-containers
+    , genvalidity
+    , genvalidity-containers
     , vector
-    --, genvalidity-property
 
   hs-source-dirs:      src
   default-language:    Haskell2010
