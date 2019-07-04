@@ -3,10 +3,6 @@ flags: {}
 
 packages:
   - optics
-  - dioids
-  - properties
 extra-deps:
   - bifunctor-0.1.0.0@sha256:43bfde3f3516e078054db2939d966a9aec6f63a8f98f1ff0c29ed147f39db388
-  - selective-0.2@sha256:ef277b5ade99b513664c9a6682b34d3ebbd96906ad50309d91b25832935c11fe
   - assoc-1@sha256:a7021d3331924f68897d95dfb39b562c2296e54ffab9d1d1956e06fe4d95eed4
-  - nonempty-alternative-0.4.0@sha256:7ee8f23dd3899bf32cd8ca6b827db714ad343a8da2e8043eff201fe23539faa2
