@@ -168,13 +168,13 @@ without k =
 ---------------------------------------------------------------------
 
 
--- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'View', 'Fold' (or 'Traversal').
+-- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'Getter', 'Fold' (or 'Traversal').
 --
 -- >>> [1..10] ^.. folded . filtered even
 -- [2,4,6,8,10]
 --
-branching :: (a -> Bool) -> Prism' a a
-branching p = dimap (branchOn' p) dedup . _Right 
+filtered :: (a -> Bool) -> Prism' a a
+filtered p = dimap (branchOn' p) dedup . _Right 
 
 
 --[Just 1, Nothing] ^.. folded . mapMaybe id

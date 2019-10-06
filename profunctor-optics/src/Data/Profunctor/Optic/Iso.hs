@@ -1,6 +1,6 @@
 module Data.Profunctor.Optic.Iso where
 
-import Data.Profunctor.Optic.Prelude 
+import Data.Profunctor.Optic.Prelude hiding (Product) 
 import Data.Bifunctor.Product (Product(..))
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Type
@@ -24,10 +24,10 @@ type As a = Equality' a a
 simple :: As a
 simple = id
 
--- | Turn a 'Prism' or 'Iso' around to build a 'View'.
+-- | Turn a 'Prism' or 'Iso' around to build a 'Getter'.
 --
 -- If you have an 'Iso', 'from' is a more powerful version of this function
--- that will return an 'Iso' instead of a mere 'View'.
+-- that will return an 'Iso' instead of a mere 'Getter'.
 --
 -- >>> 5 ^.re _Left
 -- Left 5
@@ -43,8 +43,8 @@ simple = id
 -- @
 --
 -- @
--- 're' :: 'Prism' s t a b -> 'View' b t
--- 're' :: 'Iso' s t a b   -> 'View' b t
+-- 're' :: 'Prism' s t a b -> 'Getter' b t
+-- 're' :: 'Iso' s t a b   -> 'Getter' b t
 -- @
 --
 re :: Optic (Re p a b) s t a b -> Optic p b a t s

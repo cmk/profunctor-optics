@@ -1,14 +1,9 @@
 {-# LANGUAGE TupleSections #-}
-module Data.Profunctor.Optic.Traversal.Monoid (
-    module Export
-  , module Data.Profunctor.Optic.Traversal.Monoid
-) where
+module Data.Profunctor.Optic.Traversal.Monoid where
 
 import Data.Bitraversable 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
-
-import Data.Profunctor.Traversing                as Export
 
 import Data.Traversable (fmapDefault, foldMapDefault)
 
@@ -18,6 +13,7 @@ import Data.Traversable (fmapDefault, foldMapDefault)
 
 traversed :: Traversable t => Traversal (t a) (t b) a b
 traversed = wander traverse
+
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --

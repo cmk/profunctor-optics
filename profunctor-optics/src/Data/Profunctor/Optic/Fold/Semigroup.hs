@@ -3,11 +3,10 @@ module Data.Profunctor.Optic.Fold.Semigroup where
 import Data.Profunctor.Optic.Fold
 
 import Data.Semigroup
-import Data.Semiring
 import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.View (view, to)
+import Data.Profunctor.Optic.Getter (view, to)
 import Data.Profunctor.Optic.Prism (_Just, filtering)
 import Data.Foldable (traverse_)
 --import Data.Functor.Const (Const(..))
