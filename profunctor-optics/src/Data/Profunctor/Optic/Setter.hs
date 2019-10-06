@@ -5,8 +5,7 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Review (re)
 import Data.Profunctor.Task
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
-
-import Data.Profunctor.Optic.Grate (overGrate, envMod, forgotten)
+import Data.Profunctor.Optic.Grate (overGrate, withGrate, env, forgotten)
 --import Data.Profunctor.Mapping as Export
 
 import Control.Applicative (liftA)
@@ -22,26 +21,26 @@ import Data.Profunctor.Optic.Prism
 --import Data.Tuple
 import Data.Char
 
-{-
+
+
 import qualified Data.Functor.Rep as F
 
 
---ver :: ((a -> b) -> s -> t) -> Setter s t a b
-ver
-  :: (Representable p, F.Representable (Rep p)) =>
-     ((a -> b) -> s -> t) -> p a b -> p s t
-ver f = wander $ \g s -> F.tabulate $ \idx -> f (extract idx g) s
+{-
+fromGrate :: Grate s t a b -> Setter s t a b
+fromGrate x = withGrate x (\sabt -> setting $ overGrate sabt)
+-}
+
+over :: (Representable p, F.Representable (Rep p)) => ((a -> b) -> s -> t) -> p a b -> p s t
+over f = wander $ \g s -> F.tabulate $ \idx -> f (extract idx g) s
 
 extract :: F.Representable f => F.Rep f -> (a -> f c) -> a -> c
 extract i g = flip F.index i . g
--}
 
 {-
 
-
 arr :: Decisive f => (b -> c) -> Costar f b c
 arr f = Costar (f . copure)
-
 
 --filtered :: (Selective f, Alternative f) => Setter (f a) (f b) a (Maybe b)
 --filtered = setting filter
@@ -50,7 +49,7 @@ lift :: (Monoid a, Semiring a) => a -> Setter' a a
 lift a = setting $ \ f y -> a >< f zero <> y
 
 lower :: (Monoid a, Semiring a) => Setter' a a -> a
-lower a = over a (one <>) zero
+lower a = mapOf a (one <>) zero
 
 -- >>> lower $ zero' + one' :: Int
 -- 1
@@ -77,7 +76,7 @@ masking' :: Setter (IO a) (IO b) a b
 masking' = grating Ex.mask
 
 clonem :: Forget r1 a1 b1 -> Forget (Maybe r1) a1 b2
-clonem = over forgotten (Just .)
+clonem = mapOf forgotten (Just .)
 
 ---------------------------------------------------------------------
 -- Setter
@@ -98,7 +97,7 @@ setting f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
 
 
 setter_complete :: Setter s t a b -> Setter s t a b
-setter_complete = over . setting
+setter_complete = mapOf . setting
 
 In soundness proof, we have to eta-expand g:
 
@@ -114,10 +113,34 @@ setter_complete_2 o = collecting (collectOf o)
 
 -}
 
--- See http://conal.net/blog/posts/semantic-editor-combinators
--- setting id = id
+-- | 'setting' promotes a \"semantic editor combinator\" to a modify-only lens.
+--
+-- To demote a lens to a semantic edit combinator, use the section @(l %~)@ or @mapOf l@.
+--
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setting map . fstL %~ length
+-- [(3,0),(5,1),(5,1),(3,2)]
+--
+-- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
+--
+-- * @sec id === id@
+--
+-- * @sec f . sec g === sec (f . g)@
+--
+-- See <http://conal.net/blog/posts/semantic-editor-combinators>
+--
 setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting f = dimap (Store id) (\(Store g s) -> f g s) . wander collect
+setting sec = dimap (Store id) (\(Store g s) -> sec g s) . wander collect
+
+-- | 'resetting' promotes a \"semantic editor combinator\" to a form of grate that can only lift unary functions.
+--
+-- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
+--
+-- * @sec id === id@
+--
+-- * @sec f . sec g === sec (f . g)@
+--
+--resetting :: ((a -> b) -> s -> t) -> Grate s t a b
+--resetting sec f = sec (f . pure) . extract
 
 
 -- | This 'Setter' can be used to map contravariantly setting the input of a 'Profunctor'.
@@ -158,27 +181,17 @@ res = setting rmap
 sets :: Setter b (a -> c) a c
 sets = setting const
 
-
-{-
-currying :: Setter a (b -> c) (a, b) c
-currying = setting curry
-
-uncurrying :: Setter (a, b) c a (b -> c)
-uncurrying = setting uncurry
-
--}
-
 grated :: Setter (a -> b) (s -> t) ((s -> a) -> b) t
 grated = setting overGrate
 
 modded :: Setter (b -> t) (((s -> a) -> b) -> t) s a
-modded = setting envMod
+modded = setting env
 
-comodded :: Setter (s -> a) ((a -> b) -> s -> t) b t
-comodded = setting between
+composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
+composed = setting between
 
-composed :: Setter (a -> b -> s) (a -> b -> t) s t
-composed = setting ((.)(.)(.))
+composing :: Setter (u -> v -> a) (u -> v -> b) a b
+composing = setting ((.)(.)(.))
 
 collecting :: Functor f => Distributive g => Setter (f a) (g (f b)) a (g b)
 collecting = setting collect
@@ -225,26 +238,26 @@ branched p = setting $ \mod f a -> if p a then mod (f a) else f a
 ---------------------------------------------------------------------
 
 
--- over l id ≡ id
--- over l f . over l g ≡ over l (f . g)
+-- mapOf l id ≡ id
+-- mapOf l f . mapOf l g ≡ mapOf l (f . g)
 --
--- 'over' ('cayley' a) ('Data.Semiring.one' <>) 'Data.Semiring.zero' ≡ a
+-- 'mapOf' ('cayley' a) ('Data.Semiring.one' <>) 'Data.Semiring.zero' ≡ a
 --
 -- ^ @
--- over :: Setter s t a b -> (a -> r) -> s -> r
--- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- mapOf :: Setter s t a b -> (a -> r) -> s -> r
+-- mapOf :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
+mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
+mapOf = id
 
 infixr 4 %~
 
 (%~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(%~) = over
+(%~) = id
 {-# INLINE (%~) #-}
 
-reover :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-reover = re
+remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+remapOf = re
 
 -- set l y (set l x a) ≡ set l y a
 -- \c -> set (setting . runCayley $ c) zero one ≡ lowerCayey c

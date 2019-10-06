@@ -7,7 +7,6 @@ import Data.Profunctor.Optic.Type
 
 import Control.Monad (join)
 
-
 ---------------------------------------------------------------------
 -- 'Equality' 
 ---------------------------------------------------------------------
@@ -82,7 +81,18 @@ re o . o ≡ id
 
 -}
 
-
+-- ^ @
+-- iso :: (s -> a) -> (b -> t) -> Iso s t a b
+-- @
+--
+-- Build an 'Iso' from an isomorphism family.
+--
+-- /Caution/: In order for the generated adapter family to be well-defined, you must ensure that the two isomorphism laws hold:
+--
+-- * @sa . bt === id@
+--
+-- * @bt . sa === id@
+--
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap
 
@@ -152,11 +162,11 @@ forget2 = (. first')
 forgetR :: Iso s t (Either a c) (Either b c) -> Prism s t a b
 forgetR = (. left')
 
-eitherOne :: Iso (Maybe a) (Maybe b) (Either () a) (Either () b)
-eitherOne = iso (maybe (Left ()) Right) (const Nothing ||| Just)
+maybeR :: Iso (Either () a) (Either () b) (Maybe a) (Maybe b)
+maybeR = iso (const Nothing ||| Just) (maybe (Left ()) Right)
 
-eitherTwo :: Iso (Bool,a) (Bool,b) (Either a a) (Either b b)
-eitherTwo = iso f ((,) False ||| (,) True)
+duped :: Iso (Bool, a) (Bool, b) (Either a a) (Either b b)
+duped = iso f ((,) False ||| (,) True)
  where
   f (False,a) = Left a
   f (True,a) = Right a
@@ -201,41 +211,12 @@ involuted :: (s -> a) -> Iso s a a s
 involuted = join iso
 {-# INLINE involuted #-}
 
-
-fover
-  :: Functor f
-  => Functor g
-  => AnIso s t a b
-  -> Iso (f s) (g t) (f a) (g b)
-fover l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
-
-diover
-  :: Profunctor p
-  => Profunctor q
-  => AnIso s t a b
-  -> AnIso ss tt aa bb
-  -> Iso (p a ss) (q b tt) (p s aa) (q t bb)
-diover f g = 
-  withIso f $ \sa bt -> 
-    withIso g $ \ssaa bbtt -> 
-      iso (dimap sa ssaa) (dimap bt bbtt)
-
 -- | If `a1` is obtained from `a` by removing a single value, then
 -- | `Maybe a1` is isomorphic to `a`.
-non :: forall a. Eq a => a -> Iso' (Maybe a) a
+non :: Eq a => a -> Iso' (Maybe a) a
 non def = iso (fromMaybe def) g
   where g a | a == def  = Nothing
             | otherwise = Just a
-
-au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
-au l = withIso l $ \sa bt f e -> sa (f bt e)
-
-auf :: Profunctor p => AnIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
-auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
-
-under :: AnIso s t a b -> (t -> s) -> b -> a
-under l = withIso l $ \sa bt ts -> sa . ts . bt
-
 
 -- | @'anon' a p@ generalizes @'non' a@ to take any value and a predicate.
 --
@@ -251,3 +232,12 @@ anon a p = iso (fromMaybe a) go where
   go b | p b       = Nothing
        | otherwise = Just b
 {-# INLINE anon #-}
+
+au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+au l = withIso l $ \sa bt f e -> sa (f bt e)
+
+auf :: Profunctor p => AnIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
+auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
+
+under :: AnIso s t a b -> (t -> s) -> b -> a
+under l = withIso l $ \sa bt ts -> sa . ts . bt

@@ -8,15 +8,16 @@ module Data.Profunctor.Optic.Grate (
 
 import Data.Distributive
 import Data.Profunctor.Sieve
+import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Prelude hiding (Representable(..))
 
 import Data.Profunctor.Closed as Export
 
 import Control.Monad.Trans.Cont
 
 import qualified Control.Exception as Ex
-
+import Data.Functor.Rep
 
 
 {- 
@@ -43,13 +44,31 @@ grate runIdentity = runIdentity
 grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
 -}
 
-
+-- ^ @
+-- grate :: (((s -> a) -> b) -> t) -> Grate s t a b
+-- @
+--
+-- Build a grate from a nested continuation.
+--
+-- /Caution/: In order for the 'Grate' to be well-defined, you must ensure that the two grate laws hold:
+--
+-- * @grate ($ s) === s@
+--
+-- * @grate (\k -> h (k . sabt)) === sabt (\k -> h ($ k))@
+--
+-- Note: The 'grate' laws are that of an algebra for a parameterised continuation monad.
+--
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
-grate f pab = dimap (flip ($)) f (closed pab)
+grate sabt = dimap (flip ($)) sabt . closed
 
-collected :: Distributive f => Grate (f a) (f b) a b
-collected = grate $ \f -> cotraverse f id
-
+-- ^ @
+-- yoneda :: Representable f => Grate (f a) (f b) a b
+-- @
+--
+--
+--
+yoneda :: Representable f => Grate (f a) (f b) a b
+yoneda = dimap index tabulate . closed
 
 -- ^ @
 -- cod :: Grate (r -> a) (r -> b) a b
@@ -57,8 +76,19 @@ collected = grate $ \f -> cotraverse f id
 --
 -- A grate accessing the codomain of a function.
 --
-cod :: Functor f => (f b -> t) -> f (a -> b) -> (a -> t)
-cod f h r = f $ ($ r) <$> h
+cod :: Grate (r -> a) (r -> b) a b
+cod = dimap tabulate index . closed
+
+cod' :: Grate (r -> a) (r -> b) a b
+cod' = distributed
+
+distributed :: Distributive f => Grate (f a) (f b) a b
+distributed = grate $ \f -> cotraverse f id
+
+distributed' :: Distributive f => Under (f a) (f b) a b 
+distributed' = cowander cotraverse
+
+
 
 
 {-
@@ -82,10 +112,8 @@ asyncWithUnmasking = grate asyncWithUnmask
 --lowered :: (Monoid s, Semiring s) => Grate s t s t
 --lowered = grate $ \f -> f (one <>)
 
-
-
-
-
+equaling :: Eq a => a -> Grate a b Bool b
+equaling x = dimap (==) ($ x) . closed
 
 -- Depend on an unknown configuration parameter x.
 reading :: (x -> a -> a) -> x -> Grate' a a
@@ -118,13 +146,6 @@ costarred = grate $ \o -> Costar $ o runCostar
 forgotten :: Grate (Forget r1 a1 b1) (Forget r2 a2 b2) (a1 -> r1) (a2 -> r2)
 forgotten = grate $ \o -> Forget $ o runForget
 
-
---sieved :: Grate (p1 a b) (a1 -> f0 b1) (f1 a -> b) (p0 a1 b1)
---sieved :: Grate (p0 a b) (Forget r a1 b1) (f0 a -> b) (a1 -> r)
---sieved :: Grate (Forget r a b) (a1 -> Const r b1) (a -> r) (p0 a1 b1)
---sieved = grate $ \o -> sieve $ o runForget
-
-
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -134,10 +155,13 @@ forgotten = grate $ \o -> Forget $ o runForget
 overGrate :: (((s -> a) -> b) -> t) -> (a -> b) -> s -> t
 overGrate sabt ab s = sabt $ \sa -> ab (sa s)
 
+fromIso :: Iso s t a b -> Grate s t a b
+fromIso x = withIso x $ \sa bt -> grate (env sa bt)
+
 -- Iso s t a b -> Grate s t a b
 -- Every 'Iso' is an 'Grate'.
-envMod :: (s -> a) -> (b -> t) -> ((s -> a) -> b) -> t
-envMod sa bt sab = bt (sab sa)
+env :: (s -> a) -> (b -> t) -> ((s -> a) -> b) -> t
+env sa bt sab = bt (sab sa)
 
 -- special case of cotraverse where f = (a,a)
 zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
@@ -147,8 +171,8 @@ zipWithOf = between runZipped Zipped
 cotraverseOf :: Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
 cotraverseOf o f = tf where Costar tf = o (Costar f)
 
-cotraversing :: (Distributive t, Functor f) => (f a -> b) -> f (t a) -> t b
-cotraversing = cotraverseOf cotraversed
+cotraversing :: Functor f => Distributive t => (f a -> b) -> f (t a) -> t b
+cotraversing = cotraverseOf distributed
 
 ---------------------------------------------------------------------
 -- 

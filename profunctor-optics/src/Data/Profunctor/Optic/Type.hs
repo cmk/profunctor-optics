@@ -77,6 +77,9 @@ type Foo s t a b = forall p. Closed p => Strong p => Optic p s t a b
 
 type Bar s t a b = forall p. Choice p => Closed p => Optic p s t a b
 
+type Over s t a b = forall p. Representable p => Optic p s t a b
+
+type Under s t a b = forall p. Corepresentable p => Optic p s t a b
 
 --type RPhantom p = forall x. Contravariant (p x)
 type RPhantom p = (Representable p, Contravariant (Rep p))
@@ -91,9 +94,9 @@ type Setter s t a b = forall p. Representable p => Distributive (Rep p) => Optic
 
 type Setter' s a = Setter s s a a
 
-type Resetter s t a b = forall p. Corepresentable p => Applicative (Corep p) => Optic p s t a b
+--type Resetter s t a b = forall p. Corepresentable p => ? (Corep p) => Optic p s t a b
 
-type Resetter' s a = Resetter s s a a
+--type Resetter' s a = Resetter s s a a
 
 
 --type Traversal s t a b = forall p. Traversing p => Optic p s t a b

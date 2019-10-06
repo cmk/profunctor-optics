@@ -186,8 +186,10 @@ cowander f = cotabulate . f . cosieve
 --laligned :: Strong p => Choice p => p a b -> p (These a c) (These b c)
 --laligned = error "TODO"
 
-cotraversed :: Corepresentable p => Distributive g => p a b -> p (g a) (g b)
-cotraversed = cowander cotraverse
+--foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
+--foo = cowander foldMap
+
+
 
 lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
 lcoerce = cowander (. phantom) --phantom in base's Data.Functor.Contravariant

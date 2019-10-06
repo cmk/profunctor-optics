@@ -50,6 +50,20 @@ set l v' (set l v s) ≡ set l v' s
 
 -- lens sa sbt = dimap (sa &&& id) (uncurry . flip $ sbt) . first'
 -- lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
+-- ^ @
+-- lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
+-- @
+--
+-- Build a lens from a @getter@ and @setter@ family.
+--
+-- /Caution/: In order for the generated lens family to be well-defined, you must ensure that the three lens laws hold:
+--
+-- * @sa (sbt s a) === a@
+--
+-- * @sbt s (sa s) === s@
+--
+-- * @sbt (sbt s a1) a2 === sbt s a2@
+--
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 

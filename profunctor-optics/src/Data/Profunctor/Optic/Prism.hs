@@ -54,16 +54,27 @@ Right (Nothing,"hi")
 
 
 -- | Create a 'Prism' from a constructor and a matcher function that produces an 'Either'.
+-- Build a prism from a matcher and reviewer.
+--
+-- /Caution/: In order for the generated prism family to be well-defined, you must ensure that the three prism laws hold:
+--
+-- * @seta (bt b) === Right b@
+--
+-- * @(id ||| bt) (seta s) === s@
+--
+-- * @left seta (seta s) === left Left (seta s)@
+--
 prism :: (s -> Either t a) -> (b -> t) -> Prism s t a b
-prism seta bt = dimap seta (id ||| bt) . _Right
+prism seta bt = dimap seta (id ||| bt) . _R
 
--- | Create a 'Prism' from a constructor and a matcher function that produces a 'Maybe'.
+-- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 
 -- | Useful for constructing prisms from try and handle functions.
 handled ::  (s -> Either e a) -> (Either e b -> t) -> Prism s t a b
-handled seea eebt = dimap seea eebt . _Right
+handled seea eebt = dimap seea eebt . _R
+
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
 splitting' :: Prism s t a b -> Prism s' t' a' b' -> Prism (Either s s') (Either t t') (Either a a') (Either b b') 
@@ -83,7 +94,7 @@ withPrism :: APrism s t a b -> ((s -> Either t a) -> (b -> t) -> r) -> r
 withPrism l f = case l (PrismRep Right id) of PrismRep g h -> f g h
 
 iso2prism :: Iso s t (Either a x) (Either b x) -> Prism s t a b
-iso2prism iso pab = iso (left' pab)
+iso2prism iso = iso . _L 
 
 
 ---------------------------------------------------------------------
