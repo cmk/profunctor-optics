@@ -7,15 +7,19 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+-- {-# LANGUAGE IncoherentInstances #-}
+-- {-# LANGUAGE OverlappingInstances #-}
+
 
 module Data.Profunctor.Optic.Type (
     module Data.Profunctor.Optic.Type
-  , module Data.Profunctor.Optic.Type.Class
   , module VL
+  , module Export
 ) where
 
 import Data.Semigroup (First, Last)
-import Data.Profunctor.Optic.Type.Class 
+--import Data.Profunctor.Optic.Type.Class 
 import Data.Profunctor.Optic.Prelude
 
 import qualified Data.Profunctor.Optic.Type.VL as VL
@@ -23,24 +27,28 @@ import           Control.Applicative
 import           Control.Monad
 import           Control.Monad.Fix
 import           Data.Bifoldable
-import           Data.Bifunctor
+import Data.Bifunctor as Export (Bifunctor (..))
 import           Data.Bitraversable
 import           Data.Coerce
 import           Data.Data
-import           GHC.Generics
 import           Data.Distributive
-import Data.Semiring hiding (Prod(..))
 import Data.Functor.Classes
 
 type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
 
-type LensLike f s t a b = (a -> f b) -> s -> f t
+type IsoLike f g s t a b = Optic (Adapter f g) s t a b
+
+type LensLike f s t a b = Optic (Star f) s t a b
 
 type LensLike' f s a = LensLike f s s a a
 
-type Equality s t a b = forall p. Optic p s t a b 
+type GrateLike g s t a b = Optic (Costar g) s t a b
+
+type GrateLike' g s a = GrateLike g s s a a
+
+type Equality s t a b = forall f g. IsoLike f g s t a b 
 
 type Equality' s a = Equality s s a a
 
@@ -60,139 +68,138 @@ type Grate s t a b = forall p. Closed p => Optic p s t a b
 
 type Grate' s a = Grate s s a a
 
-type Over s t a b = forall p. Mapping p => Optic p s t a b
+-- A 'Affine' extracts at most one result, with no monoidal interactions.
+type Affine s t a b = forall p. Strong p => Choice p => Optic p s t a b
 
-type Over' s a = Over s s a a
+type Affine' s a = Affine s s a a
 
-type Traversal s t a b = forall p. Traversing p => Optic p s t a b
+type Foo s t a b = forall p. Closed p => Strong p => Optic p s t a b
+
+type Bar s t a b = forall p. Choice p => Closed p => Optic p s t a b
+
+
+--type RPhantom p = forall x. Contravariant (p x)
+type RPhantom p = (Representable p, Contravariant (Rep p))
+
+type LPhantom p = (Corepresentable p, Contravariant (Corep p))
+--type LPhantom p = Bifunctor p
+
+
+--type Setter s t a b = forall p. Representable p => Corepresentable p => Applicative (Rep p) => Distributive (Corep p) => Optic p s t a b
+-- type Setter s t a b = forall p. Strong p => Choice p => Closed p => Optic p s t a b
+type Setter s t a b = forall p. Representable p => Distributive (Rep p) => Optic p s t a b
+
+type Setter' s a = Setter s s a a
+
+type Resetter s t a b = forall p. Corepresentable p => Applicative (Corep p) => Optic p s t a b
+
+type Resetter' s a = Resetter s s a a
+
+
+--type Traversal s t a b = forall p. Traversing p => Optic p s t a b
+type Traversal s t a b = forall p. Representable p => Applicative (Rep p) => Optic p s t a b
 
 type Traversal' s a = Traversal s s a a
 
--- A 'Traversal0' extracts at most one result, with no monoidal interactions.
-type Traversal0 s t a b = forall p. (Strong p, Choice p) => Optic p s t a b
+--type GridVL s t a b = forall f g. (Applicative f, Functor g) => AdapterLike f g s t a b
+type Grid s t a b = forall p. Corepresentable p => Distributive (Corep p) => Optic p s t a b
 
-type Traversal0' s a = Traversal0 s s a a
+
 
 -- A 'Traversal1' extracts at least one result.
-type Traversal1 s t a b = forall p. Traversing1 p => Optic p s t a b
+--type Traversal1 s t a b = forall p. Traversing1 p => Optic p s t a b
 
-type Traversal1' s a = Traversal1 s s a a
+--type Traversal1' s a = Traversal1 s s a a
 
-type Fold s a = forall p. (forall x. Contravariant (p x), Traversing p) => Optic' p s a
+--type Fold s a = forall p. (forall x. Contravariant (p x), Traversing p) => Optic' p s a
+--type Fold s a = forall p. RPhantom p => Strong p => Optic' p s a
+type Fold s a = forall p. Representable p => Applicative (Rep p) => Contravariant (Rep p) => Optic' p s a
 
--- A 'Fold0' extracts at most one result.
-type Fold0 s a = forall p. (forall x. Contravariant (p x), Strong p, Choice p) => Optic' p s a
 
--- A 'Fold1' extracts at least one result.
-type Fold1 s a = forall p. (forall x. Contravariant (p x), Traversing1 p) => Optic' p s a 
 
-type PrimView s t a b = forall p. (forall x. Contravariant (p x), Profunctor p) => Optic p s t a b
+-- A 'AffineFold' extracts at most one result.
+--type AffineFold s a = forall p. RPhantom p => Strong p => Choice p => Optic' p s a
+type AffineFold s a = forall p. RPhantom p => Strong p => Choice p => Optic' p s a
 
-type PrimView' s a = PrimView s s a a
+-- A 'Fold1' extracts at least one result. should be able to do this w/ a GrateLike / Grid
+--type Fold1 s a = forall p. RPhantom p => Traversing1 p => Optic' p s a
 
--- A 'View' extracts exactly one result.
-type View s a = forall p. (forall x. Contravariant (p x), Strong p) => Optic' p s a
 
-type PrimReview s t a b = forall p. (Bifunctor p, Profunctor p) => Optic p s t a b
+--type PrimGetter s t a b = forall p . Representable p => Contravariant (Rep p) => p a b -> p s t
+
+type PrimGetter s t a b = forall p. RPhantom p => Optic p s t a b
+
+type PrimGetter' s a = PrimGetter s s a a
+
+type PrimReview s t a b = forall p. LPhantom p => Optic p s t a b
 
 type PrimReview' t b = PrimReview t t b b
 
-type Review t b = forall p. (Bifunctor p, Choice p) => Optic' p t b
+-- A 'Getter' extracts exactly one result.
+--type Getter s a = forall p . Strong p => Representable p => Contravariant (Rep p) => p a b -> p s t
+type Getter s a = forall p. RPhantom p => Strong p => Optic' p s a
+
+type Review t b = forall p. LPhantom p => Choice p => Optic' p t b
+
+type FoldLike r s a = LensLike' (Const r) s a
+
+type UnfoldLike r t b = GrateLike' (Const r) t b
+
+--type AGetter s a = forall r. FoldLike r s a
+type AGetter s a = FoldLike a s a
+
+--type AReview t b = forall r. UnfoldLike r t b
+type AReview t b = UnfoldLike b t b
+
+type ASetter s t a b = LensLike Identity s t a b
+
+type AResetter s t a b = GrateLike Identity s t a b
+
+type AMatch r s t a b = LensLike (Either r) s t a b
 
 
-type ATraversal f s t a b = Optic (Star f) s t a b
-
-type ATraversal' f s a = Optic' (Star f) s a
-
-type AFold  r s a = Optic' (Star (Sum r)) s a
-
-type AnAlt  r s a = Optic' (Star (Alt r)) s a
-
-type AProd r s a = Optic' (Star (Prod r)) s a
-
-type APoly r s a = Optic' (Star (Poly r)) s a
-
-type AFold0 r s a = Optic' (Star (Pre r)) s a
-
---type AFold r s a = Optic' (Forget r) s a
-
---type AFold0 r s a = Optic' (Forget (Maybe r)) s a
-
-type ACofold r t b = Optic' (Costar (Const r)) t b
-
---type AView s a = forall r. AFold r s a
-type AView s a = AFold a s a
-
---type AReview t b = forall r. ACofold r t b
-type AReview t b = ACofold b t b
-
-type AMatch r s t a b = Optic (Star (Either r)) s t a b
-
-
-unfoldMapOf :: ACofold r t b -> (r -> b) -> r -> t
+unfoldMapOf :: UnfoldLike r t b -> (r -> b) -> r -> t
 unfoldMapOf = between (coDstar Const) (coUstar getConst) 
 
-
-
-cofolded :: (Foldable f, Monoid r) => (a -> r) -> Costar f a r
+cofolded :: (Foldable f, Monoid b) => (a -> b) -> Costar f a b
 cofolded f = Costar (foldMap f)
+
+
+{-
+toLensLike :: AdapterLike f Identity s t a b -> LensLike f s t a b
+toLensLike o h = lower' o h runIdentity Identity -- l f = l (f . runIdentity) . Identity 
+
+--fromLensLike :: AdapterLike f Identity s t a b -> LensLike f s t a b
+--fromLensLike o h = lower o h Identity runIdentity 
+
+toLensLike' o h = lower' o h getConst Const 
+
+toGrateLike :: AdapterLike Identity g s t a b -> GrateLike g s t a b
+toGrateLike o h = colower o h runIdentity Identity
+
+toGrateLike' o h = colower o h getConst Const
+
+
+lift :: LensLike f s t a b -> AdapterLike f Identity s t a b
+lift l f = l (f . Identity) . runIdentity
+-}
+
+--adapt :: AdapterLike f g s t a b -> Optic (Adapter f g) s t a b
+adapt = between Adapter runAdapter
+
+--fromGrate :: GrateLike g s t a b -> Optic (Costar g) s t a b
+fromGrate = between Costar runCostar
+
+--fromLens :: LensLike f s t a b -> Optic (Star f) s t a b
+fromLens = between Star runStar
+
 
 --alternated :: forall f s a. (forall f. Alternative f) => Star f s a -> Traversal s a s a
 --alternated f = between runStar $ Star . (<||> f)
 --alternated (Star f) = wander (<||> f)
 
-newtype Folded r a s = Folded { runFolded :: (s -> r) -> a -> r }
-
--- | 'Cayley a' is isomorphic to 'End (End a)'
-
--- its multiplication is lens composition.
-newtype Cayley a = Cayley { runCayley :: (a -> a) -> a -> a } -- deriving Generic
-
-instance Semigroup (Cayley a) where
-  (Cayley f) <> (Cayley g) = Cayley $ \h -> f h . g h
-
-instance Monoid (Cayley a) where
-  mempty = Cayley $ const id
-
-instance Semiring (Cayley a) where
-  (Cayley f) >< (Cayley g) = Cayley $ f . g
-
-liftCayley :: (Monoid a, Semiring a) => a -> Cayley a
-liftCayley x = Cayley $ \ h y -> x >< h zero <> y
-
-lowerCayley :: (Monoid a, Semiring a) => Cayley a -> a
-lowerCayley (Cayley f) = f (one <>) zero 
-
 
 {-
-a = liftCayley (3 :: Int)
-b = liftCayley (4 :: Int)
-
-a' = cayley (3 :: Int) 
-b' = cayley (4 :: Int)
-
-
-runC c = mapOf c (one <>) zero
-
-runC $ a' . a' + b' . b'
-a' . sumC a' b'
-
-
-c = foo 3 4
-f = foldMapping . runCayley $ c
-f' = over . runCayley $ c
-
-runC :: (Monoid a, Semiring a) => Over' a a -> a
-runC c = mapOf c (one <>) zero
-
-foldMapOf (folded . f') id [1..5]
-
-\h -> a' h . b' h
--}
-foo :: Int -> Int -> Cayley Int
-foo a b = a' >< (b' <> a') 
-  where a' = liftCayley a
-        b' = liftCayley b
 ---------------------------------------------------------------------
 -- 'Sum'
 ---------------------------------------------------------------------
@@ -266,49 +273,8 @@ instance (Monoid r, Semiring r) => Alternative (Prod r) where
 
   Prod r <|> Prod s = Prod $ r <> s
 
-
-
----------------------------------------------------------------------
--- 'Semiring'
----------------------------------------------------------------------
-
-newtype Poly r a = Poly { runPoly :: r } 
-  deriving (Eq, Ord, Show, Bounded, Generic, Generic1, Typeable, Functor)
-
-
--- | Translate between semiring ops and Applicative / Alternative ops. 
--- >>> Semi 2 <|> Semi (3::Int)
--- Semi {getSemi = 5}
-
-{-
-
-instance Eq1 Poly where
-  liftEq = coerce
-  {-# INLINE liftEq #-}
-
-instance Ord1 Poly where
-  liftCompare = coerce
-  {-# INLINE liftCompare #-}
-
-instance Show1 Mul where
-  liftShowsPrec = showsNewtype "Mul" "getMul"
-  {-# INLINE liftShowsPrec #-}
 -}
 
-
-instance Contravariant (Poly r) where 
-
-  contramap _ (Poly r) = Poly r
-
-instance Semiring r => Apply (Poly r) where
-
-  Poly r <.> Poly s = Poly $ r >< s
-
-
-instance Monoid r => Applicative (Poly r) where
-  pure _ = Poly mempty
-
-  Poly r <*> Poly s = Poly $ r <> s
 
 
 ---------------------------------------------------------------------
@@ -316,7 +282,7 @@ instance Monoid r => Applicative (Poly r) where
 ---------------------------------------------------------------------
 
 
-newtype Alt f a = Alt { runAlt :: f a } deriving (Eq, Ord, Show, Data, Generic, Generic1)
+newtype Alt f a = Alt { runAlt :: f a } deriving (Eq, Ord, Show, Data)
 
 --instance Functor (Alt a) where fmap f (Alt p) = Alt p
 
@@ -343,7 +309,7 @@ instance Alternative f => Monoid (Alt f a) where
 -- Star (Pre r) a b has Strong. Also Choice & Traversing when r is a Semigroup.
 -- idea: 
 
-newtype Pre a b = Pre { runPre :: Maybe a } deriving (Eq, Ord, Show, Data, Generic, Generic1)
+newtype Pre a b = Pre { runPre :: Maybe a } deriving (Eq, Ord, Show, Data)
 
 instance Functor (Pre a) where fmap f (Pre p) = Pre p
 
@@ -431,16 +397,16 @@ instance Traversable Pre where
 {-
 
 -- | A 'Monoid' for a 'Contravariant' 'Applicative'.
-newtype AFold f a = AFold { getAFold :: f a }
+newtype FoldLike f a = FoldLike { getFoldLike :: f a }
 
-instance (Contravariant f, Applicative f) => Semigroup (AFold f a) where
-  AFold fr <> AFold fs = AFold (fr *> fs)
+instance (Contravariant f, Applicative f) => Semigroup (FoldLike f a) where
+  FoldLike fr <> FoldLike fs = FoldLike (fr *> fs)
   {-# INLINE (<>) #-}
 
-instance (Contravariant f, Applicative f) => Monoid (AFold f a) where
-  mempty = AFold noEffect
+instance (Contravariant f, Applicative f) => Monoid (FoldLike f a) where
+  mempty = FoldLike noEffect
   {-# INLINE mempty #-}
-  AFold fr `mappend` AFold fs = AFold (fr *> fs)
+  FoldLike fr `mappend` FoldLike fs = FoldLike (fr *> fs)
   {-# INLINE mappend #-}
 -}
 
@@ -529,7 +495,7 @@ instance Choice p => Choice (Split p c d) where
 -- ^ @
 -- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
 -- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
--- split :: View s t a b -> View s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
 -- @
 split 
   :: Profunctor p 

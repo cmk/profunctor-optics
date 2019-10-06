@@ -11,14 +11,13 @@ module Data.Profunctor.Optic.Review
   , review, reviews
   --, reuse, reuses
   , (#)
-  , retagged
   , reviewBoth
   , reviewEither
   ) where
 
 import Control.Monad.Reader as Reader
 
-import Data.Profunctor.Optic.View
+import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
 
@@ -29,7 +28,7 @@ import Data.Profunctor.Optic.Iso (re)
 
 
 -- | Convert a function into a 'Review'.
---  Analagous to 'to' for 'View'.
+--  Analagous to 'to' for 'Getter'.
 --
 -- @
 -- 'unto' :: (b -> t) -> 'PrimReview' s t a b
@@ -40,10 +39,10 @@ import Data.Profunctor.Optic.Iso (re)
 -- @
 --
 unto :: (b -> t) -> PrimReview s t a b 
-unto f = retagged . dimap id f
+unto f = lcoerce . dimap id f
 
 
--- | Turn a 'View' around to get a 'Review'
+-- | Turn a 'Getter' around to get a 'Review'
 --
 -- @
 -- 'un' = 'unto' . 'view'
@@ -52,7 +51,7 @@ unto f = retagged . dimap id f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: AView s a -> PrimReview b a t s
+un :: AGetter s a -> PrimReview b a t s
 un = unto . (`views` id)
 
 
@@ -122,7 +121,7 @@ reviewEither l r = unto (review l ||| review r)
 -- 'reviews o f ≡ unfoldMapOf o f'
 -- @
 --
-reviews :: MonadReader r m => ACofold r t b -> (r -> b) -> m t
+reviews :: MonadReader r m => UnfoldLike r t b -> (r -> b) -> m t
 reviews o f = Reader.asks $ unfoldMapOf o f 
 {-# INLINE reviews #-}
 

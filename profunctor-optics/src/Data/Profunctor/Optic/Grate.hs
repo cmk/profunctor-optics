@@ -15,15 +15,9 @@ import Data.Profunctor.Closed as Export
 
 import Control.Monad.Trans.Cont
 
-import Control.Monad.IO.Unlift
-import UnliftIO.Exception
-import UnliftIO.Async
-
-import Data.Semiring
+import qualified Control.Exception as Ex
 
 
-lowered :: (Monoid s, Semiring s) => Grate s t s t
-lowered = grate $ \f -> f (one <>)
 
 {- 
 'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
@@ -32,7 +26,7 @@ The identity container is representable, and representable functors are closed u
 
 See https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf section 4.6
 
-The resulting 'Grate' optic sits between 'Iso' and 'Over'. This is witnessed by  
+The resulting 'Grate' optic sits between 'Iso' and 'Setter'. This is witnessed by  
 
 Profunctor Grate: Grate s t a b ~ Closed p => p a b -> p s t
 Van Laarhoven Grate: forall f. Functor f => (f a -> b) -> (f s -> t)
@@ -53,31 +47,21 @@ grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate f pab = dimap (flip ($)) f (closed pab)
 
-cotraversed :: Distributive f => Grate (f a) (f b) a b
-cotraversed = grate $ \f -> cotraverse f id
+collected :: Distributive f => Grate (f a) (f b) a b
+collected = grate $ \f -> cotraverse f id
+
+
+-- ^ @
+-- cod :: Grate (r -> a) (r -> b) a b
+-- @
+--
+-- A grate accessing the codomain of a function.
+--
+cod :: Functor f => (f b -> t) -> f (a -> b) -> (a -> t)
+cod f h r = f $ ($ r) <$> h
+
 
 {-
-
-
-import Control.Monad.Trans.Cont
-import Control.Monad.IO.Unlift
-import UnliftIO.Exception
-import UnliftIO.Async
-
-grate shiftT :: (Monad m, Closed p) => Optic p a (ContT r m a) (m r) (ContT r m r)
-
-
-
-grate select :: Closed p => Optic p a1 (Select a2 a1) a2 a1
-
-grate SelectT :: Closed p => Optic p a (SelectT r m a) (m r) (m a)
-
-env' SelectT :: (Functor m, Mapping p) => Optic p a1 (SelectT a2 m a1) a2 a1
-
-env' ContT :: (Functor m, Mapping p) => Optic p a1 (ContT a2 m a1) a2 a2
-
-env' callCC :: Mapping p => Optic p a1 (ContT r m a1) a2 a1
-
 
 -- Pipes.Lift
 type Proxy m r = m r
@@ -90,16 +74,28 @@ resourceMask :: MonadResource m => ((forall a. ResourceT IO a -> ResourceT IO a)
 unlifting :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
 unlifting = grate withRunInIO
 
-masking :: MonadUnliftIO m => Grate (m a) (m b) (m a) (m b)
-masking = grate mask
-
 asyncWithUnmasking :: MonadUnliftIO m => Grate (m a) (m (Async b)) (m a) (m b)
 asyncWithUnmasking = grate asyncWithUnmask
 
-λ> import Control.Concurrent
-grate Control.Concurrent.forkOSWithUnmask :: Closed p => Optic p (IO a) (IO ThreadId) (IO a) (IO ())
-
 -}
+
+--lowered :: (Monoid s, Semiring s) => Grate s t s t
+--lowered = grate $ \f -> f (one <>)
+
+
+
+
+
+
+-- Depend on an unknown configuration parameter x.
+reading :: (x -> a -> a) -> x -> Grate' a a
+reading f x = dimap (flip f) ($ x) . closed
+
+emptied :: Semigroup a => a -> Grate' a a 
+emptied = reading (<>)
+
+masking :: Grate (IO a) (IO b) (IO a) (IO b)
+masking = grate Ex.mask
 
 shifted :: Grate a (Cont r a) r (Cont r r)
 shifted = grate shift 
@@ -133,8 +129,8 @@ forgotten = grate $ \o -> Forget $ o runForget
 -- Operators
 ---------------------------------------------------------------------
 
--- Grate s t a b -> Over s t a b
--- Every 'Grate' is an 'Over'.
+-- Grate s t a b -> Setter s t a b
+-- Every 'Grate' is an 'Setter'.
 overGrate :: (((s -> a) -> b) -> t) -> (a -> b) -> s -> t
 overGrate sabt ab s = sabt $ \sa -> ab (sa s)
 
@@ -179,7 +175,6 @@ withGrate o = h where GrateRep h = o (GrateRep $ \f -> f id)
 
 cloneGrate :: Optic (GrateRep a b) s t a b -> Grate s t a b
 cloneGrate = grate . withGrate
-
 
 reviewGrate :: GrateRep a b s t -> b -> t
 reviewGrate (GrateRep e) b = e (const b)

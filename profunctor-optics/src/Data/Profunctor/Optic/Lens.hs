@@ -5,7 +5,7 @@ module Data.Profunctor.Optic.Lens (
 
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Type.Task (Store(..))
+import Data.Profunctor.Task (Store(..))
 import Data.Void (Void, absurd)
 import Data.Profunctor.Strong as Export
 
@@ -29,8 +29,8 @@ objects as consisting of a product of two components.
 viewUpdate :: Eq s => LensRep s s a a -> s -> Bool
 viewUpdate (LensRep v u) s = u ((v s), s) == s
 
-updateView :: Eq a => LensRep s s a a -> a -> s -> Bool
-updateView (LensRep v u) a s = v (u (a, s)) == a
+updateGetter :: Eq a => LensRep s s a a -> a -> s -> Bool
+updateGetter (LensRep v u) a s = v (u (a, s)) == a
 
 updateUpdate :: Eq s => LensRep s s a a -> a -> a -> s -> Bool
 updateUpdate (LensRep v u) a1 a2 s = u (a2, (u (a1, s))) == u (a2, s)

@@ -8,7 +8,6 @@ module Data.Profunctor.Optic.Traversal.Semigroup (
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.Type.Class as Export (Traversing1(..))
 import Data.Semigroup.Traversable.Class as Export
 
 

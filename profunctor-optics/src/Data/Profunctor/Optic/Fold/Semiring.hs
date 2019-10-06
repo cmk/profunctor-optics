@@ -6,7 +6,7 @@ import Data.Semigroup
 import Data.Profunctor.Optic.Type 
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.View (view, to)
+import Data.Profunctor.Optic.Getter (view, to)
 import Data.Profunctor.Optic.Prism (_Just, filtering)
 import Data.Foldable (traverse_)
 
@@ -123,7 +123,7 @@ foldlOf'' o f c0 s = foldrOf o (force f) (End id) s `appEnd` c0
 force :: (c -> a -> c) -> a -> End c -> End c
 force f x (End k) = End $ \z -> k $! f z x
 
---foldlOf'' :: (Monoid c, Semiring c) => AFold (End (End c)) s a -> c -> s -> c
+--foldlOf'' :: (Monoid c, Semiring c) => FoldLike (End (End c)) s a -> c -> s -> c
 foldlOf'' o c0 s = foldrOf o (force foo) (End $ id) s `appEnd` c0
 
 
@@ -215,7 +215,7 @@ minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 
 {-
 -- | Obtain the maximum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso',
--- or 'View' according to a user supplied 'Ordering'.
+-- or 'Getter' according to a user supplied 'Ordering'.
 --
 -- >>> maximumByOf traverse (compare `on` length) ["mustard","relish","ham"]
 -- Just "mustard"
@@ -227,7 +227,7 @@ minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -- @
 --
 -- @
--- 'maximumByOf' :: 'View' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'maximumByOf' :: 'Getter' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'maximumByOf' :: 'Fold' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'maximumByOf' :: 'Iso'' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'maximumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
@@ -240,7 +240,7 @@ maximumByOf o cmp = foldlOf' o mf Nothing where
 {-# INLINE maximumByOf #-}
 
 -- | Obtain the minimum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso'
--- or 'View' according to a user supplied 'Ordering'.
+-- or 'Getter' according to a user supplied 'Ordering'.
 --
 -- In the interest of efficiency, This operation has semantics more strict than strictly necessary.
 --
@@ -252,7 +252,7 @@ maximumByOf o cmp = foldlOf' o mf Nothing where
 -- @
 --
 -- @
--- 'minimumByOf' :: 'View' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'minimumByOf' :: 'Getter' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Fold' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Iso'' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
@@ -264,7 +264,7 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
   mf (Just x) y = Just $! if cmp x y == GT then y else x
 {-# INLINE minimumByOf #-}
 
--- | The 'findOf' function takes a 'Lens' (or 'View', 'Iso', 'Fold', or 'Traversal'),
+-- | The 'findOf' function takes a 'Lens' (or 'Getter', 'Iso', 'Fold', or 'Traversal'),
 -- a predicate and a structure and returns the leftmost element of the structure
 -- matching the predicate, or 'Nothing' if there is no such element.
 --
@@ -275,7 +275,7 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
 -- Nothing
 --
 -- @
--- 'findOf' :: 'View' s a     -> (a -> 'Bool') -> s -> 'Maybe' a
+-- 'findOf' :: 'Getter' s a     -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Fold' s a       -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Iso'' s a       -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Lens'' s a      -> (a -> 'Bool') -> s -> 'Maybe' a
@@ -297,7 +297,7 @@ findOf :: Folding (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE findOf #-}
 
--- | The 'findMOf' function takes a 'Lens' (or 'View', 'Iso', 'Fold', or 'Traversal'),
+-- | The 'findMOf' function takes a 'Lens' (or 'Getter', 'Iso', 'Fold', or 'Traversal'),
 -- a monadic predicate and a structure and returns in the monad the leftmost element of the structure
 -- matching the predicate, or 'Nothing' if there is no such element.
 --
@@ -315,7 +315,7 @@ findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 -- Nothing
 --
 -- @
--- 'findMOf' :: ('Monad' m, 'View' s a)     -> (a -> m 'Bool') -> s -> m ('Maybe' a)
+-- 'findMOf' :: ('Monad' m, 'Getter' s a)     -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Fold' s a)       -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Iso'' s a)       -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Lens'' s a)      -> (a -> m 'Bool') -> s -> m ('Maybe' a)
@@ -337,7 +337,7 @@ findMOf :: Monad m => Folding (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> 
 findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y) $ return Nothing
 {-# INLINE findMOf #-}
 
--- | The 'lookupOf' function takes a 'Fold' (or 'View', 'Traversal',
+-- | The 'lookupOf' function takes a 'Fold' (or 'Getter', 'Traversal',
 -- 'Lens', 'Iso', etc.), a key, and a structure containing key/value pairs.
 -- It returns the first value corresponding to the given key. This function
 -- generalizes 'lookup' to work on an arbitrary 'Fold' instead of lists.

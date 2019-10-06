@@ -1,24 +1,18 @@
-module Data.Profunctor.Optic.Over (
-    module Data.Profunctor.Optic.Over 
-  , module Export
-) where
+module Data.Profunctor.Optic.Setter where
 
 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Review (re)
-import Data.Profunctor.Optic.Type.Task hiding (Context)
+import Data.Profunctor.Task
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
 
-import Data.Profunctor.Optic.Grate (overGrate, forgotten)
-import Data.Profunctor.Mapping as Export
+import Data.Profunctor.Optic.Grate (overGrate, envMod, forgotten)
+--import Data.Profunctor.Mapping as Export
 
 import Control.Applicative (liftA)
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Control.Monad.Reader as Reader
-
-import Control.Monad.IO.Unlift
-import UnliftIO.Exception
 
 --import Data.ByteString (ByteString)
 import qualified Control.Exception as Ex
@@ -27,70 +21,106 @@ import Data.Profunctor.Optic.Prism
 -- TODO put this into doctests
 --import Data.Tuple
 import Data.Char
-import Control.Arrow
 
-import Control.Selective hiding (Over(..))
+{-
+import qualified Data.Functor.Rep as F
 
-import Data.Semiring
 
-lift :: (Monoid a, Semiring a) => a -> Over' a a
-lift a = over $ \ f y -> a >< f zero <> y
+--ver :: ((a -> b) -> s -> t) -> Setter s t a b
+ver
+  :: (Representable p, F.Representable (Rep p)) =>
+     ((a -> b) -> s -> t) -> p a b -> p s t
+ver f = wander $ \g s -> F.tabulate $ \idx -> f (extract idx g) s
 
-lower :: (Monoid a, Semiring a) => Over' a a -> a
-lower a = mapOf a (one <>) zero
+extract :: F.Representable f => F.Rep f -> (a -> f c) -> a -> c
+extract i g = flip F.index i . g
+-}
+
+{-
+
+
+arr :: Decisive f => (b -> c) -> Costar f b c
+arr f = Costar (f . copure)
+
+
+--filtered :: (Selective f, Alternative f) => Setter (f a) (f b) a (Maybe b)
+--filtered = setting filter
+
+lift :: (Monoid a, Semiring a) => a -> Setter' a a
+lift a = setting $ \ f y -> a >< f zero <> y
+
+lower :: (Monoid a, Semiring a) => Setter' a a -> a
+lower a = over a (one <>) zero
 
 -- >>> lower $ zero' + one' :: Int
 -- 1
 -- >>> lower $ zero' . one' :: Int
 -- 0
-zero' :: (Monoid a, Semiring a) => Over' a a
-zero' = over $ const id
+zero' :: (Monoid a, Semiring a) => Setter' a a
+zero' = setting $ const id
 
-one' :: (Monoid a, Semiring a) => Over' a a
-one' = over id
+one' :: (Monoid a, Semiring a) => Setter' a a
+one' = setting id
 
-infixl 6 +
-
-(+) :: (Monoid a, Semiring a) => Over' a a -> Over' a a -> Over' a a
-(+) = add
-
-add :: (Monoid a, Semiring a) => Over' a a -> Over' a a -> Over' a a
-add f g = over $ \h -> (f %~ h) . (g %~ h)
+add :: (Monoid a, Semiring a) => Setter' a a -> Setter' a a -> Setter' a a
+add f g = setting $ \h -> (f %~ h) . (g %~ h)
+-}
 
 
+grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
+grating f = dimap pureTaskF (f . runTask) . wander collect
 
-grating :: Functor f => (((s -> f a) -> f b) -> t) -> Over s t a b
-grating f = dimap pureTaskF (f . runTask) . map'
+--unlifting' :: MonadUnliftIO m => Setter (m a) (m b) a b
+--unlifting' = grating withRunInIO
 
-unlifting' :: MonadUnliftIO m => Over (m a) (m b) a b
-unlifting' = grating withRunInIO
-
-masking' :: MonadUnliftIO m => Over (m a) (m b) a b
-masking' = grating mask
+masking' :: Setter (IO a) (IO b) a b
+masking' = grating Ex.mask
 
 clonem :: Forget r1 a1 b1 -> Forget (Maybe r1) a1 b2
-clonem = mapOf forgotten (Just .)
+clonem = over forgotten (Just .)
 
 ---------------------------------------------------------------------
--- Over
+-- Setter
 ---------------------------------------------------------------------
+
+collectOf :: (Applicative f, Distributive f)
+          => Optic (Star (WrappedApplicative f)) s t a b
+          -> (a -> f b) -> s -> f t
+collectOf o f = unwrapApplicative . runStar (o (Star (WrapApplicative . f)))
 
 {-
- 
-over_complete :: Over s t a b -> Bool
-over_complete o = tripping o $ mapOf . over 
+
+
 
 import Data.Functor.Rep
-over :: ((a -> b) -> s -> t) -> Over s t a b
-over f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+setting :: ((a -> b) -> s -> t) -> Setter s t a b
+setting f = wander $ \g s -> tabulate $ \idx -> f (flip index idx . g) s
+
+
+setter_complete :: Setter s t a b -> Setter s t a b
+setter_complete = over . setting
+
+In soundness proof, we have to eta-expand g:
+
+setter_sound_proof :: ()
+setter_sound_proof =
+    (\f g s -> setting (setting f) g s)
+    ===
+    (\f g s -> f (\x -> g x) s)
+Another way is to say that collectOf and collecting are the basic operations:
+
+setter_complete_2 :: Setter s t a b -> Setter s t a b
+setter_complete_2 o = collecting (collectOf o)
+
 -}
 
 -- See http://conal.net/blog/posts/semantic-editor-combinators
-over :: ((a -> b) -> s -> t) -> Over s t a b
-over f = dimap (Store id) (\(Store g s) -> f g s) . map'
+-- setting id = id
+setting :: ((a -> b) -> s -> t) -> Setter s t a b
+setting f = dimap (Store id) (\(Store g s) -> f g s) . wander collect
 
 
--- | This 'Over' can be used to map contravariantly over the input of a 'Profunctor'.
+-- | This 'Setter' can be used to map contravariantly setting the input of a 'Profunctor'.
 --
 -- The most common 'Profunctor' to use this with is @(->)@.
 --
@@ -103,129 +133,121 @@ over f = dimap (Store id) (\(Store g s) -> f g s) . map'
 -- >>> (arg %~ f) h x y
 -- h (f x) y
 --
--- Map over the arg of the res of a function -- i.e., its second
+-- Map setting the arg of the res of a function -- i.e., its second
 -- arg:
 --
 -- >>> (mapped . arg %~ f) h x y
 -- h x (f y)
 --
 -- @
--- 'arg' :: 'Over' (b -> r) (a -> r) a b
+-- 'arg' :: 'Setter' (b -> r) (a -> r) a b
 -- @
 -- 
-arg :: Profunctor p => Over (p b r) (p a r) a b
-arg = over lmap
+arg :: Profunctor p => Setter (p b r) (p a r) a b
+arg = setting lmap
 {-# INLINE arg #-}
 
--- | res :: Over (r -> b) (r -> a) b a
+-- | res :: Setter (r -> b) (r -> a) b a
 
-res :: Profunctor p => Over (p r a) (p r b) a b
-res = over rmap
-
+res :: Profunctor p => Setter (p r a) (p r b) a b
+res = setting rmap
 
 -- |Using 'set' one can set instead of modify a value using Semantic Editor Combinators
 --  for example '(first.set) 1' will set the first value of a tuple to 1
 --sets :: a -> b -> a
-setting :: Over b (a -> c) a c
-setting = over const
+sets :: Setter b (a -> c) a c
+sets = setting const
 
--- |Semantic Editor Combinator for Maybe
---just ::  (a -> b) -> Maybe a -> Maybe b
---just = monad
-
--- |Semantic Editor Combinator for monads
---monad :: Monad m => (a -> b) -> m a -> m b
---monad = liftM -- (>>= return . f)
-
--- |Semantic Editor Combinator for monadicaly transforming a monadic value
---binds :: Monad m => (a -> m b) -> m a -> m b
---binds f = over (>>= f)
-
-
-
-
---composed :: Over (a -> b -> s) (a -> b -> t) s t
---composed = over ((.)(.)(.))
 
 {-
-currying :: Over a (b -> c) (a, b) c
-currying = over curry
+currying :: Setter a (b -> c) (a, b) c
+currying = setting curry
 
-uncurrying :: Over (a, b) c a (b -> c)
-uncurrying = over uncurry
+uncurrying :: Setter (a, b) c a (b -> c)
+uncurrying = setting uncurry
+
 -}
 
-grated :: Over (a -> b) (s -> t) ((s -> a) -> b) t
-grated = over overGrate
+grated :: Setter (a -> b) (s -> t) ((s -> a) -> b) t
+grated = setting overGrate
 
-reover :: Over (s -> a) ((a -> b) -> s -> t) b t
-reover = over between
+modded :: Setter (b -> t) (((s -> a) -> b) -> t) s a
+modded = setting envMod
 
+comodded :: Setter (s -> a) ((a -> b) -> s -> t) b t
+comodded = setting between
+
+composed :: Setter (a -> b -> s) (a -> b -> t) s t
+composed = setting ((.)(.)(.))
+
+collecting :: Functor f => Distributive g => Setter (f a) (g (f b)) a (g b)
+collecting = setting collect
+
+-- | Semantic Editor Combinator for monadicaly transforming a monadic value
+binding :: Monad m => Setter (m a) (m b) a (m b)
+binding = setting (=<<)
+
+-- |Semantic Editor Combinator on each value of a functor
+fmapped :: Functor f => Setter (f a) (f b) a b
+fmapped = setting fmap
+
+foldMapped :: (Foldable f, Monoid m) => Setter (f a) m a m
+foldMapped = setting foldMap
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
 -- @
--- 'lift' ≡ 'over' 'lifted'
+-- 'liftA' ≡ 'setting' 'liftedA'
 -- @
 --
--- >>> over lifted f [a,b,c]
+-- >>> setting liftedA f [a,b,c]
 -- [f a,f b,f c]
 --
--- >>> set lifted b (Just a)
+-- >>> set liftedA b (Just a)
 -- Just b
-lifted :: Applicative f => Over (f a) (f b) a b
-lifted = over liftA
-{-# INLINE lifted #-}
+liftedA :: Applicative f => Setter (f a) (f b) a b
+liftedA = setting liftA
 
--- |Semantic Editor Combinator on each value of a functor
-fmapped :: Functor f => Over (f a) (f b) a b
-fmapped = over fmap
-
-foldMapped :: (Foldable f, Monoid m) => Over (f a) m a m
-foldMapped = over foldMap
-
-filtered :: (Selective f, Alternative f) => Over (f a) (f b) a (Maybe b)
-filtered = over filter
-
+liftedM :: Monad m => Setter (m a) (m b) a b
+liftedM = setting liftM
 
 -- | Semantic Editor Combinator applying the given function only when the given predicate
 --  yields true for an input value.
-
-branched' :: (a -> Bool) -> (a -> a) -> (a -> a)
-branched' p f a = if p a then f a else a
+branching :: (a -> Bool) -> Setter' a a
+branching p = setting $ \f a -> if p a then f a else a
 
 -- See https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Tasks
-branched :: (k -> Bool) -> Over' (k -> v) v
-branched p = over $ \modify f a -> if p a then modify (f a) else f a
+branched :: (k -> Bool) -> Setter' (k -> v) v
+branched p = setting $ \mod f a -> if p a then mod (f a) else f a
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
 
--- mapOf l id ≡ id
--- mapOf l f . mapOf l g ≡ mapOf l (f . g)
+-- over l id ≡ id
+-- over l f . over l g ≡ over l (f . g)
 --
--- 'mapOf' ('cayley' a) ('Data.Semiring.one' <>) 'Data.Semiring.zero' ≡ a
+-- 'over' ('cayley' a) ('Data.Semiring.one' <>) 'Data.Semiring.zero' ≡ a
 --
 -- ^ @
--- mapOf :: Over s t a b -> (a -> r) -> s -> r
--- mapOf :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- over :: Setter s t a b -> (a -> r) -> s -> r
+-- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
-mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
-mapOf = over id
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
 
 infixr 4 %~
 
 (%~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(%~) = mapOf
+(%~) = over
 {-# INLINE (%~) #-}
 
-remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-remapOf = re
+reover :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+reover = re
 
 -- set l y (set l x a) ≡ set l y a
--- \c -> set (over . runCayley $ c) zero one ≡ lowerCayey c
+-- \c -> set (setting . runCayley $ c) zero one ≡ lowerCayey c
 set :: Optic (->) s t a b -> s -> b -> t
 set o s b = o (const b) s
 
@@ -365,8 +387,8 @@ l ?= b = undefined --l .= Just b
 reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
 reset = set . re
 
-appendOver :: Semigroup a => Over s t a a -> a -> s -> t
-appendOver o = o . (<>)
+appendSetter :: Semigroup a => Setter s t a a -> a -> s -> t
+appendSetter o = o . (<>)
 
 {- |
 ('<>~') appends a value monoidally to the target.
@@ -377,8 +399,8 @@ appendOver o = o . (<>)
 infixr 4 <>~
 {-# INLINE (<>~) #-}
 
-(<>~) :: Semigroup a => Over s t a a -> a -> s -> t
-(<>~) p a = appendOver p a
+(<>~) :: Semigroup a => Setter s t a a -> a -> s -> t
+(<>~) p a = appendSetter p a
 
 
 {- |
@@ -393,7 +415,7 @@ It can be useful in combination with 'at':
 >>> Map.empty & at 3 ?~ x
 fromList [(3,x)]
 -}
---(?~) :: Over s t a (Maybe b) -> b -> s -> t
+--(?~) :: Setter s t a (Maybe b) -> b -> s -> t
 (?~) :: Optic (->) (Maybe a1) t a2 b -> a1 -> b -> t
 o ?~ b = set o (Just b)
 {-# INLINE (?~) #-}
@@ -401,12 +423,12 @@ o ?~ b = set o (Just b)
 infixr 4 ?~
 
 --setJust :: Optic (->) s t a (Maybe b) -> b -> s -> t
---setJust :: Over s t a (Maybe b) -> b -> s -> t
+--setJust :: Setter s t a (Maybe b) -> b -> s -> t
 setJust :: Optic (->) (Maybe s) t a b -> s -> b -> t
 setJust o = set o . Just
 
 
--- | Logically '||' the target(s) of a 'Bool'-valued 'Lens' or 'Over'.
+-- | Logically '||' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
 --
 -- >>> both ||~ True $ (False,True)
 -- (True,True)
@@ -415,7 +437,7 @@ setJust o = set o . Just
 -- (False,True)
 --
 -- @
--- ('||~') :: 'Over'' s 'Bool'    -> 'Bool' -> s -> s
+-- ('||~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
 -- ('||~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
 -- ('||~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
 -- ('||~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
@@ -424,7 +446,7 @@ setJust o = set o . Just
 o ||~ n = o (|| n)
 {-# INLINE (||~) #-}
 
--- | Logically '&&' the target(s) of a 'Bool'-valued 'Lens' or 'Over'.
+-- | Logically '&&' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
 --
 -- >>> both &&~ True $ (False, True)
 -- (False,True)
@@ -433,7 +455,7 @@ o ||~ n = o (|| n)
 -- (False,False)
 --
 -- @
--- ('&&~') :: 'Over'' s 'Bool'    -> 'Bool' -> s -> s
+-- ('&&~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
 -- ('&&~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
 -- ('&&~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
 -- ('&&~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
@@ -447,7 +469,7 @@ o &&~ n = o (&& n)
 -----------------------------------------------------------------------------
 
 -- | Write to a fragment of a larger 'Writer' format.
---scribe :: (MonadWriter t m, Monoid s) => AOver s t a b -> b -> m ()
+--scribe :: (MonadWriter t m, Monoid s) => ASetter s t a b -> b -> m ()
 scribe :: (MonadWriter t m, Monoid s) => Optic (->) s t a b -> b -> m ()
 scribe o b = tell (set o mempty b)
 {-# INLINE scribe #-}
@@ -462,7 +484,7 @@ passing o m = pass $ do
 
 -- | This is a generalization of 'censor' that allows you to 'censor' just a
 -- portion of the resing 'MonadWriter'.
---censoring :: MonadWriter w m => Over w w u v -> (u -> v) -> m a -> m a
+--censoring :: MonadWriter w m => Setter w w u v -> (u -> v) -> m a -> m a
 censoring :: MonadWriter s m => Optic (->) s s a b -> (a -> b) -> m c -> m c
 censoring o uv = censor $ o uv
 {-# INLINE censoring #-}
@@ -472,7 +494,7 @@ censoring o uv = censor $ o uv
 -----------------------------------------------------------------------------
 
 -- | Modify the value of the 'Reader' env associated with the target of a
--- 'Over', 'Lens', or 'Traversal'.
+-- 'Setter', 'Lens', or 'Traversal'.
 --
 -- @
 -- 'locally' l 'id' a ≡ a
@@ -489,7 +511,7 @@ censoring o uv = censor $ o uv
 -- locally :: MonadReader s m => 'Iso' s s a b       -> (a -> b) -> m r -> m r
 -- locally :: MonadReader s m => 'Lens' s s a b      -> (a -> b) -> m r -> m r
 -- locally :: MonadReader s m => 'Traversal' s s a b -> (a -> b) -> m r -> m r
--- locally :: MonadReader s m => 'Over' s s a b    -> (a -> b) -> m r -> m r
+-- locally :: MonadReader s m => 'Setter' s s a b    -> (a -> b) -> m r -> m r
 -- @
 locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
 locally o f = Reader.local $ o f
