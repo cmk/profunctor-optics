@@ -73,19 +73,13 @@ fromAffineFold = to . preview
 cloneAffineFold :: FoldLike (Maybe a) s (Maybe a) -> AffineFold s a
 cloneAffineFold = (. _Just) . to . view 
 
-
 ---------------------------------------------------------------------
 -- Primitive Operators
 ---------------------------------------------------------------------
 
 previewOf :: FoldLike (Maybe r) s a -> (a -> r) -> s -> Maybe r
---previewOf o f = g where Forget g = o (Forget $ Just . f)
---previewOf' o = runPre . getConst . h where Star h = o (Star $ Const . Pre . Just)
-
 previewOf = between (dstar getConst) (ustar $ Const . Just)
 
-
---toMaybeOf :: FoldLike (Maybe a) s a -> s -> Maybe a
 toMaybeOf :: FoldLike (Maybe a) s a -> s -> Maybe a
 toMaybeOf = flip previewOf id
 

@@ -6,19 +6,14 @@ import Data.Profunctor.Optic.Prism (_Just)
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State hiding (StateT(..))
-
 import Control.Monad.Trans.State.Strict (StateT(..))
---import Control.Monad.State.Strict (MonadState, modify', state)
---import qualified Control.Monad.State.Lazy as MSL
---import Data.Functor.Compose (Compose(..))
+
 
 ---------------------------------------------------------------------
 -- 'Getter'
 ---------------------------------------------------------------------
 
--- laws 
--- view_complete :: Getter s a -> Bool
--- view_complete o = tripping o $ to (view o)
+type AGetter s a = FoldLike a s a
 
 -- | Build a 'Getter' from an arbitrary function.
 --
@@ -29,7 +24,6 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 -- @
 -- a '^.' 'to' f ≡ f a
 -- @
---
 --
 -- >>> ("hello","world") ^. to snd
 -- "world"
@@ -48,7 +42,6 @@ to :: (s -> a) -> PrimGetter s t a b
 to f = rcoerce . dimap f id
 {-# INLINE to #-}
 
-
 -- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
 --
 -- @
@@ -59,9 +52,9 @@ to f = rcoerce . dimap f id
 --
 -- This can be useful as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
+--
 like :: a -> PrimGetter s t a b
 like a = to (const a)
-
 
 -- @
 -- 'get' :: 'AFold' a s a -> 'Getter' s a
@@ -80,9 +73,8 @@ getBoth l r = to (view l &&& view r)
 getEither :: FoldLike a s1 a -> FoldLike a s2 a -> PrimGetter (Either s1 s2) t a b
 getEither l r = to (view l ||| view r)
 
-
 ---------------------------------------------------------------------
--- Derived operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- | Map each part of a structure viewed through a 'Lens', 'Getter',
@@ -117,7 +109,6 @@ getEither l r = to (view l ||| view r)
 viewOf :: FoldLike r s a -> (a -> r) -> s -> r
 viewOf = between (dstar getConst) (ustar Const)
 
-
 ---------------------------------------------------------------------
 -- Derived Operators
 ---------------------------------------------------------------------
@@ -129,14 +120,12 @@ infixl 8 ^.
 (^.) :: s -> AGetter s a -> a
 (^.) = flip view
 
-
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
 -- @
 view :: MonadReader s m => AGetter s a -> m a
 view = (`views` id)
 {-# INLINE view #-}
-
 
 -- ^ @
 -- 'views o f ≡ foldMapOf o f'
@@ -145,12 +134,10 @@ views :: MonadReader s m => FoldLike r s a -> (a -> r) -> m r
 views o f = Reader.asks $ viewOf o f
 {-# INLINE views #-}
 
-
 -- | TODO: Document
 --
 use :: MonadState s m => AGetter s a -> m a
 use o = State.gets (view o)
-
 
 -- | Extracts the portion of a log that is focused on by a 'Getter'. 
 --
@@ -171,7 +158,6 @@ listening l m = do
   return (a, view l w)
 {-# INLINE listening #-}
 
-
 -- | TODO: Document
 --
 listenings :: MonadWriter w m => FoldLike v w u -> (u -> v) -> m a -> m (a, v)
@@ -179,7 +165,6 @@ listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)
 {-# INLINE listenings #-}
-
 
 -- ^ @
 -- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c

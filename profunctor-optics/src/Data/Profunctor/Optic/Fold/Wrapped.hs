@@ -84,7 +84,8 @@ folded :: (Foldable f, Monoid r) => (a -> r) -> Star (Const r) (f a) a
 folded f = forget (foldMap f)
 
 cofolded :: (Foldable f, Monoid r) => (a -> r) -> Costar f a r
-cofolded f = Costar (foldMap f)
+cofolded (Costar f) = Costar (foldMap f)
+
 
 
 
@@ -99,7 +100,7 @@ cofolded f = Costar (foldMap f)
 replicated :: Int -> Fold a a
 replicated n0 f a = go n0 where
   m = f a
-  go 0 = noEffect
+  go 0 = empt
   go n = m *> go (n - 1)
 {-# INLINE replicated #-}
 
@@ -128,7 +129,7 @@ unfolded :: (b -> Maybe (a, b)) -> Fold b a
 unfolded f g b0 = go b0 where
   go b = case f b of
     Just (a, b') -> g a *> go b'
-    Nothing      -> noEffect
+    Nothing      -> empt
 {-# INLINE unfolded #-}
 
 -}
@@ -147,7 +148,7 @@ foldOf = flip foldMapOf id
 -- toPureOf :: Applicative f => Setter s t a b -> s -> f a
 -- @
 toPureOf :: Applicative f => FoldLike (f a) s a -> s -> f a
-toPureOf o = foldMapOf o pure
+toPureOf = flip foldMapOf pure
 
 infixl 8 ^..
 

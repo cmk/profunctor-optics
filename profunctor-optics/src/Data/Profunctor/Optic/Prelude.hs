@@ -17,18 +17,18 @@ import Control.Category.Monoidal as Export
 
 --import Data.Either.Combinators         as Export hiding (whenLeft, eitherToError)
 import Data.Function                   as Export
-import Data.Functor                    as Export
-import Data.Functor.Apply              as Export
+import Data.Functor                    as Export hiding (void)
+--import Data.Functor.Apply              as Export
 import Data.Functor.Compose            as Export
 import Data.Functor.Const              as Export
-import Data.Functor.Contravariant      as Export hiding (($<))
+import Data.Functor.Contravariant      as Export hiding (($<), void)
 import Data.Functor.Contravariant.Divisible      as Export
 import Data.Functor.Identity           as Export
-import Data.Semigroup.Traversable      as Export
-import Data.Semigroup.Foldable         as Export
+--import Data.Semigroup.Traversable      as Export
+--import Data.Semigroup.Foldable         as Export
 import Data.Void                       as Export
 import Control.Applicative             as Export
-import Control.Monad                   as Export
+import Control.Monad                   as Export hiding (void)
 
 import Data.Distributive as Export
 import Data.Profunctor.Rep
@@ -38,12 +38,9 @@ import Data.Profunctor.Types           as Export hiding (WrappedArrow(..), WrapA
 import Data.Profunctor.Choice          as Export 
 import Data.Profunctor.Strong          as Export 
 import Data.Profunctor.Closed          as Export
-import Data.Profunctor.Adapter as Export
+import Data.Profunctor.Bistar as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
---import Data.Profunctor.Mapping         as Export
---import Data.Profunctor.Traversing      as Export
-
 import Data.Bifunctor as Export (Bifunctor (..)) 
 
 {-
@@ -55,20 +52,17 @@ import Data.Bifunctor.Sum (Sum (..))
 import Data.Bifunctor.Tannen (Tannen (..))
 import Data.Bifunctor.Biff (Biff (..))
 -}
---import Data.Either.Validation (Validation(..), eitherToValidation, validationToEither)
 
 import           Data.Foldable
 import           Data.Traversable
 import Prelude as Export            hiding (fst, snd, foldr, filter)
 
-import Data.Bool (bool)
 import qualified Data.Tuple 
-
 import qualified Data.Functor.Rep as F
-import Control.Monad.Trans.Cont
 
-coidx :: F.Representable f => Cont r (F.Rep f) -> f r -> r
-coidx c m = runCont c (F.index m)
+type (+) = Either
+infixr 5 +
+
 
 
 {-
@@ -82,11 +76,9 @@ instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
   fromException s = (fmap Left $ fromException s) <|> (fmap Right $ fromException s) 
 
 
-type (+) = Either
-infixr 5 +
-
 type (*) = (,)
 infixl 6 *
+
 
 (.+++) :: a + b + c + d + e -> (((a + b) + c) + d) + e
 (.+++) = x . x . x where x = unassoc @(+)
@@ -96,6 +88,7 @@ infixl 6 *
 
 
 -}
+
 
 -- prelude
 dup :: a -> (a, a)
@@ -115,11 +108,16 @@ assoc = associate
 unassoc :: Associative k0 p0 => k0 (p0 a (p0 b c)) (p0 (p0 a b) c)
 unassoc = disassociate
 
+branch :: (a -> Bool) -> b -> c -> a -> Either b c
+branch f y z x = if f x then Right z else Left y
+
+branch' :: (a -> Bool) -> a -> Either a a
+branch' f x = branch f x x x
+
+
+-- arrows
 arr :: Category p => Profunctor p => (a -> b) -> p a b
 arr f = dimap id f C.id
-
-unarr :: Sieve p Identity => p a b -> a -> b 
-unarr = (runIdentity .) . sieve
 
 returnA :: Category p => Profunctor p => p a a
 returnA = arr id
@@ -135,9 +133,6 @@ eval (f, b) = f b
 
 coeval :: b -> Either (b -> a) a -> a
 coeval b = either ($ b) id
-
---star :: Applicative f => Star f c c
---star = Star $ pure
 
 recover :: Strong p => p a b -> p a (b, a)
 recover = lmap dup . first'
@@ -163,7 +158,27 @@ loop :: Costrong p => p (a, c) (b, c) -> p a b
 loop = unfirst
 
 
+-- profunctors
+lconst :: Profunctor p => b -> p b c -> p a c
+lconst = lmap . const
 
+rconst :: Profunctor p => c -> p a b -> p a c
+rconst = rmap . const
+
+lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
+lcoerce = cowander (. phantom) --phantom in base's Data.Functor.Contravariant
+
+rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
+rcoerce = wander (phantom .)
+
+rcoerce'  :: (Contravariant (p a), Profunctor p) => p a c -> p a d
+rcoerce' = rmap absurd . contramap absurd
+
+lcoerce' :: (Bifunctor p, Profunctor p) => p a c -> p b c
+lcoerce' = first absurd . lmap absurd
+
+
+-- combinators
 
 -- | Can be used to rewrite
 --
@@ -190,24 +205,12 @@ cowander f = cotabulate . f . cosieve
 --foo = cowander foldMap
 
 
-
-lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
-lcoerce = cowander (. phantom) --phantom in base's Data.Functor.Contravariant
-
-rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
-rcoerce = wander (phantom .)
-
-rcoerce'  :: (Contravariant (p a), Profunctor p) => p a c -> p a d
-rcoerce' = rmap absurd . contramap absurd
-
-lcoerce' :: (Bifunctor p, Profunctor p) => p a c -> p b c
-lcoerce' = first absurd . lmap absurd
-
-
 -- | The 'mempty' equivalent for a 'Contravariant' 'Applicative' 'Functor'.
-noEffect :: (Contravariant f, Applicative f) => f a
-noEffect = phantom $ pure ()
-{-# INLINE noEffect #-}
+cempty :: Contravariant f => Applicative f => f a
+cempty = phantom $ pure ()
+
+unarr :: Sieve p Identity => p a b -> a -> b 
+unarr = (runIdentity .) . sieve
 
 lower
   :: ((a1 -> c1) -> b1 -> c2)
@@ -216,58 +219,38 @@ lower o h f g = o (h . f) . g
 
 colower o h f g = f . o (g . h)
 
-star :: Sieve p f => p d c -> Star f d c
-star = Star . sieve
-
-star' :: Representable p => Star (Rep p) d c -> p d c
-star' = tabulate . runStar 
-
-costar :: Cosieve p f => p d c -> Costar f d c
-costar = Costar . cosieve
-
-costar' :: Corepresentable p => Costar (Corep p) d c -> p d c
-costar' = cotabulate . runCostar
-
 ustar :: (b -> f c) -> (d -> b) -> Star f d c
 ustar f = Star . (f .)
+
+ucostar :: (f d -> b) -> (b -> c) -> Costar f d c
+ucostar g = Costar . (. g)
 
 dstar :: (f c1 -> b) -> Star f a c1 -> a -> b
 dstar f = (f .) . runStar
 
-coUstar :: (f d -> b) -> (b -> c) -> Costar f d c
-coUstar g = Costar . (. g)
+dcostar :: (a -> f d) -> Costar f d c -> a -> c
+dcostar g = (. g) . runCostar
 
-coDstar :: (a -> f d) -> Costar f d c -> a -> c
-coDstar g = (. g) . runCostar
+star :: Sieve p f => p d c -> Star f d c
+star = Star . sieve
 
-iconst :: Profunctor p => b -> p b c -> p a c
-iconst = lmap . const
+star' :: Applicative f => Star f a a
+star' = Star pure
 
-oconst :: Profunctor p => c -> p a b -> p a c
-oconst = rmap . const
+fromStar :: Representable p => Star (Rep p) a b -> p a b
+fromStar = tabulate . runStar 
 
-_1 :: Strong p => p a b -> p (a,c) (b,c) 
-_1 = first'
+fromStar' :: F.Representable f => F.Rep f -> Star f a b -> a -> b
+fromStar' i (Star f) = flip F.index i . f
 
-_2 :: Strong p => p a b -> p (c,a) (c,b)
-_2 = second'
+costar :: Cosieve p f => p a b -> Costar f a b
+costar = Costar . cosieve
 
-_L :: Choice p => p a b -> p (Either a c) (Either b c)
-_L = left'
+costar' :: F.Representable f => F.Rep f -> Costar f a a
+costar' i = Costar $ flip F.index i
 
-_R :: Choice p => p a b -> p (Either c a) (Either c b)
-_R = right'
+fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
+fromCostar = cotabulate . runCostar
 
-
-
-
-
-branchOn :: (a -> Bool) -> a -> b -> c -> Either b c
-branchOn f a b c = if f a then Right c else Left b
-
-branchOn' :: (a -> Bool) -> a -> Either a a
-branchOn' f a = branchOn f a a a
-
-
-
-
+fromCostar' :: Applicative f => Costar f a b -> a -> b
+fromCostar' f = runCostar f . pure

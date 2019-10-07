@@ -5,6 +5,7 @@ module Data.Profunctor.Optic.Lens (
 
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Task (Store(..))
 import Data.Void (Void, absurd)
 import Data.Profunctor.Strong as Export
@@ -21,35 +22,6 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 -- 'Lens' 
 ---------------------------------------------------------------------
 
-{- Hedgehog predicates
-
-Lens is the characterization of a Strong profunctor. It identifies 
-objects as consisting of a product of two components.
-
-viewUpdate :: Eq s => LensRep s s a a -> s -> Bool
-viewUpdate (LensRep v u) s = u ((v s), s) == s
-
-updateGetter :: Eq a => LensRep s s a a -> a -> s -> Bool
-updateGetter (LensRep v u) a s = v (u (a, s)) == a
-
-updateUpdate :: Eq s => LensRep s s a a -> a -> a -> s -> Bool
-updateUpdate (LensRep v u) a1 a2 s = u (a2, (u (a1, s))) == u (a2, s)
-
-lens_complete :: Lens s t a b -> Bool
-lens_complete o = tripping o $ lens (view o) (set o)
-
-laws
-You get back what you put in:
-view l (set l v s)  ≡ v
-Putting back what you got doesn't change anything:
-set l (view l s) s  ≡ s
-Setting twice is the same as setting once:
-set l v' (set l v s) ≡ set l v' s
-
--}
-
--- lens sa sbt = dimap (sa &&& id) (uncurry . flip $ sbt) . first'
--- lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 -- ^ @
 -- lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 -- @
@@ -73,32 +45,19 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 lensVL :: VL.Lens s t a b -> Lens s t a b
 lensVL o = dimap ((values &&& info) . o (Store id)) (uncurry id) . second'
 
--- Analogous to (***) from 'Control.Arrow'
-pairing' :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
-pairing' = paired
-
-lensOf
-  :: (s -> a)
-  -> (s -> b -> t) 
-  -> Lens (c, s) (d, t) (c, a) (d, b)
-lensOf f g = between runPaired Paired (lens f g)
-
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens l = withLens l $ \x y p -> lens x y p
 
-withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
-
-iso2lens :: Iso s t (a, x) (b, x) -> Lens s t a b
-iso2lens iso pab = iso (first' pab)
-
 ---------------------------------------------------------------------
--- 
+-- 'LensRep'
 ---------------------------------------------------------------------
-
 
 -- | The `LensRep` profunctor precisely characterizes a 'Lens'.
 data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
+
+type ALens s t a b = Optic (LensRep a b) s t a b
+
+type ALens' s a = ALens s s a a
 
 instance Profunctor (LensRep a b) where
 
@@ -112,23 +71,47 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
--- | When you see this as an argument to a function, it expects a 'Lens'.
-type ALens s t a b = Optic (LensRep a b) s t a b
+---------------------------------------------------------------------
+-- Primitive Operators
+---------------------------------------------------------------------
 
-type ALens' s a = ALens s s a a
+-- Analogous to (***) from 'Control.Arrow'
+pairing' :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+pairing' = paired
+
+lens2
+  :: (s -> a)
+  -> (s -> b -> t) 
+  -> Lens (c, s) (d, t) (c, a) (d, b)
+lens2 f g = between runPaired Paired (lens f g)
+
+withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
+withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
+
 
 ---------------------------------------------------------------------
 -- Common lenses 
 ---------------------------------------------------------------------
 
+_1 :: Lens (a, c) (b, c) a b
+_1 = first'
+
+_2 :: Lens (c, a) (c, b) a b
+_2 = second'
+
+lower1 :: Iso s t (a, x) (b, x) -> Lens s t a b
+lower1 = (. _1)
+
+lower2 :: Iso s t (x, a) (x, b) -> Lens s t a b
+lower2 = (. _2)
+
 -- | There is a `Unit` in everything.
-united :: forall a. Lens' a ()
-united = lens (const ()) const
+unit :: forall a. Lens' a ()
+unit = lens (const ()) const
 
 -- | There is everything in `Void`.
-devoid :: forall a. Lens' Void a
-devoid = lens absurd const
-
+void :: forall a. Lens' Void a
+void = lens absurd const
 
 ix :: Eq k => k -> Lens' (k -> v) v
 ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)

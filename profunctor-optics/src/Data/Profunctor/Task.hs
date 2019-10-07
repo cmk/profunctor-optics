@@ -10,7 +10,6 @@ import Data.Profunctor.Optic.Type.Class
 import Data.Profunctor.Optic.Prelude
 
 import qualified Data.Profunctor.Optic.Type.VL as VL
-import Control.Applicative.Free (Ap, liftAp, runAp)
 import Data.Traversable (fmapDefault, foldMapDefault)
 
 ---------------------------------------------------------------------

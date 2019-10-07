@@ -19,34 +19,35 @@ source-repository head
 
 library
   exposed-modules:
+      Data.Profunctor.Bistar
+      --Data.Profunctor.Indexed
+      Data.Profunctor.Task
+
       Data.Profunctor.Optic
+      Data.Profunctor.Optic.Prelude
+      Data.Profunctor.Optic.Iso
+      Data.Profunctor.Optic.Affine
+      Data.Profunctor.Optic.Prism
+      Data.Profunctor.Optic.Setter
+
+      Data.Profunctor.Optic.Lens
+      Data.Profunctor.Optic.Getter
+      --Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold.Monoid
       Data.Profunctor.Optic.Fold.Semigroup
-      --Data.Profunctor.Optic.Fold.Semiring
       Data.Profunctor.Optic.Fold.Affine
-      --Data.Profunctor.Optic.Fold.Indexed
-      Data.Profunctor.Optic.Iso
-      Data.Profunctor.Optic.Lens
-      --Data.Profunctor.Optic.Lens.Rep
-      --Data.Profunctor.Optic.Lens.Free
-      Data.Profunctor.Optic.Getter
+
       Data.Profunctor.Optic.Grate
-      Data.Profunctor.Optic.Prelude
-      Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Review
-      Data.Profunctor.Optic.Setter
-      --Data.Profunctor.Optic.Traversal
-      --Data.Profunctor.Optic.Traversal.Affine
-      --Data.Profunctor.Optic.Traversal.Monoid
-      --Data.Profunctor.Optic.Traversal.Indexed
-      --Data.Profunctor.Optic.Traversal.Semigroup
+      --Data.Profunctor.Optic.Cotraversal
+      --Data.Profunctor.Optic.Unfold
+      --Data.Profunctor.Optic.Unfold.Affine
+
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
-      Data.Profunctor.Optic.Type.VL
-      Data.Profunctor.Adapter
-      --Data.Profunctor.Indexed
-      Data.Profunctor.Task
+      --Data.Profunctor.Optic.Type.VL
+
 
 
   hs-source-dirs:
@@ -62,26 +63,26 @@ library
       ExistentialQuantification
       NoImplicitPrelude
       QuantifiedConstraints
+      ScopedTypeVariables
+      TypeOperators
+      TypeApplications
 
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
     , adjunctions
-    , bifunctors
     , containers
     , categories
-    --, constraints
-    --, safe
     , comonad
     , contravariant
     , distributive
     , dlist
     , dlist-nonempty
-    , semigroupoids
+    , recursion-schemes
+    -- , semigroupoids
     , profunctors
     , mtl
     , transformers
-    , free
     --, rings
     --, nonempty-alternative
 

@@ -1,7 +1,6 @@
 module Data.Profunctor.Optic.Iso where
 
-import Data.Profunctor.Optic.Prelude hiding (Product) 
-import Data.Bifunctor.Product (Product(..))
+import Data.Profunctor.Optic.Prelude
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Type
 
@@ -50,7 +49,6 @@ re :: Optic (Re p a b) s t a b -> Optic p b a t s
 re o = (between runRe Re) o id
 {-# INLINE re #-}
 
-
 ---------------------------------------------------------------------
 -- 'Iso' 
 ---------------------------------------------------------------------
@@ -96,44 +94,22 @@ re o . o ≡ id
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap
 
-
--- | Convert from 'AnIso' back to any 'Iso'.
-cloneIso :: AnIso s t a b -> Iso s t a b
+-- | Convert from 'AIso' back to any 'Iso'.
+cloneIso :: AIso s t a b -> Iso s t a b
 cloneIso k = withIso k iso
 {-# INLINE cloneIso #-}
 
-
--- | Extract the two functions, one from @s -> a@ and
--- one from @b -> t@ that characterize an 'Iso'.
-withIso :: AnIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso ai k = case ai (IsoRep id id) of IsoRep sa bt -> k sa bt
-{-# INLINE withIso #-}
-
-
--- | Invert an isomorphism.
---
--- @
--- 'from' ('from' l) ≡ l
--- @
-from :: AnIso s t a b -> Iso b a t s
-from l = withIso l $ \ sa bt -> iso bt sa
-{-# INLINE from #-}
-
-
--- ^ @
--- from' :: Iso b a t s -> Iso s t a b
--- @
-from' :: Optic (Product (Star (Const t)) (Costar (Const s))) b a t s -> Iso s t a b
-from' o = iso (review . Const) (getConst . get) 
-  where  
-    Pair (Star get) (Costar review) = o (Pair (Star Const) (Costar getConst))
-
 ---------------------------------------------------------------------
--- 
+-- 'IsoRep'
 ---------------------------------------------------------------------
 
 -- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
 data IsoRep a b s t = IsoRep (s -> a) (b -> t)
+
+-- | When you see this as an argument to a function, it expects an 'Iso'.
+type AIso s t a b = Optic (IsoRep a b) s t a b
+
+type AIso' s a = AIso s s a a
 
 instance Functor (IsoRep a b s) where
   fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
@@ -147,53 +123,50 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
--- | When you see this as an argument to a function, it expects an 'Iso'.
-type AnIso s t a b = Optic (IsoRep a b) s t a b
+reiso :: AIso s t a b -> (t -> s) -> b -> a
+reiso x = withIso x $ \sa bt ts -> sa . ts . bt
 
-type AnIso' s a = AnIso s s a a
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- | Extract the two functions, one from @s -> a@ and
+-- one from @b -> t@ that characterize an 'Iso'.
+withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
+withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
+{-# INLINE withIso #-}
+
+-- | Invert an isomorphism.
+--
+-- @
+-- 'from' ('from' l) ≡ l
+-- @
+from :: AIso s t a b -> Iso b a t s
+from l = withIso l $ \sa bt -> iso bt sa
+{-# INLINE from #-}
+
+au :: AIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+au l = withIso l $ \sa bt f e -> sa (f bt e)
+
+auf :: Profunctor p => AIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
+auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
 
 ---------------------------------------------------------------------
 -- Common isos
 ---------------------------------------------------------------------
 
-forget2 :: Iso s t (a, x) (b, x) -> Lens s t a b
-forget2 = (. first')
-
-forgetR :: Iso s t (Either a c) (Either b c) -> Prism s t a b
-forgetR = (. left')
-
-maybeR :: Iso (Either () a) (Either () b) (Maybe a) (Maybe b)
-maybeR = iso (const Nothing ||| Just) (maybe (Left ()) Right)
-
-duped :: Iso (Bool, a) (Bool, b) (Either a a) (Either b b)
-duped = iso f ((,) False ||| (,) True)
- where
-  f (False,a) = Left a
-  f (True,a) = Right a
-
-indexPair :: Iso (Bool -> a) (Bool -> b) (a,a) (b,b)
-indexPair = iso to fro
- where
-  to f = (f False, f True)
-  fro p True = fst p
-  fro p False = snd p
-
-
-curried :: Iso ((a, b) -> c) ((d, e) -> f) (a -> b -> c) (d -> e -> f)
-curried = iso curry uncurry
-
-uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a, b) -> c) ((d, e) -> f)
-uncurried = iso uncurry curry
-
--- | Right association
-associated :: Iso ((a, b), c) ((a', b'), c') (a, (b, c)) (a', (b', c'))
-associated = iso assoc unassoc
-
-swapped :: Iso (a, b) (c, d) (b, a) (d, c)
-swapped = iso swap swap
-
 flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
 flipped = iso flip flip
+
+curried :: Iso ((a,b) -> c) ((d,e) -> f) (a -> b -> c) (d -> e -> f)
+curried = iso curry uncurry
+
+swapped :: Braided (->) p => Iso (a `p` b) (c `p` d) (b `p` a) (d `p` c)
+swapped = iso braid braid
+
+-- | Right association
+associated :: Associative (->) p => Iso ((a `p` b) `p` c) ((d `p` e) `p` f) (a `p` (b `p` c)) (d `p` (e `p` f))
+associated = iso associate disassociate
 
 -- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
 --
@@ -210,6 +183,9 @@ flipped = iso flip flip
 involuted :: (s -> a) -> Iso s a a s
 involuted = join iso
 {-# INLINE involuted #-}
+
+branched :: (a -> Bool) -> Iso a b (a + a) (b + b)
+branched f = iso (branch' f) dedup
 
 -- | If `a1` is obtained from `a` by removing a single value, then
 -- | `Maybe a1` is isomorphic to `a`.
@@ -233,11 +209,86 @@ anon a p = iso (fromMaybe a) go where
        | otherwise = Just b
 {-# INLINE anon #-}
 
-au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
-au l = withIso l $ \sa bt f e -> sa (f bt e)
+liftF
+  :: Functor f
+  => Functor g
+  => AIso s t a b
+  -> Iso (f s) (g t) (f a) (g b)
+liftF l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 
-auf :: Profunctor p => AnIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
-auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
+liftP
+  :: Profunctor p
+  => Profunctor q
+  => AIso s1 t1 a1 b1
+  -> AIso s2 t2 a2 b2
+  -> Iso (p a1 s2) (q b1 t2) (p s1 a2) (q t1 b2)
+liftP f g = 
+  withIso f $ \sa1 bt1 -> 
+    withIso g $ \sa2 bt2 -> 
+      iso (dimap sa1 sa2) (dimap bt1 bt2)
 
-under :: AnIso s t a b -> (t -> s) -> b -> a
-under l = withIso l $ \sa bt ts -> sa . ts . bt
+lift2 :: AIso s t a b -> Iso (c , s) (d , t) (c , a) (d , b)
+lift2 x = withIso x $ \sa bt -> between runPaired Paired (dimap sa bt)
+
+liftR :: AIso s t a b -> Iso (c + s) (d + t) (c + a) (d + b)
+liftR x = withIso x $ \sa bt -> between runSplit Split (dimap sa bt)
+
+---------------------------------------------------------------------
+-- 'Paired'
+---------------------------------------------------------------------
+
+newtype Paired p c d a b = Paired { runPaired :: p (c,a) (d,b) }
+
+fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
+fromTambara = Paired . swapped . runTambara
+
+instance Profunctor p => Profunctor (Paired p c d) where
+  dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
+
+instance Strong p => Strong (Paired p c d) where
+  second' (Paired pab) = Paired . dimap shuffle shuffle . second' $ pab
+   where
+    shuffle (x,(y,z)) = (y,(x,z))
+
+-- ^ @
+-- paired :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
+-- paired :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+-- @
+--
+paired 
+  :: Profunctor p 
+  => Optic (Paired p s2 t2) s1 t1 a1 b1 
+  -> Optic (Paired p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
+paired x y = 
+  swapped . runPaired . x . Paired . swapped . runPaired . y . Paired
+
+---------------------------------------------------------------------
+-- 'Split'
+---------------------------------------------------------------------
+
+newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
+
+fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
+fromTambaraSum = Split . dimap swap swap . runTambaraSum
+
+instance Profunctor p => Profunctor (Split p c d) where
+  dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
+
+instance Choice p => Choice (Split p c d) where
+  right' (Split pab) = Split . dimap shuffle shuffle . right' $ pab
+   where
+    shuffle = Right . Left ||| (Left ||| Right . Right)
+
+-- ^ @
+-- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- @
+split 
+  :: Profunctor p
+  => Optic (Split p s2 t2) s1 t1 a1 b1 
+  -> Optic (Split p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2)
+split x y = 
+  swapped . runSplit . x . Split . swapped . runSplit . y . Split

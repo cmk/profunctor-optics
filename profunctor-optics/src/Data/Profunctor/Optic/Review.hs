@@ -17,15 +17,19 @@ module Data.Profunctor.Optic.Review
 
 import Control.Monad.Reader as Reader
 
+import Data.Profunctor.Optic.Grate (unfoldMapOf)
 import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
 
 import Data.Profunctor.Optic.Iso (re)
+
 ------------------------------------------------------------------------------
--- Review
+-- 'Review'
 ------------------------------------------------------------------------------
 
+--type AReview t b = forall r. UnfoldLike r t b
+type AReview t b = UnfoldLike b t b
 
 -- | Convert a function into a 'Review'.
 --  Analagous to 'to' for 'Getter'.
@@ -41,7 +45,6 @@ import Data.Profunctor.Optic.Iso (re)
 unto :: (b -> t) -> PrimReview s t a b 
 unto f = lcoerce . dimap id f
 
-
 -- | Turn a 'Getter' around to get a 'Review'
 --
 -- @
@@ -54,7 +57,6 @@ unto f = lcoerce . dimap id f
 un :: AGetter s a -> PrimReview b a t s
 un = unto . (`views` id)
 
-
 -- | Build a constant-valued (index-preserving) 'PrimReview' from an arbitrary value.
 --
 -- @
@@ -66,18 +68,15 @@ un = unto . (`views` id)
 relike :: t -> PrimReview s t a b
 relike t = unto (const t)
 
-
 -- | TODO: Document
 --
 cloneReview :: AReview t b -> PrimReview' t b
 cloneReview = unto . review
 
-
 -- | TODO: Document
 --
 reviewBoth :: AReview t1 b -> AReview t2 b -> PrimReview s (t1, t2) a b
 reviewBoth l r = unto (review l &&& review r)
-
 
 -- | TODO: Document
 --
@@ -118,7 +117,7 @@ reviewEither l r = unto (review l ||| review r)
 -- 'reviews' :: 'MonadReader' a m => 'Prism'' s a -> (s -> r) -> m r
 -- @
 -- ^ @
--- 'reviews o f ≡ unfoldMapOf o f'
+-- 'reviews o f ≡ cofoldMapOf o f'
 -- @
 --
 reviews :: MonadReader r m => UnfoldLike r t b -> (r -> b) -> m t

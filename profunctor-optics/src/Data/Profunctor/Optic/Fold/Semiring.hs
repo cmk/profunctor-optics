@@ -33,7 +33,7 @@ import qualified Data.List.NonEmpty as NE
 -- 'failover' :: Alternative m => Traversal s t a b -> (a -> b) -> s -> m t
 -- @
 {-
-failover :: Alternative m => LensLike ((,) Any) s t a b -> (a -> b) -> s -> m t
+failover :: Alternative m => OverLike ((,) Any) s t a b -> (a -> b) -> s -> m t
 failover l afb s = case l ((,) (Any True) . afb) s of
   (Any True, t)  -> pure t
   (Any False, _) -> Applicative.empty
