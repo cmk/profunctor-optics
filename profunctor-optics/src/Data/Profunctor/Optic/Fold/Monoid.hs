@@ -13,7 +13,6 @@ import Data.Foldable (traverse_)
 import Data.DList (DList)
 import qualified Data.DList as L
 
-import Control.Monad ((<=<))
 --import Control.Monad.Reader as Reader
 --import Control.Monad.State as State
 
@@ -126,93 +125,6 @@ sumOf l = foldlOf' l (+) 0
 {-# INLINE sumOf #-}
 -}
 
-foldOf :: FoldLike a s a -> s -> a
-foldOf = flip foldMapOf id
-
-
--- @
--- toPureOf :: Fold s a -> s -> [a]
--- toPureOf :: (Applicative f, Monoid (f a)) => Fold s a -> s -> f a
--- toPureOf :: Applicative f => Setter s t a b -> s -> f a
--- @
-toPureOf :: Applicative f => FoldLike (f a) s a -> s -> f a
-toPureOf o = foldMapOf o pure
-
-infixl 8 ^..
-
--- | A convenient infix (flipped) version of 'toListOf'.
---
--- >>> [[1,2],[3]] ^.. id
--- [[[1,2],[3]]]
--- >>> [[1,2],[3]] ^.. traversed
--- [[1,2],[3]]
--- >>> [[1,2],[3]] ^.. traversed . traversed
--- [1,2,3]
---
--- >>> (1,2) ^.. both
--- [1,2]
---
--- @
--- 'Data.Foldable.toList' xs ≡ xs '^..' 'folded'
--- ('^..') ≡ 'flip' 'toListOf'
--- @
---
--- @
--- ('^..') :: s -> 'Getter' s a     -> [a]
--- ('^..') :: s -> 'Fold' s a       -> [a]
--- ('^..') :: s -> 'Lens'' s a      -> [a]
--- ('^..') :: s -> 'Iso'' s a       -> [a]
--- ('^..') :: s -> 'Traversal'' s a -> [a]
--- ('^..') :: s -> 'Prism'' s a     -> [a]
--- ('^..') :: s -> 'Affine'' s a    -> [a]
--- @
-(^..) :: s -> FoldLike (DList a) s a -> [a]
-(^..) = flip toListOf
-{-# INLINE (^..) #-}
-
-
-
---foldrOf' :: FoldLike (Prod (End c)) s a -> (a -> c -> c) -> c -> s -> c
---foldrOf' p f r = (`appEnd` r) . productOf p (End . f)
-
-
--- | Right fold over a 'Fold'.
--- >>> foldrOf'' folded (<>) (zero :: Int) [1..5]
--- 15
-foldrOf :: FoldLike (Endo r) s a -> (a -> r -> r) -> r -> s -> r
-foldrOf p f r = (`appEndo` r) . foldMapOf p (Endo . f)
-
-
--- >>> foldrOf' folded (><) (one :: Int) [1..5]
--- 120
---foldrOf' :: FoldLike (Prod (End c)) s a -> (a -> c -> c) -> c -> s -> c
---foldrOf' p f r = (`appEnd` r) . productOf p (End . f)
-
--- | Left fold over a 'Fold'. 
-foldlOf :: FoldLike (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
-foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
-
-
-
--- | Fold over the elements of a structure, associating to the left, but strictly.
---
--- @
--- 'Data.Foldable.foldl'' ≡ 'foldlOf'' 'folded'
--- @
---
--- @
--- 'foldlOf'' :: 'Iso'' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Lens'' s a       -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Getter' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Fold' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Traversal'' s a  -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Affine'' s a -> (c -> a -> c) -> c -> s -> c
--- @
-foldlOf' :: FoldLike (Endo (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
-foldlOf' o f c0 s = foldrOf o f' (Endo id) s `appEndo` c0
-  where f' x (Endo k) = Endo $ \z -> k $! f z x
-{-# INLINE foldlOf' #-}
-
 {-
 
 -- | Obtain the maximum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso',
@@ -242,11 +154,6 @@ maximumByOf o cmp = foldlOf' o mf Nothing where
 
 
 
-toEndoOf :: FoldLike (Endo (a -> a)) s (a -> a) -> s -> a -> a
-toEndoOf o = foldrOf o (.) (Endo id)
-
-toEndoMOf :: Monad m => FoldLike (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
-toEndoMOf o = foldrOf o (<=<) pure
 
 -- | Traverse the foci of a `Fold`, discarding the results.
 traverseOf_

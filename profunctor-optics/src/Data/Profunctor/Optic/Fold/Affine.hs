@@ -22,56 +22,50 @@ import Data.Profunctor.Optic.Setter
 import Data.Maybe (fromMaybe)
 
 ---------------------------------------------------------------------
--- 'AffineFold'
+-- 'Fold0'
 ---------------------------------------------------------------------
 
+type AFold0 s a = FoldLike (Maybe a) s a
 
 {-
 
-See also 
-- https://hackage.haskell.org/package/witherable
-- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
+Fold0 laws:
 
-AffineFold laws:
-
-affine_fold_complete :: AffineFold s a -> Bool
+affine_fold_complete :: Fold0 s a -> Bool
 affine_fold_complete o = tripping o $ afolding (toMaybeOf o)
 -}
 
--- | Build a 'AffineFold' from an arbitrary function.
+-- | Build a 'Fold0' from an arbitrary function.
 --
--- >>> [Just 1, Nothing] ^.. folded . afolding id
+-- >>> [Just 1, Nothing] ^.. folding id . afolding id
 -- [1]
 --
 -- @
 -- 'afolding' ('view' o) ≡ o . '_Just'
 -- @
 --
--- afolding :: (s -> Maybe a) -> AffineFold s a
-afolding :: (s -> Maybe a) -> AffineFold s a
+afolding :: (s -> Maybe a) -> Fold0 s a
 afolding f = rcoerce . lmap (\s -> maybe (Left s) Right (f s)) . right'
 
-afolded :: AffineFold (Maybe a) a
-afolded = afolding id
-
--- | Build a 'AffineFold' from an affine 'Getter'.
+-- | Build a 'Fold0' from an affine 'Getter'.
 --
 -- @
--- 'toAffineFold' o ≡ o . '_Just'
--- 'toAffineFold' o ≡ 'afolding' ('view' o)
+-- 'toFold0' o ≡ o . '_Just'
+-- 'toFold0' o ≡ 'afolding' ('view' o)
 -- @
-toAffineFold :: Getter s (Maybe a) -> AffineFold s a
-toAffineFold = (. _Just)
+--
+toFold0 :: Getter s (Maybe a) -> Fold0 s a
+toFold0 = (. _Just)
 
 -- | TODO: Document
 --
-fromAffineFold :: Monoid a => AffineFold s a -> Getter s (Maybe a)
-fromAffineFold = to . preview
+fromFold0 :: Monoid a => Fold0 s a -> Getter s (Maybe a)
+fromFold0 = to . preview
 
 -- | TODO: Document
 --
-cloneAffineFold :: FoldLike (Maybe a) s (Maybe a) -> AffineFold s a
-cloneAffineFold = (. _Just) . to . view 
+cloneFold0 :: FoldLike (Maybe a) s (Maybe a) -> Fold0 s a
+cloneFold0 = (. _Just) . to . view 
 
 ---------------------------------------------------------------------
 -- Primitive Operators
@@ -80,14 +74,14 @@ cloneAffineFold = (. _Just) . to . view
 previewOf :: FoldLike (Maybe r) s a -> (a -> r) -> s -> Maybe r
 previewOf = between (dstar getConst) (ustar $ Const . Just)
 
-toMaybeOf :: FoldLike (Maybe a) s a -> s -> Maybe a
+toMaybeOf :: AFold0 s a -> s -> Maybe a
 toMaybeOf = flip previewOf id
 
 ---------------------------------------------------------------------
 -- Derived Operators
 ---------------------------------------------------------------------
 
-preview :: MonadReader s m => FoldLike (Maybe a) s a -> m (Maybe a)
+preview :: MonadReader s m => AFold0 s a -> m (Maybe a)
 preview o = Reader.asks $ toMaybeOf o
 
 {-
@@ -120,7 +114,7 @@ infixl 8 ^?
 -- 'Getter' this can be a convenient way to extract the optional value.
 --
 --
--- >>> Left 4 ^? _Left
+-- >>> Left 4 ^? _L
 -- Just 4
 --
 -- >>> Right 4 ^? _Left
@@ -139,10 +133,10 @@ infixl 8 ^?
 -- ('^?') :: s -> 'Iso'' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
 -- @
---(^?) :: s -> AAffineFold (First a) s a -> Maybe a
+--(^?) :: s -> AFold0 (First a) s a -> Maybe a
 --s ^? o = getFirst <$> previewOf o First s
---(^?) :: s -> FoldLike (Maybe a) s a -> Maybe a
-(^?) :: s -> FoldLike (Maybe a) s a -> Maybe a
+--(^?) :: s -> AFold0 s a -> Maybe a
+(^?) :: s -> AFold0 s a -> Maybe a
 s ^? o = toMaybeOf o s
 
 {-

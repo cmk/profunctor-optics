@@ -124,8 +124,8 @@ type Fold s a = forall p. Applicative (Rep p) => Contravariant (Rep p) => Over' 
 
 type FoldLike r s a = OverLike' (Const r) s a
 
--- A 'AffineFold' extracts at most one result.
-type AffineFold s a = forall p. Choice p => Contravariant (Rep p) => Over' p s a
+-- A 'Fold0' extracts at most one result.
+type Fold0 s a = forall p. Choice p => Contravariant (Rep p) => Over' p s a
 
 type Unfold t b = forall p. Distributive (Corep p) => Contravariant (Corep p) => Under' p t b
 
@@ -168,13 +168,6 @@ type AResetter s t a b = UnderLike Identity s t a b
 
 
 
-
--- @ cotraverseOf cotraversed == cotraverse @
-cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cowander cotraverse
-
-cofolded :: (Foldable f, Monoid b) => (a -> b) -> Costar f a b
-cofolded f = Costar (foldMap f)
 
 
 {-

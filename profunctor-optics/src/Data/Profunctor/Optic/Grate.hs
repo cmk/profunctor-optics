@@ -108,13 +108,6 @@ reviewGrate (GrateRep e) b = e (const b)
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate x k = case x (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
 
--- @ cotraverseOf distributed == cotraverse @
-cotraverseOf :: UnderLike f s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf = between runCostar Costar
-
-unfoldMapOf :: UnfoldLike r t b -> (r -> b) -> r -> t
-unfoldMapOf = between (dcostar Const) (ucostar getConst) 
-
 zipWithOf :: GrateRep a b s t -> (a -> a -> b) -> (s -> s -> t)
 zipWithOf (GrateRep e) op s1 s2 = e (\get -> get s1 `op` get s2)
 

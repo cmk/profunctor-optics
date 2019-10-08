@@ -5,8 +5,8 @@ version:        0.0.0.1
 synopsis:       Profunctor optics
 description:    A profunctor-encoded optics library compatible with the typeclasses in 'profunctors'.
 category:       Data, Lenses
-homepage:       https://github.com/cmk/profunctor-utils
-bug-reports:    https://github.com/cmk/profunctor-utils/issues
+homepage:       https://github.com/cmk/profunctor-extras
+bug-reports:    https://github.com/cmk/profunctor-extras/issues
 author:         Chris McKinlay
 maintainer:     Chris McKinlay
 copyright:      2019 Chris McKinlay
@@ -15,7 +15,7 @@ build-type:     Simple
 
 source-repository head
   type: git
-  location: https://github.com/cmk/profunctor-utils
+  location: https://github.com/cmk/profunctor-extras
 
 library
   exposed-modules:
@@ -32,17 +32,14 @@ library
 
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Getter
-      --Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Fold.Monoid
-      Data.Profunctor.Optic.Fold.Semigroup
       Data.Profunctor.Optic.Fold.Affine
 
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Review
-      --Data.Profunctor.Optic.Cotraversal
-      --Data.Profunctor.Optic.Unfold
-      --Data.Profunctor.Optic.Unfold.Affine
+      Data.Profunctor.Optic.Cotraversal
+      Data.Profunctor.Optic.Unfold
 
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
@@ -71,20 +68,19 @@ library
   build-depends:
       base >=4.9 && <5.0
     , adjunctions
-    , containers
     , categories
     , comonad
+    , containers
     , contravariant
     , distributive
     , dlist
     , dlist-nonempty
-    , recursion-schemes
-    -- , semigroupoids
-    , profunctors
+    , free
     , mtl
+    , profunctors
+    , recursion-schemes
+    , semigroupoids
     , transformers
-    --, rings
-    --, nonempty-alternative
 
 test-suite doctests
   type:          exitcode-stdio-1.0

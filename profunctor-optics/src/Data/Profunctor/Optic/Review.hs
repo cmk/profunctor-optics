@@ -17,7 +17,6 @@ module Data.Profunctor.Optic.Review
 
 import Control.Monad.Reader as Reader
 
-import Data.Profunctor.Optic.Grate (unfoldMapOf)
 import Data.Profunctor.Optic.Getter
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
@@ -121,7 +120,7 @@ reviewEither l r = unto (review l ||| review r)
 -- @
 --
 reviews :: MonadReader r m => UnfoldLike r t b -> (r -> b) -> m t
-reviews o f = Reader.asks $ unfoldMapOf o f 
+reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f 
 {-# INLINE reviews #-}
 
 ---------------------------------------------------------------------

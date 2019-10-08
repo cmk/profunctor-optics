@@ -39,7 +39,7 @@ type AGetter s a = FoldLike a s a
 -- @
 --
 to :: (s -> a) -> PrimGetter s t a b
-to f = rcoerce . dimap f id
+to f = rcoerce . lmap f
 {-# INLINE to #-}
 
 -- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.

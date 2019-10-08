@@ -8,62 +8,39 @@ module Data.Profunctor.Optic.Prelude (
   , module Export
 ) where
 
-import Control.Category.Cartesian as Export
-import Control.Category.Braided as Export
+import Data.Foldable
+import Data.Traversable
+import Control.Applicative as Export
 import Control.Category  as Export (Category, (>>>), (<<<))
-import qualified Control.Category as C
 import Control.Category.Associative as Export
+import Control.Category.Braided as Export
+import Control.Category.Cartesian as Export
 import Control.Category.Monoidal as Export
-
---import Data.Either.Combinators         as Export hiding (whenLeft, eitherToError)
-import Data.Function                   as Export
-import Data.Functor                    as Export hiding (void)
---import Data.Functor.Apply              as Export
-import Data.Functor.Compose            as Export
-import Data.Functor.Const              as Export
-import Data.Functor.Contravariant      as Export hiding (($<), void)
-import Data.Functor.Contravariant.Divisible      as Export
-import Data.Functor.Identity           as Export
---import Data.Semigroup.Traversable      as Export
---import Data.Semigroup.Foldable         as Export
-import Data.Void                       as Export
-import Control.Applicative             as Export
-import Control.Monad                   as Export hiding (void)
-
+import Control.Monad as Export hiding (void)
+import Data.Bifunctor as Export (Bifunctor (..)) 
 import Data.Distributive as Export
-import Data.Profunctor.Rep
-import Data.Profunctor.Sieve
-
-import Data.Profunctor.Types           as Export hiding (WrappedArrow(..), WrapArrow(..))
-import Data.Profunctor.Choice          as Export 
-import Data.Profunctor.Strong          as Export 
-import Data.Profunctor.Closed          as Export
+import Data.Function as Export
+import Data.Functor as Export hiding (void)
+import Data.Functor.Compose as Export
+import Data.Functor.Const as Export
+import Data.Functor.Contravariant as Export hiding (($<), void)
+import Data.Functor.Contravariant.Divisible as Export
+import Data.Functor.Identity as Export
 import Data.Profunctor.Bistar as Export
+import Data.Profunctor.Choice as Export 
+import Data.Profunctor.Closed as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
-import Data.Bifunctor as Export (Bifunctor (..)) 
-
-{-
-
-import Data.Bifunctor (Bifunctor (..))
-import Data.Bifunctor.Flip (Flip (..))
-import Data.Bifunctor.Product (Product (..))
-import Data.Bifunctor.Sum (Sum (..))
-import Data.Bifunctor.Tannen (Tannen (..))
-import Data.Bifunctor.Biff (Biff (..))
--}
-
-import           Data.Foldable
-import           Data.Traversable
-import Prelude as Export            hiding (fst, snd, foldr, filter)
-
-import qualified Data.Tuple 
+import Data.Profunctor.Strong as Export 
+import Data.Profunctor.Types as Export hiding (WrappedArrow(..), WrapArrow(..))
+import Data.Void as Export
+import Prelude as Export hiding (fst, snd, foldr, filter)
+import qualified Control.Category as C
 import qualified Data.Functor.Rep as F
+import qualified Data.Tuple 
 
 type (+) = Either
 infixr 5 +
-
-
 
 {-
 import Control.Applicative
@@ -156,7 +133,6 @@ closed' = cowander cotraverse
 
 loop :: Costrong p => p (a, c) (b, c) -> p a b
 loop = unfirst
-
 
 -- profunctors
 lconst :: Profunctor p => b -> p b c -> p a c
