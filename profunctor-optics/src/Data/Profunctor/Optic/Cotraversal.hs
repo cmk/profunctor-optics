@@ -8,7 +8,7 @@ import Data.Profunctor.Optic.Prelude
 ---------------------------------------------------------------------
 
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cowander cotraverse
+cotraversed = under cotraverse
 
 ---------------------------------------------------------------------
 -- Operators

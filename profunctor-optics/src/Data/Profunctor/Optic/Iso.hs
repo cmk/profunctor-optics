@@ -155,11 +155,11 @@ auf l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
 -- Common isos
 ---------------------------------------------------------------------
 
-flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
-flipped = iso flip flip
+flipping :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
+flipping = iso flip flip
 
-curried :: Iso ((a,b) -> c) ((d,e) -> f) (a -> b -> c) (d -> e -> f)
-curried = iso curry uncurry
+currying :: Iso ((a , b) -> c) ((d , e) -> f) (a -> b -> c) (d -> e -> f)
+currying = iso curry uncurry
 
 swapped :: Braided (->) p => Iso (a `p` b) (c `p` d) (b `p` a) (d `p` c)
 swapped = iso braid braid

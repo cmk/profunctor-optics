@@ -67,15 +67,18 @@ Right (Nothing,"hi")
 --
 -- * @left seta (seta s) === left Left (seta s)@
 --
-prism :: (s -> Either t a) -> (b -> t) -> Prism s t a b
-prism seta bt = dimap seta (id ||| bt) . _R
+prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
+prism seta bt = dimap seta (id ||| bt) . right'
+
+coprism :: (s -> t + a) -> (b -> t) -> Coprism b a t s
+coprism seta bt = unright . dimap (id ||| bt) seta
 
 -- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 
 -- | Useful for constructing prisms from try and handle functions.
-handled ::  (s -> Either e a) -> (Either e b -> t) -> Prism s t a b
+handled ::  (s -> e + a) -> (e + b -> t) -> Prism s t a b
 handled seea eebt = dimap seea eebt . _R
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
@@ -84,12 +87,12 @@ splitting' = split
 
 prismR
   :: Choice p 
-  => (s -> Either t a)
+  => (s -> t + a)
   -> (b -> t)
-  -> Optic p (Either c s) (Either d t) (Either c a) (Either d b)
+  -> Optic p (c + s) (d + t) (c + a) (d + b)
 prismR f g = between runSplit Split (prism f g)
 
-withPrism :: APrism s t a b -> ((s -> Either t a) -> (b -> t) -> r) -> r
+withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism l f = case l (PrismRep Right id) of PrismRep g h -> f g h
 
 clonePrism :: APrism s t a b -> Prism s t a b
@@ -114,7 +117,7 @@ below k =
 {-# INLINE below #-}
 
 -- | Use a 'Prism' to work over part of a structure.
-aside :: APrism s t a b -> Prism (e, s) (e, t) (e, a) (e, b)
+aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
 aside k =
   withPrism k $ \seta bt ->
     flip prism (fmap bt) $ \(e,s) ->
@@ -126,7 +129,7 @@ aside k =
 -- | Given a pair of prisms, project sums.
 without :: APrism s t a b
         -> APrism u v c d
-        -> Prism (Either s u) (Either t v) (Either a c) (Either b d)
+        -> Prism (s + u) (t + v) (a + c) (b + d)
 without k =
   withPrism k $ \seta bt k' ->
     withPrism k' $ \uevc dv ->
@@ -174,7 +177,7 @@ instance Choice (PrismRep a b) where
   {-# INLINE right' #-}
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- ^ @
@@ -197,16 +200,16 @@ isntMatched o = not . isMatched o
 -- Common prisms
 ---------------------------------------------------------------------
 
-_L :: Prism (Either a c) (Either b c) a b
+_L :: Prism (a + c) (b + c) a b
 _L = left'
 
-_R :: Prism (Either c a) (Either c b) a b
+_R :: Prism (c + a) (c + b) a b
 _R = right'
 
-lowerL :: Iso s t (Either a c) (Either b c) -> Prism s t a b
+lowerL :: Iso s t (a + c) (b + c) -> Prism s t a b
 lowerL = (. _L)
 
-lowerR :: Iso s t (Either c a) (Either c b) -> Prism s t a b
+lowerR :: Iso s t (c + a) (c + b) -> Prism s t a b
 lowerR = (. _R)
 
 -- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'Getter', 'Fold' (or 'Traversal').
@@ -217,7 +220,7 @@ lowerR = (. _R)
 filtered :: (a -> Bool) -> Prism' a a
 filtered f = iso (branch' f) dedup . _R 
 
-selected :: Eq k => k -> Prism' (k, v) v
+selected :: Eq k => k -> Prism' (k , v) v
 selected i = flip prism ((,) i) $ \kv@(k,v) -> branch (==i) kv v k
 
 -- | Create a 'Prism' from a value and a predicate.

@@ -63,15 +63,15 @@ get :: AGetter s a -> PrimGetter s t a b
 get = to . view
 
 -- @
--- 'getBoth' :: 'AFold' a s a -> 'AFold' b s b -> 'Getter' s (a, b)
+-- 'toBoth' :: 'AFold' a s a -> 'AFold' b s b -> 'Getter' s (a, b)
 -- @
-getBoth :: FoldLike a1 s a1 -> FoldLike a2 s a2 -> PrimGetter s t (a1, a2) b
-getBoth l r = to (view l &&& view r)
+toBoth :: FoldLike a1 s a1 -> FoldLike a2 s a2 -> PrimGetter s t (a1 , a2) b
+toBoth l r = to (view l &&& view r)
 
 -- | TODO: Document
 --
-getEither :: FoldLike a s1 a -> FoldLike a s2 a -> PrimGetter (Either s1 s2) t a b
-getEither l r = to (view l ||| view r)
+toEither :: FoldLike a s1 a -> FoldLike a s2 a -> PrimGetter (s1 + s2) t a b
+toEither l r = to (view l ||| view r)
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -110,7 +110,22 @@ viewOf :: FoldLike r s a -> (a -> r) -> s -> r
 viewOf = between (dstar getConst) (ustar Const)
 
 ---------------------------------------------------------------------
--- Derived Operators
+-- Common getters
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+_1' :: PrimGetter (a , c) (b , c) a b
+_1' = rcoerce . lmap fst
+
+-- | TODO: Document
+--
+_2' :: PrimGetter (c , a) (c , b) a b
+_2' = rcoerce . lmap snd
+
+
+---------------------------------------------------------------------
+-- Derived operators
 ---------------------------------------------------------------------
 
 infixl 8 ^.

@@ -22,10 +22,60 @@ import Data.Profunctor.Optic.Setter
 import Data.Maybe (fromMaybe)
 
 ---------------------------------------------------------------------
+-- 'Pre'
+---------------------------------------------------------------------
+
+-- | 'Pre' is 'Maybe' with a phantom type variable.
+--
+-- 
+-- Star (Pre r) a b has Strong. Also Choice & Traversing when r is a Semigroup.
+-- idea: 
+
+newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
+
+instance Functor (Pre a) where fmap f (Pre p) = Pre p
+
+instance Contravariant (Pre a) where contramap f (Pre p) = Pre p
+
+
+--instance Semigroup a => Apply (Pre a) where (Pre pbc) <.> (Pre pb) = Pre $ pbc <> pb
+{-
+instance Monoid a => Applicative (Pre a) where
+
+    pure _ = Pre mempty
+
+    --(<*>) = (<.>)
+
+    (Pre pbc) <*> (Pre pb) = Pre $ pbc <> pb
+-}
+newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
+
+instance Profunctor (Fold0Rep r) where
+  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
+
+instance Sieve (Fold0Rep r) (Pre r) where
+  sieve = (Pre .) . runFold0Rep
+
+instance Representable (Fold0Rep r) where
+  type Rep (Fold0Rep r) = Pre r
+  tabulate = Fold0Rep . (getPre .)
+  {-# INLINE tabulate #-}
+
+--instance Bicontravariant (Fold0Rep r) where cimap f _ (Fold0Rep p) = Fold0Rep (p . f)
+
+instance Choice (Fold0Rep r) where
+    right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
+
+instance Strong (Fold0Rep r) where
+    first' (Fold0Rep p) = Fold0Rep (p . fst)
+
+---------------------------------------------------------------------
 -- 'Fold0'
 ---------------------------------------------------------------------
 
-type AFold0 s a = FoldLike (Maybe a) s a
+type Fold0Like r s a = Over' (Fold0Rep r) s a
+-- TODO remove or replace w First, causes unwanted semigroup interactions
+type AFold0 s a = Fold0Like a s a 
 
 {-
 
@@ -64,21 +114,23 @@ fromFold0 = to . preview
 
 -- | TODO: Document
 --
-cloneFold0 :: FoldLike (Maybe a) s (Maybe a) -> Fold0 s a
-cloneFold0 = (. _Just) . to . view 
+--cloneFold0 :: Fold0Like (Maybe a) s (Maybe a) -> Fold0 s a
+--cloneFold0 = (. _Just) . to . view 
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
-previewOf :: FoldLike (Maybe r) s a -> (a -> r) -> s -> Maybe r
-previewOf = between (dstar getConst) (ustar $ Const . Just)
+previewOf :: Fold0Like r s a -> (a -> Maybe r) -> s -> Maybe r
+--previewOf = between (dstar getConst) (ustar $ Const . Just)
+
+previewOf = between runFold0Rep Fold0Rep
 
 toMaybeOf :: AFold0 s a -> s -> Maybe a
-toMaybeOf = flip previewOf id
+toMaybeOf = flip previewOf Just
 
 ---------------------------------------------------------------------
--- Derived Operators
+-- Derived operators
 ---------------------------------------------------------------------
 
 preview :: MonadReader s m => AFold0 s a -> m (Maybe a)
@@ -92,13 +144,13 @@ preview o = Reader.asks $ toMaybeOf o
 --
 preview 
   :: MonadReader s m 
-  => FoldLike (Maybe (First a)) s a  
+  => Fold0Like (Maybe (First a)) s a  
   -> m (Maybe a)
 preview o = Reader.asks $ \s -> getFirst <$> foldMapOf o (Just . First) s 
 
 preuse 
   :: MonadState s m
-  => FoldLike (Maybe (First a)) s a  
+  => Fold0Like (Maybe (First a)) s a  
   -> m (Maybe a)
 preuse o = State.gets (preview o)
 -}
@@ -117,7 +169,7 @@ infixl 8 ^?
 -- >>> Left 4 ^? _L
 -- Just 4
 --
--- >>> Right 4 ^? _Left
+-- >>> Right 4 ^? _L
 -- Nothing
 --
 -- @
@@ -133,29 +185,28 @@ infixl 8 ^?
 -- ('^?') :: s -> 'Iso'' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Traversal'' s a   -> 'Maybe' a
 -- @
---(^?) :: s -> AFold0 (First a) s a -> Maybe a
---s ^? o = getFirst <$> previewOf o First s
---(^?) :: s -> AFold0 s a -> Maybe a
+--
 (^?) :: s -> AFold0 s a -> Maybe a
 s ^? o = toMaybeOf o s
 
 {-
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.
 --
-findOf :: FoldLike (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Fold0Like (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f =
   foldrOf o (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
 
+
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
-maximumOf :: Ord a => FoldLike (Endo (Maybe a)) s a -> s -> Maybe a
-maximumOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
+maxOf :: Ord a => Fold0Like (Endo (Maybe a)) s a -> s -> Maybe a
+maxOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
-minimumOf :: Ord a => FoldLike (Endo (Maybe a)) s a -> s -> Maybe a
-minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
+minOf :: Ord a => Fold0Like (Endo (Maybe a)) s a -> s -> Maybe a
+minOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -}
 
 
@@ -181,7 +232,7 @@ minimumOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -- 'minimumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Traversal'' s a -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- @
-minimumByOf :: FoldLike (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+minimumByOf :: Fold0Like (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
 minimumByOf o cmp = foldlOf' o mf Nothing where
   mf Nothing y = Just $! y
   mf (Just x) y = Just $! if cmp x y == GT then y else x
@@ -216,7 +267,7 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
 -- 'findOf' :: 'AFold' ('Endo' ('Maybe' a)) s a -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' o p = 'foldrOf' o (\a y -> if p a then 'Just' a else y) 'Nothing'
 -- @
-findOf :: FoldLike (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: Fold0Like (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE findOf #-}
 
@@ -256,7 +307,7 @@ findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 -- 'findMOf' :: Monad m => 'AFold' ('Endo' (m ('Maybe' a))) s a -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' o p = 'foldrOf' o (\a y -> p a >>= \x -> if x then return ('Just' a) else y) $ return 'Nothing'
 -- @
-findMOf :: Monad m => FoldLike (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
+findMOf :: Monad m => Fold0Like (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m (Maybe a)
 findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y) $ return Nothing
 {-# INLINE findMOf #-}
 
@@ -274,9 +325,7 @@ findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y)
 -- @
 -- 'lookupOf' :: 'Eq' k => 'Fold' s (k,v) -> k -> s -> 'Maybe' v
 -- @
-lookupOf :: Eq k => FoldLike (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
+lookupOf :: Eq k => Fold0Like (Endo (Maybe v)) s (k,v) -> k -> s -> Maybe v
 lookupOf o k = foldrOf o (\(k',v) next -> if k == k' then Just v else next) Nothing
 {-# INLINE lookupOf #-}
 -}
-
-

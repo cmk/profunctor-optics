@@ -33,6 +33,7 @@ import           Data.Coerce
 import           Data.Data
 import           Data.Distributive
 import Data.Functor.Classes
+import Data.Functor.Apply (Apply(..))
 
 type Optic p s t a b = p a b -> p s t
 
@@ -70,6 +71,20 @@ type UnderLike' g s a = UnderLike g s s a a
 
 -- * 
 
+type Grate s t a b = forall p. Under p s t a b
+
+--type Grate s t a b = forall p. Closed p => Optic p s t a b
+type Grate' s a = Grate s s a a
+
+type GrateVL s t a b = forall g. Functor g => UnderLike g s t a b
+
+type GrateVL' s a = GrateVL s s a a
+
+--type Cograte s t a b = forall p. Over p s t a b
+
+--type Cograte' s a = forall p. Over p s s a a
+
+
 type Lens s t a b = forall p. Strong p => Optic p s t a b
 
 type Lens' s a = Lens s s a a
@@ -77,6 +92,10 @@ type Lens' s a = Lens s s a a
 type LensVL s t a b = forall f. Functor f => OverLike f s t a b
 
 type LensVL' s a = LensVL s s a a
+
+type Colens s t a b = forall p. Costrong p => Optic p s t a b
+
+type Colens' s a = Colens s s a a
 
 type Prism s t a b = forall p. Choice p => Optic p s t a b
 
@@ -86,22 +105,18 @@ type PrismVL s t a b = forall f g. Applicative f => Traversable g => IsoLike f g
 
 type PrismVL' s a = PrismVL s s a a 
 
-type Grate s t a b = forall p. Closed p => Optic p s t a b
+type Coprism s t a b = forall p. Cochoice p => Optic p s t a b
 
-type Grate' s a = Grate s s a a
-
-type GrateVL s t a b = forall g. Functor g => UnderLike g s t a b
-
-type GrateVL' s a = GrateVL s s a a
+type Coprism' s a = Coprism s s a a
 
 -- A 'Affine' extracts at most one result, with no monoidal interactions.
 type Affine s t a b = forall p. Strong p => Choice p => Optic p s t a b
 
 type Affine' s a = Affine s s a a
 
---type Foo s t a b = forall p. Closed p => Strong p => Optic p s t a b
+--type Coaffine s t a b = forall p. Costrong p => Cochoice p => Optic p s t a b
 
---type Bar s t a b = forall p. Choice p => Closed p => Optic p s t a b
+--type Coaffine' s a = Coaffine s s a a
 
 -- *
 
@@ -118,6 +133,7 @@ type Cotraversal s t a b = forall p. Distributive (Corep p) => Under p s t a b
 
 --type Traversal1' s a = Traversal1 s s a a
 
+
 --type Fold s a = forall p. (forall x. Contravariant (p x), Traversing p) => Optic' p s a
 --type Fold s a = forall p. RPhantom p => Strong p => Optic' p s a
 type Fold s a = forall p. Applicative (Rep p) => Contravariant (Rep p) => Over' p s a
@@ -127,12 +143,14 @@ type FoldLike r s a = OverLike' (Const r) s a
 -- A 'Fold0' extracts at most one result.
 type Fold0 s a = forall p. Choice p => Contravariant (Rep p) => Over' p s a
 
+type Fold1 s a = forall p. Apply (Rep p) => Contravariant (Rep p) => Over' p s a
+
 type Unfold t b = forall p. Distributive (Corep p) => Contravariant (Corep p) => Under' p t b
 
 type UnfoldLike r t b = UnderLike' (Const r) t b
 
--- A 'AffineUnfold' extracts at least one result. should be able to do this w/ a UnderLike / Cotraversal
-type AffineUnfold t b = forall p. Strong p => Contravariant (Corep p) => Under' p t b
+-- A 'Unfold0' extracts at least one result. should be able to do this w/ a UnderLike / Cotraversal
+--type Unfold0 t b = forall p. Strong p => Contravariant (Corep p) => Under' p t b
 
 type PrimGetter s t a b = forall p. Contravariant (Rep p) => Over p s t a b
 
@@ -144,33 +162,49 @@ type PrimReview' t b = PrimReview t t b b
 
 -- A 'Getter' extracts exactly one result.
 --type Getter s a = forall p . Strong p => Representable p => Contravariant (Rep p) => p a b -> p s t
-type Getter s a = forall p. Strong p => Contravariant (Rep p) => Over' p s a
+--type Getter s a = forall p. Strong p => Contravariant (Rep p) => Over' p s a
+type Getter s a = forall p. Contravariant (Rep p) => Over' p s a
 
-type Review t b = forall p. Choice p => Contravariant (Corep p) => Under' p t b
+--type Review t b = forall p. Choice p => Contravariant (Corep p) => Under' p t b
 
+type Review t b = forall p. Contravariant (Corep p) => Under' p t b
 
 
 
 -- * Setter
-
-type Setter s t a b = forall p. Representable p => Distributive (Rep p) => Optic p s t a b
+type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
 --type SetterVL s t a b = forall f. F.Representable f => OverLike f s t a b
 
 type Setter' s a = Setter s s a a
 
---type Resetter s t a b = forall p. Corepresentable p => Applicative (Corep p) => Optic p s t a b
+type Resetter s t a b = forall p. Applicative (Corep p) => Under p s t a b
 --type ResetterVL s t a b = forall f. Representable f => Applicative f => UnderLike f s t a b
 
---type Resetter' s a = Resetter s s a a
+type Resetter' s a = Resetter s s a a
+
 type ASetter s t a b = OverLike Identity s t a b
 
 type AResetter s t a b = UnderLike Identity s t a b
 
 
 
+closed :: Under p (c -> a) (c -> b) a b
+closed = under cotraverse
 
+
+--costrong :: Under p a b (c , a) (c , b)
+--costrong = under foo
+
+foo :: ((c, b) -> (c, a)) -> b -> a
+foo g fa = g' fa where g' fa = snd . g $ (undefined, fa)
 
 {-
+Found hole: _ :: (Corep p (c, a) -> (c, b)) -> Corep p a -> b
+
+(f (c,a) -> (c,b)) -> f a
+
+
+
 toOverLike :: AdapterLike f Identity s t a b -> OverLike f s t a b
 toOverLike o h = lower' o h runIdentity Identity -- l f = l (f . runIdentity) . Identity 
 
@@ -197,7 +231,7 @@ lift l f = l (f . Identity) . runIdentity
 
 --alternated :: forall f s a. (forall f. Alternative f) => Star f s a -> Traversal s a s a
 --alternated f = between runStar $ Star . (<||> f)
---alternated (Star f) = wander (<||> f)
+--alternated (Star f) = over (<||> f)
 
 
 
@@ -207,7 +241,6 @@ lift l f = l (f . Identity) . runIdentity
 
 
 --The 'Re' type, and its instances witness the symmetry of 'Profunctor' 
--- and the relation between 'InPhantom' and 'OutPhantom'.
 
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
@@ -225,22 +258,3 @@ instance Choice p => Cochoice (Re p s t) where
 
 instance Strong p => Costrong (Re p s t) where
     unfirst (Re p) = Re (p . first')
-
----------------------------------------------------------------------
--- 'Zipped'
----------------------------------------------------------------------
-
-
-newtype Zipped a b = Zipped { runZipped :: a -> a -> b }
-
-instance Profunctor Zipped where
-    dimap f g (Zipped p) = Zipped (\x y -> g (p (f x) (f y)))
-
-instance Closed Zipped where
-    closed (Zipped p) = Zipped (\f g x -> p (f x) (g x))
-
-instance Choice Zipped where
-    right' (Zipped p) = Zipped (\x y -> p <$> x <*> y)
-
-instance Strong Zipped where
-    first' (Zipped p) = Zipped (\(x, c) (y, _) -> (p x y, c))

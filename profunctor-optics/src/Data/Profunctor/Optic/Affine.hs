@@ -126,9 +126,8 @@ afoo f = affine (foo f) fromMaybeS
 mapMaybe sma = affine' sma fromMaybe
 
 -}
-
 selected :: (k -> Bool) -> Affine' (k, v) v
-selected p = affine (\kv@(k,v) -> branchOn p k kv v) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+selected p = affine (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
 
 nulled :: Affine' s a
 nulled = affine Left const 

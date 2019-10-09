@@ -19,7 +19,7 @@ unfold_complete o = tripping o $ unfolding (_ o)
 -}
 
 unfolding :: Distributive g => (b -> t) -> Unfold (g t) b
-unfolding f = cowander cotraverse . unto f
+unfolding f = under cotraverse . unto f
 
 -- corecursing :: Functor f => UnfoldLike a (Fix f) (f a)
 corecursing :: Corecursive t => UnfoldLike b t (Base t b)
@@ -40,7 +40,7 @@ cofolded f = Costar (foldMap f)
 nfoldLike f = between (ucostar ) (dcostar $ foldMap f) 
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 unfoldMapOf :: UnfoldLike r t b -> (r -> b) -> r -> t

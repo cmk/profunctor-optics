@@ -66,7 +66,7 @@ instance Applicative (Task Applicative (->) i k) where
   pure x = Task $ const (pure x)
   Task f <*> Task x = Task $ \op -> (f op) <*> (x op)
 
-newtype WrappedTask k v i= WrappedTask { getWrappedTask :: Task Applicative (->) i k v }
+newtype WrappedTask k v i = WrappedTask { getWrappedTask :: Task Applicative (->) i k v }
 
 instance Functor (WrappedTask k v) where
   fmap = fmapDefault
@@ -91,6 +91,7 @@ unMono f (Mono x) = f x
 runMono :: (x -> y) -> Ap (Mono x y) a -> a
 runMono f = runIdentity . runAp (Identity . unMono f)
 
+-- Equiv to 'PKStore' here: https://r6research.livejournal.com/27476.html 
 data FunList i k v = Done v | More i (FunList i k (k -> v))
 
 --data FlistF i k v r = Done t | More a r
@@ -99,8 +100,6 @@ data FunList i k v = Done v | More i (FunList i k (k -> v))
 ---------------------------------------------------------------------
 -- 'Store'
 ---------------------------------------------------------------------
-
-
 
 -- | The indexed store can be used to characterize a 'Lens'
 -- and is used by 'cloneLens'.
@@ -148,8 +147,7 @@ instance i ~ k => ComonadStore i (Store i k) where
 -- The type ∀ f, g : Functor. (g a → f b) → g s → f t is isomorphic to the type (s → a)×(b → t). 
 -- The Van Laarhoven representation of isomorphisms uses this representation 
 -- of a pair of functions to capture the notion of an isomorphism.
-extractPair :: (((s -> a) -> Store (s -> a) b b) -> (s -> s) -> Store (s -> a) b t)
-            -> (s -> a, b -> t)
+extractPair :: (((s -> a) -> Store (s -> a) b b) -> (s -> s) -> Store (s -> a) b t) -> (s -> a, b -> t)
 extractPair l = (f, g) where Store g f = l (Store id) id
 
 --_Store :: Iso (Store a1 b1 t1) (Store a2 b2 t2) (Context a1 b1 t1) (Context a2 b2 t2)

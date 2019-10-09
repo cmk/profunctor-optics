@@ -11,8 +11,8 @@ module Data.Profunctor.Optic.Review
   , review, reviews
   --, reuse, reuses
   , (#)
-  , reviewBoth
-  , reviewEither
+  , untoBoth
+  , untoEither
   ) where
 
 import Control.Monad.Reader as Reader
@@ -42,7 +42,7 @@ type AReview t b = UnfoldLike b t b
 -- @
 --
 unto :: (b -> t) -> PrimReview s t a b 
-unto f = lcoerce . dimap id f
+unto f = lcoerce . rmap f
 
 -- | Turn a 'Getter' around to get a 'Review'
 --
@@ -67,23 +67,25 @@ un = unto . (`views` id)
 relike :: t -> PrimReview s t a b
 relike t = unto (const t)
 
+
+-- | TODO: Document
+--
+untoBoth :: AReview t1 b -> AReview t2 b -> PrimReview s (t1 , t2) a b
+untoBoth l r = unto (review l &&& review r)
+
+-- | TODO: Document
+--
+untoEither :: AReview t b1 -> AReview t b2 -> PrimReview s t a (b1 + b2)
+untoEither l r = unto (review l ||| review r)
+
 -- | TODO: Document
 --
 cloneReview :: AReview t b -> PrimReview' t b
 cloneReview = unto . review
 
--- | TODO: Document
---
-reviewBoth :: AReview t1 b -> AReview t2 b -> PrimReview s (t1, t2) a b
-reviewBoth l r = unto (review l &&& review r)
-
--- | TODO: Document
---
-reviewEither :: AReview t b1 -> AReview t b2 -> PrimReview s t a (Either b1 b2)
-reviewEither l r = unto (review l ||| review r)
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- | This can be used to turn an 'Iso' or 'Prism' around and 'view' a value (or the current environment) through it the other way,
@@ -124,7 +126,7 @@ reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f
 {-# INLINE reviews #-}
 
 ---------------------------------------------------------------------
--- Derived Operators
+-- Derived operators
 ---------------------------------------------------------------------
 
 infixr 8 #
@@ -165,3 +167,17 @@ o # b = review o b
 review :: MonadReader b m => AReview t b -> m t
 review = (`reviews` id) 
 {-# INLINE review #-}
+
+---------------------------------------------------------------------
+-- Common reviews
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+_L' :: PrimReview (a + c) (b + c) a b
+_L' = lcoerce . rmap Left
+
+-- | TODO: Document
+--
+_R' :: PrimReview (c + a) (c + b) a b
+_R' = lcoerce . rmap Right

@@ -22,13 +22,10 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 -- 'Lens' 
 ---------------------------------------------------------------------
 
--- ^ @
--- lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
--- @
+-- | Build a lens from a getter and setter.
 --
--- Build a lens from a @getter@ and @setter@ family.
---
--- /Caution/: In order for the generated lens family to be well-defined, you must ensure that the three lens laws hold:
+-- /Caution/: In order for the generated lens family to be well-defined,
+-- you must ensure that the three lens laws hold:
 --
 -- * @sa (sbt s a) === a@
 --
@@ -39,6 +36,9 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
+colens :: (s -> a) -> (s -> b -> t) -> Colens b a t s 
+colens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
+ 
 -- | Transform a Van Laarhoven-encoded lens into a profunctor-encoded one.
 --
 -- Use this to interoperate with optics from the 'lens' library.
@@ -72,7 +72,7 @@ instance Strong (LensRep a b) where
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- Analogous to (***) from 'Control.Arrow'
@@ -93,25 +93,28 @@ withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
 -- Common lenses 
 ---------------------------------------------------------------------
 
-_1 :: Lens (a, c) (b, c) a b
+_1 :: Lens (a , c) (b , c) a b
 _1 = first'
 
-_2 :: Lens (c, a) (c, b) a b
+_2 :: Lens (c , a) (c , b) a b
 _2 = second'
 
-lower1 :: Iso s t (a, x) (b, x) -> Lens s t a b
+lower1 :: Iso s t (a , x) (b , x) -> Lens s t a b
 lower1 = (. _1)
 
-lower2 :: Iso s t (x, a) (x, b) -> Lens s t a b
+lower2 :: Iso s t (x , a) (x , b) -> Lens s t a b
 lower2 = (. _2)
 
 -- | There is a `Unit` in everything.
 unit :: forall a. Lens' a ()
 unit = lens (const ()) const
 
--- | There is everything in `Void`.
+-- | There is everything in a `Void`.
 void :: forall a. Lens' Void a
 void = lens absurd const
+
+uncurried :: Lens (a , b) c a (b -> c)
+uncurried = rmap eval . first'
 
 ix :: Eq k => k -> Lens' (k -> v) v
 ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)

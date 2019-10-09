@@ -15,8 +15,6 @@ import qualified Data.DList.NonEmpty as NEL
 -- 'Fold1'
 ---------------------------------------------------------------------
 
-type Fold1 s a = forall p. Apply (Rep p) => Contravariant (Rep p) => Over' p s a
-
 type AFold1 r s a = Semigroup r => FoldLike r s a
 
 {-
@@ -34,11 +32,11 @@ fold1_complete o = tripping o $ folding1 (toNelOf o)
 -- [2,3,4]
 --
 folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = rcoerce . lmap f . wander traverse1_
+folding1 f = rcoerce . lmap f . over traverse1_
 {-# INLINE folding1 #-}
 
 folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = wander traverse1 . to f
+folded1 f = over traverse1 . to f
 
 fold1Like :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
 fold1Like = between (ustar Const) (dstar getConst)
@@ -50,7 +48,7 @@ cloneFold1 :: Semigroup a => FoldLike a s a -> Fold1 s a
 cloneFold1 = to . view
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 foldMap1Of :: Semigroup r => FoldLike r s a -> (a -> r) -> s -> r

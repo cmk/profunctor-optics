@@ -11,8 +11,11 @@ import Data.Traversable (fmapDefault, foldMapDefault)
 -- 'Traversal'
 ---------------------------------------------------------------------
 
+traversal :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversal = over
+
 traversed :: Traversable t => Traversal (t a) (t b) a b
-traversed = wander traverse
+traversed = over traverse
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -32,7 +35,7 @@ traversed = wander traverse
 -- 'both' :: 'Traversal' ('Either' a a) ('Either' b b) a b
 -- @
 both :: Bitraversable t => Traversal (t a a) (t b b) a b
-both = wander $ \f -> bitraverse f f
+both = over $ \f -> bitraverse f f
 {-# INLINE both #-}
 
 

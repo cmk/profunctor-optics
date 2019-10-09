@@ -52,8 +52,8 @@ instance Comonad f => Strong (Costar f) where
 instance Contravariant f => Contravariant (Star f a) where
   contramap f (Star g) = Star $ contramap f . g
 
-instance {-# OVERLAPPABLE #-} (q ~ p, Profunctor q, Corepresentable q) => Closed p where
-  closed = closed'
+--instance {-# OVERLAPPABLE #-} (q ~ p, Profunctor q, Corepresentable q) => Closed p where
+--  closed = under cotraverse
 
 instance {-# OVERLAPPABLE #-} (Category p, Strong p) => PFunctor (,) p p where 
   first = first'

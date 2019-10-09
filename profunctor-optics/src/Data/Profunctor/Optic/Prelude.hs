@@ -28,7 +28,6 @@ import Data.Functor.Contravariant.Divisible as Export
 import Data.Functor.Identity as Export
 import Data.Profunctor.Bistar as Export
 import Data.Profunctor.Choice as Export 
-import Data.Profunctor.Closed as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
 import Data.Profunctor.Strong as Export 
@@ -126,11 +125,6 @@ eval' = rmap eval . recover
 choice :: Choice p => (c -> Either a b) -> p a b -> p c b
 choice f = dimap f dedup . left'
 
--- Any 'Corepresentable' profuctor is closed.
---
-closed' :: Corepresentable p => p a b -> p (c -> a) (c -> b)
-closed' = cowander cotraverse
-
 loop :: Costrong p => p (a, c) (b, c) -> p a b
 loop = unfirst
 
@@ -142,10 +136,10 @@ rconst :: Profunctor p => c -> p a b -> p a c
 rconst = rmap . const
 
 lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
-lcoerce = cowander (. phantom) --phantom in base's Data.Functor.Contravariant
+lcoerce = under (. phantom) --phantom in base's Data.Functor.Contravariant
 
 rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
-rcoerce = wander (phantom .)
+rcoerce = over (phantom .)
 
 rcoerce'  :: (Contravariant (p a), Profunctor p) => p a c -> p a d
 rcoerce' = rmap absurd . contramap absurd
@@ -153,6 +147,9 @@ rcoerce' = rmap absurd . contramap absurd
 lcoerce' :: (Bifunctor p, Profunctor p) => p a c -> p b c
 lcoerce' = first absurd . lmap absurd
 
+-- | The 'mempty' equivalent for a 'Contravariant' 'Applicative' 'Functor'.
+cempty :: Contravariant f => Applicative f => f a
+cempty = phantom $ pure ()
 
 -- combinators
 
@@ -167,23 +164,18 @@ lcoerce' = first absurd . lmap absurd
 between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
 between f g = (f .) . (. g)
 
-wander :: Representable p =>  ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
-wander f = tabulate . f . sieve
+over :: Representable p =>  ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
+over f = tabulate . f . sieve
 
-cowander :: Corepresentable p =>  ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
-cowander f = cotabulate . f . cosieve
+under :: Corepresentable p =>  ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
+under f = cotabulate . f . cosieve
 
 --https://hackage.haskell.org/package/semialign-1/docs/Data-Align.html
 --laligned :: Strong p => Choice p => p a b -> p (These a c) (These b c)
 --laligned = error "TODO"
 
 --foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
---foo = cowander foldMap
-
-
--- | The 'mempty' equivalent for a 'Contravariant' 'Applicative' 'Functor'.
-cempty :: Contravariant f => Applicative f => f a
-cempty = phantom $ pure ()
+--foo = under foldMap
 
 unarr :: Sieve p Identity => p a b -> a -> b 
 unarr = (runIdentity .) . sieve

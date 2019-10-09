@@ -7,17 +7,18 @@ module Data.Profunctor.Optic.Grate (
 
 
 import Data.Distributive
-import Data.Profunctor.Sieve
+import Data.Profunctor.Closed (Closed)
+import qualified Data.Profunctor.Closed as C
+
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude hiding (Representable(..))
-
-import Data.Profunctor.Closed as Export
+import Data.Profunctor.Rep as Export (Corepresentable(..))
 
 import Control.Monad.Trans.Cont
 
 import qualified Control.Exception as Ex
-import Data.Functor.Rep
+import Data.Functor.Rep (Representable(..))
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -45,7 +46,15 @@ grate runIdentity = runIdentity
 
 -- curry' :: Closed p => p (a, b) c -> p a (b -> c)
 grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
+
+unzipping :: (((s -> a) -> b) -> (s -> s) -> t) -> Grate s t a b
+unzipping f = grate $ flip f id
+
 -}
+
+
+unzipping :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b
+unzipping = under
 
 -- ^ @
 -- grate :: (((s -> a) -> b) -> t) -> Grate s t a b
@@ -63,19 +72,6 @@ grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
 --
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
-
--- | 'resetting' promotes a \"semantic editor combinator\" to a form of grate that can only lift unary functions.
---
--- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
---
--- * @sec id === id@
---
--- * @sec f . sec g === sec (f . g)@
---
---resetting :: ((a -> b) -> s -> t) -> Grate s t a b
-
-resetting :: Applicative f => Representable f => Rep f -> ((a -> b) -> s -> t) -> UnderLike f s t a b
-resetting i sec = between Costar runCostar $ \f -> sec (f . pure) . flip index i
 
 cloneGrate :: AGrate s t a b -> Grate s t a b
 cloneGrate k = withGrate k grate
@@ -95,6 +91,22 @@ type AGrate' s a = AGrate s s a a
 instance Profunctor (GrateRep a b) where
   dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
 
+instance Costrong (GrateRep a b) where
+  unfirst = unfirstCorep
+
+newtype PolyCont a b s = PolyCont { runPolyCont :: (s -> a) -> b }
+
+instance Functor (PolyCont a b) where
+  fmap st (PolyCont sab) = PolyCont $ \ta -> sab (ta . st)
+
+instance Cosieve (GrateRep a b) (PolyCont a b) where
+  cosieve (GrateRep f) = \c -> f (runPolyCont c)
+
+instance Corepresentable (GrateRep a b) where
+  type Corep (GrateRep a b) = PolyCont a b
+
+  cotabulate f = GrateRep $ f . PolyCont
+
 instance Closed (GrateRep a b) where
   closed (GrateRep z) = GrateRep $ \f x -> z $ \k -> f $ \g -> k (g x)
 
@@ -102,21 +114,23 @@ reviewGrate :: GrateRep a b s t -> b -> t
 reviewGrate (GrateRep e) b = e (const b)
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate x k = case x (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
 
-zipWithOf :: GrateRep a b s t -> (a -> a -> b) -> (s -> s -> t)
-zipWithOf (GrateRep e) op s1 s2 = e (\get -> get s1 `op` get s2)
+reviewOf :: Grate s t a b -> b -> t
+reviewOf x b = withGrate x $ \grt -> grt (const b)
 
-zipFWithOf :: Functor f => GrateRep a b s t -> (f a -> b) -> (f s -> t)
-zipFWithOf (GrateRep e) comb fs = e (\get -> comb (fmap get fs))
+zipWithOf :: Grate s t a b -> (a -> a -> b) -> s -> s -> t
+zipWithOf x comb s1 s2 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2)
 
--- special case of cotraverse where f = (a,a)
---zipWithOf :: Optic Zipped s t a b -> (a -> a -> b) -> s -> s -> t
---zipWithOf = between runZipped Zipped
+zipFWithOf :: Functor f => Grate s t a b -> (f a -> b) -> (f s -> t)
+zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
+
+zip3WithOf :: Grate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
+zip3WithOf x comb s1 s2 s3 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2) (get s3)
 
 ---------------------------------------------------------------------
 -- Common grates
@@ -127,36 +141,32 @@ zipFWithOf (GrateRep e) comb fs = e (\get -> comb (fmap get fs))
 adapted :: (s -> a) -> (b -> t) -> Grate s t a b
 adapted sa bt = grate $ \sab -> bt (sab sa)
 
--- | A grate accessing the range of a function.
+-- | An 'Under' accessing the range of a function.
 --
--- @
--- range == dimap tabulate index . closed
--- @
---
-range :: Grate (r -> a) (r -> b) a b
-range = distributed
+range :: Grate (c -> a) (c -> b) a b
+range = closed
 
 -- ^ @
--- yoneda :: Representable f => Grate (f a) (f b) a b
+-- represented :: Representable f => Grate (f a) (f b) a b
 -- @
 --
-yoneda :: Representable f => Grate (f a) (f b) a b
-yoneda = dimap index tabulate . closed
+represented :: Representable f => Grate (f a) (f b) a b
+represented = dimap index tabulate . closed
 
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate $ \f -> cotraverse f id
 
+curried :: Grate a (b -> c) (a, b) c
+curried = lmap (,) . closed
+
 masked :: Grate (IO a) (IO b) (IO a) (IO b)
 masked = grate Ex.mask
-
-shifted :: Grate a (Cont r a) r (Cont r r)
-shifted = grate shift 
 
 continued :: Grate a (Cont r a) r r
 continued = grate cont
 
 continuedWith :: Cont r a -> Grate b (Cont r b) r (a -> r)
-continuedWith c = grate (flip withCont c) 
+continuedWith c = grate (`withCont` c) 
 
 -- | Depend on a silent configuration parameter.
 configured :: (x -> a -> a) -> x -> Grate' a a

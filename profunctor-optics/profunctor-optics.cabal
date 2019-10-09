@@ -63,6 +63,7 @@ library
       ScopedTypeVariables
       TypeOperators
       TypeApplications
+      TypeFamilies
 
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:

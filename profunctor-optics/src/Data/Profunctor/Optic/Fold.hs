@@ -35,17 +35,17 @@ fold_complete o = tripping o $ folding (toListOf o)
 -- [2,3,4]
 --
 folding :: Foldable f => (s -> f a) -> Fold s a
-folding f = rcoerce . lmap f . wander traverse_
+folding f = rcoerce . lmap f . over traverse_
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold' using a 'Traversable' functor.
 --
 -- @
--- 'folded' f ≡ 'wander' 'traverse' . 'to' f
+-- 'folded' f ≡ 'over' 'traverse' . 'to' f
 -- @
 --
 folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = wander traverse . to f
+folded f = over traverse . to f
 
 -- recursing :: FoldLike r (Mu []) [r]
 recursing :: Recursive s => FoldLike a s (Base s a)
@@ -61,7 +61,7 @@ cloneFold :: FoldLike a s a -> Fold s a
 cloneFold = to . view
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- | Map each part of a structure viewed through a 'Lens', 'Getter',

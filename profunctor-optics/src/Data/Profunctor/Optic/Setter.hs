@@ -5,7 +5,7 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Review (re)
 import Data.Profunctor.Task
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
-import Data.Profunctor.Optic.Grate (withGrate, forgotten)
+import Data.Profunctor.Optic.Grate -- (withGrate, forgotten)
 
 import Control.Applicative (liftA)
 import Control.Monad.State as State
@@ -20,6 +20,7 @@ import Data.Profunctor.Optic.Prism
 
 import qualified Data.Functor.Rep as F
 
+import qualified Data.Functor.Contravariant.Rep as C
 {-
 
 
@@ -44,14 +45,55 @@ setter_complete_2 o = collecting (collectOf o)
 -- Setter
 ---------------------------------------------------------------------
 
-over :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
-over f = wander $ \g s -> F.tabulate $ \i -> f (flip F.index i . g) s
+--over' :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
+--over' f = over $ \afb s -> F.tabulate $ \i -> f (flip F.index i . afb) s
+
+{-
+tabulate :: (a -> Rep f) -> f a
+
+contramap f (tabulate g) = tabulate (g . f)
+index :: f a -> a -> Rep f
+
+s = 
+-}
+
+
+--overLike :: ((a -> b) -> s -> t) -> ASetter s t a b
+overLike sec = between Star runStar $ \f -> sec (Identity . f) . runIdentity
+
+underLike :: ((a -> b) -> s -> t) -> AResetter s t a b
+underLike sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity 
+
+--resetting :: ((a -> b) -> s -> t) -> Resetter s t a b
+--resetting = cloneUnder . underLike
+
+--((i -> a) -> b) -> (i -> s) -> t
+--under l f = l (f . Identity) . runIdentity :: ((a -> c1) -> b -> c2) -> (Identity a -> c1) -> Identity b -> c2
+--under f = under $ \faa fs -> f (faa F.tabulate $ \i -> F.index fs i
+--flip F.index i $ F.tabulate $ \i -> f (flip F.index i . g) s
+
+-- | 'resetting' promotes a \"semantic editor combinator\" to a form of grate that can only lift unary functions.
+--
+-- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
+--
+-- * @sec id === id@
+--
+-- * @sec f . sec g === sec (f . g)@
+--
+--resetting :: ((a -> b) -> s -> t) -> Resetter s t a b
+
+
+cloneOver :: OverLike (Rep p) s t a b -> Over p s t a b
+cloneOver = between fromStar star 
+
+cloneUnder :: UnderLike (Corep p) s t a b -> Under p s t a b
+cloneUnder = between fromCostar costar 
 
 -- | 'setting' promotes a \"semantic editor combinator\" to a modify-only lens.
 --
 -- To demote a lens to a semantic edit combinator, use the section @(l %~)@ or @mapOf l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setting map . fstL %~ length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setting map . _1 %~ length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
@@ -60,21 +102,21 @@ over f = wander $ \g s -> F.tabulate $ \i -> f (flip F.index i . g) s
 --
 -- * @sec f . sec g === sec (f . g)@
 --
--- See <http://conal.net/blog/posts/semantic-editor-combinators>
+-- See <http://conal.net/blog/posts/semantic-editor-combinators>.
 --
 setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting sec = dimap (Store id) (\(Store g s) -> sec g s) . wander collect
+setting sec = dimap (Store id) (\(Store g s) -> sec g s) . over collect
 
 grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-grating f = dimap pureTaskF (f . runTask) . wander collect
+grating f = dimap pureTaskF (f . runTask) . over collect
 
 -- | Every 'Grate' is an 'Setter'.
 --
 -- Note: this is needed b/c currently 'Corepresentable' does not entail 'Closed', 
 -- though it should (see 'closed'')
 --
-lowerGrate :: Grate s t a b -> Setter s t a b
-lowerGrate x = withGrate x (setting . lowerGrate')
+--lowerGrate :: Grate s t a b -> Setter s t a b
+--lowerGrate x = withGrate x (setting . lowerGrate')
 
 -- | Every 'Grate' is an 'Setter'.
 --
@@ -82,7 +124,7 @@ lowerGrate' :: (((s -> a) -> b) -> t) -> (a -> b) -> s -> t
 lowerGrate' sabt ab s = sabt $ \sa -> ab (sa s)
 
 ---------------------------------------------------------------------
--- Primitive Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- mapOf l id ≡ id
@@ -151,7 +193,7 @@ dom = setting lmap
 -- | A grate accessing the codomain of a function.
 --
 -- @
--- cod @(->) == fromGrate range
+-- cod @(->) == lowerGrate range
 -- @
 --
 cod :: Profunctor p => Setter (p r a) (p r b) a b
@@ -168,7 +210,7 @@ binding = setting (=<<)
 mapped :: Functor f => Setter (f a) (f b) a b
 mapped = setting fmap
 
-foldMapped :: (Foldable f, Monoid m) => Setter (f a) m a m
+foldMapped :: Foldable f => Monoid m => Setter (f a) m a m
 foldMapped = setting foldMap
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
@@ -188,13 +230,13 @@ liftedA = setting liftA
 liftedM :: Monad m => Setter (m a) (m b) a b
 liftedM = setting liftM
 
-collecting :: Functor f => Distributive g => Setter (f a) (g (f b)) a (g b)
-collecting = setting collect
-
 -- | Set a value using an SEC.
 --
 sets :: Setter b (a -> c) a c
 sets = setting const
+
+zipped :: Setter (u -> v -> a) (u -> v -> b) a b
+zipped = setting ((.)(.)(.))
 
 grated :: Setter (a -> b) (s -> t) ((s -> a) -> b) t
 grated = setting lowerGrate'
@@ -204,9 +246,6 @@ modded = setting $ \sa bt sab -> bt (sab sa)
 
 composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
 composed = setting between
-
-composing :: Setter (u -> v -> a) (u -> v -> b) a b
-composing = setting ((.)(.)(.))
 
 -- | SEC applying the given function only when the given predicate
 --  yields true for an input value.

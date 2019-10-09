@@ -28,7 +28,7 @@ Compose . fmap (traverse1Of t f) . traverse1Of t g ≡ traverse1Of t (Compose . 
 -}
 
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = wander1 traverse1
+traversed1 = over1 traverse1
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
 --
@@ -39,7 +39,7 @@ traversed1 = wander1 traverse1
 -- 'both1' :: 'Traversal1' ('Either' a a) ('Either' b b) a b
 -- @
 both1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
-both1 = wander1 $ \f -> bitraverse1 f f
+both1 = over1 $ \f -> bitraverse1 f f
 {-# INLINE both1 #-}
 
 -- | Form a 'Traversal1'' by repeating the input forever.
@@ -55,7 +55,7 @@ both1 = wander1 $ \f -> bitraverse1 f f
 -- repeated :: Fold1 a a
 -- @
 repeated :: Traversal1' a a
-repeated = wander1 $ \g a -> go g a where go g a = g a .> go g a
+repeated = over1 $ \g a -> go g a where go g a = g a .> go g a
 {-# INLINE repeated #-}
 
 
@@ -68,7 +68,7 @@ repeated = wander1 $ \g a -> go g a where go g a = g a .> go g a
 -- cycled :: 'Fold1' s a -> 'Fold1' s a
 -- @
 cycled :: Traversal1' s a -> Traversal1' s a
-cycled o = wander1 $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
+cycled o = over1 $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 
 {-# INLINE cycled #-}
 
@@ -85,7 +85,7 @@ cycled o = wander1 $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 -- iterated :: (a -> a) -> 'Fold1' a a
 -- @
 iterated :: (a -> a) -> Traversal1' a a
-iterated f = wander1 $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
+iterated f = over1 $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 {-# INLINE iterated #-}
 
 

@@ -55,12 +55,12 @@ instance Choice p => Choice (Indexed p i) where
         lmap (\(i, e) -> first (i,) e) (left' p)
 
 instance Traversing p => Traversing (Indexed p i) where
-    wander f (Indexed p) = Indexed $
-         wander (\g (i, s) -> f (curry g i) s) p
+    over f (Indexed p) = Indexed $
+         over (\g (i, s) -> f (curry g i) s) p
 
 instance Traversing1 p => Traversing1 (Indexed p i) where
-    wander1 f (Indexed p) = Indexed $
-         wander1 (\g (i, s) -> f (curry g i) s) p
+    over1 f (Indexed p) = Indexed $
+         over1 (\g (i, s) -> f (curry g i) s) p
 
 {-
 instance Closed (Indexed (->) i) where
@@ -97,7 +97,7 @@ itraversing
   :: Traversing p
   => (forall f. Applicative f => (i -> a -> f b) -> s -> f t)
   -> IOptic p i s t a b
-itraversing itr (Indexed pab) = wander (\f s -> itr (curry f) s) pab
+itraversing itr (Indexed pab) = over (\f s -> itr (curry f) s) pab
 
 --ifoldMapOf :: IOptic' (Star (Const r)) i s a -> (i -> a -> r) -> s -> r
 --ifoldMapOf o f = h where Indexed h = o (Indexed $ Star . Const . uncurry f)
