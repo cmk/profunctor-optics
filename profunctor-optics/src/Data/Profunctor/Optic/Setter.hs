@@ -8,9 +8,9 @@ import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
 import Data.Profunctor.Optic.Grate -- (withGrate, forgotten)
 
 import Control.Applicative (liftA)
-import Control.Monad.State as State
-import Control.Monad.Writer as Writer
-import Control.Monad.Reader as Reader
+import Control.Monad.State as State hiding (lift)
+import Control.Monad.Writer as Writer hiding (lift)
+import Control.Monad.Reader as Reader hiding (lift)
 
 import qualified Control.Exception as Ex
 
@@ -46,7 +46,7 @@ setter_complete_2 o = collecting (collectOf o)
 ---------------------------------------------------------------------
 
 --over' :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
---over' f = over $ \afb s -> F.tabulate $ \i -> f (flip F.index i . afb) s
+--over' f = lift $ \afb s -> F.tabulate $ \i -> f (flip F.index i . afb) s
 
 {-
 tabulate :: (a -> Rep f) -> f a
@@ -58,36 +58,6 @@ s =
 -}
 
 
---overLike :: ((a -> b) -> s -> t) -> ASetter s t a b
-overLike sec = between Star runStar $ \f -> sec (Identity . f) . runIdentity
-
-underLike :: ((a -> b) -> s -> t) -> AResetter s t a b
-underLike sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity 
-
---resetting :: ((a -> b) -> s -> t) -> Resetter s t a b
---resetting = cloneUnder . underLike
-
---((i -> a) -> b) -> (i -> s) -> t
---under l f = l (f . Identity) . runIdentity :: ((a -> c1) -> b -> c2) -> (Identity a -> c1) -> Identity b -> c2
---under f = under $ \faa fs -> f (faa F.tabulate $ \i -> F.index fs i
---flip F.index i $ F.tabulate $ \i -> f (flip F.index i . g) s
-
--- | 'resetting' promotes a \"semantic editor combinator\" to a form of grate that can only lift unary functions.
---
--- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
---
--- * @sec id === id@
---
--- * @sec f . sec g === sec (f . g)@
---
---resetting :: ((a -> b) -> s -> t) -> Resetter s t a b
-
-
-cloneOver :: OverLike (Rep p) s t a b -> Over p s t a b
-cloneOver = between fromStar star 
-
-cloneUnder :: UnderLike (Corep p) s t a b -> Under p s t a b
-cloneUnder = between fromCostar costar 
 
 -- | 'setting' promotes a \"semantic editor combinator\" to a modify-only lens.
 --
@@ -105,15 +75,17 @@ cloneUnder = between fromCostar costar
 -- See <http://conal.net/blog/posts/semantic-editor-combinators>.
 --
 setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting sec = dimap (Store id) (\(Store g s) -> sec g s) . over collect
+setting sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
 
+-- | TODO: Document
+--
 grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-grating f = dimap pureTaskF (f . runTask) . over collect
+grating f = dimap pureTaskF (f . runTask) . lift collect
 
 -- | Every 'Grate' is an 'Setter'.
 --
 -- Note: this is needed b/c currently 'Corepresentable' does not entail 'Closed', 
--- though it should (see 'closed'')
+-- though perhaps it should (see 'closed'')
 --
 --lowerGrate :: Grate s t a b -> Setter s t a b
 --lowerGrate x = withGrate x (setting . lowerGrate')
@@ -139,33 +111,60 @@ lowerGrate' sabt ab s = sabt $ \sa -> ab (sa s)
 mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
 mapOf = id
 
+-- | TODO: Document
+--
+remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+remapOf = re
+
+-- | TODO: Document
+--
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
+
 infixr 4 %~
 
+-- | TODO: Document
+--
 (%~) :: Optic (->) s t a b -> (a -> b) -> s -> t
 (%~) = id
 {-# INLINE (%~) #-}
 
-remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-remapOf = re
-
--- set l y (set l x a) ≡ set l y a
--- \c -> set (setting . runCayley $ c) zero one ≡ lowerCayey c
-set :: Optic (->) s t a b -> s -> b -> t
-set o s b = o (const b) s
-
 infixr 4 .~
 
+-- | TODO: Document
+--
 (.~) :: Optic (->) s t a b -> s -> b -> t
 (.~) = set
 {-# INLINE (.~) #-}
+
+-- set l y (set l x a) ≡ set l y a
+-- \c -> set (setting . runCayley $ c) zero one ≡ lowerCayey c
+
+-- | Set all referenced fields to the given value.
+--
+set :: Optic (->) s t a b -> s -> b -> t
+set o s b = o (const b) s
+
+--set . re :: Colens s t a b -> s -> b -> a
+reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
+reset = set . re
+
+-- | Set all referenced fields to the given value.
+--reset :: AResetter s t a b -> b -> s -> t
+--reset l b = under l (const b)
+
+
+appendSetter :: Semigroup a => Setter s t a a -> a -> s -> t
+appendSetter o = o . (<>)
 
 ---------------------------------------------------------------------
 -- Common setters
 ---------------------------------------------------------------------
 
--- | This 'Setter' can be used to map contravariantly setting the input of a 'Profunctor'.
+-- | Map contravariantly by setting the input of a 'Profunctor'.
 --
--- The most common 'Profunctor' to use this with is @(->)@.
+--
+-- The most common profunctor to use this with is @(->)@.
 --
 -- >>> (dom %~ f) g x
 -- g (f x)
@@ -176,16 +175,11 @@ infixr 4 .~
 -- >>> (dom %~ f) h x y
 -- h (f x) y
 --
--- Map setting the arg of the res of a function -- i.e., its second
--- arg:
+-- Map setting the second arg of a function:
 --
 -- >>> (mapped . dom %~ f) h x y
 -- h x (f y)
 --
--- @
--- 'dom' :: 'Setter' (b -> r) (a -> r) a b
--- @
--- 
 dom :: Profunctor p => Setter (p b r) (p a r) a b
 dom = setting lmap
 {-# INLINE dom #-}
@@ -199,6 +193,8 @@ dom = setting lmap
 cod :: Profunctor p => Setter (p r a) (p r b) a b
 cod = setting rmap
 
+-- | TODO: Document
+--
 masking :: Setter (IO a) (IO b) a b
 masking = grating Ex.mask
 
@@ -210,6 +206,8 @@ binding = setting (=<<)
 mapped :: Functor f => Setter (f a) (f b) a b
 mapped = setting fmap
 
+-- | TODO: Document
+--
 foldMapped :: Foldable f => Monoid m => Setter (f a) m a m
 foldMapped = setting foldMap
 
@@ -227,6 +225,8 @@ foldMapped = setting foldMap
 liftedA :: Applicative f => Setter (f a) (f b) a b
 liftedA = setting liftA
 
+-- | TODO: Document
+--
 liftedM :: Monad m => Setter (m a) (m b) a b
 liftedM = setting liftM
 
@@ -235,15 +235,23 @@ liftedM = setting liftM
 sets :: Setter b (a -> c) a c
 sets = setting const
 
+-- | TODO: Document
+--
 zipped :: Setter (u -> v -> a) (u -> v -> b) a b
 zipped = setting ((.)(.)(.))
 
+-- | TODO: Document
+--
 grated :: Setter (a -> b) (s -> t) ((s -> a) -> b) t
 grated = setting lowerGrate'
 
+-- | TODO: Document
+--
 modded :: Setter (b -> t) (((s -> a) -> b) -> t) s a
 modded = setting $ \sa bt sab -> bt (sab sa)
 
+-- | TODO: Document
+--
 composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
 composed = setting between
 
@@ -315,15 +323,20 @@ censoring o uv = censor $ o uv
 
 infix 4 .=
 
+-- | TODO: Document
+--
 (.=) :: MonadState s m => b -> Optic (->) s s a b -> m ()
 b .= o = assign o b
 {-# INLINE (.=) #-}
 
-
+-- | TODO: Document
+--
 assign :: MonadState s m => Optic (->) s s a b -> b -> m ()
 assign o b = State.modify $ o (const b)
 {-# INLINE assign #-}
 
+-- | TODO: Document
+--
 modifying :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 modifying l f = State.modify (l %~ f)
 {-# INLINE modifying #-}
@@ -331,14 +344,20 @@ modifying l f = State.modify (l %~ f)
 infix 4 %=
 {-# INLINE (%=) #-}
 
+-- | TODO: Document
+--
 (%=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 l %= f = modifying l f
 
 
+-- | TODO: Document
+--
 (<~) :: MonadState s m => b -> m (Optic (->) s s a b) -> m ()
 l <~ mb = mb >>= (l .=)
 {-# INLINE (<~) #-}
 
+-- | TODO: Document
+--
 (%%=) :: MonadState s m => (t -> s -> (b, s)) -> t -> m b
 l %%= f = do
   (r, s) <- State.gets (l f)
@@ -360,7 +379,7 @@ l '<%=' f = do
   'use' l
 @
 -}
---(<%=) :: MonadState s m => OverLike ((,) b) s s a b -> (a -> b) -> m b
+--(<%=) :: MonadState s m => LensLike ((,) b) s s a b -> (a -> b) -> m b
 l <%= f = l %%= (\a -> (a, a)) . f
 {-# INLINE (<%=) #-}
 
@@ -374,7 +393,7 @@ l '<<%=' f = do
   return old
 @
 -}
---(<<%=) :: MonadState s m => OverLike ((,) a) s s a b -> (a -> b) -> m a
+--(<<%=) :: MonadState s m => LensLike ((,) a) s s a b -> (a -> b) -> m a
 l <<%= f = l %%= (\a -> (a, f a))
 {-# INLINE (<<%=) #-}
 
@@ -388,7 +407,7 @@ l '<<.=' b = do
   return old
 @
 -}
---(<<.=) :: MonadState s m => OverLike ((,) a) s s a b -> b -> m a
+--(<<.=) :: MonadState s m => LensLike ((,) a) s s a b -> b -> m a
 l <<.= b = l %%= (\a -> (a, b))
 {-# INLINE (<<.=) #-}
 
@@ -401,7 +420,7 @@ l '<.=' b = do
   return b
 @
 -}
---(<.=) :: MonadState s m => OverLike ((,) b) s s a b -> b -> m b
+--(<.=) :: MonadState s m => LensLike ((,) b) s s a b -> b -> m b
 l <.= b = l <%= const b
 {-# INLINE (<.=) #-}
 
@@ -416,13 +435,12 @@ l '<?=' b = do
 
 It can be useful in combination with 'at'.
 -}
---(<?=) :: MonadState s m => OverLike ((,) b) s s a (Maybe b) -> b -> m b
+--(<?=) :: MonadState s m => LensLike ((,) b) s s a (Maybe b) -> b -> m b
 l <?= b = l %%= const (b, Just b)
 {-# INLINE (<?=) #-}
 
 
 
-infix  4 ?=
 -- infix  4 <<.=, <<%=, <%=, <.=, <?=
 -- infix  4 +=, -=, *=, //=
 infixr 2 <~
@@ -432,16 +450,12 @@ infixl 1 &~
 s &~ l = State.execState l s
 {-# INLINE (&~) #-}
 
-l ?= b = undefined --l .= Just b
-{-# INLINE (?=) #-}
+--infix  4 ?=
+--l ?= b = l .= Just b
+--{-# INLINE (?=) #-}
 
 
 
-reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
-reset = set . re
-
-appendSetter :: Semigroup a => Setter s t a a -> a -> s -> t
-appendSetter o = o . (<>)
 
 {- |
 ('<>~') appends a value monoidally to the target.

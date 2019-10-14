@@ -69,16 +69,21 @@ library
   build-depends:
       base >=4.9 && <5.0
     , adjunctions
-    , categories
+    , assoc
+    , bifunctors
+    --, categories
     , comonad
     , containers
     , contravariant
     , distributive
     , dlist
     , dlist-nonempty
+    , foldl
     , free
+    , linear
     , mtl
     , profunctors
+    , pipes
     , recursion-schemes
     , semigroupoids
     , transformers

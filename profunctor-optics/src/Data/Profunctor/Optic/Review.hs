@@ -30,6 +30,7 @@ import Data.Profunctor.Optic.Iso (re)
 --type AReview t b = forall r. UnfoldLike r t b
 type AReview t b = UnfoldLike b t b
 
+
 -- | Convert a function into a 'Review'.
 --  Analagous to 'to' for 'Getter'.
 --
@@ -126,6 +127,25 @@ reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f
 {-# INLINE reviews #-}
 
 ---------------------------------------------------------------------
+-- Common reviews
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+lcoerced :: Review b b
+lcoerced = lcoerce
+
+-- | TODO: Document
+--
+_L' :: PrimReview (a + c) (b + c) a b
+_L' = lcoerce . rmap Left
+
+-- | TODO: Document
+--
+_R' :: PrimReview (c + a) (c + b) a b
+_R' = lcoerce . rmap Right
+
+---------------------------------------------------------------------
 -- Derived operators
 ---------------------------------------------------------------------
 
@@ -167,17 +187,3 @@ o # b = review o b
 review :: MonadReader b m => AReview t b -> m t
 review = (`reviews` id) 
 {-# INLINE review #-}
-
----------------------------------------------------------------------
--- Common reviews
----------------------------------------------------------------------
-
--- | TODO: Document
---
-_L' :: PrimReview (a + c) (b + c) a b
-_L' = lcoerce . rmap Left
-
--- | TODO: Document
---
-_R' :: PrimReview (c + a) (c + b) a b
-_R' = lcoerce . rmap Right

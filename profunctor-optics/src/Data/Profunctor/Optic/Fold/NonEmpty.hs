@@ -32,11 +32,11 @@ fold1_complete o = tripping o $ folding1 (toNelOf o)
 -- [2,3,4]
 --
 folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = rcoerce . lmap f . over traverse1_
+folding1 f = rcoerce . lmap f . lift traverse1_
 {-# INLINE folding1 #-}
 
 folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = over traverse1 . to f
+folded1 f = lift traverse1 . to f
 
 fold1Like :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
 fold1Like = between (ustar Const) (dstar getConst)

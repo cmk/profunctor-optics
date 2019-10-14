@@ -2,7 +2,7 @@ module Data.Profunctor.Optic (
   module Export
 ) where
 
-
+import Data.Profunctor.Optic.Affine          as Export
 import Data.Profunctor.Optic.Fold            as Export
 import Data.Profunctor.Optic.Fold.Affine     as Export
 import Data.Profunctor.Optic.Fold.NonEmpty   as Export

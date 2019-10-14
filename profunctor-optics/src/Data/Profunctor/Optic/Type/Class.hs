@@ -18,26 +18,199 @@ module Data.Profunctor.Optic.Type.Class (
 ) where
 
 import Control.Comonad (Comonad(..))
-import Control.Categorical.Bifunctor hiding (dimap)
+import Control.Monad.Fix
+import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..), extract)
-
-import Data.Profunctor.Types
-import Data.Profunctor.Choice
-import Data.Profunctor.Strong
-import Data.Profunctor.Closed
-import Data.Profunctor.Rep
-
+import Data.Functor.Foldable (ListF(..))
+import Data.Functor.Base (NonEmptyF(..))
+import Data.Functor.Apply
 import qualified Prelude as P
--- Entailment relationships not already given by 'profunctors':
---class Equalizing (p :: * -> * -> *)
---instance Equalizing p
-
---class (Strong p, Choice p) => AffineTraversing p
---instance (Strong p, Choice p) => AffineTraversing p
 
 
+-- | Right Tambara module parametrized by a tensor.
+class Profunctor p => TambaraR (o :: * -> * -> *) p where
+  embedr :: p a b -> p (c `o` a) (c `o` b)
 
+-- | Left Tambara module parametrized by a tensor.
+class Profunctor p => TambaraL (o :: * -> * -> *) p where
+  embedl :: p a b -> p (a `o` c) (b `o` c)
+
+-- Tambara bi-module
+type Tambara o p = (TambaraL o p, TambaraR o p)
+
+type Cartesian p = Tambara (,) p
+
+type Cocartesian p = Tambara (+) p
+
+instance Closed p => TambaraR (->) p where
+  embedr = closed
+
+--instance Corepresentable p => TambaraR (->) p where embedr = closed'
+
+instance Strong p => TambaraL (,) p where
+  embedl = first'
+
+instance Strong p => TambaraR (,) p where
+  embedr = second'
+
+instance Choice p => TambaraL (+) p where
+  embedl = left'
+
+instance Choice p => TambaraR (+) p where
+  embedr = right'
+
+class Profunctor p => CotambaraL (o :: * -> * -> *) p where
+  projectl :: p (a `o` c) (b `o` c) -> p a b
+
+class Profunctor p => CotambaraR (o :: * -> * -> *) p where
+  projectr :: p (c `o` a) (c `o` b) -> p a b
+
+-- Cotambara bi-module
+type Cotambara t p = (CotambaraL t p, CotambaraR t p)
+
+instance Costrong p => CotambaraL (,) p where
+  projectl = unfirst
+
+instance Costrong p => CotambaraR (,) p where
+  projectr = unsecond
+
+instance Cochoice p => CotambaraL (+) p where
+  projectl = unleft
+
+instance Cochoice p => CotambaraR (+) p where
+  projectr = unright
+
+toListF :: () + (a , b) -> ListF a b
+toListF (Left ()) = Nil
+toListF (Right (a, b)) = Cons a b
+
+fromListF :: ListF a b -> () + (a , b)
+fromListF Nil = Left ()
+fromListF (Cons a b) = Right (a, b)
+
+fromNonEmptyF :: NonEmptyF a b -> (a , () + b)
+fromNonEmptyF (NonEmptyF a mb) = 
+  case mb of
+    Nothing -> (a, Left ())
+    Just b -> (a, Right b)
+
+toNonEmptyF :: (a , () + b) -> NonEmptyF a b
+toNonEmptyF (a, mb) =
+  case mb of
+    Left _ -> NonEmptyF a Nothing
+    Right b -> NonEmptyF a (Just b)
+
+instance (Profunctor p, Cartesian p) => TambaraL NonEmptyF p where
+  embedl = dimap fromNonEmptyF toNonEmptyF . embedl @(,)
+
+instance (Profunctor p, Cartesian p, Cocartesian p) => TambaraR NonEmptyF p where
+  embedr = dimap fromNonEmptyF toNonEmptyF . embedr @(,) . embedr @(+)
+
+{-
+instance TambaraL NonEmptyF (->) where
+  embedl = dimap fromNonEmptyF toNonEmptyF . first'
+
+instance TambaraR NonEmptyF (->) where
+  embedr = dimap fromNonEmptyF toNonEmptyF . second' . right'
+-}
+
+newtype Upsert a b = Upsert { runUpsert :: Maybe a -> b }
+
+instance Profunctor Upsert where
+  dimap f g (Upsert ab) = Upsert (g . ab . fmap f)
+
+instance TambaraL NonEmptyF Upsert where
+   embedl (Upsert mab) = Upsert $ \x -> case x of
+        Nothing      -> NonEmptyF (mab Nothing) Nothing
+        Just (NonEmptyF a mb) -> NonEmptyF (mab $ Just a) mb
+
+
+-- Or use Product / Coproduct
+-- class (forall a. Apply (p a)) => Proapply p where
+-- ($$$) :: Product (,) p => p a (b -> c) -> p a b -> p a c
+
+-- class (forall a. Applicative (p a)) => Proapplicative p where
+--  ppure :: b -> p a b
+--  ppure b = dimap (const ()) (const b) punit
+
+--  punit  :: p () ()
+--  punit = ppure () 
+
+-- Tensor products
+class Profunctor p => Product (o :: * -> * -> *) p where
+  prod :: p a₁ b₁ -> p a₂ b₂ -> p (a₁ `o` a₂) (b₁ `o` b₂)
+
+infixr 3 ***, &&&
+
+(***) :: Product (,) p => p a₁ b₁ -> p a₂ b₂ -> p (a₁ , a₂) (b₁ , b₂)
+(***) = prod
+
+(&&&) :: Product (,) p => p a b₁ -> p a b₂ -> p a (b₁ , b₂)
+f &&& g = f *** g <<^ dup 
+
+infixr 0 $$$
+
+($$$) :: Product (,) p => p a (b -> c) -> p a b -> p a c
+($$$) f x = dimap dup eval (f *** x)
+
+infixr 2 +++, |||
+
+(+++) :: Product (+) p => p a₁ b₁ -> p a₂ b₂ -> p (a₁ + a₂) (b₁ + b₂)
+(+++) = prod
+
+(|||) :: Product (+) p => p a₁ b -> p a₂ b -> p (a₁ + a₂) b
+f ||| g = dedup ^<< f +++ g
+
+
+papply :: Product (,) p => p a (b -> c) -> p a b -> p a c
+papply f x = dimap dup eval (f *** x)
+
+prod' :: (Category p, TambaraL o p, Swap o) => p a₁ b₁ -> p a₂ b₂ -> p (a₁ `o` a₂) (b₁ `o` b₂)-- (a `ten` c) (b1 `ten` b2)
+prod' f g = embedl f >>> arr swap >>> embedl g >>> arr swap
+
+
+--instance (Profunctor p, Tambara (,) p, Category p) => Product (,) p where prod f g = embedl f >>> arr swap >>> embedl g >>> arr swap
+
+instance (Profunctor p, (forall a. Apply (p a))) => Product (,) p where
+  prod f g = (,) `rmap` lmap fst f <.> lmap snd g
+
+--TODO: add instances to Flip and uncomment
+--instance (Profunctor p, (forall a. Decidable (Flip p a))) => Product (+) p where
+--  prod f g = unFlip $ Flip (rmap Left f) >+< Flip (rmap Right g)
+
+instance Applicative f => Product (,) (Star f) where
+  prod (Star f) (Star g) = Star $ \ (x, y) -> pure (,) <*> (f x) <*> (g y)
+
+instance Functor f => Product (+) (Star f) where
+  prod (Star f) (Star g) = Star $ \case 
+       Left  x -> Left <$> f x
+       Right y -> Right <$> g y
+
+--instance Product (,) (->) where prod f g (x, y) = (f x, g y)
+
+instance Product (+) (->) where
+  prod f _ (Left x)  = Left (f x)
+  prod _ g (Right y) = Right (g y)
+
+{-
+instance Comonad ɯ => Product (+) (Cokleisli ɯ) where
+  prod (Cokleisli f) (Cokleisli g) =
+      (\ a -> Left  . f . (a <$)) |||
+      (\ a -> Right . g . (a <$)) ^>> Cokleisli (extract <*> void)
+
+void = error "TODO"
+-}
+
+-- https://ncatlab.org/nlab/show/monoidal+category
+class Profunctor p => Pointed p where
+  ppure :: b -> p a b
+  ppure b = dimap (const ()) (const b) punit
+
+  punit :: p () ()
+  punit = ppure ()
+
+instance (Profunctor p, (forall a. Applicative (p a))) => Pointed p where
+  ppure = pure
 
 -- Orphan instances
 
@@ -51,77 +224,3 @@ instance Comonad f => Strong (Costar f) where
 
 instance Contravariant f => Contravariant (Star f a) where
   contramap f (Star g) = Star $ contramap f . g
-
---instance {-# OVERLAPPABLE #-} (q ~ p, Profunctor q, Corepresentable q) => Closed p where
---  closed = under cotraverse
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => PFunctor (,) p p where 
-  first = first'
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => PFunctor Either p p where 
-  first = left'
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => QFunctor (,) p p where
-  second = second'
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => QFunctor Either p p where
-  second = right'
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Bifunctor (,) p p p where
-  bimap f g = f *** g
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => Bifunctor Either p p p where
-  bimap f g = f +++ g
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Braided p (,) where
-  braid = arr swp
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => Braided p Either where
-  braid = arr coswp
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Symmetric p (,) where
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => Symmetric p Either where
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Monoidal p (,) where
-  type Id p (,) = ()
-  idl = arr P.snd -- p ((),a) a
-  idr = arr P.fst
-  coidl = arr $ \a -> ((),a) -- p a ((), a)
-  coidr = arr $ \a -> (a,())
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => Monoidal p Either where
-  type Id p Either = Void
-  idl = arr $ either absurd id
-  idr = arr $ either id absurd
-  coidl = arr Right
-  coidr = arr Left
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Associative p (,) where
-  associate = arr $ \((a,b),c) -> (a,(b,c))
-  disassociate = arr $ \(a,(b,c)) -> ((a,b),c)
-
-instance {-# OVERLAPPABLE #-} (Category p, Choice p) => Associative p Either where
-  associate = arr $ \case
-    (Left (Left a)) -> Left a
-    (Left (Right b)) -> Right (Left b)
-    (Right c) -> Right (Right c)
-
-  disassociate = arr $ \case
-    (Left a) -> Left (Left a)
-    (Right (Left b)) -> Left (Right b)
-    (Right (Right c)) -> Right c
-
-instance {-# OVERLAPPABLE #-} (Category p, Strong p) => Cartesian p where
-  type Product p = (,)
-  fst = arr P.fst
-  snd = arr P.snd -- p (a, b) b
-  diag = arr dup
-  f &&& g = diag >>> f *** g
-
-instance {-# Incoherent #-} (Category p, Choice p) => CoCartesian p where
-  type Sum p = Either
-  inl = arr Left
-  inr = arr Right
-  codiag = arr dedup
-  f ||| g = f +++ g >>> codiag

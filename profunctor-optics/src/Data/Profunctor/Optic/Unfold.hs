@@ -19,7 +19,7 @@ unfold_complete o = tripping o $ unfolding (_ o)
 -}
 
 unfolding :: Distributive g => (b -> t) -> Unfold (g t) b
-unfolding f = under cotraverse . unto f
+unfolding f = lower cotraverse . unto f
 
 -- corecursing :: Functor f => UnfoldLike a (Fix f) (f a)
 corecursing :: Corecursive t => UnfoldLike b t (Base t b)

@@ -25,7 +25,7 @@ import Test.QuickCheck.Function
 --
 -- 2. @over l id ≡ id@
 --
--- 3. @over l f . over l g ≡ over l (f . g)@
+-- 3. @over l f . lift l g ≡ lift l (f . g)@
 isSetter :: (Arbitrary s, Arbitrary a, CoArbitrary a, Show s, Show a, Eq s, Function a)
          => Setter' s a -> Property
 isSetter l = setter_id l .&. setter_composition l .&. setter_set_set l
@@ -77,11 +77,11 @@ isPrism l = isTraversal l .&. prism_yin l .&. prism_yang l
 --------------------------------------------------------------------------------
 -- The first setter law:
 setter_id :: Eq s => Setter' s a -> s -> Bool
-setter_id l s = over l id s == s
+setter_id l s = lift l id s == s
 
 --  The second setter law:
 setter_composition :: Eq s => Setter' s a -> s -> Fun a a -> Fun a a -> Bool
-setter_composition l s (Fun _ f) (Fun _ g) = over l f (over l g s) == over l (f . g) s
+setter_composition l s (Fun _ f) (Fun _ g) = lift l f (over l g s) == lift l (f . g) s
 
 lens_set_view :: Eq s => Lens' s a -> s -> Bool
 lens_set_view l s = set l (view l s) s == s

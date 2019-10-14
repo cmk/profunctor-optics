@@ -8,12 +8,12 @@ import Data.Profunctor.Optic.Prelude
 ---------------------------------------------------------------------
 
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = under cotraverse
+cotraversed = lower cotraverse
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
 -- @ cotraverseOf $ grate (flip cotraverse id) == cotraverse @
-cotraverseOf :: UnderLike f s t a b -> (f a -> b) -> (f s -> t)
+cotraverseOf :: GrateLike f s t a b -> (f a -> b) -> (f s -> t)
 cotraverseOf = between runCostar Costar

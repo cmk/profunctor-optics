@@ -1,14 +1,9 @@
-module Data.Profunctor.Optic.Prism (
-    module Data.Profunctor.Optic.Prism 
-  , module Export
-) where
+module Data.Profunctor.Optic.Prism where
 
 import Control.Monad (guard)
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Iso
-
-import Data.Profunctor.Choice as Export
 
 ---------------------------------------------------------------------
 -- 'Prism'
@@ -56,10 +51,10 @@ Right (Nothing,"hi")
 -}
 
 
--- | Create a 'Prism' from a constructor and a matcher function that produces an 'Either'.
--- Build a prism from a matcher and reviewer.
+-- | Build a 'Choice' optic from a constructor and a matcher function.
 --
--- /Caution/: In order for the generated prism family to be well-defined, you must ensure that the three prism laws hold:
+-- /Caution/: In order for the generated prism family to be well-defined,
+-- you must ensure that the three prism laws hold:
 --
 -- * @seta (bt b) === Right b@
 --
@@ -70,16 +65,30 @@ Right (Nothing,"hi")
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
 prism seta bt = dimap seta (id ||| bt) . right'
 
+-- | Build a 'Cochoice' optic from a constructor and a matcher function.
+--
+-- * @coprism f g === \f g -> re (prism f g)@
+--
 coprism :: (s -> t + a) -> (b -> t) -> Coprism b a t s
 coprism seta bt = unright . dimap (id ||| bt) seta
 
 -- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
+--
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 
+-- | Transform a Van Laarhoven-encoded prism into a profunctor-encoded one.
+--
+--prismvl :: (forall f. Applicative f => Traversable g => (g a -> f b) -> g s -> f t) -> Prism s t a b
+--prismvl l = undefined 
+
+--prismek :: (forall f p. Applicative f => Choice p => (p a (f b) -> p s (f t)) -> Prism s t a b
+--prismek l = undefined 
+
 -- | Useful for constructing prisms from try and handle functions.
+--
 handled ::  (s -> e + a) -> (e + b -> t) -> Prism s t a b
-handled seea eebt = dimap seea eebt . _R
+handled sea ebt = dimap sea ebt . right'
 
 -- | Analogous to '(+++)' from 'Control.Arrow'
 splitting' :: Prism s t a b -> Prism s' t' a' b' -> Prism (s+s') (t+t') (a+a') (b+b') 
@@ -116,7 +125,7 @@ below k =
         Right t -> Right t
 {-# INLINE below #-}
 
--- | Use a 'Prism' to work over part of a structure.
+-- | Use a 'Prism' to work lift part of a structure.
 aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
 aside k =
   withPrism k $ \seta bt ->
@@ -147,7 +156,7 @@ type APrism s t a b = Optic (PrismRep a b) s t a b
 
 type APrism' s a = APrism s s a a
 
-type AMatch e s t a b = OverLike (Either e) s t a b
+type AMatch e s t a b = LensLike (Either e) s t a b
 
 -- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
 data PrismRep a b s t = PrismRep (s -> Either t a) (b -> t)
@@ -186,7 +195,7 @@ instance Choice (PrismRep a b) where
 -- @
 --
 matchOf :: AMatch a s t a b -> s -> Either t a
-matchOf o = between (dstar swap) (ustar Left) o id
+matchOf o = between (dstar coswp) (ustar Left) o id
 
 -- | Test whether the optic matches or not.
 isMatched :: AMatch a s t a b -> s -> Bool
@@ -200,15 +209,23 @@ isntMatched o = not . isMatched o
 -- Common prisms
 ---------------------------------------------------------------------
 
+-- | TODO: Document
+--
 _L :: Prism (a + c) (b + c) a b
 _L = left'
 
+-- | TODO: Document
+--
 _R :: Prism (c + a) (c + b) a b
 _R = right'
 
+-- | TODO: Document
+--
 lowerL :: Iso s t (a + c) (b + c) -> Prism s t a b
 lowerL = (. _L)
 
+-- | TODO: Document
+--
 lowerR :: Iso s t (c + a) (c + b) -> Prism s t a b
 lowerR = (. _R)
 
@@ -220,6 +237,8 @@ lowerR = (. _R)
 filtered :: (a -> Bool) -> Prism' a a
 filtered f = iso (branch' f) dedup . _R 
 
+-- | TODO: Document
+--
 selected :: Eq k => k -> Prism' (k , v) v
 selected i = flip prism ((,) i) $ \kv@(k,v) -> branch (==i) kv v k
 
@@ -230,6 +249,9 @@ nearly x f = prism' (guard . f) (const x)
 -- | 'only' focuses not just on a case, but a specific value of that case.
 only :: Eq a => a -> Prism' a ()
 only x = nearly x (x==)
+
+lessThan :: Bounded s => Ord s => s -> Prism' s Ordering
+lessThan s = flip prism' (const s) $ \s' -> if s' < s then Just LT else Nothing  
 
 -- | Prism for the `Just` constructor of `Maybe`.
 _Just :: Prism (Maybe a) (Maybe b) a b

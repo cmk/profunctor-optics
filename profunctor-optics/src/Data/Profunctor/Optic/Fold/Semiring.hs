@@ -18,7 +18,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
 
--- | Try to map a function over this 'Traversal', failing if the 'Traversal' has no targets.
+-- | Try to map a function lift this 'Traversal', failing if the 'Traversal' has no targets.
 --
 -- >>> failover (element 3) (*2) [1,2] :: Maybe [Int]
 -- Nothing
@@ -33,7 +33,7 @@ import qualified Data.List.NonEmpty as NE
 -- 'failover' :: Alternative m => Traversal s t a b -> (a -> b) -> s -> m t
 -- @
 {-
-failover :: Alternative m => OverLike ((,) Any) s t a b -> (a -> b) -> s -> m t
+failover :: Alternative m => LensLike ((,) Any) s t a b -> (a -> b) -> s -> m t
 failover l afb s = case l ((,) (Any True) . afb) s of
   (Any True, t)  -> pure t
   (Any False, _) -> Applicative.empty
@@ -59,7 +59,7 @@ failover l afb s = case l ((,) (Any True) . afb) s of
 polyOf :: APoly r s a -> (a -> r) -> s -> r
 polyOf = between (dstar runPoly) (ustar Poly)
 
--- | Right fold over a 'Fold'.
+-- | Right fold lift a 'Fold'.
 -- >>> foldrOf'' folded (<>) (zero :: Int) [1..5]
 -- 15
 foldrOf :: APoly (Endo r) s a -> (a -> r -> r) -> r -> s -> r

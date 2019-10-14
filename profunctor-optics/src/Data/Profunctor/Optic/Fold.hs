@@ -35,7 +35,7 @@ fold_complete o = tripping o $ folding (toListOf o)
 -- [2,3,4]
 --
 folding :: Foldable f => (s -> f a) -> Fold s a
-folding f = rcoerce . lmap f . over traverse_
+folding f = rcoerce . lmap f . lift traverse_
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold' using a 'Traversable' functor.
@@ -45,7 +45,7 @@ folding f = rcoerce . lmap f . over traverse_
 -- @
 --
 folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = over traverse . to f
+folded f = lift traverse . to f
 
 -- recursing :: FoldLike r (Mu []) [r]
 recursing :: Recursive s => FoldLike a s (Base s a)
@@ -85,9 +85,6 @@ cloneFold = to . view
 -- 'foldMapOf' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
 -- @
 --
--- @
--- 'foldMapOf' :: 'AFold' r s a -> (a -> r) -> s -> r
--- @
 foldMapOf :: FoldLike r s a -> (a -> r) -> s -> r
 foldMapOf = between (dstar getConst) (ustar Const)
 
@@ -140,7 +137,7 @@ infixl 8 ^..
 (^..) = flip toListOf
 {-# INLINE (^..) #-}
 
--- | Right fold over a 'Fold'.
+-- | Right fold lift a 'Fold'.
 -- >>> foldrOf'' folded (<>) (zero :: Int) [1..5]
 -- 15
 foldrOf :: FoldLike (Endo r) s a -> (a -> r -> r) -> r -> s -> r
@@ -151,11 +148,11 @@ foldrOf p f r = (`appEndo` r) . foldMapOf p (Endo . f)
 --foldrOf' :: FoldLike (Prod (End c)) s a -> (a -> c -> c) -> c -> s -> c
 --foldrOf' p f r = (`appEnd` r) . productOf p (End . f)
 
--- | Left fold over a 'Fold'. 
+-- | Left fold lift a 'Fold'. 
 foldlOf :: FoldLike (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
 foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
 
--- | Fold over the elements of a structure, associating to the left, but strictly.
+-- | Fold lift the elements of a structure, associating to the left, but strictly.
 --
 -- @
 -- 'Data.Foldable.foldl'' ≡ 'foldlOf'' 'folded'

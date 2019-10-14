@@ -59,7 +59,7 @@ repeated = over1 $ \g a -> go g a where go g a = g a .> go g a
 {-# INLINE repeated #-}
 
 
--- | Transform a 'Traversal1'' into a 'Traversal1'' that loops over its elements repeatedly.
+-- | Transform a 'Traversal1'' into a 'Traversal1'' that loops lift its elements repeatedly.
 --
 -- >>> take 7 $ (1 :| [2,3]) ^.. (cycled traversed1)
 -- [1,2,3,1,2,3,1]

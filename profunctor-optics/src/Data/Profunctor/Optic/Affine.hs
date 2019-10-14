@@ -126,8 +126,8 @@ afoo f = affine (foo f) fromMaybeS
 mapMaybe sma = affine' sma fromMaybe
 
 -}
-selected :: (k -> Bool) -> Affine' (k, v) v
-selected p = affine (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+selecting :: (k -> Bool) -> Affine' (k, v) v
+selecting p = affine (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
 
 nulled :: Affine' s a
 nulled = affine Left const 
@@ -155,5 +155,5 @@ instance Strong (AffineRep u v) where
 
 instance Choice (AffineRep u v) where
     right' (AffineRep getter setter) = AffineRep
-        (\eca -> unassoc (second getter eca))
+        (\eca -> assocl (second getter eca))
         (\eca v -> second (`setter` v) eca)

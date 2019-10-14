@@ -79,13 +79,11 @@ re o . o ≡ id
 
 -}
 
--- ^ @
--- iso :: (s -> a) -> (b -> t) -> Iso s t a b
--- @
+
+-- | Build an 'Iso' from two inverses.
 --
--- Build an 'Iso' from an isomorphism family.
---
--- /Caution/: In order for the generated adapter family to be well-defined, you must ensure that the two isomorphism laws hold:
+-- /Caution/: In order for the generated iso family to be well-defined,
+-- you must ensure that the two isomorphism laws hold:
 --
 -- * @sa . bt === id@
 --
@@ -93,6 +91,12 @@ re o . o ≡ id
 --
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap
+
+--isoek :: (forall f p. Applicative f => Profunctor p => (p a (f b) -> p s (f t)) -> Prism s t a b
+--isoek l = undefined 
+
+--isovl :: (forall f. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Prism s t a b
+--isovl l = undefined 
 
 -- | Convert from 'AIso' back to any 'Iso'.
 cloneIso :: AIso s t a b -> Iso s t a b
@@ -161,12 +165,12 @@ flipping = iso flip flip
 currying :: Iso ((a , b) -> c) ((d , e) -> f) (a -> b -> c) (d -> e -> f)
 currying = iso curry uncurry
 
-swapped :: Braided (->) p => Iso (a `p` b) (c `p` d) (b `p` a) (d `p` c)
-swapped = iso braid braid
+swapped :: Swap p => Iso (a `p` b) (c `p` d) (b `p` a) (d `p` c)
+swapped = iso swap swap
 
 -- | Right association
-associated :: Associative (->) p => Iso ((a `p` b) `p` c) ((d `p` e) `p` f) (a `p` (b `p` c)) (d `p` (e `p` f))
-associated = iso associate disassociate
+associated :: Assoc p => Iso ((a `p` b) `p` c) ((d `p` e) `p` f) (a `p` (b `p` c)) (d `p` (e `p` f))
+associated = iso assocr assocl
 
 -- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
 --
@@ -239,8 +243,8 @@ liftR x = withIso x $ \sa bt -> between runSplit Split (dimap sa bt)
 
 newtype Paired p c d a b = Paired { runPaired :: p (c,a) (d,b) }
 
-fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
-fromTambara = Paired . swapped . runTambara
+--fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
+--fromTambara = Paired . swapped . runTambara
 
 instance Profunctor p => Profunctor (Paired p c d) where
   dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
@@ -269,8 +273,8 @@ paired x y =
 
 newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
-fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
-fromTambaraSum = Split . dimap swap swap . runTambaraSum
+--fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
+--fromTambaraSum = Split . swapped . runTambaraSum
 
 instance Profunctor p => Profunctor (Split p c d) where
   dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab

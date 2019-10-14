@@ -20,6 +20,11 @@ import Control.Monad.Trans.Cont
 import qualified Control.Exception as Ex
 import Data.Functor.Rep (Representable(..))
 
+--import qualified Data.Functor.Rep as R
+
+envr :: Representable f => p a b -> Environment p (f a) (f b)
+envr p = Environment tabulate p index
+
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
@@ -27,7 +32,7 @@ import Data.Functor.Rep (Representable(..))
 {- 
 'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
 In the special case where the indexing type is finitary (e.g. 'Bool') then the tabulated type is isomorphic to a fixed length vector (e.g. '(,)').
-The identity container is representable, and representable functors are closed under composition.
+The identity container is representable, and representable functors are closed lower composition.
 
 See https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf section 4.6
 
@@ -37,30 +42,39 @@ Profunctor Grate: Grate s t a b ~ Closed p => p a b -> p s t
 Van Laarhoven Grate: forall f. Functor f => (f a -> b) -> (f s -> t)
 Normal Grate: ((s -> a) -> b) -> t
 
+∀ F:Functor. (F a -> b) -> (F s -> t)
+ ≅ [ flip ]
+∀ F:Functor. F s -> (F a -> b) -> t
+ ≅ [ yoneda ]
+∀ F:Functor. (∀ c. (s -> c) -> F c) -> (F a -> b) -> t
+ = [ definition of natural transformation ]
+∀ F:Functor. (((->) s) :~> F) -> (F a -> b) -> t
+ ≅ [ higher-order yoneda]
+((->) s a -> b) -> t
+ =
+((s -> a) -> b) -> t
+ =
+Grate s t a b
+
+
 Laws:
 given a van Laarhoven Grate, 
 
-grate :: Functor f => (f a -> b) -> (f s -> t) we expect the following to hold:
+unzipping :: Functor f => (f a -> b) -> (f s -> t) we expect the following to hold:
 
-grate runIdentity = runIdentity
+unzipping runIdentity = runIdentity
 
 -- curry' :: Closed p => p (a, b) c -> p a (b -> c)
-grate (g . fmap f . getCompose) = grate g . fmap (grate f) . getCompose
-
-unzipping :: (((s -> a) -> b) -> (s -> s) -> t) -> Grate s t a b
-unzipping f = grate $ flip f id
+unzipping (g . fmap f . getCompose) = unzipping g . fmap (grate f) . getCompose
 
 -}
 
-
-unzipping :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b
-unzipping = under
-
--- ^ @
--- grate :: (((s -> a) -> b) -> t) -> Grate s t a b
--- @
+-- | Build a grate from an unzipping function.
 --
--- Build a grate from a nested continuation.
+--unzipping :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b
+--unzipping = under
+
+-- | Build a grate from a nested continuation.
 --
 -- /Caution/: In order for the 'Grate' to be well-defined, you must ensure that the two grate laws hold:
 --
@@ -73,6 +87,15 @@ unzipping = under
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
 
+-- | Transform a Van Laarhoven-encoded lens into a profunctor-encoded one.
+--
+-- Use this to interoperate with optics from the 'lens' library.
+--
+gratevl :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
+gratevl l = undefined -- dimap ((values &&& info) . l (Store id)) (uncurry id) . second'
+
+-- | TODO: Document
+--
 cloneGrate :: AGrate s t a b -> Grate s t a b
 cloneGrate k = withGrate k grate
 
@@ -94,77 +117,124 @@ instance Profunctor (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-newtype PolyCont a b s = PolyCont { runPolyCont :: (s -> a) -> b }
+newtype PCont a b s = PCont { runPCont :: (s -> a) -> b }
 
-instance Functor (PolyCont a b) where
-  fmap st (PolyCont sab) = PolyCont $ \ta -> sab (ta . st)
+{-
+--profunctors
+newtype Bar t b a = Bar
+  { runBar :: (a -> b) -> t }
+  deriving Functor
 
-instance Cosieve (GrateRep a b) (PolyCont a b) where
-  cosieve (GrateRep f) = \c -> f (runPolyCont c)
+lent :: Bar t a a -> t
+lent m = runBar m id
+-}
+runPCont' :: PCont a i a -> i
+runPCont' (PCont h) = h id
+
+instance Functor (PCont a b) where
+  fmap st (PCont sab) = PCont $ \ta -> sab (ta . st)
+
+instance Cosieve (GrateRep a b) (PCont a b) where
+  cosieve (GrateRep f) = \c -> f (runPCont c)
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = PolyCont a b
+  type Corep (GrateRep a b) = PCont a b
 
-  cotabulate f = GrateRep $ f . PolyCont
+  cotabulate f = GrateRep $ f . PCont
 
 instance Closed (GrateRep a b) where
   closed (GrateRep z) = GrateRep $ \f x -> z $ \k -> f $ \g -> k (g x)
 
+-- | TODO: Document
+--
 reviewGrate :: GrateRep a b s t -> b -> t
 reviewGrate (GrateRep e) b = e (const b)
+
+-- ^ @
+-- degrating :: Grate s t a b -> ((s -> a) -> b) -> t
+-- @
+--
+-- Demote a grate to its normal, higher-order function, form.
+--
+-- @
+-- degrating . grate = id
+-- grate . degrating = id
+-- @
+--degrating :: AGrate s t a b -> ((s -> a) -> b) -> t
+--degrating l = l runPCont . PCont
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
+-- | TODO: Document, replace with GrateLike
+--
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate x k = case x (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
 
-reviewOf :: Grate s t a b -> b -> t
-reviewOf x b = withGrate x $ \grt -> grt (const b)
+-- | Set all fields to the given value.
+--
+constOf :: AGrate s t a b -> b -> t
+constOf x b = withGrate x $ \grt -> grt (const b)
 
-zipWithOf :: Grate s t a b -> (a -> a -> b) -> s -> s -> t
+-- | TODO: Document
+--
+zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipWithOf x comb s1 s2 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2)
 
-zipFWithOf :: Functor f => Grate s t a b -> (f a -> b) -> (f s -> t)
+-- | TODO: Document
+--
+zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> (f s -> t)
 zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
 
-zip3WithOf :: Grate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
+-- | TODO: Document
+--
+zip3WithOf :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
 zip3WithOf x comb s1 s2 s3 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2) (get s3)
+
 
 ---------------------------------------------------------------------
 -- Common grates
 ---------------------------------------------------------------------
 
--- | Every 'Iso' is an 'Grate'.
---
-adapted :: (s -> a) -> (b -> t) -> Grate s t a b
-adapted sa bt = grate $ \sab -> bt (sab sa)
 
--- | An 'Under' accessing the range of a function.
+-- | A 'Grate' accessing the range of a function.
 --
 range :: Grate (c -> a) (c -> b) a b
 range = closed
 
--- ^ @
--- represented :: Representable f => Grate (f a) (f b) a b
--- @
+-- | A 'Grate' accessing the contents of a representable functor.
 --
 represented :: Representable f => Grate (f a) (f b) a b
 represented = dimap index tabulate . closed
 
+-- | A 'Grate' accessing the contents of a distributive functor.
+--
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate $ \f -> cotraverse f id
 
-curried :: Grate a (b -> c) (a, b) c
+-- | Construct a 'Grate' from a pair of inverses.
+--
+inverted :: (s -> a) -> (b -> t) -> Grate s t a b
+inverted sa bt = grate $ \sab -> bt (sab sa)
+
+-- | TODO: Document
+--
+curried :: Grate a (b -> c) (a , b) c
 curried = lmap (,) . closed
 
+-- | TODO: Document
+--
 masked :: Grate (IO a) (IO b) (IO a) (IO b)
 masked = grate Ex.mask
 
+-- | TODO: Document
+--
 continued :: Grate a (Cont r a) r r
 continued = grate cont
 
+-- | TODO: Document
+--
 continuedWith :: Cont r a -> Grate b (Cont r b) r (a -> r)
 continuedWith c = grate (`withCont` c) 
 
@@ -176,6 +246,8 @@ configured f x = dimap (flip f) ($ x) . closed
 pointed :: Semigroup a => a -> Grate' a a 
 pointed = configured (<>)
 
+-- | TODO: Document
+--
 equaled :: Eq a => a -> Grate a b Bool b
 equaled x = dimap (==) ($ x) . closed
 

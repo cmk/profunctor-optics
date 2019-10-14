@@ -115,6 +115,11 @@ viewOf = between (dstar getConst) (ustar Const)
 
 -- | TODO: Document
 --
+rcoerced :: Getter a a 
+rcoerced = rcoerce
+
+-- | TODO: Document
+--
 _1' :: PrimGetter (a , c) (b , c) a b
 _1' = rcoerce . lmap fst
 
