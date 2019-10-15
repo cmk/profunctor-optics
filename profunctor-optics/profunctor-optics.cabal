@@ -19,8 +19,10 @@ source-repository head
 
 library
   exposed-modules:
+      Data.Profunctor.Arrow
       Data.Profunctor.Bistar
-      --Data.Profunctor.Indexed
+      Data.Profunctor.Product
+      Data.Profunctor.Tambara
       Data.Profunctor.Task
 
       Data.Profunctor.Optic
@@ -35,6 +37,7 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold.Affine
+      Data.Profunctor.Optic.Fold.NonEmpty
 
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Review
@@ -43,7 +46,8 @@ library
 
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.Class
-      --Data.Profunctor.Optic.Type.VL
+      --Data.Profunctor.Optic.Type.Indexed
+      Data.Profunctor.Optic.Type.VL
 
 
 

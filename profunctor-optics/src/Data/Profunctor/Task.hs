@@ -6,11 +6,13 @@ module Data.Profunctor.Task where
 import Control.Comonad
 import Control.Comonad.Store.Class
 
-import Data.Profunctor.Optic.Type.Class 
-import Data.Profunctor.Optic.Prelude
-
-import qualified Data.Profunctor.Optic.Type.VL as VL
+import Data.Functor.Compose
+import Data.Functor.Const
+import Data.Functor.Identity 
+import Data.Profunctor
 import Data.Traversable (fmapDefault, foldMapDefault)
+
+import Prelude
 
 ---------------------------------------------------------------------
 -- 'Task'
@@ -78,28 +80,10 @@ instance Traversable (WrappedTask k v) where
   traverse f (WrappedTask (Task fps)) = fmap WrappedTask . getCompose $
     fps (Compose . fmap pureTask . f)
 
-{-
--- Free applicative over Identity if you could force Identity to be monomorphic on x.
-data Mono x y a where Mono :: x -> Mono x y y
-
-liftMono :: x -> Ap (Mono x y) y
-liftMono = liftAp . Mono
-
-unMono :: (x -> y) -> Mono x y a -> a
-unMono f (Mono x) = f x
-
-runMono :: (x -> y) -> Ap (Mono x y) a -> a
-runMono f = runIdentity . runAp (Identity . unMono f)
-
--- Equiv to 'PKStore' here: https://r6research.livejournal.com/27476.html 
-data FunList i k v = Done v | More i (FunList i k (k -> v))
-
---data FlistF i k v r = Done t | More a r
--}
-
 ---------------------------------------------------------------------
 -- 'Store'
 ---------------------------------------------------------------------
+
 
 -- | The indexed store can be used to characterize a 'Lens'
 -- and is used by 'cloneLens'.
@@ -109,7 +93,7 @@ data FunList i k v = Done v | More i (FunList i k (k -> v))
 -- and to @exists s. (s, 'Lens' s t a b)@.
 --
 -- A 'Context is like a 'Lens' that has already been applied to a some structure.
---data Store i k v = Store (b -> t) a
+--data Store a b t = Store (b -> t) a
 
 -- | An abstract datatype for a key/value store with build information of type @a@.
 data Store i k v = Store { values :: k -> v, info :: i }

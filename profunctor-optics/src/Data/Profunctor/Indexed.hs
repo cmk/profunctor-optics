@@ -55,8 +55,8 @@ instance Choice p => Choice (Indexed p i) where
         lmap (\(i, e) -> first (i,) e) (left' p)
 
 instance Traversing p => Traversing (Indexed p i) where
-    over f (Indexed p) = Indexed $
-         over (\g (i, s) -> f (curry g i) s) p
+    lift f (Indexed p) = Indexed $
+         lift (\g (i, s) -> f (curry g i) s) p
 
 instance Traversing1 p => Traversing1 (Indexed p i) where
     over1 f (Indexed p) = Indexed $
@@ -97,7 +97,7 @@ itraversing
   :: Traversing p
   => (forall f. Applicative f => (i -> a -> f b) -> s -> f t)
   -> IOptic p i s t a b
-itraversing itr (Indexed pab) = over (\f s -> itr (curry f) s) pab
+itraversing itr (Indexed pab) = lift (\f s -> itr (curry f) s) pab
 
 --ifoldMapOf :: IOptic' (Star (Const r)) i s a -> (i -> a -> r) -> s -> r
 --ifoldMapOf o f = h where Indexed h = o (Indexed $ Star . Const . uncurry f)
@@ -285,7 +285,7 @@ instance Monoid (f a) => Monoid (Hughes f a) where
 -- 'indexing' :: 'Control.Lens.Type.View' s a        -> 'Control.Lens.Type.IndexedView' 'Int' s a
 -- @
 --
--- @'indexing' :: 'Indexable' 'Int' p => 'Control.Lens.Type.OverLike' ('Hughes' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@
+-- @'indexing' :: 'Indexable' 'Int' p => 'Control.Lens.Type.LensLike' ('Hughes' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@
 indexing :: Indexable Int p => ((a -> Hughes f b) -> s -> Hughes f t) -> p a (f b) -> s -> f t
 indexing l iafb s = snd $ runHughes (l (\a -> Hughes (\i -> i `seq` (i + 1, indexed iafb i a))) s) 0
 {-# INLINE indexing #-}
@@ -336,7 +336,7 @@ instance Contravariant f => Contravariant (Hughes64 f) where
 -- 'indexing64' :: 'Control.Lens.Type.View' s a        -> 'Control.Lens.Type.IndexedView' 'Int64' s a
 -- @
 --
--- @'indexing64' :: 'Indexable' 'Int64' p => 'Control.Lens.Type.OverLike' ('Hughes64' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@
+-- @'indexing64' :: 'Indexable' 'Int64' p => 'Control.Lens.Type.LensLike' ('Hughes64' f) s t a b -> 'Control.Lens.Type.Over' p f s t a b@
 indexing64 :: Indexable Int64 p => ((a -> Hughes64 f b) -> s -> Hughes64 f t) -> p a (f b) -> s -> f t
 indexing64 l iafb s = snd $ runHughes64 (l (\a -> Hughes64 (\i -> i `seq` (i + 1, indexed iafb i a))) s) 0
 {-# INLINE indexing64 #-}

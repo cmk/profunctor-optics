@@ -4,4 +4,4 @@ flags: {}
 packages:
   - profunctor-optics
 extra-deps:
-  - categories-1.0.7@sha256:e707f8ac06eac755cb508aa67de64ab2e33ce1c54aebb6f43f64c615aa5234f6
+  - assoc-1@sha256:8d32ce39b6b6ce15394e9346f9ddb8752885aaa506a603e65d1c2769aff79741

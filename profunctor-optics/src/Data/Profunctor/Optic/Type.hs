@@ -83,6 +83,7 @@ type Grate s t a b = forall p. Closed p => Optic p s t a b
 
 type Grate' s a = Grate s s a a
 
+--type Lens s t a b = forall p. Tambara (,) p => Optic p s t a b
 type Lens s t a b = forall p. Strong p => Optic p s t a b
 
 type Lens' s a = Lens s s a a
@@ -91,6 +92,7 @@ type Colens s t a b = forall p. Costrong p => Optic p s t a b
 
 type Colens' s a = Colens s s a a
 
+--type Lens s t a b = forall p. Tambara (+) p => Optic p s t a b
 type Prism s t a b = forall p. Choice p => Optic p s t a b
 
 type Prism' s a = Prism s s a a
@@ -111,6 +113,7 @@ type Affine' s a = Affine s s a a
 -- *
 
 
+--type Traversal s t a b = forall p. Tambara (Church _ _) p => Optic p s t a b
 type Traversal s t a b = forall p. Applicative (Rep p) => Over p s t a b
 
 type Traversal' s a = Traversal s s a a
@@ -235,7 +238,7 @@ mapFreeStrong :: (Profunctor p, Profunctor q) => (p :~> q) -> (FreeStrong p :~> 
 mapFreeStrong eta (FreeStrong p) = FreeStrong (eta p)
 
 lowerFS :: Strong p => FreeStrong p a b -> p a b
-lowerFS (FreeStrong p) = eval' p
+lowerFS (FreeStrong p) = papply p
 
 unitFS :: Profunctor p => p :~> FreeStrong p
 unitFS p = FreeStrong (rmap const p)

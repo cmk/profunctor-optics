@@ -11,17 +11,13 @@ module Data.Profunctor.Optic.Prelude (
 
 import Data.Bifunctor.Assoc as Export
 import Data.Bifunctor.Swap as Export
-import Data.Bifunctor.Flip as Export (Flip (..))
+--import Data.Bifunctor.Flip as Export (Flip (..))
 import Data.Foldable
 import Data.Traversable
 import Control.Arrow as Export (Kleisli(..))
 import Control.Comonad as Export (Cokleisli(..))
 import Control.Applicative as Export
-import Control.Category  as Export (Category, (>>>), (<<<))
---import Control.Category.Associative as Export
---import Control.Category.Braided as Export
---import Control.Category.Cartesian as Export
---import Control.Category.Monoidal as Export
+import Control.Category as Export (Category, (>>>), (<<<))
 import Control.Monad as Export hiding (void)
 import Control.Comonad as Export
 import Data.Bifunctor as Export (Bifunctor (..)) 
@@ -34,11 +30,14 @@ import Data.Functor.Contravariant as Export hiding (($<), void)
 import Data.Functor.Contravariant.Divisible as Export
 import Data.Functor.Identity as Export
 import Data.Profunctor.Bistar as Export
+import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide , pchoose, pselect, pdivided) 
 import Data.Profunctor.Choice as Export 
 import Data.Profunctor.Closed as Export
+import Data.Profunctor.Product as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
 import Data.Profunctor.Strong as Export hiding (Tambara(..), Cotambara(..))
+import Data.Profunctor.Tambara as Export
 import Data.Profunctor.Types as Export hiding (WrappedArrow(..), WrapArrow(..))
 import Data.Void as Export
 import Prelude as Export hiding (foldr, filter)
@@ -48,8 +47,6 @@ import qualified Data.Tuple
 
 import Data.Functor.Apply
 
-type (+) = Either
-infixr 5 +
 
 {-
 import Control.Applicative
@@ -66,55 +63,12 @@ type (*) = (,)
 infixl 6 *
 
 
-(.+++) :: a + b + c + d + e -> (((a + b) + c) + d) + e
-(.+++) = x . x . x where x = unassoc @(+)
 
-(+++.) :: (((a + b) + c) + d) + e -> a + b + c + d + e 
-(+++.) = x . x . x where x = assoc @(+)
 
 
 -}
 
 
--- prelude
-dup :: a -> (a, a)
-dup = join (,)
-
-dedup :: Either a a -> a
-dedup = join either id
-
-swp (a,b) = (b,a)
-
---coswp = Right ||| Left
-coswp (Left x) = Right x
-coswp (Right x) = Left x
-
-assocl :: Assoc p => p a (p b c) -> p (p a b) c
-assocl = unassoc
-
-assocr :: Assoc p => p (p a b) c -> p a (p b c)
-assocr = assoc
-
---assocr :: Associative p1 => (p1 (p1 a b) c) -> (p1 a (p1 b c))
---assocr = error "TODO"
-
---assocl :: Associative p0 => (p0 a (p0 b c)) -> (p0 (p0 a b) c)
---assocl = error "TODO"
-
-branch :: (a -> Bool) -> b -> c -> a -> Either b c
-branch f y z x = if f x then Right z else Left y
-
-branch' :: (a -> Bool) -> a -> Either a a
-branch' f x = branch f x x x
-
-strength :: Functor f => f a -> b -> f (a , b)
-strength fa b = fmap (\a -> (a,b)) fa
-
-strengthA :: Applicative f => (f a, f b) -> f (a, b)
-strengthA = uncurry $ liftA2 (,)
-
-costrength :: Traversable f => f (a + b) -> (f a) + b
-costrength = coswp . traverse coswp
 
 -- Natural laws:
 -- distr . right . fmap f = fmap (right f) . distr
@@ -167,120 +121,96 @@ infixr 4 >*<
 (>*<) = divided
 
 
--- | Lift a function into a profunctor.
-arr :: Category p => Profunctor p => (a -> b) -> p a b
-arr f = dimap id f C.id
 
--- | We can convert any 'Conjoined' 'Profunctor' to a function,
--- possibly losing information about an index in the process.
-coarr :: (Representable p, Comonad (Rep p)) => p a b -> a -> b
-coarr qab = extract . sieve qab
-{-# INLINE coarr #-}
 
-returnA :: Category p => Profunctor p => p a a
-returnA = arr id
-
-strong :: Strong p => (a -> b -> c) -> p a b -> p a c
-strong f = dimap dup (Data.Tuple.uncurry f . swp) . first'
-
-choice :: Choice p => (c -> a + b) -> p a b -> p c b
-choice f = dimap f dedup . left'
 
 {-
-(***) :: Braided a (,) => Strong a => a b c -> a b' c' -> a (b , b') (c , c')
-f *** g = first' f >>> braid >>> first' g >>> braid
 
-(+++) :: Braided a (+) => Choice a => a b c -> a b' c' -> a (b + b') (c + c')
-f +++ g = left' f >>> braid >>> left' g >>> braid
+yoneda :: F.Representable f => CotambaraR (->) p => p a b -> p (f a) (f b)
+yoneda = dimap F.index F.tabulate . embedr
+
+coyoneda :: F.Representable f => CotambaraL (->) p => p (f a) (f a) -> p (F.Rep f) (F.Rep f)
+coyoneda = projectl . dimap F.tabulate F.index
+
+ng :: Profunctor p => ((a -> b) -> s -> t) -> p (Store i v2 v2) (Store s a b) -> p i t
+ng sec = dimap ((values &&& info)) (\(Store g s) -> sec g s)
+
+vl :: Strong p => ((i -> Store i v v) -> s -> Store a b t) -> p a b -> p s t
+vl l = dimap ((values &&& info) . l (Store id)) eval . second'
+
+foo :: ((a -> b) -> s -> t) -> (i -> Store i v v) -> s -> Store a b t
+foo abst isivv s = 
+
+bar :: ((a -> b) -> s -> t) -> Store s a b -> t
+bar sec (Store g s) = sec g s
+
+bar :: ((i1 -> Store i1 v1 v1) -> a -> Store i2 k v2) -> a -> (k -> v2, i2)
+bar l = (values &&& info) . l (Store id)
+
+_Store :: Profunctor p => p (k1 -> v1, i1) (k2 -> v2, i2) -> p (Store i1 k1 v1) (Store i2 k2 v2)
+_Store = dimap (values &&& info) (uncurry Store)
+
+data Store s a b = Store {values :: a -> b, info :: s} -- (s, a -> b)
+
+
+ p a b -> p (Store s v0 v0) (Store s a b)
+p a b -> p (s, c -> c) (s, a -> b)
+
+er = embedr @(->)
+el = embedl @(->)
+pr = projectr @(->)
+pl = projectl @(->)
+
+er . pr :: (Closed p, CotambaraR (->) p)        => p (c1 -> a) (c1 -> b) -> p (c2 -> a) (c2 -> b)
+
+el . pl :: (TambaraL (->) p, CotambaraL (->) p) => p (a -> c1) (b -> c1) -> p (a -> c2) (b -> c2)
+
+uncurry' . er :: (Strong p, Closed p) => p a c -> p (b -> a, b) c
+
+
+
+
+
+er . papply :: (Closed p, Strong p) => p a (a -> b) -> p (c -> a) (c -> b)
 -}
 
-eval :: (b -> c, b) -> c
-eval = uncurry id
+braid :: Category p => Profunctor p => Swap o => p (a `o` b) (b `o` a)
+braid = arr swap
 
-apply :: (a , a -> b) -> b
-apply = uncurry $ flip id
+assocl :: Assoc p => p a (p b c) -> p (p a b) c
+assocl = unassoc
 
-coeval :: b -> Either (b -> a) a -> a
-coeval b = either ($ b) id
+assocr :: Assoc p => p (p a b) c -> p a (p b c)
+assocr = assoc
 
-infixr 1 ^>>, >>^, <<^, ^<<
+assocl4 :: a + b + c + d -> (((a + b) + c) + d)
+assocl4 = x . x where x = unassoc @(+)
 
--- | Precomposition with a pure function.
---
-(^>>) :: Profunctor p => (a -> b) -> p b c -> p a c
-(^>>) = lmap
+assocr4 :: (((a + b) + c) + d) -> a + b + c + d 
+assocr4 = x . x where x = assoc @(+)
 
--- | Postcomposition with a pure function.
---
-(>>^) :: Profunctor p => p a b -> (b -> c) -> p a c
-(>>^) = flip rmap
+assocl5 :: a + b + c + d + e -> (((a + b) + c) + d) + e
+assocl5 = x . x . x where x = unassoc @(+)
 
--- | Precomposition with a pure function (right-to-left variant).
---
-(<<^) :: Profunctor p => p b c -> (a -> b) -> p a c
-(<<^) = flip lmap
+assocr5 :: (((a + b) + c) + d) + e -> a + b + c + d + e 
+assocr5 = x . x . x where x = assoc @(+)
 
--- | Postcomposition with a pure function (right-to-left variant).
---
-(^<<) :: Profunctor p => (b -> c) -> p a b -> p a c
-(^<<) = rmap
+--assocr :: Associative p1 => (p1 (p1 a b) c) -> (p1 a (p1 b c))
+--assocr = error "TODO"
 
+--assocl :: Associative p0 => (p0 a (p0 b c)) -> (p0 (p0 a b) c)
+--assocl = error "TODO"
 
+branch :: (a -> Bool) -> b -> c -> a -> Either b c
+branch f y z x = if f x then Right z else Left y
 
-
-recover :: Strong p => p a b -> p a (b , a)
-recover = lmap dup . first'
-
-eval' :: Strong p => p a (a -> b) -> p a b
-eval' = rmap eval . recover 
-
-loop :: Costrong p => p (a , c) (b , c) -> p a b
-loop = unfirst
-
-diag :: Category p => Profunctor p => p a (a, a)
-diag = arr dup
-
-codiag :: Category p => Profunctor p => p (Either b b) b
-codiag = arr dedup
-
-braid :: Category p => Profunctor p => p (a , b) (b , a)
-braid = arr swp
-
-cobraid :: Category p => Profunctor p => p (a + b) (b + a)
-cobraid = arr coswp
-
-{-
-idl :: Category p => Profunctor p => p (a , b) b
-idl = arr snd
-
-idr :: Category p => Profunctor p => p (a , b) a
-idr = arr fst
-
-inl :: Category p => Profunctor p => p a (a + b)
-inl = arr Left
-
-inr :: Category p => Profunctor p => p b (a + b)
-inr = arr Right
-
-inr :: Profunctor p => p a b -> p a (c -> (b , c))
-inr = ((,) `rmap`)
-
-inr :: Profunctor p => p a b -> p a ((b + c) -> b)
-
--}
-
---select :: Category p => Choice p => p (a + (b, b -> a)) a
---select = id ||| arr apply
+branch' :: (a -> Bool) -> a -> Either a a
+branch' f x = branch f x x x
 
 
 -- profunctors
-lconst :: Profunctor p => b -> p b c -> p a c
-lconst = lmap . const
-
-rconst :: Profunctor p => c -> p a b -> p a c
-rconst = rmap . const
-
---newtype Flip p b a = Flip { unFlip :: p a b }
+pullback :: Strong p => TambaraL (->) p => p a (a -> b) -> p (a -> b) b
+pullback = papply . embedl @(->)
 
 lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
 lcoerce = lower (. phantom)
@@ -288,10 +218,10 @@ lcoerce = lower (. phantom)
 rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
 rcoerce = lift (phantom .)
 
-rcoerce'  :: (Contravariant (p a), Profunctor p) => p a c -> p a d
+rcoerce'  :: Profunctor p => Contravariant (p a) => p a c -> p a d
 rcoerce' = rmap absurd . contramap absurd
 
-lcoerce' :: (Bifunctor p, Profunctor p) => p a c -> p b c
+lcoerce' :: Profunctor p => Bifunctor p => p a c -> p b c
 lcoerce' = first absurd . lmap absurd
 
 
@@ -321,8 +251,6 @@ lower f = cotabulate . f . cosieve
 --foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
 --foo = lower foldMap
 
-unarr :: Sieve p Identity => p a b -> a -> b 
-unarr = (runIdentity .) . sieve
 
 
 

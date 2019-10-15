@@ -54,7 +54,8 @@ tabulate :: (a -> Rep f) -> f a
 contramap f (tabulate g) = tabulate (g . f)
 index :: f a -> a -> Rep f
 
-s = 
+foo :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
+foo f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
 -}
 
 
@@ -82,7 +83,7 @@ setting sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
 grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
 grating f = dimap pureTaskF (f . runTask) . lift collect
 
--- | Every 'Grate' is an 'Setter'.
+-- | Every 'Grate' is a 'Setter'.
 --
 -- Note: this is needed b/c currently 'Corepresentable' does not entail 'Closed', 
 -- though perhaps it should (see 'closed'')
