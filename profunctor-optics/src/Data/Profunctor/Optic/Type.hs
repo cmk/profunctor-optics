@@ -19,7 +19,6 @@ module Data.Profunctor.Optic.Type (
 ) where
 
 import Data.Semigroup (First, Last)
-import Data.Profunctor.Optic.Type.Class as Export
 import Data.Profunctor.Optic.Prelude
 
 import qualified Data.Profunctor.Optic.Type.VL as VL

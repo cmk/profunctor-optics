@@ -24,6 +24,7 @@ library
       Data.Profunctor.Product
       Data.Profunctor.Tambara
       Data.Profunctor.Task
+      Data.Profunctor.Orphan
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Prelude
@@ -45,7 +46,6 @@ library
       Data.Profunctor.Optic.Unfold
 
       Data.Profunctor.Optic.Type
-      Data.Profunctor.Optic.Type.Class
       --Data.Profunctor.Optic.Type.Indexed
       Data.Profunctor.Optic.Type.VL
 
