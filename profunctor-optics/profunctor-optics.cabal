@@ -19,32 +19,34 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Arrow
+      --Data.Profunctor.Arrow
       Data.Profunctor.Bistar
-      Data.Profunctor.Product
-      Data.Profunctor.Tambara
+      Data.Profunctor.Monoid
+      --Data.Profunctor.Tambara
       Data.Profunctor.Task
       Data.Profunctor.Orphan
 
       Data.Profunctor.Optic
-      Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Iso
-      Data.Profunctor.Optic.Affine
       Data.Profunctor.Optic.Prism
-      Data.Profunctor.Optic.Setter
 
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Getter
       Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Traversal.Affine
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Fold.Affine
-      Data.Profunctor.Optic.Fold.NonEmpty
+      --Data.Profunctor.Optic.Fold.NonEmpty
 
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Cotraversal
       Data.Profunctor.Optic.Unfold
 
+      Data.Profunctor.Optic.Setter
+
+      Data.Profunctor.Optic.Prelude
+      Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Type
       --Data.Profunctor.Optic.Type.Indexed
       Data.Profunctor.Optic.Type.VL
@@ -90,7 +92,9 @@ library
     , pipes
     , recursion-schemes
     , semigroupoids
+    , tagged
     , transformers
+    , QuickCheck
 
 test-suite doctests
   type:          exitcode-stdio-1.0

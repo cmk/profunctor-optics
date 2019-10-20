@@ -9,7 +9,9 @@ import Data.Profunctor.Closed
 import Prelude
 
 instance Cochoice (Forget r) where 
-  unleft (Forget adr) = Forget $ adr . Left
+  unleft (Forget f) = Forget $ f . Left
+
+  unright (Forget f) = Forget $ f . Right
 
 instance Comonad f => Strong (Costar f) where
   first' (Costar f) = Costar $ \x -> (f (fmap fst x), snd (extract x))

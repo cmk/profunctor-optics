@@ -15,8 +15,6 @@ import qualified Data.DList.NonEmpty as NEL
 -- 'Fold1'
 ---------------------------------------------------------------------
 
-type AFold1 r s a = Semigroup r => FoldLike r s a
-
 {-
 A 'Fold1' can interpret 'a' in a semigroup so long as 's' can also be interpreted that way.
 Fold1 laws:
@@ -44,14 +42,14 @@ fold1Like = between (ustar Const) (dstar getConst)
 fold1Like' :: Foldable1 f => AFold1 r (f a) a
 fold1Like' = fold1Like foldMap1
 
-cloneFold1 :: Semigroup a => FoldLike a s a -> Fold1 s a
+cloneFold1 :: Semigroup a => AFold a s a -> Fold1 s a
 cloneFold1 = to . view
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
-foldMap1Of :: Semigroup r => FoldLike r s a -> (a -> r) -> s -> r
+foldMap1Of :: Semigroup r => AFold r s a -> (a -> r) -> s -> r
 foldMap1Of = between (dstar getConst) (ustar Const)
 
 -- | Extract a 'NonEmpty' of the targets of 'Fold1'.
@@ -67,5 +65,5 @@ foldMap1Of = between (dstar getConst) (ustar Const)
 -- 'toNelOf' :: 'Traversal1'' s a -> s -> NonEmpty a
 -- 'toNelOf' :: 'Prism'' s a      -> s -> NonEmpty a
 -- @
-toNelOf :: FoldLike (NonEmptyDList a) s a -> s -> NonEmpty a
+toNelOf :: AFold (NonEmptyDList a) s a -> s -> NonEmpty a
 toNelOf o = flip NEL.apply [] . foldMap1Of o NEL.singleton

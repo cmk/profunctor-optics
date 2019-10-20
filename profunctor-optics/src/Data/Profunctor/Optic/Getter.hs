@@ -13,8 +13,6 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 -- 'Getter'
 ---------------------------------------------------------------------
 
-type AGetter s a = FoldLike a s a
-
 -- | Build a 'Getter' from an arbitrary function.
 --
 -- @
@@ -42,35 +40,22 @@ to :: (s -> a) -> PrimGetter s t a b
 to f = rcoerce . lmap f
 {-# INLINE to #-}
 
--- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
---
 -- @
--- 'like' a '.' 'like' b ≡ 'like' b
--- a '^.' 'like' b ≡ b
--- a '^.' 'like' b ≡ a '^.' 'to' ('const' b)
--- @
---
--- This can be useful as a second case 'failing' a 'Fold'
--- e.g. @foo `failing` 'like' 0@
---
-like :: a -> PrimGetter s t a b
-like a = to (const a)
-
--- @
--- 'get' :: 'AFold' a s a -> 'Getter' s a
+-- 'get' :: 'AGetter' s a -> 'Getter' s a
+-- 'get' :: 'Monoid' a => 'AGetter' s a -> 'Fold' s a
 -- @
 get :: AGetter s a -> PrimGetter s t a b
 get = to . view
 
 -- @
--- 'toBoth' :: 'AFold' a s a -> 'AFold' b s b -> 'Getter' s (a, b)
+-- 'toBoth' :: 'AGetter' s a -> 'AGetter' s b -> 'Getter' s (a, b)
 -- @
-toBoth :: FoldLike a1 s a1 -> FoldLike a2 s a2 -> PrimGetter s t (a1 , a2) b
+toBoth :: AGetter s a1 -> AGetter s a2 -> PrimGetter s t (a1 , a2) b
 toBoth l r = to (view l &&& view r)
 
 -- | TODO: Document
 --
-toEither :: FoldLike a s1 a -> FoldLike a s2 a -> PrimGetter (s1 + s2) t a b
+toEither :: AGetter s1 a -> AGetter s2 a -> PrimGetter (s1 + s2) t a b
 toEither l r = to (view l ||| view r)
 
 ---------------------------------------------------------------------
@@ -96,17 +81,14 @@ toEither l r = to (view l ||| view r)
 -- 'viewOf' ::                  'Lens'' s a       -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Monoid' r    => 'Prism'' s a      -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
--- 'viewOf' :: 'Monoid' r    => 'Affine'' s a -> (a -> r) -> s -> r
+-- 'viewOf' :: 'Monoid' r    => 'Traversal0'' s a -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
--- 'viewOf' ::                  'AFold' s a       -> (a -> r) -> s -> r
+-- 'viewOf' ::                  'AGetter' s a       -> (a -> r) -> s -> r
 -- @
 --
--- @
--- 'viewOf' :: 'AFold' r s a -> (a -> r) -> s -> r
--- @
-viewOf :: FoldLike r s a -> (a -> r) -> s -> r
+viewOf :: Optic' (FoldRep r) s a -> (a -> r) -> s -> r
 viewOf = between (dstar getConst) (ustar Const)
 
 ---------------------------------------------------------------------
@@ -115,19 +97,32 @@ viewOf = between (dstar getConst) (ustar Const)
 
 -- | TODO: Document
 --
-rcoerced :: Getter a a 
-rcoerced = rcoerce
-
--- | TODO: Document
---
 _1' :: PrimGetter (a , c) (b , c) a b
-_1' = rcoerce . lmap fst
+_1' = to fst
 
 -- | TODO: Document
 --
 _2' :: PrimGetter (c , a) (c , b) a b
-_2' = rcoerce . lmap snd
+_2' = to snd
 
+-- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
+--
+-- @
+-- 'like' a '.' 'like' b ≡ 'like' b
+-- a '^.' 'like' b ≡ b
+-- a '^.' 'like' b ≡ a '^.' 'to' ('const' b)
+-- @
+--
+-- This can be useful as a second case 'failing' a 'Fold'
+-- e.g. @foo `failing` 'like' 0@
+--
+like :: a -> PrimGetter s t a b
+like = to . const
+
+-- | TODO: Document
+--
+rcoerced :: Getter a a 
+rcoerced = rcoerce
 
 ---------------------------------------------------------------------
 -- Derived operators
@@ -150,7 +145,7 @@ view = (`views` id)
 -- ^ @
 -- 'views o f ≡ foldMapOf o f'
 -- @
-views :: MonadReader s m => FoldLike r s a -> (a -> r) -> m r
+views :: MonadReader s m => Optic' (FoldRep r) s a -> (a -> r) -> m r
 views o f = Reader.asks $ viewOf o f
 {-# INLINE views #-}
 
@@ -172,7 +167,7 @@ use o = State.gets (view o)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
-listening :: MonadWriter w m => FoldLike u w u -> m a -> m (a, u)
+listening :: MonadWriter w m => AGetter w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)
@@ -180,7 +175,7 @@ listening l m = do
 
 -- | TODO: Document
 --
-listenings :: MonadWriter w m => FoldLike v w u -> (u -> v) -> m a -> m (a, v)
+listenings :: MonadWriter w m => Optic' (FoldRep v) w u -> (u -> v) -> m a -> m (a, v)
 listenings l uv m = do
   (a, w) <- listen m
   return (a, views l uv w)
@@ -190,7 +185,7 @@ listenings l uv m = do
 -- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c
 -- zoom :: (Monoid c, Applicative m) => Traversal' ta a -> StateT a m c -> StateT ta m c
 -- @
-zoom :: Optic' (Star (Compose m ((,) c))) ta a  -> StateT a m c -> StateT ta m c
+zoom :: Functor m => Optic' (Star (Compose m ((,) c))) ta a  -> StateT a m c -> StateT ta m c
 zoom l (StateT m) = StateT . zoomOut . l . zoomIn $ m
  where
   zoomIn f = Star (Compose . f)

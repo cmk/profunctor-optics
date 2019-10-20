@@ -20,6 +20,8 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 
 -- | Build a 'Strong' optic from a getter and setter.
 --
+-- \( \quad \mathsf{Lens}\;S\;A = \exists C, S \cong C \times A \)
+--
 -- /Caution/: In order for the generated lens family to be well-defined,
 -- you must ensure that the three lens laws hold:
 --
@@ -29,11 +31,15 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 --
 -- * @sbt (sbt s a1) a2 === sbt s a2@
 --
+-- See 'Data.Profunctor.Optic.Property'.
+--
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
-matched :: (s -> (a , x)) -> (b -> x -> t) -> Lens s t a b
-matched f g = dimap f (uncurry g) . first'
+-- | Build a 'Lens' from its free tensor representation.
+--
+matched :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
+matched f g = dimap f g . second'
 
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
@@ -49,12 +55,12 @@ colens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
 lensvl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensvl l = dimap ((values &&& info) . l (Store id)) (uncurry id) . second'
+lensvl o = dimap ((values &&& info) . o (Store id)) (uncurry id) . second'
 
 -- | TODO: Document
 --
 cloneLens :: ALens s t a b -> Lens s t a b
-cloneLens l = withLens l $ \x y p -> lens x y p
+cloneLens o = withLens o lens 
 
 ---------------------------------------------------------------------
 -- 'LensRep'
@@ -79,20 +85,51 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
+--https://r6research.livejournal.com/27858.html
+
+--FreeStrong (IsoRep a b) s t = IsoRep a b s (s -> t) = (s -> a, b -> s -> t)
+--FreeChoice (IsoRep a b) s t = IsoRep a b ? ? = (s -> (Either a t), b -> t).
+
+newtype FreeStrong p s t = FreeStrong (p s (s -> t))
+
+instance Profunctor p => Profunctor (FreeStrong p) where
+  dimap l r (FreeStrong p) = FreeStrong (dimap l (dimap l r) p)
+
+instance Profunctor p => Strong (FreeStrong p) where
+  first' (FreeStrong p) = FreeStrong (dimap fst first p)
+
+mapFreeStrong :: (Profunctor p, Profunctor q) => (p :-> q) -> (FreeStrong p :-> FreeStrong q)
+mapFreeStrong eta (FreeStrong p) = FreeStrong (eta p)
+
+lowerFS :: Strong p => FreeStrong p a b -> p a b
+lowerFS (FreeStrong p) = papply p
+
+unitFS :: Profunctor p => p :-> FreeStrong p
+unitFS p = FreeStrong (rmap const p)
+
+-- | 'counit' preserves strength.
+-- <https://r6research.livejournal.com/27858.html>
+counitFS :: Strong p => FreeStrong p :-> p
+counitFS (FreeStrong p) = dimap dup eval (first' p)
+
+toFreeStrong :: Profunctor p => Pastro p a b -> FreeStrong p a b
+toFreeStrong (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
+
+toPastro :: FreeStrong p a b -> Pastro p a b
+toPastro (FreeStrong p) = Pastro eval p dup
+
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- Analogous to (***) from 'Control.Arrow'
-pairing' :: Lens s t a b -> Lens s' t' a' b' -> Lens (s , s') (t , t') (a , a') (b , b')
-pairing' = paired
+-- | Analogous to @(***)@ from 'Control.Arrow'
+--
+pairing :: Lens s1 t1 a1 b1 -> Lens s2 t2 a2 b2 -> Lens (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
+pairing = paired
 
 -- | TODO: Document
 --
-lens2
-  :: (s -> a)
-  -> (s -> b -> t) 
-  -> Lens (c, s) (d, t) (c, a) (d, b)
+lens2 :: (s -> a) -> (s -> b -> t) -> Lens (c, s) (d, t) (c, a) (d, b)
 lens2 f g = between runPaired Paired (lens f g)
 
 -- | TODO: Document

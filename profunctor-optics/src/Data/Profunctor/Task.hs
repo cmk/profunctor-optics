@@ -84,7 +84,6 @@ instance Traversable (WrappedTask k v) where
 -- 'Store'
 ---------------------------------------------------------------------
 
-
 -- | The indexed store can be used to characterize a 'Lens'
 -- and is used by 'cloneLens'.
 --
@@ -163,6 +162,6 @@ mapInfo f (Store kv i) = Store kv (f i)
 putValue :: Eq k => k -> v -> Store i k v -> Store i k v
 putValue k v s = s { values = \key -> if key == k then v else values s key }
 
--- | Initialise the store.
-initialise :: (k -> v) -> i -> Store i k v
-initialise = Store
+-- | Initialize the store.
+initialize :: (k -> v) -> i -> Store i k v
+initialize = Store

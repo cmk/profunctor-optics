@@ -34,17 +34,28 @@ import           Data.Distributive
 import Data.Functor.Classes
 import Data.Functor.Apply (Apply(..))
 
+import GHC.Generics (Generic)
+import Data.Int
+import Data.Word
 import Linear.V2
+import Linear.V3
+import Linear.V4
 import Pipes
 import qualified Pipes.Prelude as Pipes
 
 import Data.Functor.Base (NonEmptyF(..))
-
 import Data.Traversable
+
+-- * 'Optic'
+
+--type Optic p s t a b = Profunctor p => p a b -> p s t
+--type Optical p s t a b = p a b -> p s t
 
 type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
+
+-- * 'Iso'
 
 type Equality s t a b = forall p. Optic p s t a b 
 
@@ -54,129 +65,220 @@ type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
 type Iso' s a = Iso s s a a
 
-type IsoVL s t a b = forall f g. Functor f => Functor g => IsoLike f g s t a b
-
-type IsoVL' s a = IsoVL s s a a 
-
-type IsoLike f g s t a b = Optic (Bistar f g) s t a b
+-- * 'Over/Under'
 
 type Over p s t a b = Representable p => Optic p s t a b
 
 type Over' p s a = Representable p => Optic p s s a a
 
-type LensLike f s t a b = Optic (Star f) s t a b
-
-type LensLike' f s a = LensLike f s s a a
-
 type Under p s t a b = Corepresentable p => Optic p s t a b
 
 type Under' p s a = Under p s s a a
 
-type GrateLike g s t a b = Optic (Costar g) s t a b
+-- * 'Lens'
 
-type GrateLike' g s a = GrateLike g s s a a
+--type LensPrim p c a b = Optic p (c , a) (c , b) a b
 
--- * 
+type LensLike p s t a b = Strong p => Optic p s t a b
 
-type Grate s t a b = forall p. Closed p => Optic p s t a b
+type LensLike' p s a = LensLike p s s a a
 
-type Grate' s a = Grate s s a a
-
---type Lens s t a b = forall p. Tambara (,) p => Optic p s t a b
-type Lens s t a b = forall p. Strong p => Optic p s t a b
+type Lens s t a b = forall p. LensLike p s t a b
 
 type Lens' s a = Lens s s a a
 
-type Colens s t a b = forall p. Costrong p => Optic p s t a b
+type ColensLike p s t a b = Costrong p => Optic p s t a b
+
+type Colens s t a b = forall p. ColensLike p s t a b
 
 type Colens' s a = Colens s s a a
 
---type Lens s t a b = forall p. Tambara (+) p => Optic p s t a b
-type Prism s t a b = forall p. Choice p => Optic p s t a b
+-- * 'Prism'
+
+type PrismLike p s t a b = Choice p => Optic p s t a b
+
+type Prism s t a b = forall p. PrismLike p s t a b
 
 type Prism' s a = Prism s s a a
 
-type Coprism s t a b = forall p. Cochoice p => Optic p s t a b
+type CoprismLike p s t a b = Cochoice p => Optic p s t a b
+
+type Coprism s t a b = forall p. CoprismLike p s t a b
 
 type Coprism' s a = Coprism s s a a
 
--- A 'Affine' extracts at most one result, with no monoidal interactions.
-type Affine s t a b = forall p. Strong p => Choice p => Optic p s t a b
+-- * 'Grate'
 
-type Affine' s a = Affine s s a a
+type GrateLike p s t a b = Closed p => Optic p s t a b
 
---type Coaffine s t a b = forall p. Costrong p => Cochoice p => Optic p s t a b
+type GrateLike' p s a = GrateLike p s s a a
 
---type Coaffine' s a = Coaffine s s a a
+type Grate s t a b = forall p. GrateLike p s t a b
 
--- *
+type Grate' s a = Grate s s a a
+
+-- * 'Grid'
+
+type GridLike p s t a b = Closed p => LensLike p s t a b
+
+-- | \( \quad \mathsf{Grid}\;S\;A = \exists C,I, S \cong C \times (I \to A) \)
+type Grid s t a b = forall p. GridLike p s t a b
+
+-- * 'Glass'
+
+type GlassLike p s t a b = Closed p => PrismLike p s t a b
+
+-- | \( \quad \mathsf{Glass}\;S\;A = \exists D,I, S \cong D + (I \to A) \)
+type Glass s t a b = forall p. GlassLike p s t a b
+{- 
+FreeGrid:
+∃ c,d .  (s -> (c × (d -> a))) × (c × (d -> b) -> t)  ≅
+∃ c,d .  (s -> c) × (s -> (d -> a)) × (c × (d -> b) -> t)  ≅
+∃ d   .  (s -> (d -> a)) × (s × (d -> b) -> t)  ≅
+∃ d   .  (d -> (s -> a)) × (s × (d -> b) -> t)  ≅
+(s × ((s -> a) -> b) -> t)  ≅
+((s -> a) -> b) -> s -> t
+
+FreeGlass:
+∃ c,d .  (s -> (c + (d -> a))) × (c + (d -> b) -> t)  ≅
+(s + ((s -> a) -> b) -> t)  ≅
 
 
---type Traversal s t a b = forall p. Tambara (Church _ _) p => Optic p s t a b
-type Traversal s t a b = forall p. Applicative (Rep p) => Over p s t a b
+right' . closed
+  :: (Choice p, Closed p) =>
+     p a b -> p (Either c (x -> a)) (Either c (x -> b))
+
+
+\begin{aligned} 
+\quad \mathsf{Iso}\;S\;A  =&&  S &\cong A  \\   \quad 
+\mathsf{Lens}\;S\;A    =&& \exists C, S &\cong C \times A \\   
+\quad \mathsf{Prism}\;S\;A   =&& \exists D, S &\cong D + A \\   
+\quad \mathsf{Affine}\;S\;A  =&& \exists C, D, S &\cong D + C \times A \\   
+\quad \mathsf{Grate}\;S\;A   =&& \exists I, S &\cong I \to A \\   
+\quad \mathsf{Achroma}\;S\;A =&& \exists C, S &\cong 1 + C \times A 
+\quad \mathsf{Setter}\;S\;A =&& \exists F : \mathsf{Functor}, S \equiv F\,A
+
+\end{aligned}
+
+Hopefully the pattern stands out, namely S is isomorphic to F\,A for some endofunctor F:
+
+
+
+
+-}
+
+
+-- * 'Traversal0' extracts at most one result, with no monoidal interactions.
+
+type Traversal0Like p s t a b = Choice p => LensLike p s t a b
+
+type Traversal0 s t a b = forall p. Traversal0Like p s t a b
+
+type Traversal0' s a = Traversal0 s s a a
+
+-- * 'Traversal' extracts 0 or more results, with monoidal interactions.
+
+type TraversalLike p s t a b = (forall x. Applicative (p x)) => Traversal0Like p s t a b
+
+--type Traversal s t a b = forall p. Applicative (Rep p) => Over p s t a b
+type Traversal s t a b = forall p. TraversalLike p s t a b
+
+type ATraversal f s t a b = Applicative f => Optic (Star f) s t a b
 
 type Traversal' s a = Traversal s s a a
 
---type CotraversalVL s t a b = forall f g. (Applicative f, Functor g) => AdapterLike f g s t a b
-type Cotraversal s t a b = forall p. Distributive (Corep p) => Under p s t a b
+-- * A 'Traversal1' extracts 1 or more results, with monoidal interactions.
 
--- A 'Traversal1' extracts at least one result.
 --type Traversal1 s t a b = forall p. Apply (Rep p) => Over p s t a b
+type Traversal1Like p s t a b = (forall x. Apply (p x)) => Traversal0Like p s t a b
 
---type Traversal1' s a = Traversal1 s s a a
+type Traversal1 s t a b = forall p. Traversal1Like p s t a b
+
+type Traversal1' s a = Traversal1 s s a a
 
 
---type Fold s a = forall p. (forall x. Contravariant (p x), Biapplicative p) => Optic' p s a
---type Fold s a = forall p. RPhantom p => Strong p => Optic' p s a
-type Fold s a = forall p. Applicative (Rep p) => Contravariant (Rep p) => Over' p s a
+-- * 'Cotraversal' 
 
-type FoldLike r s a = LensLike' (Const r) s a
+--(forall x. Coapplicative (p x))
+type CotraversalLike p s t a b = (forall x. Distributive (p x)) => GridLike p s t a b
 
--- A 'Fold0' extracts at most one result.
-type Fold0 s a = forall p. Choice p => Contravariant (Rep p) => Over' p s a
+--type Cotraversal s t a b = forall p. Distributive (Corep p) => Under p s t a b
+type Cotraversal s t a b = forall p. CotraversalLike p s t a b
 
-type Fold1 s a = forall p. Apply (Rep p) => Contravariant (Rep p) => Over' p s a
+-- * A 'Fold0' extracts at most one result.
 
-type Unfold t b = forall p. Distributive (Corep p) => Contravariant (Corep p) => Under' p t b
+--type FoldRep0 r = Star ?
 
-type UnfoldLike r t b = GrateLike' (Const r) t b
+type Fold0Like p s a = (forall x. Contravariant (p x)) => Traversal0Like p s s a a
 
--- A 'Unfold0' extracts at least one result. should be able to do this w/ a GrateLike / Cotraversal
---type Unfold0 t b = forall p. Strong p => Contravariant (Corep p) => Under' p t b
+type Fold0 s a = forall p. Fold0Like p s a
 
-type PrimGetter s t a b = forall p. Contravariant (Rep p) => Over p s t a b
+-- * A 'Fold1' extracts a semigroupal summary from a non-empty container
 
-type PrimGetter' s a = PrimGetter s s a a
+type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
-type PrimReview s t a b = forall p. Contravariant (Corep p) => Under p s t a b
+--type Fold1 s a = forall p. Apply (Rep p) => Contravariant (Rep p) => Over' p s a
+type Fold1 s a = forall p. (forall x. Contravariant (p x)) => Traversal1Like p s s a a 
 
-type PrimReview' t b = PrimReview t t b b
 
--- A 'Getter' extracts exactly one result.
---type Getter s a = forall p . Strong p => Representable p => Contravariant (Rep p) => p a b -> p s t
---type Getter s a = forall p. Strong p => Contravariant (Rep p) => Over' p s a
-type Getter s a = forall p. Contravariant (Rep p) => Over' p s a
+-- * A 'Fold' extracts a monoidal summary from a container.
 
---type Review t b = forall p. Choice p => Contravariant (Corep p) => Under' p t b
+type FoldRep r = Star (Const r)
 
-type Review t b = forall p. Contravariant (Corep p) => Under' p t b
+type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 
+--type Fold s a = forall p. Applicative (Rep p) => Contravariant (Rep p) => Over' p s a
+type Fold s a = forall p. (forall x. Contravariant (p x)) => TraversalLike p s s a a
+
+
+
+-- * A 'Unfold'
+
+type UnfoldRep r = Costar (Const r)
+
+type AUnfold r t b = Optic' (UnfoldRep r) t b
+
+--type Unfold t b = forall p. Distributive (Corep p) => Contravariant (Corep p) => Under' p t b
+type Unfold t b = forall p. Bifunctor p => CotraversalLike p t t b b
+
+--
+
+-- * A 'Getter' extracts exactly one result.
+
+--type PrimGetter s t a b = forall p. Contravariant (Rep p) => Over p s t a b
+type PrimGetter s t a b = forall p. Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
+
+type AGetter s a = Optic' (FoldRep a) s a
+
+--type Getter s a = forall p. Contravariant (Rep p) => Over' p s a
+type Getter s a = forall p. (forall x. Contravariant (p x)) => LensLike p s s a a
+
+
+-- * A 'Review' produces a result.
+
+type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b 
+
+--type PrimReview s t a b = forall p. Contravariant (Corep p) => Under p s t a b
+type PrimReview s t a b = forall p. PrimReviewLike p s t a b
+
+--type AReview t b = forall r. AUnfold r t b
+type AReview t b = Optic' (UnfoldRep b) t b
+
+--type Review t b = forall p. Contravariant (Corep p) => Under' p t b
+type Review t b = forall p. Bifunctor p => PrismLike p t t b b
 
 
 -- * Setter
+-- type Setter s t a b = Closed p => Strong p => Choice p => (forall x. Applicative (p x)) => (forall x. Distributive (p x)) => Optic p s t a b
 type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
---type SetterVL s t a b = forall f. F.Representable f => LensLike f s t a b
 
 type Setter' s a = Setter s s a a
 
-type Resetter s t a b = forall p. Applicative (Corep p) => Under p s t a b
---type ResetterVL s t a b = forall f. Representable f => Applicative f => GrateLike f s t a b
+type AMatch e s t a b = Optic (Star (Either e)) s t a b
 
-type Resetter' s a = Resetter s s a a
+type ASetter s t a b = Optic (Star Identity) s t a b
 
-type ASetter s t a b = LensLike Identity s t a b
-
-type AResetter s t a b = GrateLike Identity s t a b
+type AResetter s t a b = Optic (Costar Identity) s t a b
 
 overLike :: ((a -> b) -> s -> t) -> ASetter s t a b
 overLike sec = between Star runStar $ \f -> Identity . sec (runIdentity . f)
@@ -188,261 +290,207 @@ underLike sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentit
 
 -- | TODO: Document
 --
-cloneOver :: LensLike (Rep p) s t a b -> Over p s t a b
+cloneOver :: Optic (Star (Rep p)) s t a b -> Over p s t a b
 cloneOver = between fromStar star 
 
 -- | TODO: Document
 --
-cloneUnder :: GrateLike (Corep p) s t a b -> Under p s t a b
+cloneUnder :: Optic (Costar (Corep p)) s t a b -> Under p s t a b
 cloneUnder = between fromCostar costar 
 
 closed' :: Under p (c -> a) (c -> b) a b
 closed' = lower cotraverse
 
--- ^ @
--- under :: Resetter s t a b -> (a -> b) -> s -> t
--- @
---
--- Demote a resetter to a semantic editor combinator.
---
--- @
--- under :: Prism s t a b -> Traversal s t a b
--- under :: Grid s t a b -> Traversal s t a b
--- under :: Adapter s t a b -> Lens s t a b
--- @
---
--- Covert an 'AdapterLike' optic into a 'LensLike' optic.
---
--- Note: this function is unrelated to the lens package's @under@ function.
---under :: AResetter s t a b -> (a -> b) -> s -> t
---under l f = l (f . runIdentity) . Identity
+class Profunctor p => Pointing p where
+  point :: p a b -> p (Maybe a) (Maybe b)
 
 
---https://r6research.livejournal.com/27858.html
+-- Using the free applicative construction from Capriotti-Kaposi, we can show their concrete representation is the following.
+-- aka kaleidoscope == resetter?
+-- (Vector n a -> b) -> (Vector n s -> t)
+--type LaxLike f s t a b = Distributive f => GrateLike f s t a b
 
-type p :~> q = forall x y. p x y -> q x y
+--List-lenses (unlike general lenses) compose with Kaleidoscopes
+--type ListLens (view :: s -> a, classify :: Distributive f => f s -> b -> t)
 
---FreeStrong (IsoRep a b) s t = IsoRep a b s (s -> t) = (s -> a, b -> s -> t)
---FreeChoice (IsoRep a b) s t ≅ (s -> (Either a t), b -> t).
 
-newtype FreeStrong p s t = FreeStrong (p s (s -> t))
 
-instance Profunctor p => Profunctor (FreeStrong p) where
-  dimap l r (FreeStrong p) = FreeStrong (dimap l (dimap l r) p)
-
-instance Profunctor p => Strong (FreeStrong p) where
-  first' (FreeStrong p) = FreeStrong (dimap fst first p)
-
-mapFreeStrong :: (Profunctor p, Profunctor q) => (p :~> q) -> (FreeStrong p :~> FreeStrong q)
-mapFreeStrong eta (FreeStrong p) = FreeStrong (eta p)
-
-lowerFS :: Strong p => FreeStrong p a b -> p a b
-lowerFS (FreeStrong p) = papply p
-
-unitFS :: Profunctor p => p :~> FreeStrong p
-unitFS p = FreeStrong (rmap const p)
-
--- | 'counit' preserves strength.
--- <https://r6research.livejournal.com/27858.html>
-counitFS :: Strong p => FreeStrong p :~> p
-counitFS (FreeStrong p) = dimap dup eval (first' p)
-
-toFreeStrong :: Profunctor p => Pastro p a b -> FreeStrong p a b
-toFreeStrong (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
-
-toPastro :: FreeStrong p a b -> Pastro p a b
-toPastro (FreeStrong p) = Pastro eval p dup
-
-upsert :: Optic (Costar Maybe) s t a b -> (Maybe a -> b) -> Maybe s -> t
-upsert p = runCostar . p . Costar
-
-upsert' :: Optic (Costar Maybe) s t a b -> b -> Maybe s -> t
-upsert' p b = runCostar . p $ Costar (const b)
-
-achroma
-    :: Strong p
-    => TambaraL NonEmptyF p
-    => (s -> a)             -- ^ view
-    -> (Maybe s -> b -> t)  -- ^ mset
-    -> Optic p s t a b
-achroma sa msbt = dimap (\s -> (Just s, sa s)) (uncurry msbt) . dimap swp swp . embedl
-
-data Cat = Cat
-    { _catName  :: String
-    , _catOwner :: Maybe String
-    , _catLifes :: Maybe Int
-    }
-  deriving Show
-
-catName :: Strong p => TambaraL NonEmptyF p => Optic p Cat Cat String String
-catName = achroma _catName $ \ms n ->
-    maybe (Cat n Nothing Nothing) (\s -> s {_catName = n }) ms
-
-{-
-catName' :: Strong p => TambaraL NonEmptyF p => Optic p Cat Cat String String
-catName' = achroma _catName $ \ms n ->
-    maybe (Cat n def def) (\s -> s {_catName = n }) ms
--}
-
-catLifes  :: Strong p => Optic p Cat Cat (Maybe Int) (Maybe Int)
-catLifes
-    = dimap (\(Cat n o l) -> ((n, o), l)) (\((n, o), l) -> Cat n o l)
-    . second'
-
---felix :: Cat
---felix = review catName "Felix"  & catLifes ?~ 7
-
-type SLens s t a b = forall p. Tambara (,) p => Product (,) p => Optic p s t a b
-
---type CLens s t a b = forall p. Category p => Strong p => Optic p s t a b
-
+type SLens s t a b = forall p. Strong p => PSemigroup (,) p => Optic p s t a b
+type SLens' s a = SLens s s a a
 --v2 :: Semigroupal p => Optic p (V2 a) (V2 b) a b
 v2 :: SLens (V2 a) (V2 b) a b
 v2 p = dimap (\(V2 x y) -> (x, y)) (\(x, y) -> V2 x y) (p *** p)
 
-firstNSecond' :: SLens (a, a, c) (b, b, c) a b
-firstNSecond' p = dimap group group' (embedl (p *** p)) where
+-- >>>  contents skipLast (1,2,3)
+-- [1,2]
+skipLast :: SLens (a, a, c) (b, b, c) a b
+skipLast p = dimap group ungroup (first' (p *** p)) where
   group  (x, y, z) = ((x, y), z)
-  group' ((x, y), z) = (x, y, z)
+  ungroup ((x, y), z) = (x, y, z)
+
+skipLast' :: SLens' (V3 a) a
+skipLast' p = dimap group ungroup (first' (p *** p)) where
+  group  (V3 x y z) = ((x, y), z)
+  ungroup ((x, y), z) = V3 x y z
 
 
-data FunList a b t = Done t | More a (FunList a b (b -> t)) -- deriving Functor
+v4 :: SLens (V4 a) (V4 b) a b
+v4 p = dimap (\(V4 x y z w) -> (x, (y, (z, w)))) (\(x, (y, (z, w))) -> V4 x y z w) (p *** p *** p *** p)
 
-instance Functor (FunList a b) where
-  fmap f (Done t) = Done (f t)
-  fmap f (More x l) = More x (fmap (f .) l)
 
-instance Applicative (FunList a b) where
-  pure = Done
-  Done f <*> fa = fmap f fa
-  More x l <*> l' = More x (fmap flip l <*> l')
-  --More s r <*> fa = More s (flip <$> r <*> fa)
+{-λ> review (v2 . right' . _V2) 1 :: V2 (Either Bool (V2 Int))
+V2 (Right (V2 1 1)) (Right (V2 1 1))
+and zipWithOf:
 
-instance (a ~ b) => Comonad (FunList a b) where
-  extract (Done a) = a
-  extract (More s r) = extract r s
-  extend f (Done a) = Done (f (Done a))
-  extend f (More s r) = More s (extend (\r' s' -> f (More s' r')) r)
+λ> let as = V2 (Left ())     (Right (1,2))
+λ> let bs = V2 (Right (3,4)) (Right (5,6))
+λ> zipWithOf (v2 . right' . first') (,) as bs
+V2 (Left ()) (Right ((1,5),2))
+But also traverseOf:
 
-single :: a -> FunList a b b
-single x = More x (Done id)
+λ> let f x = state (\s -> (x + s, s +1))
+λ> evalState (traverseOf v2 f (V2 5 7)) 1
+V2 6 9
+and toListOf:
 
-fuse :: FunList b b t -> t
-fuse (Done t) = t
-fuse (More x l) = fuse l x
+λ> toListOf (v2 . v2) (V2 (V2 1 2) (V2 3 4))
+[1,2,3,4]
 
-newtype RotateFunList b t a = Rotate { unrotate :: FunList a b t }
+-}
 
-out :: FunList a b t -> t + (a, FunList a b (b -> t))
-out (Done t) = Left t
-out (More x l) = Right (x, l)
 
-inn :: t + (a, FunList a b (b -> t)) -> FunList a b t
-inn (Left t) = Done t
-inn (Right (x, l)) = More x l
+--v4' :: Grate (V4 a) (V4 b) a b
+--v4' = grate $ \f -> cotraverse f id
 
-traversing :: Choice p => Product (,) p => Product (+) p => p a b -> p (FunList a c t) (FunList b c t)
-traversing k = dimap out inn (embedr (k *** (traversing k)))
+--v4'' :: Cotraversal (V4 a) (V4 b) a b
+--v4'' = cotraversed
 
-instance (Choice p, Product (,) p, Product (+) p) => TambaraR (RotateFunList r) p where
-  embedr = dimap unrotate Rotate . traversing
+type Motors = V4
+
+-- factor out common substructures where possible
+data Controller a b
+  = Controller
+    { cMeta :: a
+    , cMotors :: Motors b
+    } deriving Generic
+
+data GainsMeta
+  = GainsMeta
+    { kValue :: Double
+    , kCount :: V4 Word8
+    } deriving Generic
+
+type ControlGains = Controller GainsMeta MotorGains
+
+type ControlState = Controller Double MotorState
+
+type ControlOutputs = Controller Double MotorOutputs
+
+type ControlMessage = Controller Bool MotorMessage
+
+data ControllerGains
+  = ControllerGains
+    { kMotors :: Motors MotorGains
+    , kSomething :: Double
+    , kWat :: V4 Word8
+    } deriving Generic
+
+data ControllerOutputs
+  = ControllerOutputs
+    { oMotors :: Motors MotorOutputs
+    , oSomething :: Double
+    } deriving Generic
+
+data ControllerState
+  = ControllerState
+    { sMotors :: Motors MotorState
+    , sSomething :: Double
+    } deriving Generic
+
+data Sensors
+  = Sensors
+    { yMotors :: Motors MotorMessage
+    , yDiskLoggingFull :: Bool
+    } deriving Generic
+
+-- motor subsystem
+data MotorGains
+  = MotorGains
+    { kA :: Int64
+    , kB :: Double
+    } deriving Generic
+
+data MotorState
+  = MotorState
+    { sA :: Double
+    , sB :: Int64
+    } deriving Generic
+
+data MotorMessage
+  = MotorMessage
+    { yA :: Double
+    , yB :: Int64
+    } deriving Generic
+
+data MotorOutputs
+  = MotorOutputs
+    { oA :: Double
+    , oB :: Int64
+    } deriving Generic
+
+
+flightController
+  :: ControllerGains -> ControllerState -> Sensors -> (ControllerState, ControllerOutputs)
+flightController gains oldState messages = (newState, outputs)
+ where
+  outputs =
+    ControllerOutputs { oMotors = motorOutputs, oSomething = maximum (oA <$> motorOutputs) }
+
+  newState = ControllerState
+    { sMotors    = motorNewState
+    , sSomething = if abs (sSomething oldState) > 22
+      then 2 * sSomething oldState
+      else sSomething oldState / 3
+    }
+
+  motorOutputs :: Motors MotorOutputs
+  motorOutputs = fmap snd motorNewStateAndOutputs
+
+  motorNewState :: Motors MotorState
+  motorNewState = fmap fst motorNewStateAndOutputs
+
+  motorNewStateAndOutputs :: Motors (MotorState, MotorOutputs)
+  motorNewStateAndOutputs = motorFilter <$> kMotors gains <*> sMotors oldState <*> yMotors messages
+
+
+-- TODO: use the one from GHC but not necessarily fromIntegral.
+intToDouble :: Int64 -> Double
+intToDouble = undefined
+
+arctan2 = (+)
+-- ∃ c,d .  (s -> (c × (d -> a))) × (c × (d -> b) -> t) 
+
+motorFilter :: MotorGains -> MotorState -> MotorMessage -> (MotorState, MotorOutputs)
+motorFilter gains oldState msg = (newState, outputs)
+ where
+  newState = MotorState
+    { sA = 0.2 * sA oldState + intToDouble (sB oldState) + yA msg
+    , sB = if sB oldState == 22 then 0 else 1 + sB oldState
+    }
+
+  outputs = MotorOutputs { oA = arctan2 (sA oldState) (sA newState), oB = 32 `div` kA gains }
+
+
 
 {-
-instance (Product (,) p, Product (+) p) => Tambara (RotateFunList r) p where
-  embdr p = dimap (out . unrotate) (Rotate . inn) (embdr (p *** (embdr p)))
 
 
-
-
-profunctor arrow wrapper / pipe arrow wrapper / pipe profunctor wrapper
-Semigroupal cat?
-
-run :: Monad m => Producer s m r -> Consumer t m r -> Pipe s t m r -> m r
-run x y z = runEffect $ x >-> z >-> y
-
-runRead :: Monad m => Producer s m s -> (s -> a) -> m a
-runRead p f = run (f <$> p) await $ Pipes.map f
-
-runReadWrite :: Monad m => Producer s m s -> Consumer t m () -> (s -> t) -> m ()
-runReadWrite p q f = run (void p) q $ Pipes.map f 
-
-runWriteOnly :: Monad m => Consumer t m () -> (b -> t) -> m ()
-runWriteOnly q f = run (pure ()) q $ Pipes.map f
-
-data IOP m t s = IOP (t -> m ()) (m s)
-
-writeout fp x y = Environment x (IOP (writeFile fp) (readFile fp)) y
-  :: FilePath
-     -> ((z -> String) -> b)
-     -> (a -> z -> String)
-     -> Environment (IOP IO) a b
-
-foo :: F.Fold a b1 -> Environment p a b2
-foo = F.purely $ \xax x xb -> Environment ($x) undefined (flip xax)
-
-foo :: Optic (->) s t a b -> ((s -> y) -> a) -> p t y -> Environment p b a
-foo o x y = Environment x y (flip (set o))
-
-foo :: Optic (Re (->) x s1) s2 t x s1 -> ((s1 -> y) -> b) -> p x y -> Environment p s2 b
-foo o x y = Environment x y (flip (set $ re o))
-
-\o x y -> Environment x y (flip (set o))
-
-
-
-
-
-
-
-
-
-
-
-contents' :: TraversalP s t a b -> s -> [a]
-contents' tr = getConstant . runUpStar (tr (UpStar (\a -> Constant [a])))
-
-Finally, the unsafe concrete firstNSecond example:
-
-firstNSecond :: Traversal (a, a, c) (b, b, c) a b
-firstNSecond = Traversal c f where
-  c (a1, a2, _)  = [a1, a2]
-  f (bs, (_, _, x)) = (head bs, (head . tail) bs, x)
-could be adapted to a profunctor traversal as follows:
-
-firstNSecond' :: TraversalP (a, a, c) (b, b, c) a b
-firstNSecond' pab = dimap group group' (first' (pab `par` pab)) where
-  group  (x, y, z) = ((x, y), z)
-  group' ((x, y), z) = (x, y, z)
-
-
-Found hole: _ :: (Corep p (c, a) -> (c, b)) -> Corep p a -> b
-
-(f (c,a) -> (c,b)) -> f a
-
-foo :: ((c, b) -> (c, a)) -> b -> a
-foo g fa = g' fa where g' (a, fa) = g (a, fa)
-
-grt :: Grate a t a t
-grt = inverted id id
-
-λ> over _1 (+1) (1,2)
-(2,2)
-λ> grt = grate id id
-λ> over grt (+1) 1
 
 toLensLike :: AdapterLike f Identity s t a b -> LensLike f s t a b
 toLensLike o h = lower' o h runIdentity Identity -- l f = l (f . runIdentity) . Identity 
 
---fromLensLike :: AdapterLike f Identity s t a b -> LensLike f s t a b
---fromLensLike o h = lower o h Identity runIdentity 
-
-toLensLike' o h = lower' o h getConst Const 
-
 toGrateLike :: AdapterLike Identity g s t a b -> GrateLike g s t a b
 toGrateLike o h = colower o h runIdentity Identity
-
-toGrateLike' o h = colower o h getConst Const
-
 
 lift :: LensLike f s t a b -> AdapterLike f Identity s t a b
 lift l f = l (f . Identity) . runIdentity

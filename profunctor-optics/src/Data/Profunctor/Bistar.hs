@@ -11,7 +11,7 @@ import Data.Foldable
 import Data.Functor.Contravariant
 import Data.Functor.Foldable
 import Data.Functor.Identity
-import Data.Monoid hiding (Product)
+import Data.Monoid hiding (PSemigroup)
 import Data.Profunctor.Types
 import Data.Traversable
 import Prelude

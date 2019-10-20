@@ -17,12 +17,11 @@ import Data.Traversable
 import Control.Arrow as Export (Kleisli(..))
 import Control.Comonad as Export (Cokleisli(..))
 import Control.Applicative as Export
-import Control.Category as Export (Category, (>>>), (<<<))
+import Control.Category as Export -- (Category, (>>>), (<<<))
 import Control.Monad as Export hiding (void)
 import Control.Comonad as Export
 import Data.Bifunctor as Export (Bifunctor (..)) 
 import Data.Distributive as Export
-import Data.Function as Export
 import Data.Functor as Export hiding (void)
 import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
@@ -30,22 +29,25 @@ import Data.Functor.Contravariant as Export hiding (($<), void)
 import Data.Functor.Contravariant.Divisible as Export
 import Data.Functor.Identity as Export
 import Data.Profunctor.Bistar as Export
-import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide , pchoose, pselect, pdivided) 
+import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide, pchoose, pselect, pdivided) 
 import Data.Profunctor.Choice as Export 
 import Data.Profunctor.Closed as Export
-import Data.Profunctor.Product as Export
+import Data.Profunctor.Monoid as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
 import Data.Profunctor.Strong as Export hiding (Tambara(..), Cotambara(..))
-import Data.Profunctor.Tambara as Export
+--import Data.Profunctor.Tambara as Export
 import Data.Profunctor.Types as Export hiding (WrappedArrow(..), WrapArrow(..))
+import Data.Profunctor.Orphan as Export
 import Data.Void as Export
-import Prelude as Export hiding (foldr, filter)
-import qualified Control.Category as C
+import Prelude as Export hiding (foldr, filter, (.), id, head, tail)
 import qualified Data.Functor.Rep as F
 import qualified Data.Tuple 
 
 import Data.Functor.Apply
+import Control.Monad.Trans.Cont
+
+
 
 
 {-
@@ -69,42 +71,6 @@ infixl 6 *
 -}
 
 
-
--- Natural laws:
--- distr . right . fmap f = fmap (right f) . distr
--- distr . left f = fmap (left f) . distr
---
--- Other laws:
--- 1. either absurd (fmap Right) = distr :: Either Void (f a) -> f (Either Void a)
--- 2. fmap assocL . distr . right distr . assocR = distr :: Either (Either a b) (f c) -> f (Either (Either a b) c)
---  where
---   assocL :: Either a (Either b c) -> Either (Either a b) c
---   assocL (Left a) = Left (Left a)
---   assocL (Right (Left a)) = Left (Right a)
---   assocL (Right (Right a)) = Right a
---   assocR :: Either (Either a b) c -> Either a (Either b c)
---   assocR (Left (Left a)) = Left a
---   assocR (Left (Right a)) = Right (Left a)
---   assocR (Right a) = Right (Right a)
-
-{-
--- https://r6research.livejournal.com/28338.html
-class Functor f => Pointed f where
-  point :: a -> f a
-  point = fmap (id ||| absurd) . distr . Left
-
-  distr :: Either a (f b) -> f (Either a b)
-  distr = either (fmap Left . point) (fmap Right)
-
-  distl :: Either (f a) b -> f (Either a b)
-  distl = fmap coswp . distr . coswp
-
-distl' :: Traversable f => f (Either b1 b2) -> Either (f b1) b2
-distl' = coswp . traverse coswp
--}
-
---instance (Functor f, Traversable f) => Pointed f where
---  distr = mapM coswp . coswp
 
 
 -- | The 'mempty' equivalent for a 'Contravariant' 'Applicative' 'Functor'.
@@ -174,6 +140,9 @@ uncurry' . er :: (Strong p, Closed p) => p a c -> p (b -> a, b) c
 er . papply :: (Closed p, Strong p) => p a (a -> b) -> p (c -> a) (c -> b)
 -}
 
+(&) :: a -> (a -> c) -> c
+(&) = flip ($)
+
 braid :: Category p => Profunctor p => Swap o => p (a `o` b) (b `o` a)
 braid = arr swap
 
@@ -209,20 +178,26 @@ branch' f x = branch f x x x
 
 
 -- profunctors
-pullback :: Strong p => TambaraL (->) p => p a (a -> b) -> p (a -> b) b
-pullback = papply . embedl @(->)
+--lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
+--lcoerce = lower (. phantom)
 
-lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
-lcoerce = lower (. phantom)
+--rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
+--rcoerce = lift (phantom .)
 
-rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
-rcoerce = lift (phantom .)
+bicoerce :: Strong p => Costrong p => p a a -> p b b
+bicoerce = unsecond . first'
 
-rcoerce'  :: Profunctor p => Contravariant (p a) => p a c -> p a d
-rcoerce' = rmap absurd . contramap absurd
+bicoerce' :: Choice p => Cochoice p => p a a -> p b b
+bicoerce' = unright . left'
 
-lcoerce' :: Profunctor p => Bifunctor p => p a c -> p b c
-lcoerce' = first absurd . lmap absurd
+rcoerce  :: Profunctor p => Contravariant (p a) => p a c -> p a d
+rcoerce = rmap absurd . contramap absurd
+
+lcoerce :: Profunctor p => Bifunctor p => p a c -> p b c
+lcoerce = first absurd . lmap absurd
+
+tagall :: PMonoid (+) p => Bifunctor p => p a b
+tagall = lcoerce $ rmap absurd $ punit @(+)
 
 
 -- combinators
@@ -244,28 +219,6 @@ lift f = tabulate . f . sieve
 lower :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
 lower f = cotabulate . f . cosieve
 
---https://hackage.haskell.org/package/semialign-1/docs/Data-Align.html
---laligned :: Strong p => Choice p => p a b -> p (These a c) (These b c)
---laligned = error "TODO"
-
---foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
---foo = lower foldMap
-
-
-
-
-ustar :: (b -> f c) -> (d -> b) -> Star f d c
-ustar f = Star . (f .)
-
-ucostar :: (f d -> b) -> (b -> c) -> Costar f d c
-ucostar g = Costar . (. g)
-
-dstar :: (f c1 -> b) -> Star f a c1 -> a -> b
-dstar f = (f .) . runStar
-
-dcostar :: (a -> f d) -> Costar f d c -> a -> c
-dcostar g = (. g) . runCostar
-
 star :: Sieve p f => p d c -> Star f d c
 star = Star . sieve
 
@@ -281,11 +234,37 @@ fromStar' i (Star f) = flip F.index i . f
 costar :: Cosieve p f => p a b -> Costar f a b
 costar = Costar . cosieve
 
-costar' :: F.Representable f => F.Rep f -> Costar f a a
-costar' i = Costar $ flip F.index i
+fromIdx :: F.Representable f => F.Rep f -> Costar f a a
+fromIdx i = Costar $ flip F.index i
+
+fromIdx' :: F.Representable f => Cont a (F.Rep f) -> Costar f a a
+fromIdx' c = Costar $ \m -> runCont c (F.index m)
 
 fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
 fromCostar = cotabulate . runCostar
 
 fromCostar' :: Applicative f => Costar f a b -> a -> b
 fromCostar' f = runCostar f . pure
+
+
+
+--https://hackage.haskell.org/package/semialign-1/docs/Data-Align.html
+--laligned :: Strong p => Choice p => p a b -> p (These a c) (These b c)
+--laligned = error "TODO"
+
+--foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
+--foo = lower foldMap
+
+
+
+ustar :: (b -> f c) -> (d -> b) -> Star f d c
+ustar f = Star . (f .)
+
+ucostar :: (f d -> b) -> (b -> c) -> Costar f d c
+ucostar g = Costar . (. g)
+
+dstar :: (f c1 -> b) -> Star f a c1 -> a -> b
+dstar f = (f .) . runStar
+
+dcostar :: (a -> f d) -> Costar f d c -> a -> c
+dcostar g = (. g) . runCostar

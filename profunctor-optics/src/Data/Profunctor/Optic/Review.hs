@@ -27,9 +27,6 @@ import Data.Profunctor.Optic.Iso (re)
 -- 'Review'
 ------------------------------------------------------------------------------
 
---type AReview t b = forall r. UnfoldLike r t b
-type AReview t b = UnfoldLike b t b
-
 
 -- | Convert a function into a 'Review'.
 --  Analagous to 'to' for 'Getter'.
@@ -81,7 +78,7 @@ untoEither l r = unto (review l ||| review r)
 
 -- | TODO: Document
 --
-cloneReview :: AReview t b -> PrimReview' t b
+cloneReview :: AReview t b -> PrimReview t t b b
 cloneReview = unto . review
 
 
@@ -122,7 +119,7 @@ cloneReview = unto . review
 -- 'reviews o f ≡ cofoldMapOf o f'
 -- @
 --
-reviews :: MonadReader r m => UnfoldLike r t b -> (r -> b) -> m t
+reviews :: MonadReader r m => AUnfold r t b -> (r -> b) -> m t
 reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f 
 {-# INLINE reviews #-}
 

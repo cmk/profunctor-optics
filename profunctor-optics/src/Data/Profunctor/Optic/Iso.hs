@@ -181,7 +181,7 @@ associated = iso assocr assocl
 -- >>> "live" ^. involuted reverse
 -- "evil"
 --
--- >>> "live" & involuted reverse %~ ('d':)
+-- >>> involuted reverse %~ ('d':) $ "live"
 -- "lived"
 --
 involuted :: (s -> a) -> Iso s a a s
@@ -190,6 +190,22 @@ involuted = join iso
 
 branched :: (a -> Bool) -> Iso a b (a + a) (b + b)
 branched f = iso (branch' f) dedup
+
+hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)
+hushed = iso (maybe (Left ()) Right) (const Nothing ||| Just)
+
+duped :: Iso (Bool -> a) (Bool -> b) (a , a) (b , b)
+duped = iso to fro
+ where
+  to f = (f False, f True)
+  fro p True = fst p
+  fro p False = snd p
+
+coduped :: Iso (Bool , a) (Bool , b) (a + a) (b + b)
+coduped = iso f ((,) False ||| (,) True)
+ where
+  f (False,a) = Left a
+  f (True,a) = Right a
 
 -- | If `a1` is obtained from `a` by removing a single value, then
 -- | `Maybe a1` is isomorphic to `a`.
@@ -207,6 +223,7 @@ non def = iso (fromMaybe def) g
 --
 -- >>> fromList [("hello",fromList [("world","!!!")])] & at "hello" . anon Map.empty Map.null . at "world" .~ Nothing
 -- fromList []
+--
 anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
 anon a p = iso (fromMaybe a) go where
   go b | p b       = Nothing
@@ -241,7 +258,7 @@ liftR x = withIso x $ \sa bt -> between runSplit Split (dimap sa bt)
 -- 'Paired'
 ---------------------------------------------------------------------
 
-newtype Paired p c d a b = Paired { runPaired :: p (c,a) (d,b) }
+newtype Paired p c d a b = Paired { runPaired :: p (c , a) (d , b) }
 
 --fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
 --fromTambara = Paired . swapped . runTambara

@@ -18,12 +18,15 @@ import Data.Profunctor.Rep as Export (Corepresentable(..))
 import Control.Monad.Trans.Cont
 
 import qualified Control.Exception as Ex
-import Data.Functor.Rep (Representable(..))
+import qualified Data.Functor.Rep as F
+import qualified Data.Functor.Contravariant.Rep as C
 
---import qualified Data.Functor.Rep as R
 
-envr :: Representable f => p a b -> Environment p (f a) (f b)
-envr p = Environment tabulate p index
+
+
+
+envr :: F.Representable f => p a b -> Environment p (f a) (f b)
+envr p = Environment F.tabulate p F.index
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -76,23 +79,37 @@ unzipping (g . fmap f . getCompose) = unzipping g . fmap (grate f) . getCompose
 
 -- | Build a grate from a nested continuation.
 --
+-- \( \quad \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
+--
 -- /Caution/: In order for the 'Grate' to be well-defined, you must ensure that the two grate laws hold:
 --
 -- * @grate ($ s) === s@
 --
 -- * @grate (\k -> h (k . sabt)) === sabt (\k -> h ($ k))@
 --
--- Note: The 'grate' laws are that of an algebra for a parameterised continuation monad.
+-- See 'Data.Profunctor.Optic.Property'.
 --
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
 
--- | Transform a Van Laarhoven-encoded lens into a profunctor-encoded one.
+-- ^ @
+-- ungrate :: Grate s t a b -> ((s -> a) -> b) -> t
+-- @
 --
--- Use this to interoperate with optics from the 'lens' library.
+-- Demote a grate to its normal, higher-order function, form.
+--
+-- @
+-- ungrate . grate === id
+-- grate . ungrate === id
+-- @
+--
+ungrate :: Grate s t a b -> ((s -> a) -> b) -> t
+ungrate g = withGrate g id 
+
+-- | Transform a Van Laarhoven-encoded grate into a profunctor-encoded one.
 --
 gratevl :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
-gratevl l = undefined -- dimap ((values &&& info) . l (Store id)) (uncurry id) . second'
+gratevl g = undefined --flip g id
 
 -- | TODO: Document
 --
@@ -150,19 +167,6 @@ instance Closed (GrateRep a b) where
 reviewGrate :: GrateRep a b s t -> b -> t
 reviewGrate (GrateRep e) b = e (const b)
 
--- ^ @
--- degrating :: Grate s t a b -> ((s -> a) -> b) -> t
--- @
---
--- Demote a grate to its normal, higher-order function, form.
---
--- @
--- degrating . grate = id
--- grate . degrating = id
--- @
---degrating :: AGrate s t a b -> ((s -> a) -> b) -> t
---degrating l = l runPCont . PCont
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -177,6 +181,11 @@ withGrate x k = case x (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
 constOf :: AGrate s t a b -> b -> t
 constOf x b = withGrate x $ \grt -> grt (const b)
 
+-- | Transform a profunctor-encoded grate into a Van Laarhoven-encoded one.
+--
+zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> (f s -> t)
+zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
+
 -- | TODO: Document
 --
 zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
@@ -184,14 +193,13 @@ zipWithOf x comb s1 s2 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get 
 
 -- | TODO: Document
 --
-zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> (f s -> t)
-zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
-
--- | TODO: Document
---
 zip3WithOf :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
 zip3WithOf x comb s1 s2 s3 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2) (get s3)
 
+-- | TODO: Document
+--
+zip4WithOf :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
+zip4WithOf x comb s1 s2 s3 s4 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2) (get s3) (get s4)
 
 ---------------------------------------------------------------------
 -- Common grates
@@ -205,8 +213,8 @@ range = closed
 
 -- | A 'Grate' accessing the contents of a representable functor.
 --
-represented :: Representable f => Grate (f a) (f b) a b
-represented = dimap index tabulate . closed
+represented :: F.Representable f => Grate (f a) (f b) a b
+represented = dimap F.index F.tabulate . closed
 
 -- | A 'Grate' accessing the contents of a distributive functor.
 --
