@@ -85,9 +85,9 @@ re o . o ≡ id
 -- /Caution/: In order for the generated iso family to be well-defined,
 -- you must ensure that the two isomorphism laws hold:
 --
--- * @sa . bt === id@
+-- * @sa . bt ≡ id@
 --
--- * @bt . sa === id@
+-- * @bt . sa ≡ id@
 --
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap

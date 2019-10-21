@@ -22,23 +22,51 @@ import Data.Functor.Base (NonEmptyF(..))
 -- /Caution/: In order for the generated affine family to be well-defined,
 -- you must ensure that the three lens affine traversal laws hold:
 --
--- * @seta (sbt (a, s)) === either (Left . const a) Right (seta s)@
+-- * @seta (sbt (a, s)) ≡ either (Left . const a) Right (seta s)@
 --
--- * @either (\a -> sbt (a, s)) id (seta s) === s@
+-- * @either (\a -> sbt (a, s)) id (seta s) ≡ s@
 --
--- * @sbt (a2, (sbt (a1, s))) === sbt (a2, s)@
+-- * @sbt (a2, (sbt (a1, s))) ≡ sbt (a2, s)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-atraversing :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-atraversing seta sbt = dimap f g . right' . first'
+traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
+traversal0 seta sbt = dimap f g . right' . first'
   where f s = (,s) <$> seta s
         g = id ||| (uncurry . flip $ sbt)
 
 -- | Create a 'Traversal0'' from a constructor and a matcher function.
 --
-atraversing' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
-atraversing' sma sas = flip atraversing sas $ \s -> maybe (Left s) Right (sma s)
+traversal0' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
+traversal0' sma sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sma s)
+
+-- | TODO: Document
+--
+atraversing :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+atraversing f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
+  where
+    --match :: s -> Either a t
+    match s = f Right Left s
+    --update :: s -> b -> t
+    update s b = runIdentity $ f Identity (\_ -> Identity b) s
+
+
+
+{-
+-- https://r6research.livejournal.com/28338.html
+class Functor f => Pointed f where
+  point :: a -> f a
+  point = fmap (id ||| absurd) . distr . Left
+
+  distr :: Either a (f b) -> f (Either a b)
+  distr = either (fmap Left . point) (fmap Right)
+
+  distl :: Either (f a) b -> f (Either a b)
+  distl = fmap coswp . distr . coswp
+
+distl' :: Traversable f => f (Either b1 b2) -> Either (f b1) b2
+distl' = coswp . traverse coswp
+-}
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'
@@ -78,28 +106,28 @@ instance Choice (Traversal0Rep u v) where
 withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
 withTraversal0 o f = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> f x y
 
--- ^ @
--- matchOf :: Traversal0 s t a b -> s -> Either t a
--- matchOf :: Traversal s t a b -> s -> Either t a
+-- | Retrieve the value targeted by a 'Traversal0' or return the original
+-- value while allowing the type to change if it does not match.
+--
+-- @
+-- 'preview' o ≡ 'either' ('const' 'Nothing') 'id' . 'matching' o
 -- @
 --
-matchOf :: AMatch a s t a b -> s -> Either t a
-matchOf o = between (dstar coswp) (ustar Left) o id
+matching :: ATraversal0 s t a b -> s -> t + a
+matching o = withTraversal0 o $ \match _ -> match
+{-# INLINE matching #-}
 
 -- | Test whether the optic matches or not.
-isMatched :: AMatch a s t a b -> s -> Bool
-isMatched o = either (const False) (const True) . matchOf o
-
--- | Test whether the optic matches or not.
-isntMatched :: AMatch a s t a b -> s -> Bool
-isntMatched o = not . isMatched o
+--
+isMatched :: ATraversal0 s t a b -> s -> Bool
+isMatched o = either (const False) (const True) . matching o
 
 ---------------------------------------------------------------------
 -- Common atraversing traversals
 ---------------------------------------------------------------------
 
 nulled :: Traversal0' s a
-nulled = atraversing Left const 
+nulled = traversal0 Left const 
 
 -- | Obtain a 'Traversal0' that can be composed with to filter another 'Lens', 'Iso', 'Getter', 'Fold' (or 'Traversal').
 --
@@ -107,8 +135,7 @@ nulled = atraversing Left const
 -- [2,4,6,8,10]
 --
 filtering :: (s -> Bool) -> Traversal0' s s
-filtering p = atraversing (branch' p) (flip const)
-{-# INLINE filtering #-}
+filtering p = traversal0 (branch' p) (flip const)
 
 selecting :: (k -> Bool) -> Traversal0' (k, v) v
-selecting p = atraversing (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+selecting p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)

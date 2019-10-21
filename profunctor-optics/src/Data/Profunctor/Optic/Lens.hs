@@ -25,11 +25,11 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 -- /Caution/: In order for the generated lens family to be well-defined,
 -- you must ensure that the three lens laws hold:
 --
--- * @sa (sbt s a) === a@
+-- * @sa (sbt s a) ≡ a@
 --
--- * @sbt s (sa s) === s@
+-- * @sbt s (sa s) ≡ s@
 --
--- * @sbt (sbt s a1) a2 === sbt s a2@
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -43,7 +43,7 @@ matched f g = dimap f g . second'
 
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
--- * @colens f g === \f g -> re (lens f g)@
+-- * @colens f g ≡ \f g -> re (lens f g)@
 --
 -- @
 -- 'review' $ 'colens' f g ≡ f

@@ -83,9 +83,9 @@ unzipping (g . fmap f . getCompose) = unzipping g . fmap (grate f) . getCompose
 --
 -- /Caution/: In order for the 'Grate' to be well-defined, you must ensure that the two grate laws hold:
 --
--- * @grate ($ s) === s@
+-- * @grate ($ s) ≡ s@
 --
--- * @grate (\k -> h (k . sabt)) === sabt (\k -> h ($ k))@
+-- * @grate (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -99,8 +99,8 @@ grate sabt = dimap (flip ($)) sabt . closed
 -- Demote a grate to its normal, higher-order function, form.
 --
 -- @
--- ungrate . grate === id
--- grate . ungrate === id
+-- ungrate . grate ≡ id
+-- grate . ungrate ≡ id
 -- @
 --
 ungrate :: Grate s t a b -> ((s -> a) -> b) -> t
@@ -136,15 +136,6 @@ instance Costrong (GrateRep a b) where
 
 newtype PCont a b s = PCont { runPCont :: (s -> a) -> b }
 
-{-
---profunctors
-newtype Bar t b a = Bar
-  { runBar :: (a -> b) -> t }
-  deriving Functor
-
-lent :: Bar t a a -> t
-lent m = runBar m id
--}
 runPCont' :: PCont a i a -> i
 runPCont' (PCont h) = h id
 

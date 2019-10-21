@@ -18,8 +18,9 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
 import Data.Profunctor.Optic.Setter
+import Data.Profunctor.Optic.Traversal.Affine
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe
 
 ---------------------------------------------------------------------
 -- 'Pre'
@@ -61,6 +62,10 @@ instance Representable (Fold0Rep r) where
 
 instance Choice (Fold0Rep r) where
     right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
+
+instance Cochoice (Fold0Rep r) where
+  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
+  unright (Fold0Rep k) = Fold0Rep (k . Right)
 
 instance Strong (Fold0Rep r) where
     first' (Fold0Rep p) = Fold0Rep (p . fst)
@@ -113,7 +118,6 @@ fromFold0 = to . preview
 ---------------------------------------------------------------------
 
 previewOf :: Optic' (Fold0Rep r) s a -> (a -> Maybe r) -> s -> Maybe r
---previewOf = between (dstar getConst) (ustar $ Const . Just)
 
 previewOf = between runFold0Rep Fold0Rep
 
@@ -163,6 +167,33 @@ infixl 8 ^?
 --
 (^?) :: s -> AFold0 a s a -> Maybe a
 s ^? o = toMaybeOf o s
+
+-- | Filter result(s) of a fold that don't satisfy a predicate.
+afiltered :: (a -> Bool) -> Fold0 a a
+afiltered p = atraversing $ \point f a -> if p a then f a else point a
+
+-- | Try the first 'Fold0'. If it returns no entry, try the second one.
+--
+-- >>> preview (ix 1 . re _L `afailing` ix 2 . re _R) [0,1,2,3]
+-- Just (Left 1)
+--
+-- >>> preview (ix 42 . re _L `afailing` ix 2 . re _R) [0,1,2,3]
+-- Just (Right 2)
+--
+afailing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
+afailing a b = afolding $ \s -> maybe (preview b s) Just (preview a s)
+infixl 3 `afailing` -- Same as (<|>)
+{-# INLINE afailing #-}
+
+-- | Check to see if this 'Fold0' doesn't match.
+--
+-- >>> isnt _Just Nothing
+-- True
+--
+isnt :: AFold0 a s a -> s -> Bool
+isnt k s = not (isJust (preview k s))
+{-# INLINE isnt #-}
+
 
 {-
 -- | Find the innermost focus of a `Fold` that satisfies a predicate, if there is any.

@@ -4,9 +4,10 @@
 
 module Data.Profunctor.Monoid where
 
+import Control.Arrow ((^>>))
+import Control.Monad
 import Control.Category (Category, (>>>), (<<<))
-import Control.Comonad (Comonad(..))
-
+import Control.Comonad
 import Data.Bifunctor
 import Data.Bifunctor.Swap
 import Data.Functor.Apply
@@ -24,125 +25,102 @@ import Data.Functor.Contravariant.Divisible
 
 import Prelude
 
--- | Tensor products.
+-- | Tensor pappenducts.
 --
 class Profunctor p => PSemigroup (o :: * -> * -> *) p where
-  prod :: p a1 b1 -> p a2 b2 -> p (a1 `o` a2) (b1 `o` b2)
+  pappend :: p a1 b1 -> p a2 b2 -> p (a1 `o` a2) (b1 `o` b2)
 
 -- | Profunctor equivalent of 'liftA2'.
 --
 pliftA2 :: PSemigroup (,) p => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
 pliftA2 f x y = dimap dup f $ x *** y
 
--- | Profunctor equivalent of 'Data.Functor.Divisible.divide'.
---
-pdivide :: PSemigroup (,) p => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
-pdivide f x y = dimap f fst $ x *** y
-
 -- | TODO: Document
 --
-pselect :: PSemigroup (+) p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
-pselect f x y = dimap Left f $ x +++ y
+pstrong :: PSemigroup (,) p => p a b1 -> p a b2 -> p a (b1 , b2) 
+pstrong = pliftA2 id
 
 -- | Profunctor equivalent of 'Data.Functor.Divisible.choose'.
 --
 pchoose :: PSemigroup (+) p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b
 pchoose f x y = dimap f dedup $ x +++ y
 
+-- | TODO: Document
+--
+pchoice :: PSemigroup (+) p => p a1 b -> p a2 b -> p (a1 + a2) b
+pchoice = pchoose id 
+
+-- | Profunctor equivalent of 'Data.Functor.Divisible.divide'.
+--
+pdivide :: PSemigroup (,) p => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
+pdivide f x y = dimap f fst $ x *** y
+
+-- | Profunctor equivalent of 'Data.Functor.Divisible.divided'.
+--
+pdivide' :: PSemigroup (,) p => p a1 b -> p a2 b -> p (a1 , a2) b
+pdivide' = pdivide id
+
+-- | TODO: Document
+--
+pselect :: PSemigroup (+) p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
+pselect f x y = dimap Left f $ x +++ y
+
+-- | TODO: Document
+--
+pselect' :: PSemigroup (+) p => p a b1 -> p a b2 -> p a (b1 + b2)
+pselect' = pselect id
+
+
 infixr 3 ***
 
 -- | TODO: Document
 --
+-- @p <*> x ≡ dimap dup eval (p *** x)@
+--
 (***) :: PSemigroup (,) p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-(***) = prod
+(***) = pappend
 
 infixr 2 +++
 
 -- | TODO: Document
 --
 (+++) :: PSemigroup (+) p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-(+++) = prod
+(+++) = pappend
 
 infixr 3 &&&
 
 -- | TODO: Document
 --
 (&&&) :: PSemigroup (,) p => p a b1 -> p a b2 -> p a (b1 , b2)
-x &&& y = pliftA2 id x y
+(&&&) = pstrong
 
 infixr 2 |||
 
 -- | TODO: Document
 --
 (|||) :: PSemigroup (+) p => p a1 b -> p a2 b -> p (a1 + a2) b
-x ||| y = pchoose id x y
-
-infixr 0 $$$
-
--- | Profunctor equivalent of '<*>'.
---
-($$$) :: PSemigroup (,) p => p a (b -> c) -> p a b -> p a c
-($$$) f x = dimap dup eval (f *** x)
-
--- | Profunctor equivalent of 'Data.Functor.Divisible.divided'.
---
-pdivided :: PSemigroup (,) p => p a1 b -> p a2 b -> p (a1 , a2) b
-pdivided = pdivide id
-
---TODO: use Apply
-instance (Profunctor p, (forall a. Applicative (p a))) => PSemigroup (,) p where prod f g = dimap fst (,) f <*> lmap snd g
---instance (Profunctor p, (forall a. Apply (p a))) => PSemigroup (,) p where prod f g = dimap fst (,) f <.> lmap snd g
-
---TODO: add instances to Flip and uncomment
---instance (Profunctor p, (forall a. Decidable (Flip p a))) => PSemigroup (+) p where prod f g = runFlip $ Flip (rmap Left f) >+< Flip (rmap Right g)
-
---instance Applicative f => PSemigroup (,) (Star f) where prod (Star f) (Star g) = Star $ \ (x, y) -> pure (,) <*> (f x) <*> (g y)
-
---instance (Profunctor p, (forall a. Divisible (p a))) => PSemigroup (+) p where prod f g = dimap fst (,) f <*> lmap snd g
+(|||) = pchoice
 
 
---chosen :: Decidable f => p a b -> p a c -> f a (Either b c)
---(>+<) :: Decidable f => f a -> f b -> f (a + b)
+instance (Profunctor p, (forall a. Applicative (p a))) => PSemigroup (,) p where
+  pappend f g = dimap fst (,) f <*> lmap snd g
+--instance (Profunctor p, (forall a. Apply (p a))) => PSemigroup (,) p where pappend f g = dimap fst (,) f <.> lmap snd g
 
-{-
-λ> :t choice id
-choice id :: Choice p => p b a -> p (a + b) a
-λ> :t choice coswp
+--instance (Profunctor p, (forall a. Divisible (p a))) => PSemigroup (+) p where
 
-choice coswp :: Choice p => p b1 a1 -> p (b1 + a1) a1
-
-choice coswp :: Choice p => p b2 a2 -> p (b2 + a2) a2
-
-mine :: Profunctor p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-mine f g = rmap _ g `papply` dimap (,) Left f 
--}
-
-
-
-
-
---foob f g = (choice id f) >+< (choice id g)
+instance PSemigroup (+) (->) where
+  pappend f _ (Left x)  = Left (f x)
+  pappend _ g (Right y) = Right (g y)
 
 instance Functor f => PSemigroup (+) (Star f) where
-  prod (Star f) (Star g) = Star $ \case 
+  pappend (Star f) (Star g) = Star $ \case 
        Left  x -> Left <$> f x
        Right y -> Right <$> g y
 
-
---instance PSemigroup (,) (->) where prod f g (x, y) = (f x, g y)
-instance PSemigroup (+) (->) where
-  prod f _ (Left x)  = Left (f x)
-  prod _ g (Right y) = Right (g y)
-
-{-
-
-instance Comonad ɯ => PSemigroup (+) (Cokleisli ɯ) where
-  prod (Cokleisli f) (Cokleisli g) =
+instance Comonad w => PSemigroup (+) (Cokleisli w) where
+  pappend (Cokleisli f) (Cokleisli g) =
       (\ a -> Left  . f . (a <$)) |||
       (\ a -> Right . g . (a <$)) ^>> Cokleisli (extract <*> void)
-
-void = error "TODO"
--}
 
 type family Id (o :: * -> * -> *) :: *
 type instance Id (,) = ()

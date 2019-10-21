@@ -75,8 +75,8 @@ shiftl = dimap Right Left
 shiftr :: Profunctor p => p b (c , d) -> p (a , b) c
 shiftr = dimap snd fst
 
-strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
-strong f = dimap dup f . second'
+strong :: Strong p => (a -> b -> c) -> p a b -> p a c
+strong f = dimap dup (uncurry f) . second'
 
 costrong :: Costrong p => ((a , b) -> c) -> p c a -> p b a
 costrong f = unsecond . dimap f dup

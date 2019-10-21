@@ -19,11 +19,11 @@ source-repository head
 
 library
   exposed-modules:
-      --Data.Profunctor.Arrow
+      Data.Profunctor.Arrow
       Data.Profunctor.Bistar
       Data.Profunctor.Monoid
-      --Data.Profunctor.Tambara
       Data.Profunctor.Task
+      Data.Profunctor.Traversing1
       Data.Profunctor.Orphan
 
       Data.Profunctor.Optic
@@ -48,7 +48,7 @@ library
       Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Type
-      --Data.Profunctor.Optic.Type.Indexed
+      Data.Profunctor.Optic.Indexed
       Data.Profunctor.Optic.Type.VL
 
 
@@ -56,7 +56,7 @@ library
   hs-source-dirs:
       src
   default-extensions: 
-      ConstraintKinds 
+      ConstraintKinds
       RankNTypes 
       MultiParamTypeClasses 
       OverloadedStrings 
@@ -67,6 +67,7 @@ library
       NoImplicitPrelude
       QuantifiedConstraints
       ScopedTypeVariables
+      TupleSections
       TypeOperators
       TypeApplications
       TypeFamilies

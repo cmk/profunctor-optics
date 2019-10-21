@@ -50,29 +50,6 @@ import Control.Monad.Trans.Cont
 
 
 
-{-
-import Control.Applicative
-import Control.Exception (Exception(..))
-
-instance (Exception e1, Exception e2) => Exception (Either e1 e2) where
-
-  toException = either toException toException
-
-  fromException s = (fmap Left $ fromException s) <|> (fmap Right $ fromException s) 
-
-
-type (*) = (,)
-infixl 6 *
-
-
-
-
-
--}
-
-
-
-
 -- | The 'mempty' equivalent for a 'Contravariant' 'Applicative' 'Functor'.
 cempty :: Contravariant f => Applicative f => f a
 cempty = phantom $ pure ()
@@ -98,14 +75,6 @@ yoneda = dimap F.index F.tabulate . embedr
 coyoneda :: F.Representable f => CotambaraL (->) p => p (f a) (f a) -> p (F.Rep f) (F.Rep f)
 coyoneda = projectl . dimap F.tabulate F.index
 
-ng :: Profunctor p => ((a -> b) -> s -> t) -> p (Store i v2 v2) (Store s a b) -> p i t
-ng sec = dimap ((values &&& info)) (\(Store g s) -> sec g s)
-
-vl :: Strong p => ((i -> Store i v v) -> s -> Store a b t) -> p a b -> p s t
-vl l = dimap ((values &&& info) . l (Store id)) eval . second'
-
-foo :: ((a -> b) -> s -> t) -> (i -> Store i v v) -> s -> Store a b t
-foo abst isivv s = 
 
 bar :: ((a -> b) -> s -> t) -> Store s a b -> t
 bar sec (Store g s) = sec g s
@@ -119,9 +88,6 @@ _Store = dimap (values &&& info) (uncurry Store)
 data Store s a b = Store {values :: a -> b, info :: s} -- (s, a -> b)
 
 
- p a b -> p (Store s v0 v0) (Store s a b)
-p a b -> p (s, c -> c) (s, a -> b)
-
 er = embedr @(->)
 el = embedl @(->)
 pr = projectr @(->)
@@ -132,9 +98,6 @@ er . pr :: (Closed p, CotambaraR (->) p)        => p (c1 -> a) (c1 -> b) -> p (c
 el . pl :: (TambaraL (->) p, CotambaraL (->) p) => p (a -> c1) (b -> c1) -> p (a -> c2) (b -> c2)
 
 uncurry' . er :: (Strong p, Closed p) => p a c -> p (b -> a, b) c
-
-
-
 
 
 er . papply :: (Closed p, Strong p) => p a (a -> b) -> p (c -> a) (c -> b)
@@ -164,12 +127,6 @@ assocl5 = x . x . x where x = unassoc @(+)
 assocr5 :: (((a + b) + c) + d) + e -> a + b + c + d + e 
 assocr5 = x . x . x where x = assoc @(+)
 
---assocr :: Associative p1 => (p1 (p1 a b) c) -> (p1 a (p1 b c))
---assocr = error "TODO"
-
---assocl :: Associative p0 => (p0 a (p0 b c)) -> (p0 (p0 a b) c)
---assocl = error "TODO"
-
 branch :: (a -> Bool) -> b -> c -> a -> Either b c
 branch f y z x = if f x then Right z else Left y
 
@@ -178,23 +135,42 @@ branch' f x = branch f x x x
 
 
 -- profunctors
---lcoerce :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
---lcoerce = lower (. phantom)
 
---rcoerce :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
---rcoerce = lift (phantom .)
+pcurry :: Closed p => p (a , b) c -> p a (b -> c)
+pcurry = curry'
+
+puncurry :: Strong p => p a (b -> c) -> p (a , b) c
+puncurry = uncurry'
+
+pfirst :: Strong p => p a b -> p (a , c) (b , c)
+pfirst = first'
+
+psecond :: Strong p => p a b -> p (c , a) (c , b)
+psecond = second'
+
+pleft :: Choice p => p a b -> p (a + c) (b + c)
+pleft = left'
+
+pright :: Choice p => p a b -> p (c + a) (c + b)
+pright = right'
+
+rcoerce  :: Profunctor p => Contravariant (p a) => p a c -> p a d
+rcoerce = rmap absurd . contramap absurd
+
+rcoerce' :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
+rcoerce' = lift (phantom .)
+
+lcoerce :: Profunctor p => Bifunctor p => p a c -> p b c
+lcoerce = first absurd . lmap absurd
+
+lcoerce' :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
+lcoerce' = lower (. phantom)
 
 bicoerce :: Strong p => Costrong p => p a a -> p b b
 bicoerce = unsecond . first'
 
 bicoerce' :: Choice p => Cochoice p => p a a -> p b b
 bicoerce' = unright . left'
-
-rcoerce  :: Profunctor p => Contravariant (p a) => p a c -> p a d
-rcoerce = rmap absurd . contramap absurd
-
-lcoerce :: Profunctor p => Bifunctor p => p a c -> p b c
-lcoerce = first absurd . lmap absurd
 
 tagall :: PMonoid (+) p => Bifunctor p => p a b
 tagall = lcoerce $ rmap absurd $ punit @(+)
@@ -245,17 +221,6 @@ fromCostar = cotabulate . runCostar
 
 fromCostar' :: Applicative f => Costar f a b -> a -> b
 fromCostar' f = runCostar f . pure
-
-
-
---https://hackage.haskell.org/package/semialign-1/docs/Data-Align.html
---laligned :: Strong p => Choice p => p a b -> p (These a c) (These b c)
---laligned = error "TODO"
-
---foo :: (Corepresentable p, Foldable (Corep p), Monoid t) => p a t -> p (Corep p a) t
---foo = lower foldMap
-
-
 
 ustar :: (b -> f c) -> (d -> b) -> Star f d c
 ustar f = Star . (f .)

@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveFunctor #-}
+
 module Data.Profunctor.Optic.Setter where
 
 
@@ -21,62 +23,33 @@ import Data.Profunctor.Optic.Prism
 import qualified Data.Functor.Rep as F
 
 import qualified Data.Functor.Contravariant.Rep as C
-{-
-
-
-setter_complete :: Setter s t a b -> Setter s t a b
-setter_complete = mapOf . setting
-
-In soundness proof, we have to eta-expand g:
-
-setter_sound_proof :: ()
-setter_sound_proof =
-    (\f g s -> setting (setting f) g s)
-    ===
-    (\f g s -> f (\x -> g x) s)
-Another way is to say that collectOf and collecting are the basic operations:
-
-setter_complete_2 :: Setter s t a b -> Setter s t a b
-setter_complete_2 o = collecting (collectOf o)
-
--}
 
 ---------------------------------------------------------------------
 -- Setter
 ---------------------------------------------------------------------
 
---over' :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
---over' f = lift $ \afb s -> F.tabulate $ \i -> f (flip F.index i . afb) s
-
-{-
-tabulate :: (a -> Rep f) -> f a
-
-contramap f (tabulate g) = tabulate (g . f)
-index :: f a -> a -> Rep f
-
-foo :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
-foo f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
--}
-
-
-
--- | 'setting' promotes a \"semantic editor combinator\" to a modify-only lens.
+-- | Promote a <http://conal.net/blog/posts/semantic-editor-combinators semantic editor combinator> to a modify-only optic.
 --
--- To demote a lens to a semantic edit combinator, use the section @(l %~)@ or @mapOf l@.
+-- To demote an optic to a semantic edit combinator, use the section @(l %~)@ or @over l@.
 --
 -- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setting map . _1 %~ length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
--- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functors laws hold:
+-- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functor laws hold:
 --
--- * @sec id === id@
+-- * @sec id ≡ id@
 --
--- * @sec f . sec g === sec (f . g)@
+-- * @sec f . sec g ≡ sec (f . g)@
 --
--- See <http://conal.net/blog/posts/semantic-editor-combinators>.
+-- See 'Data.Profunctor.Optic.Property'.
 --
 setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
+setting f = lift $ genMap f
+
+-- | TODO: Document
+--
+lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
+lifting f = lift $ genMap' f
 
 -- | TODO: Document
 --
@@ -88,6 +61,25 @@ grating f = dimap pureTaskF (f . runTask) . lift collect
 grated :: (((s -> a) -> b) -> t) -> Setter s t a b
 grated sabt = setting $ lowerGrate sabt
   where lowerGrate sabt ab s = sabt $ \sa -> ab (sa s)
+
+---------------------------------------------------------------------
+-- 'SetterRep'
+---------------------------------------------------------------------
+
+-- type SetterLike p s t a b = Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
+type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
+
+genMap :: Distributive f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
+genMap abst afb s = fmap (\ab -> abst ab s) (distribute afb)
+
+genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
+genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
+
+--roam :: ((i -> Store i v v) -> s -> Store a b t) -> SetterLike p s t a b
+--roam l = dimap ((values &&& info) . l (Store id)) eval . prim_setter
+
+--prim_setter :: GridLike p (b0 -> a, b0) (x -> y, b) a b --p (Store a c t) (Store b c t)
+--prim_setter p = pure (\c -> (undefined, c)) <*> (puncurry . closed $ p)
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -134,8 +126,8 @@ remapOf = re
 --
 -- @
 -- 'fmap' ≡ 'over' 'mapped'
--- 'sets' '.' 'over' ≡ 'id'
--- 'over' '.' 'sets' ≡ 'id'
+-- 'setting' '.' 'over' ≡ 'id'
+-- 'over' '.' 'setting' ≡ 'id'
 -- @
 --
 over :: Optic (->) s t a b -> (a -> b) -> s -> t
@@ -172,7 +164,6 @@ set o b s = o (const b) s
 -- | Set all referenced fields to the given value.
 --reset :: AResetter s t a b -> b -> s -> t
 --reset l b = under l (const b)
-
 
 appendSetter :: Semigroup a => Setter s t a a -> a -> s -> t
 appendSetter o = o . (<>)
@@ -275,6 +266,5 @@ composed = setting between
 branching :: (a -> Bool) -> Setter' a a
 branching p = setting $ \f a -> if p a then f a else a
 
--- See https://hackage.haskell.org/package/build-1.0/docs/Build-Task.html#t:Tasks
---branched :: (k -> Bool) -> Setter' (k -> v) v
---branched p = setting $ \mod f a -> if p a then mod (f a) else f a
+branching' :: (k -> Bool) -> Setter' (k -> v) v
+branching' p = setting $ \mod f a -> if p a then mod (f a) else f a

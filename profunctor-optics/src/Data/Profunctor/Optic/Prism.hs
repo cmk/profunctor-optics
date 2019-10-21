@@ -16,11 +16,11 @@ import Data.Profunctor.Optic.Iso
 -- /Caution/: In order for the generated prism family to be well-defined,
 -- you must ensure that the three prism laws hold:
 --
--- * @seta (bt b) === Right b@
+-- * @seta (bt b) ≡ Right b@
 --
--- * @(id ||| bt) (seta s) === s@
+-- * @(id ||| bt) (seta s) ≡ s@
 --
--- * @left seta (seta s) === left Left (seta s)@
+-- * @left seta (seta s) ≡ left Left (seta s)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -34,7 +34,7 @@ prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 
 -- | Build a 'Cochoice' optic from a constructor and a matcher function.
 --
--- * @coprism f g === \f g -> re (prism f g)@
+-- * @coprism f g ≡ \f g -> re (prism f g)@
 --
 coprism :: (s -> t + a) -> (b -> t) -> Coprism b a t s
 coprism seta bt = unright . dimap (id ||| bt) seta

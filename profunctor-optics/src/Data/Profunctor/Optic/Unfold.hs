@@ -10,10 +10,9 @@ import qualified Data.List as L (unfoldr)
 -- 'Unfold'
 ---------------------------------------------------------------------
 
-unfolding :: Distributive g => (b -> t) -> Unfold (g t) b
-unfolding f = undefined --lower cotraverse . unto f
+--unfolding :: Distributive g => (b -> t) -> Unfold (g t) b
+--unfolding f = lower cotraverse . unto f
 
--- corecursing :: Functor f => AUnfold a (Fix f) (f a)
 corecursing :: Corecursive t => AUnfold b t (Base t b)
 corecursing = unfoldLike unfold
 

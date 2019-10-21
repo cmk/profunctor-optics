@@ -1,30 +1,24 @@
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE GADTs, DeriveFunctor #-}
-
 module Data.Profunctor.Optic.Traversal where
 
+import Control.Applicative.Free.Fast
 import Data.Bitraversable 
-import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Prelude-- ((+), dup, dedup, swp, coswp, apply)
-
-import Data.Traversable (fmapDefault, foldMapDefault)
-
---import Data.Profunctor.Task
+import Data.Foldable (traverse_)
+import Data.Functor.Identity
 import Data.Profunctor.Choice
 import Data.Profunctor.Monad
+import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Strong
-import Control.Applicative.Free.Fast
-import Data.Functor.Identity
 import Data.Profunctor.Types
 import Data.Profunctor.Unsafe
-
-import qualified Data.Tuple as T
+import Data.Traversable (fmapDefault, foldMapDefault)
 import Prelude hiding (mapM, id, (.))
---import Control.Category
---import Control.Arrow 
-import qualified Control.Category as C
+
 import qualified Control.Arrow as A
-import Data.Foldable (traverse_)
+import qualified Control.Category as C
+import qualified Data.Tuple as T
+
+import qualified Data.Profunctor.Traversing as T
 
 ---------------------------------------------------------------------
 -- 'Traversal'
@@ -64,6 +58,25 @@ both = wander $ \f -> bitraverse f f
 -- 'TraversalRep'
 ---------------------------------------------------------------------
 
+newtype TraversalRep p a b s t = TraversalRep (forall f. Applicative f => p a (f b) -> s -> f t)
+
+runTraversalRep :: forall p a b s t. TraversalRep p a b s t -> (forall f. Applicative f => p a (f b) -> s -> f t)
+runTraversalRep (TraversalRep x) = x
+
+instance Profunctor (TraversalRep p a b) where
+  dimap f g (TraversalRep b) = TraversalRep $ \pafb s -> g <$> b pafb (f s)
+
+instance Strong (TraversalRep p a b) where
+  first' (TraversalRep b) = TraversalRep (\pafb (x, y) -> flip (,) y <$> b pafb x)
+  second' (TraversalRep b) = TraversalRep (\pafb (x, y) -> (x,) <$> b pafb y)
+
+instance Choice (TraversalRep p a b) where
+  left'  (TraversalRep b) = TraversalRep (\pafb e -> bitraverse (b pafb) pure e)
+  right' (TraversalRep b) = TraversalRep (\pafb e -> traverse (b pafb) e)
+
+instance T.Traversing (TraversalRep p a b) where
+  wander w (TraversalRep f) = TraversalRep (\pafb s -> w (f pafb) s)
+
 -- https://twanvl.nl/blog/haskell/non-regular1
 data FList a b t = Done t | More a (FList a b (b -> t))
 
@@ -92,6 +105,9 @@ fuse (More x l) = fuse l x
 wander :: ((x -> FList x y y) -> s -> FList a b t) -> TraversalLike p s t a b
 wander f = dimap (f single) fuse . prim_traversal
 
+wander' :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Optic (TraversalRep p a b) s t a b
+wander' w (TraversalRep f) = TraversalRep (\pafb s -> w (f pafb) s)
+
 prim_traversal :: Choice p => PSemigroup (,) p => p a b -> p (FList a c t) (FList b c t)
 prim_traversal k = dimap uncons cons (right' (k *** (prim_traversal k)))
   where
@@ -107,32 +123,17 @@ prim_traversal k = dimap uncons cons (right' (k *** (prim_traversal k)))
 -- Operators
 ---------------------------------------------------------------------
 
-{-
-The laws for a 'Traversal' follow from the laws for 'Traversable' as stated in "The Essence of the Iterator Pattern".
-
-Identity:
-
-traverseOf t (Identity . f) ≡  Identity (fmap f)
-
-Composition:
-
-Compose . fmap (traverseOf t f) . traverseOf t g == traverseOf t (Compose . fmap f . g)
-
-One consequence of this requirement is that a 'Traversal' needs to leave the same number of elements as a
-candidate for subsequent 'Traversal' that it started with. 
-
--}
+-- | TODO: Document
+--
 -- ^ @
 -- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
 -- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
--- traverseOf $ _1 . _R :: Applicative f => (a -> f b) -> (c1 + a, c2) -> f (c1 + b, c2)
+-- traverseOf $ _1 . _R :: Applicative f => (a -> f b) -> (c + a, d) -> f (c + b, d)
 -- traverseOf == between runStar Star 
 -- @
-
--- | TODO: Document
 --
 traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-traverseOf o f = tf where Star tf = o (Star f)
+traverseOf = between runStar Star
 
 -- | TODO: Document
 --
