@@ -22,11 +22,11 @@ import Data.Profunctor.Optic.Prism
 
 import qualified Data.Functor.Rep as F
 
-import qualified Data.Functor.Contravariant.Rep as C
 
 ---------------------------------------------------------------------
 -- Setter
 ---------------------------------------------------------------------
+
 
 -- | Promote a <http://conal.net/blog/posts/semantic-editor-combinators semantic editor combinator> to a modify-only optic.
 --
@@ -43,18 +43,22 @@ import qualified Data.Functor.Contravariant.Rep as C
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting f = lift $ genMap f
+setting :: ((a -> b) -> s -> t) -> Setter s t a b 
+setting f = dimap (\s -> Bar $ \ab -> f ab s) lent . map'
 
 -- | TODO: Document
 --
 lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
 lifting f = lift $ genMap' f
 
+-- | SEC on each value of a functor
+mapping :: Functor f => Setter (f a) (f b) a b
+mapping = map'
+
 -- | TODO: Document
 --
 grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-grating f = dimap pureTaskF (f . runTask) . lift collect
+grating f = dimap pureTaskF (f . runTask) . map' 
 
 -- | Every 'Grate' is a 'Setter'.
 --
@@ -66,19 +70,26 @@ grated sabt = setting $ lowerGrate sabt
 -- 'SetterRep'
 ---------------------------------------------------------------------
 
--- type SetterLike p s t a b = Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
-type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
-
 genMap :: Distributive f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
 genMap abst afb s = fmap (\ab -> abst ab s) (distribute afb)
 
 genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
 genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
 
---roam :: ((i -> Store i v v) -> s -> Store a b t) -> SetterLike p s t a b
---roam l = dimap ((values &&& info) . l (Store id)) eval . prim_setter
+--roam :: ((i -> Store i v v) -> s -> Store a b t) -> Setter s t a b --Like p s t a b
+--roam l = dimap ((values &&& info) . l (Store id)) eval . map'
 
---prim_setter :: GridLike p (b0 -> a, b0) (x -> y, b) a b --p (Store a c t) (Store b c t)
+
+
+newtype Bar t b a = Bar
+  { runBar :: (a -> b) -> t }
+  deriving Functor
+
+lent :: Bar t a a -> t
+lent m = runBar m id
+
+--prim_setter :: Choice p => (forall x. Applicative (p x)) => p a b -> p (Store a c t) (Store b c t)
+
 --prim_setter p = pure (\c -> (undefined, c)) <*> (puncurry . closed $ p)
 
 ---------------------------------------------------------------------
@@ -212,10 +223,6 @@ masking = grating Ex.mask
 -- | SEC for monadically transforming a monadic value
 binding :: Monad m => Setter (m a) (m b) a (m b)
 binding = setting (=<<)
-
--- | SEC on each value of a functor
-mapped :: Functor f => Setter (f a) (f b) a b
-mapped = setting fmap
 
 -- | TODO: Document
 --

@@ -26,8 +26,8 @@ import qualified Data.Profunctor.Traversing as T
 
 -- | TODO: Document, DList
 --
-traversing :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversing sa sbt = dimap dup (uncurry sbt) . second' . lmap sa . wander traverse
+traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
+traversal sa sbt = dimap dup (uncurry sbt) . second' . lmap sa . wander traverse
 
 -- | TODO: Document
 --
@@ -102,13 +102,13 @@ fuse :: FList b b t -> t
 fuse (Done t) = t
 fuse (More x l) = fuse l x
 
-wander :: ((x -> FList x y y) -> s -> FList a b t) -> TraversalLike p s t a b
-wander f = dimap (f single) fuse . prim_traversal
+wander'' :: (forall x. Applicative (p x)) => ((x -> FList x y y) -> s -> FList a b t) -> TraversalLike p s t a b
+wander'' f = dimap (f single) fuse . prim_traversal
 
 wander' :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Optic (TraversalRep p a b) s t a b
 wander' w (TraversalRep f) = TraversalRep (\pafb s -> w (f pafb) s)
 
-prim_traversal :: Choice p => PSemigroup (,) p => p a b -> p (FList a c t) (FList b c t)
+prim_traversal :: Choice p => (forall x. Applicative (p x)) => p a b -> p (FList a c t) (FList b c t)
 prim_traversal k = dimap uncons cons (right' (k *** (prim_traversal k)))
   where
     uncons :: FList a b t -> t + (a, FList a b (b -> t))

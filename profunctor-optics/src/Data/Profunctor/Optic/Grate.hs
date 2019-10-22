@@ -22,12 +22,6 @@ import qualified Data.Functor.Rep as F
 import qualified Data.Functor.Contravariant.Rep as C
 
 
-
-
-
-envr :: F.Representable f => p a b -> Environment p (f a) (f b)
-envr p = Environment F.tabulate p F.index
-
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
@@ -202,15 +196,15 @@ zip4WithOf x comb s1 s2 s3 s4 = withGrate x $ \grt -> grt $ \get -> comb (get s1
 range :: Grate (c -> a) (c -> b) a b
 range = closed
 
--- | A 'Grate' accessing the contents of a representable functor.
---
-represented :: F.Representable f => Grate (f a) (f b) a b
-represented = dimap F.index F.tabulate . closed
-
 -- | A 'Grate' accessing the contents of a distributive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate $ \f -> cotraverse f id
+
+-- | A 'Grate' accessing the contents of a representable functor.
+--
+represented :: F.Representable f => Grate (f a) (f b) a b
+represented = dimap F.index F.tabulate . closed
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -245,11 +239,6 @@ configured f x = dimap (flip f) ($ x) . closed
 pointed :: Semigroup a => a -> Grate' a a 
 pointed = configured (<>)
 
--- | TODO: Document
---
-equaled :: Eq a => a -> Grate a b Bool b
-equaled x = dimap (==) ($ x) . closed
-
 -- | Translate between different 'Star's.
 starred :: Grate (Star f a b) (Star g s t) (a -> f b) (s -> g t)
 starred = grate $ \o -> Star $ o runStar
@@ -257,7 +246,3 @@ starred = grate $ \o -> Star $ o runStar
 -- | Translate between different 'Costar's.
 costarred :: Grate (Costar f a b) (Costar g s t) (f a -> b) (g s -> t)
 costarred = grate $ \o -> Costar $ o runCostar
-
--- | Translate between different 'Forget's.
-forgotten :: Grate (Forget m a b) (Forget n s t) (a -> m) (s -> n)
-forgotten = grate $ \o -> Forget $ o runForget

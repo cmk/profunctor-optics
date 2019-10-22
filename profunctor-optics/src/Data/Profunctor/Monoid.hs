@@ -30,6 +30,7 @@ import Prelude
 class Profunctor p => PSemigroup (o :: * -> * -> *) p where
   pappend :: p a1 b1 -> p a2 b2 -> p (a1 `o` a2) (b1 `o` b2)
 
+{-
 -- | Profunctor equivalent of 'liftA2'.
 --
 pliftA2 :: PSemigroup (,) p => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
@@ -40,16 +41,6 @@ pliftA2 f x y = dimap dup f $ x *** y
 pstrong :: PSemigroup (,) p => p a b1 -> p a b2 -> p a (b1 , b2) 
 pstrong = pliftA2 id
 
--- | Profunctor equivalent of 'Data.Functor.Divisible.choose'.
---
-pchoose :: PSemigroup (+) p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b
-pchoose f x y = dimap f dedup $ x +++ y
-
--- | TODO: Document
---
-pchoice :: PSemigroup (+) p => p a1 b -> p a2 b -> p (a1 + a2) b
-pchoice = pchoose id 
-
 -- | Profunctor equivalent of 'Data.Functor.Divisible.divide'.
 --
 pdivide :: PSemigroup (,) p => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
@@ -59,6 +50,16 @@ pdivide f x y = dimap f fst $ x *** y
 --
 pdivide' :: PSemigroup (,) p => p a1 b -> p a2 b -> p (a1 , a2) b
 pdivide' = pdivide id
+-}
+-- | Profunctor equivalent of 'Data.Functor.Divisible.choose'.
+--
+pchoose :: PSemigroup (+) p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b
+pchoose f x y = dimap f dedup $ x +++ y
+
+-- | TODO: Document
+--
+pchoice :: PSemigroup (+) p => p a1 b -> p a2 b -> p (a1 + a2) b
+pchoice = pchoose id 
 
 -- | TODO: Document
 --
@@ -70,7 +71,7 @@ pselect f x y = dimap Left f $ x +++ y
 pselect' :: PSemigroup (+) p => p a b1 -> p a b2 -> p a (b1 + b2)
 pselect' = pselect id
 
-
+{-
 infixr 3 ***
 
 -- | TODO: Document
@@ -80,19 +81,19 @@ infixr 3 ***
 (***) :: PSemigroup (,) p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
 (***) = pappend
 
-infixr 2 +++
-
--- | TODO: Document
---
-(+++) :: PSemigroup (+) p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-(+++) = pappend
-
 infixr 3 &&&
 
 -- | TODO: Document
 --
 (&&&) :: PSemigroup (,) p => p a b1 -> p a b2 -> p a (b1 , b2)
 (&&&) = pstrong
+-}
+infixr 2 +++
+
+-- | TODO: Document
+--
+(+++) :: PSemigroup (+) p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
+(+++) = pappend
 
 infixr 2 |||
 
@@ -101,9 +102,10 @@ infixr 2 |||
 (|||) :: PSemigroup (+) p => p a1 b -> p a2 b -> p (a1 + a2) b
 (|||) = pchoice
 
+--tagall :: PMonoid (+) p => Bifunctor p => p a b
+--tagall = lcoerce $ rmap absurd $ punit @(+)
 
-instance (Profunctor p, (forall a. Applicative (p a))) => PSemigroup (,) p where
-  pappend f g = dimap fst (,) f <*> lmap snd g
+--instance (Profunctor p, (forall a. Applicative (p a))) => PSemigroup (,) p where pappend f g = dimap fst (,) f <*> lmap snd g
 --instance (Profunctor p, (forall a. Apply (p a))) => PSemigroup (,) p where pappend f g = dimap fst (,) f <.> lmap snd g
 
 --instance (Profunctor p, (forall a. Divisible (p a))) => PSemigroup (+) p where
@@ -136,8 +138,10 @@ instance (PSemigroup (,) p, (forall a. Applicative (p a))) => PMonoid (,) p wher
 instance (PSemigroup (+) p, (forall a. Divisible (p a))) => PMonoid (+) p where
   punit = conquer
 
+{-
 pabsurd :: PMonoid (+) p => p Void a
 pabsurd = rmap absurd $ punit @(+)
 
 ppure :: PMonoid (,) p => b -> p a b
 ppure b = dimap (const ()) (const b) $ punit @(,)
+-}

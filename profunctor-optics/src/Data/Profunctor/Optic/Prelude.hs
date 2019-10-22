@@ -32,6 +32,8 @@ import Data.Profunctor.Bistar as Export
 import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide, pchoose, pselect, pdivided) 
 import Data.Profunctor.Choice as Export 
 import Data.Profunctor.Closed as Export
+import Data.Profunctor.Traversing as Export 
+import Data.Profunctor.Mapping as Export
 import Data.Profunctor.Monoid as Export
 import Data.Profunctor.Rep as Export
 import Data.Profunctor.Sieve as Export
@@ -44,7 +46,6 @@ import Prelude as Export hiding (foldr, filter, (.), id, head, tail)
 import qualified Data.Functor.Rep as F
 import qualified Data.Tuple 
 
-import Data.Functor.Apply
 import Control.Monad.Trans.Cont
 
 
@@ -63,9 +64,8 @@ infixr 4 >*<
 (>*<) :: Divisible f => f a -> f b -> f (a , b)
 (>*<) = divided
 
-
-
-
+env :: F.Representable f => p a b -> Environment p (f a) (f b)
+env p = Environment F.tabulate p F.index
 
 {-
 
@@ -172,8 +172,43 @@ bicoerce = unsecond . first'
 bicoerce' :: Choice p => Cochoice p => p a a -> p b b
 bicoerce' = unright . left'
 
-tagall :: PMonoid (+) p => Bifunctor p => p a b
-tagall = lcoerce $ rmap absurd $ punit @(+)
+infixr 3 &&&
+
+-- | TODO: Document
+--
+(&&&) :: Profunctor p => (forall x. Applicative (p x)) => p a b1 -> p a b2 -> p a (b1 , b2)
+f &&& g = pliftA2 id f g
+
+infixr 3 ***
+
+-- | TODO: Document
+--
+-- @p <*> x ≡ dimap dup eval (p *** x)@
+--
+(***) :: Profunctor p => (forall x. Applicative (p x)) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
+f *** g = dimap fst (,) f <*> lmap snd g
+
+-- | Profunctor equivalent of 'Data.Functor.Divisible.divide'.
+--
+pdivide :: Profunctor p => (forall x. Applicative (p x)) => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
+pdivide f x y = dimap f fst $ x *** y
+
+-- | Profunctor equivalent of 'Data.Functor.Divisible.divided'.
+--
+pdivide' :: Profunctor p => (forall x. Applicative (p x)) => p a1 b -> p a2 b -> p (a1 , a2) b
+pdivide' = pdivide id
+
+-- | Profunctor equivalent of 'liftA2'.
+--
+pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
+pliftA2 f x y = dimap dup f $ x *** y
+
+pabsurd :: Profunctor p =>  (forall x. Divisible (p x)) => p Void a
+pabsurd = rmap absurd $ conquer
+
+ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
+ppure b = dimap (const ()) (const b) $ pure ()
+
 
 
 -- combinators

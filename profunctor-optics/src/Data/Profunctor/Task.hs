@@ -11,6 +11,7 @@ import Data.Functor.Const
 import Data.Functor.Identity 
 import Data.Profunctor
 import Data.Traversable (fmapDefault, foldMapDefault)
+import qualified Data.Functor.Rep as F
 
 import Prelude
 
@@ -25,7 +26,6 @@ newtype Task c p i k v = Task { runTask :: forall f. c f => p i (f k) -> f v }
 
 -- A 'Context' is like a 'Lens' that has already been applied to a some structure.
 -- @
--- 'Context' i k v == 'Context i k v 
 -- 'Context' i k v == exists s. (s, 'Lens' s t a b)
 -- @.
 -- https://bartoszmilewski.com/2015/07/13/from-lenses-to-yoneda-embedding/

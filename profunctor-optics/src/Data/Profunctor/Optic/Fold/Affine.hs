@@ -118,7 +118,6 @@ fromFold0 = to . preview
 ---------------------------------------------------------------------
 
 previewOf :: Optic' (Fold0Rep r) s a -> (a -> Maybe r) -> s -> Maybe r
-
 previewOf = between runFold0Rep Fold0Rep
 
 toMaybeOf :: AFold0 a s a -> s -> Maybe a
@@ -202,19 +201,16 @@ findOf :: AFold0 (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f =
   foldrOf o (\a -> maybe (if f a then Just a else Nothing) Just) Nothing
 
-
-
 -- | The maximum of all foci of a `Fold`, if there is any.
 --
-maxOf :: Ord a => AFold0 (Endo (Maybe a)) s a -> s -> Maybe a
+maxOf :: Ord a => Optic' (FoldRep (Endo (Maybe a))) s a -> s -> Maybe a
 maxOf o = foldrOf o (\a -> Just . maybe a (max a)) Nothing
 
 -- | The minimum of all foci of a `Fold`, if there is any.
 --
-minOf :: Ord a => AFold0 (Endo (Maybe a)) s a -> s -> Maybe a
+minOf :: Ord a => Optic' (FoldRep (Endo (Maybe a))) s a -> s -> Maybe a
 minOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -}
-
 
 
 {-

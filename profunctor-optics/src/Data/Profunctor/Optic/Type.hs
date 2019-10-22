@@ -48,7 +48,7 @@ module Data.Profunctor.Optic.Type (
     -- * Reviews
   , Review, AReview, PrimReview, PrimReviewLike
     -- * Setters
-  , Setter, Setter', ASetter, AResetter 
+  , Setter, Setter', SetterLike, ASetter, AResetter 
     -- * Representable & Coreprestable profunctors
   , Over, Over', Under, Under'
     -- * 'Re'
@@ -242,7 +242,8 @@ type Traversal s t a b = forall p. TraversalLike p s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type TraversalLike p s t a b = (forall x. Applicative (p x)) => Traversal0Like p s t a b
+--type TraversalLike p s t a b = (forall x. Applicative (p x)) => Traversal0Like p s t a b
+type TraversalLike p s t a b = Traversing p => Traversal0Like p s t a b
 
 type TraversalLike' p s a = TraversalLike p s s a a
 
@@ -347,7 +348,12 @@ type AReview t b = Optic' (UnfoldRep b) t b
 --
 -- \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
-type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
+--type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
+type SetterLike p s t a b = Mapping p => Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
+--type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
+
+--type SetterLike p s t a b = Mapping p => Over p s t a b
+type Setter s t a b = forall p. SetterLike p s t a b
 --type Setter s t a b = Optic (->) s t a b
 
 type Setter' s a = Setter s s a a
