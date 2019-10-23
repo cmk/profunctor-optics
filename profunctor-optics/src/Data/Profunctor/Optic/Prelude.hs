@@ -157,14 +157,14 @@ pright = right'
 rcoerce :: Profunctor p => Contravariant (p a) => p a c -> p a d
 rcoerce = rmap absurd . contramap absurd
 
-rcoerce' :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
-rcoerce' = lift (phantom .)
+--rcoerce' :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
+--rcoerce' = lift (phantom .)
 
 lcoerce :: Profunctor p => Bifunctor p => p a c -> p b c
 lcoerce = first absurd . lmap absurd
 
-lcoerce' :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
-lcoerce' = lower (. phantom)
+--lcoerce' :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
+--lcoerce' = lower (. phantom)
 
 bicoerce :: Strong p => Costrong p => p a a -> p b b
 bicoerce = unsecond . first'

@@ -23,7 +23,6 @@ library
       Data.Profunctor.Bistar
       Data.Profunctor.Monoid
       Data.Profunctor.Task
-      Data.Profunctor.Distributing
       Data.Profunctor.Orphan
 
       Data.Profunctor.Optic

@@ -11,7 +11,7 @@ import qualified Data.List as L (unfoldr)
 ---------------------------------------------------------------------
 
 unfolding :: Distributive g => (b -> t) -> Unfold (g t) b
-unfolding f = lower cotraverse . lcoerce' . rmap f
+unfolding f = lower cotraverse . unto f --lcoerce' . rmap f
 
 corecursing :: Corecursive t => AUnfold b t (Base t b)
 corecursing = unfoldLike unfold
@@ -22,8 +22,8 @@ unfoldLike = between (ucostar getConst) (dcostar Const)
 unfoldr :: AUnfold b [t] (Maybe (t, b))
 unfoldr = unfoldLike L.unfoldr
 
---cloneUnfold :: AReview t b -> Unfold t b
---cloneUnfold = lcoerce' . rmap . review
+cloneUnfold :: AReview t b -> Unfold t b
+cloneUnfold = unto . review --lcoerce' . rmap . review
 
 cofolded :: (Foldable f, Monoid b) => (a -> b) -> Costar f a b
 cofolded f = Costar (foldMap f)

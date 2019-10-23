@@ -25,14 +25,14 @@ module Data.Profunctor.Optic.Type (
   , Grate, Grate', GrateLike, GrateLike'
     -- * Grids
   , Grid, Grid', GridLike, GridLike'
-    -- * Cotraversal0es
-  , Cotraversal0, Cotraversal0', Cotraversal0Like, Cotraversal0Like'
     -- * Affine traversals
   , Traversal0, Traversal0', Traversal0Like, Traversal0Like'
     -- * Non-empty traversals
   , Traversal1, Traversal1', Traversal1Like, Traversal1Like'
     -- * General traversals
   , Traversal, Traversal', TraversalLike, TraversalLike', ATraversal, ATraversal'
+    -- * Affine cotraversals
+  , Cotraversal0, Cotraversal0', Cotraversal0Like, Cotraversal0Like'
     -- * Cotraversals
   , Cotraversal, Cotraversal', CotraversalLike, CotraversalLike'
     -- * Affine folds
@@ -41,6 +41,8 @@ module Data.Profunctor.Optic.Type (
   , Fold1, Fold1Like, AFold1
     -- * General folds
   , Fold, FoldLike, FoldRep, AFold
+    -- * Affine unfolds
+  --, Unfold0, Unfold0Rep, AUnfold0
     -- * Unfolds
   , Unfold, UnfoldRep, AUnfold
     -- * Views
@@ -286,8 +288,8 @@ type Fold0Like p s a = (forall x. Contravariant (p x)) => Traversal0Like p s s a
 --
 type Fold1 s a = forall p. Fold1Like p s a
 
---type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
-type Fold1Like p s a = Contravariant (Rep p) => Traversal1Like p s s a a
+type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
+--type Fold1Like p s a = Contravariant (Rep p) => Traversal1Like p s s a a
 
 type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
@@ -299,11 +301,22 @@ type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 --
 type Fold s a = forall p. FoldLike p s a
 
-type FoldLike p s a = Contravariant (Rep p) => TraversalLike p s s a a
+type FoldLike p s a = (forall x. Contravariant (p x)) => TraversalLike p s s a a
+--type FoldLike p s a = Contravariant (Rep p) => TraversalLike p s s a a
 
 type FoldRep r = Star (Const r)
 
 type AFold r s a = Monoid r => Optic' (FoldRep r) s a
+
+---------------------------------------------------------------------
+-- 'Unfold0'
+---------------------------------------------------------------------
+
+-- | A 'Unfold0' extracts at most one non-summary result from a container.
+--
+type Unfold0 s a = forall p. Unfold0Like p s a
+
+type Unfold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
 
 ---------------------------------------------------------------------
 -- 'Unfold'
@@ -311,7 +324,8 @@ type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 
 type Unfold t b = forall p. UnfoldLike p t b
 
-type UnfoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
+type UnfoldLike p t b = Bifunctor p => CotraversalLike p t t b b
+--type UnfoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
 --type Unfold t b = forall p. Bifunctor p => CotraversalLike p t t b b
 
 type UnfoldRep r = Costar (Const r)
