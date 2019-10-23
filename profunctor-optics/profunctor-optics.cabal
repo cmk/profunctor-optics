@@ -19,11 +19,7 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Arrow
-      Data.Profunctor.Bistar
       Data.Profunctor.Task
-      Data.Profunctor.Orphan
-      Data.Profunctor.Misc
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Iso
@@ -89,6 +85,7 @@ library
     , free
     , linear
     , mtl
+    , profunctor-misc
     , profunctors
     , pipes
     , recursion-schemes

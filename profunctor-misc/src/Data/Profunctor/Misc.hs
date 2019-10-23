@@ -45,11 +45,11 @@ swp = snd &&& fst
 coswp :: (a1 + a2) -> (a2 + a1)
 coswp = Right ||| Left
 
-apply :: (a , a -> b) -> b
-apply = uncurry $ flip id
+eval :: (a , a -> b) -> b
+eval = uncurry $ flip id
 
-eval :: (b -> a , b) -> a
-eval = uncurry id
+apply :: (b -> a , b) -> a
+apply = uncurry id
 
 coeval :: b -> (b -> a) + a -> a
 coeval b = either ($ b) id
@@ -81,8 +81,8 @@ assocr5 = x . x . x where x = assoc
 fstrong :: Functor f => f a -> b -> f (a , b)
 fstrong f b = fmap (,b) f
 
-fcostrong :: Traversable f => f (a + b) -> (f a) + b
-fcostrong = coswp . traverse coswp
+fchoice :: Traversable f => f (a + b) -> (f a) + b
+fchoice = coswp . traverse coswp
 
 pfirst :: Strong p => p a b -> p (a , c) (b , c)
 pfirst = first'
@@ -102,8 +102,8 @@ pcurry = curry'
 puncurry :: Strong p => p a (b -> c) -> p (a , b) c
 puncurry = uncurry'
 
-papply :: Strong p => p a (a -> b) -> p a b
-papply = rmap apply . pull
+peval :: Strong p => p a (a -> b) -> p a b
+peval = rmap eval . pull
 
 constl :: Profunctor p => b -> p b c -> p a c
 constl = lmap . const
@@ -120,13 +120,13 @@ shiftr = dimap snd fst
 coercer :: Profunctor p => Contravariant (p a) => p a c -> p a d
 coercer = rmap absurd . contramap absurd
 
-coercer' :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
+coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
 coercer' = lift (phantom .)
 
 coercel :: Profunctor p => Bifunctor p => p a c -> p b c
 coercel = first absurd . lmap absurd
 
-coercel' :: (Corepresentable p, Contravariant (Corep p)) => p a b -> p c b
+coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
 coercel' = lower (. phantom)
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
@@ -203,13 +203,18 @@ pdivide f x y = dimap f fst $ pappend x y
 pdivided :: Profunctor p => (forall x. Applicative (p x)) => p a1 b -> p a2 b -> p (a1 , a2) b
 pdivided = pdivide id
 
+-- | Profunctor equivalent of '<*>'.
+--
+papply :: Profunctor p => (forall x. Applicative (p x)) => p a (b -> c) -> p a b -> p a c
+papply f x = dimap dup apply (f @@@ x)
+
 -- | Profunctor equivalent of 'liftA2'.
 --
 pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
 pliftA2 f x y = dimap dup f $ pappend x y
 
-pabsurd :: Profunctor p =>  (forall x. Divisible (p x)) => p Void a
-pabsurd = rmap absurd $ conquer
-
 ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
 ppure b = dimap (const ()) (const b) $ pure ()
+
+pabsurd :: Profunctor p =>  (forall x. Divisible (p x)) => p Void a
+pabsurd = rmap absurd $ conquer

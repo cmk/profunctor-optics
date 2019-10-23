@@ -9,14 +9,12 @@ import Control.Monad.Free (Free(..))
 import Data.Distributive
 import Data.Foldable
 import Data.Functor.Contravariant
-import Data.Functor.Foldable
+--import Data.Functor.Foldable
 import Data.Functor.Identity
-import Data.Monoid hiding (PSemigroup)
 import Data.Profunctor.Types
 import Data.Traversable
 import Prelude
 
-import Data.Profunctor.Task
 
 newtype Bistar f g a b = Bistar { runBistar :: g a -> f b }
 
@@ -56,12 +54,6 @@ instance MonadPlus f => MonadPlus (Bistar f g a) where
   mzero = Bistar $ \_ -> mzero
   Bistar f `mplus` Bistar g = Bistar $ \a -> f a `mplus` g a
 
-extractPair :: (forall f g. (Functor f, Functor g) => (g a -> f b) -> g s -> f t) -> (s -> a, b -> t)
-extractPair l = (getConst . (l (Const . runIdentity)) . Identity, runIdentity . (l (Identity . getConst)) . Const)
-
-extractPair' :: (((s -> a) -> Store (s -> a) b b) -> (s -> s) -> Store (s -> a) b t) -> (s -> a, b -> t)
-extractPair' l = (f, g) where Store g f = l (Store id) id
-
 
 lowerStar :: Bistar f Identity a b -> Star f a b
 lowerStar = Star . (. Identity) . runBistar
@@ -75,6 +67,7 @@ lowerCostar = Costar . (runIdentity .) . runBistar
 lowerCostar' :: Bistar f g a b -> Costar g a (f b)
 lowerCostar' = Costar . runBistar
 
+{-
 bicata :: Functor f => Bistar Identity f (Identity a) (f a)
 bicata = Bistar distCata
 
@@ -92,3 +85,4 @@ bihisto = Bistar distHisto
 
 bifutu :: Functor f => Bistar f (Free f) (f a) (Free f a)
 bifutu = Bistar distFutu
+-}

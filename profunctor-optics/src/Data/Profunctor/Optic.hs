@@ -25,6 +25,14 @@ import Linear.V3
 import Linear.V4
 import Control.Monad.State
 
+{-
+extractPair :: (forall f g. (Functor f, Functor g) => (g a -> f b) -> g s -> f t) -> (s -> a, b -> t)
+extractPair l = (getConst . (l (Const . runIdentity)) . Identity, runIdentity . (l (Identity . getConst)) . Const)
+
+extractPair' :: (((s -> a) -> Store (s -> a) b b) -> (s -> s) -> Store (s -> a) b t) -> (s -> a, b -> t)
+extractPair' l = (f, g) where Store g f = l (Store id) id
+
+-}
 newtype Zipping a b = Zipping { runZipping :: a -> a -> b }
 
 instance Functor (Zipping a) where fmap f (Zipping p) = Zipping $ \x y-> f (p x y)

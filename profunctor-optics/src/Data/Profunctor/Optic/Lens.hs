@@ -85,8 +85,6 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
---https://r6research.livejournal.com/27858.html
-
 --FreeStrong (IsoRep a b) s t = IsoRep a b s (s -> t) = (s -> a, b -> s -> t)
 --FreeChoice (IsoRep a b) s t = IsoRep a b ? ? = (s -> (Either a t), b -> t).
 
@@ -102,21 +100,21 @@ mapFreeStrong :: (Profunctor p, Profunctor q) => (p :-> q) -> (FreeStrong p :-> 
 mapFreeStrong eta (FreeStrong p) = FreeStrong (eta p)
 
 lowerFS :: Strong p => FreeStrong p a b -> p a b
-lowerFS (FreeStrong p) = papply p
+lowerFS (FreeStrong p) = peval p
 
 unitFS :: Profunctor p => p :-> FreeStrong p
 unitFS p = FreeStrong (rmap const p)
 
--- | 'counit' preserves strength.
+-- 'counit' preserves strength.
 -- <https://r6research.livejournal.com/27858.html>
 counitFS :: Strong p => FreeStrong p :-> p
-counitFS (FreeStrong p) = dimap dup eval (pfirst p)
+counitFS (FreeStrong p) = dimap dup apply (pfirst p)
 
 toFreeStrong :: Profunctor p => Pastro p a b -> FreeStrong p a b
 toFreeStrong (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
 
 toPastro :: FreeStrong p a b -> Pastro p a b
-toPastro (FreeStrong p) = Pastro eval p dup
+toPastro (FreeStrong p) = Pastro apply p dup
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -174,7 +172,7 @@ void = lens absurd const
 -- | TODO: Document
 --
 uncurried :: Lens (a , b) c a (b -> c)
-uncurried = rmap eval . pfirst
+uncurried = rmap apply . pfirst
 
 -- | TODO: Document
 --

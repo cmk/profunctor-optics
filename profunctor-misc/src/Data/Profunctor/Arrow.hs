@@ -37,7 +37,7 @@ x ||| y = pchoose id x y
 infixr 0 $$$
 
 ($$$) :: Category p => Strong p => p a (b -> c) -> p a b -> p a c
-($$$) f x = dimap dup eval (f *** x)
+($$$) f x = dimap dup apply (f *** x)
 
 pselect :: Category p => Choice p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
 pselect f x y = dimap Left f $ x +++ y
