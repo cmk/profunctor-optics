@@ -25,7 +25,7 @@ import Data.Profunctor.Optic.Iso
 -- See 'Data.Profunctor.Optic.Property'.
 --
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
-prism seta bt = dimap seta (id ||| bt) . right'
+prism seta bt = dimap seta (id ||| bt) . pright
 
 -- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
 --
@@ -52,7 +52,7 @@ coprism seta bt = unright . dimap (id ||| bt) seta
 -- Useful for constructing prisms from try and handle functions.
 --
 handled :: (s -> e + a) -> (e + b -> t) -> Prism s t a b
-handled sea ebt = dimap sea ebt . right'
+handled sea ebt = dimap sea ebt . pright
 
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
@@ -154,12 +154,12 @@ below k =
 -- | TODO: Document
 --
 _L :: Prism (a + c) (b + c) a b
-_L = left'
+_L = pleft
 
 -- | TODO: Document
 --
 _R :: Prism (c + a) (c + b) a b
-_R = right'
+_R = pright
 
 -- | TODO: Document
 --

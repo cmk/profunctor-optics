@@ -37,7 +37,7 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 -- @
 --
 to :: (s -> a) -> PrimView s t a b
-to f = rcoerce . lmap f
+to f = coercer . lmap f
 {-# INLINE to #-}
 
 -- @
@@ -121,8 +121,8 @@ like = to . const
 
 -- | TODO: Document
 --
-rcoerced :: View a a 
-rcoerced = rcoerce
+coercerd :: View a a 
+coercerd = coercer
 
 ---------------------------------------------------------------------
 -- Derived operators

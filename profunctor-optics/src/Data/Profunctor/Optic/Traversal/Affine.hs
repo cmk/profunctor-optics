@@ -31,7 +31,7 @@ import Data.Functor.Base (NonEmptyF(..))
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-traversal0 seta sbt = dimap f g . right' . first'
+traversal0 seta sbt = dimap f g . pright . pfirst
   where f s = (,s) <$> seta s
         g = id ||| (uncurry . flip $ sbt)
 
@@ -42,8 +42,8 @@ traversal0' sma sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sma s)
 
 -- | TODO: Document
 --
-atraversing :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-atraversing f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
+traversing0 :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . pfirst . pleft
   where
     --match :: s -> Either a t
     match s = f Right Left s
@@ -123,7 +123,7 @@ isMatched :: ATraversal0 s t a b -> s -> Bool
 isMatched o = either (const False) (const True) . matching o
 
 ---------------------------------------------------------------------
--- Common atraversing traversals
+-- Common traversing0 traversals
 ---------------------------------------------------------------------
 
 nulled :: Traversal0' s a

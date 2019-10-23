@@ -30,7 +30,7 @@ fold1_complete o = tripping o $ folding1 (toNelOf o)
 -- [2,3,4]
 --
 folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = rcoerce . lmap f . lift traverse1_
+folding1 f = coercer . lmap f . lift traverse1_
 {-# INLINE folding1 #-}
 
 folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a

@@ -34,12 +34,12 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 -- See 'Data.Profunctor.Optic.Property'.
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
-lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
+lens sa sbt = dimap (id &&& sa) (uncurry sbt) . psecond
 
 -- | Build a 'Lens' from its free tensor representation.
 --
 matched :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
-matched f g = dimap f g . second'
+matched f g = dimap f g . psecond
 
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
@@ -55,7 +55,7 @@ colens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
 lensvl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensvl o = dimap ((values &&& info) . o (Store id)) (uncurry id) . second'
+lensvl o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
 
 -- | TODO: Document
 --
@@ -110,7 +110,7 @@ unitFS p = FreeStrong (rmap const p)
 -- | 'counit' preserves strength.
 -- <https://r6research.livejournal.com/27858.html>
 counitFS :: Strong p => FreeStrong p :-> p
-counitFS (FreeStrong p) = dimap dup eval (first' p)
+counitFS (FreeStrong p) = dimap dup eval (pfirst p)
 
 toFreeStrong :: Profunctor p => Pastro p a b -> FreeStrong p a b
 toFreeStrong (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
@@ -144,12 +144,12 @@ withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
 -- | TODO: Document
 --
 _1 :: Lens (a , c) (b , c) a b
-_1 = first'
+_1 = pfirst
 
 -- | TODO: Document
 --
 _2 :: Lens (c , a) (c , b) a b
-_2 = second'
+_2 = psecond
 
 -- | TODO: Document
 --
@@ -174,7 +174,7 @@ void = lens absurd const
 -- | TODO: Document
 --
 uncurried :: Lens (a , b) c a (b -> c)
-uncurried = rmap eval . first'
+uncurried = rmap eval . pfirst
 
 -- | TODO: Document
 --

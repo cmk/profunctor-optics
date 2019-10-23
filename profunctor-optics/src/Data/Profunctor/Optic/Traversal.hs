@@ -27,7 +27,7 @@ import qualified Data.Profunctor.Traversing as T
 -- | TODO: Document, DList
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap dup (uncurry sbt) . second' . lmap sa . lift traverse
+traversal sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse
 
 -- | TODO: Document
 --
@@ -71,7 +71,7 @@ instance Strong (TraversalRep p a b) where
   second' (TraversalRep b) = TraversalRep (\pafb (x, y) -> (x,) <$> b pafb y)
 
 instance Choice (TraversalRep p a b) where
-  left'  (TraversalRep b) = TraversalRep (\pafb e -> bitraverse (b pafb) pure e)
+  left' (TraversalRep b) = TraversalRep (\pafb e -> bitraverse (b pafb) pure e)
   right' (TraversalRep b) = TraversalRep (\pafb e -> traverse (b pafb) e)
 
 instance T.Traversing (TraversalRep p a b) where
@@ -109,7 +109,7 @@ wander' :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Optic (Travers
 wander' w (TraversalRep f) = TraversalRep (\pafb s -> w (f pafb) s)
 
 prim_traversal :: Choice p => (forall x. Applicative (p x)) => p a b -> p (FList a c t) (FList b c t)
-prim_traversal k = dimap uncons cons (right' (k *** (prim_traversal k)))
+prim_traversal k = dimap uncons cons (pright (k @@@ (prim_traversal k)))
   where
     uncons :: FList a b t -> t + (a, FList a b (b -> t))
     uncons (Done t) = Left t

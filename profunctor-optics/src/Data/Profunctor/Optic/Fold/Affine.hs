@@ -61,14 +61,14 @@ instance Representable (Fold0Rep r) where
   {-# INLINE tabulate #-}
 
 instance Choice (Fold0Rep r) where
-    right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
+  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
 
 instance Cochoice (Fold0Rep r) where
   unleft  (Fold0Rep k) = Fold0Rep (k . Left)
   unright (Fold0Rep k) = Fold0Rep (k . Right)
 
 instance Strong (Fold0Rep r) where
-    first' (Fold0Rep p) = Fold0Rep (p . fst)
+  first' (Fold0Rep p) = Fold0Rep (p . fst)
 
 ---------------------------------------------------------------------
 -- 'Fold0'
@@ -96,7 +96,7 @@ affine_fold_complete o = tripping o $ afolding (toMaybeOf o)
 -- @
 --
 afolding :: (s -> Maybe a) -> Fold0 s a
-afolding f = to (\s -> maybe (Left s) Right (f s)) . right'
+afolding f = to (\s -> maybe (Left s) Right (f s)) . pright
 
 -- | Build a 'Fold0' from an affine 'View'.
 --
@@ -169,7 +169,7 @@ s ^? o = toMaybeOf o s
 
 -- | Filter result(s) of a fold that don't satisfy a predicate.
 afiltered :: (a -> Bool) -> Fold0 a a
-afiltered p = atraversing $ \point f a -> if p a then f a else point a
+afiltered p = traversing0 $ \point f a -> if p a then f a else point a
 
 -- | Try the first 'Fold0'. If it returns no entry, try the second one.
 --

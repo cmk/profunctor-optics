@@ -40,7 +40,7 @@ import Data.Profunctor.Optic.Iso (re)
 -- @
 --
 unto :: (b -> t) -> PrimReview s t a b 
-unto f = lcoerce . rmap f
+unto f = coercel . rmap f
 
 -- | Turn a 'View' around to get a 'Review'
 --
@@ -129,18 +129,18 @@ reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f
 
 -- | TODO: Document
 --
-lcoerced :: Review b b
-lcoerced = lcoerce
+coerceld :: Review b b
+coerceld = coercel
 
 -- | TODO: Document
 --
 _L' :: PrimReview (a + c) (b + c) a b
-_L' = lcoerce . rmap Left
+_L' = coercel . rmap Left
 
 -- | TODO: Document
 --
 _R' :: PrimReview (c + a) (c + b) a b
-_R' = lcoerce . rmap Right
+_R' = coercel . rmap Right
 
 ---------------------------------------------------------------------
 -- Derived operators

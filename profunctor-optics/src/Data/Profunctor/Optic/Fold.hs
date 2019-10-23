@@ -42,7 +42,7 @@ fold_complete o = tripping o $ folding (toListOf o)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 folding :: Foldable f =>  (s -> f a) -> Fold s a
-folding f = rcoerce . lmap f . lift traverse_
+folding f = coercer . lmap f . lift traverse_
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold' using a 'Traversable' functor.
@@ -52,7 +52,7 @@ folding f = rcoerce . lmap f . lift traverse_
 -- @
 --
 folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = traversed . rcoerce . lmap f
+folded f = traversed . coercer . lmap f
 
 foldLike :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
 foldLike = between (Star . (Const .)) ((getConst .) . runStar)

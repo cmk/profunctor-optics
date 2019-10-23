@@ -53,21 +53,14 @@ type SLens' s a = SLens s s a a
 
 
 v4 :: SLens (V4 a) (V4 b) a b
-v4 p = dimap (\(V4 x y z w) -> (x, (y, (z, w)))) (\(x, (y, (z, w))) -> V4 x y z w) (p *** p *** p *** p)
+v4 p = dimap (\(V4 x y z w) -> (x, (y, (z, w)))) (\(x, (y, (z, w))) -> V4 x y z w) (p @@@ p @@@ p @@@ p)
 
 --v2 :: Semigroupal p => Optic p (V2 a) (V2 b) a b
 
 
 
-
-
-
-
-
-
-
 v2s :: SLens (V2 a) (V2 b) a b
-v2s p = dimap (\(V2 x y) -> (x, y)) (\(x, y) -> V2 x y) (p *** p)
+v2s p = dimap (\(V2 x y) -> (x, y)) (\(x, y) -> V2 x y) (p @@@ p)
 
 v2 :: Grate' (V2 a) a
 v2 = represented
@@ -99,21 +92,21 @@ res2 = evalState (traverseOf v2t f (V2 5 7)) 1
 
 
 
---foo x = zipWithOf' (x . right' . first') (,) as bs
+--foo x = zipWithOf' (x . pright . pfirst) (,) as bs
 
-{-λ> review (v2 . right') 1 :: V2 (Either Bool (V2 Int))
+{-λ> review (v2 . pright) 1 :: V2 (Either Bool (V2 Int))
 λ> toListOf (v2 . v2) (V2 (V2 1 2) (V2 3 4))
 [1,2,3,4]
 
 -- >>>  contents skipLast (1,2,3)
 -- [1,2]
 skipLast :: SLens (a, a, c) (b, b, c) a b
-skipLast p = dimap group ungroup (first' (p *** p)) where
+skipLast p = dimap group ungroup (pfirst (p *** p)) where
   group  (x, y, z) = ((x, y), z)
   ungroup ((x, y), z) = (x, y, z)
 
 skipLast' :: SLens' (V3 a) a
-skipLast' p = dimap group ungroup (first' (p *** p)) where
+skipLast' p = dimap group ungroup (pfirst (p *** p)) where
   group  (V3 x y z) = ((x, y), z)
   ungroup ((x, y), z) = V3 x y z
 -}

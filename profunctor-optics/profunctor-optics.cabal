@@ -21,9 +21,9 @@ library
   exposed-modules:
       Data.Profunctor.Arrow
       Data.Profunctor.Bistar
-      Data.Profunctor.Monoid
       Data.Profunctor.Task
       Data.Profunctor.Orphan
+      Data.Profunctor.Misc
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Iso

@@ -312,8 +312,6 @@ type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 -- 'Unfold0'
 ---------------------------------------------------------------------
 
--- | A 'Unfold0' extracts at most one non-summary result from a container.
---
 type Unfold0 s a = forall p. Unfold0Like p s a
 
 type Unfold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
@@ -391,7 +389,7 @@ type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p 
 type ASetter s t a b = Optic (Star Identity) s t a b
 
 ---------------------------------------------------------------------
--- 'Setter'
+-- 'Resetter'
 ---------------------------------------------------------------------
 
 type Resetter s t a b = forall p. ResetterLike p s t a b
@@ -454,7 +452,7 @@ instance Costrong p => Strong (Re p s t) where
     first' (Re p) = Re (p . unfirst)
 
 instance Choice p => Cochoice (Re p s t) where
-    unright (Re p) = Re (p . right')
+    unright (Re p) = Re (p . pright)
 
 instance Strong p => Costrong (Re p s t) where
-    unfirst (Re p) = Re (p . first')
+    unfirst (Re p) = Re (p . pfirst)
