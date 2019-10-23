@@ -129,7 +129,7 @@ isMatched o = either (const False) (const True) . matching o
 nulled :: Traversal0' s a
 nulled = traversal0 Left const 
 
--- | Obtain a 'Traversal0' that can be composed with to filter another 'Lens', 'Iso', 'Getter', 'Fold' (or 'Traversal').
+-- | Obtain a 'Traversal0' that can be composed with to filter another 'Lens', 'Iso', 'View', 'Fold' (or 'Traversal').
 --
 -- >>> [1..10] ^.. folding id . filtering even
 -- [2,4,6,8,10]

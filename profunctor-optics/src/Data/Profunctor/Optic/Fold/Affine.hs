@@ -1,10 +1,10 @@
 module Data.Profunctor.Optic.Fold.Affine where
 
 import Data.Semigroup
-import Data.Profunctor.Optic.Type 
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
 
-import Data.Profunctor.Optic.Getter (view, to)
+import Data.Profunctor.Optic.View (view, to)
 import Data.Profunctor.Optic.Prism (_Just)
 import Data.Foldable (traverse_)
 --import Data.Functor.Const (Const(..))
@@ -28,9 +28,9 @@ import Data.Maybe
 
 -- | 'Pre' is 'Maybe' with a phantom type variable.
 --
--- 
+--
 -- Star (Pre r) a b has Strong. Also Choice & Traversing when r is a Semigroup.
--- idea: 
+-- idea:
 newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
 
 instance Functor (Pre a) where fmap f (Pre p) = Pre p
@@ -76,7 +76,7 @@ instance Strong (Fold0Rep r) where
 
 type AFold0 r s a = Optic' (Fold0Rep r) s a
 -- TODO remove or replace w First, causes unwanted semigroup interactions
---type AFold0 a s a = AFold0 a s a 
+--type AFold0 a s a = AFold0 a s a
 
 {-
 
@@ -96,21 +96,21 @@ affine_fold_complete o = tripping o $ afolding (toMaybeOf o)
 -- @
 --
 afolding :: (s -> Maybe a) -> Fold0 s a
-afolding f = rcoerce . lmap (\s -> maybe (Left s) Right (f s)) . right'
+afolding f = to (\s -> maybe (Left s) Right (f s)) . right'
 
--- | Build a 'Fold0' from an affine 'Getter'.
+-- | Build a 'Fold0' from an affine 'View'.
 --
 -- @
 -- 'toFold0' o ≡ o . '_Just'
 -- 'toFold0' o ≡ 'afolding' ('view' o)
 -- @
 --
-toFold0 :: Getter s (Maybe a) -> Fold0 s a
+toFold0 :: View s (Maybe a) -> Fold0 s a
 toFold0 = (. _Just)
 
 -- | TODO: Document
 --
-fromFold0 :: Monoid a => AFold0 a s a -> Getter s (Maybe a)
+fromFold0 :: Monoid a => AFold0 a s a -> View s (Maybe a)
 fromFold0 = to . preview
 
 ---------------------------------------------------------------------
@@ -137,11 +137,11 @@ infixl 8 ^?
 
 -- | An infix variant of 'preview''.
 --
--- Performs a safe 'head' of a 'Fold' or 'Traversal' or retrieve 'Just' 
--- the result from a 'Getter' or 'Lens'.
+-- Performs a safe 'head' of a 'Fold' or 'Traversal' or retrieve 'Just'
+-- the result from a 'View' or 'Lens'.
 --
--- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial 
--- 'Getter' this can be a convenient way to extract the optional value.
+-- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial
+-- 'View' this can be a convenient way to extract the optional value.
 --
 --
 -- >>> Left 4 ^? _L
@@ -155,7 +155,7 @@ infixl 8 ^?
 -- @
 --
 -- @
--- ('^?') :: s -> 'Getter' s a         -> 'Maybe' a
+-- ('^?') :: s -> 'View' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Fold' s a         -> 'Maybe' a
 -- ('^?') :: s -> 'Lens'' s a        -> 'Maybe' a
 -- ('^?') :: s -> 'Prism'' s a       -> 'Maybe' a
@@ -216,7 +216,7 @@ minOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 {-
 
 -- | Obtain the minimum element (if any) targeted by a 'Fold', 'Traversal', 'Lens', 'Iso'
--- or 'Getter' according to a user supplied 'Ordering'.
+-- or 'View' according to a user supplied 'Ordering'.
 --
 -- In the interest of efficiency, This operation has semantics more strict than strictly necessary.
 --
@@ -228,7 +228,7 @@ minOf o = foldrOf o (\a -> Just . maybe a (min a)) Nothing
 -- @
 --
 -- @
--- 'minimumByOf' :: 'Getter' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
+-- 'minimumByOf' :: 'View' s a     -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Fold' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Iso'' s a       -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
 -- 'minimumByOf' :: 'Lens'' s a      -> (a -> a -> 'Ordering') -> s -> 'Maybe' a
@@ -240,7 +240,7 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
   mf (Just x) y = Just $! if cmp x y == GT then y else x
 {-# INLINE minimumByOf #-}
 
--- | The 'findOf' function takes a 'Lens' (or 'Getter', 'Iso', 'Fold', or 'Traversal'),
+-- | The 'findOf' function takes a 'Lens' (or 'View', 'Iso', 'Fold', or 'Traversal'),
 -- a predicate and a structure and returns the leftmost element of the structure
 -- matching the predicate, or 'Nothing' if there is no such element.
 --
@@ -251,7 +251,7 @@ minimumByOf o cmp = foldlOf' o mf Nothing where
 -- Nothing
 --
 -- @
--- 'findOf' :: 'Getter' s a     -> (a -> 'Bool') -> s -> 'Maybe' a
+-- 'findOf' :: 'View' s a     -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Fold' s a       -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Iso'' s a       -> (a -> 'Bool') -> s -> 'Maybe' a
 -- 'findOf' :: 'Lens'' s a      -> (a -> 'Bool') -> s -> 'Maybe' a
@@ -273,7 +273,7 @@ findOf :: AFold0 (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE findOf #-}
 
--- | The 'findMOf' function takes a 'Lens' (or 'Getter', 'Iso', 'Fold', or 'Traversal'),
+-- | The 'findMOf' function takes a 'Lens' (or 'View', 'Iso', 'Fold', or 'Traversal'),
 -- a monadic predicate and a structure and returns in the monad the leftmost element of the structure
 -- matching the predicate, or 'Nothing' if there is no such element.
 --
@@ -291,7 +291,7 @@ findOf o f = foldrOf o (\a y -> if f a then Just a else y) Nothing
 -- Nothing
 --
 -- @
--- 'findMOf' :: ('Monad' m, 'Getter' s a)     -> (a -> m 'Bool') -> s -> m ('Maybe' a)
+-- 'findMOf' :: ('Monad' m, 'View' s a)     -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Fold' s a)       -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Iso'' s a)       -> (a -> m 'Bool') -> s -> m ('Maybe' a)
 -- 'findMOf' :: ('Monad' m, 'Lens'' s a)      -> (a -> m 'Bool') -> s -> m ('Maybe' a)
@@ -313,7 +313,7 @@ findMOf :: Monad m => AFold0 (Endo (m (Maybe a))) s a -> (a -> m Bool) -> s -> m
 findMOf o f = foldrOf o (\a y -> f a >>= \r -> if r then return (Just a) else y) $ return Nothing
 {-# INLINE findMOf #-}
 
--- | The 'lookupOf' function takes a 'Fold' (or 'Getter', 'Traversal',
+-- | The 'lookupOf' function takes a 'Fold' (or 'View', 'Traversal',
 -- 'Lens', 'Iso', etc.), a key, and a structure containing key/value pairs.
 -- It returns the first value corresponding to the given key. This function
 -- generalizes 'lookup' to work on an arbitrary 'Fold' instead of lists.

@@ -25,14 +25,14 @@ module Data.Profunctor.Optic.Type (
   , Grate, Grate', GrateLike, GrateLike'
     -- * Grids
   , Grid, Grid', GridLike, GridLike'
-    -- * Glasses
-  , Glass, Glass', GlassLike, GlassLike'
     -- * Affine traversals
   , Traversal0, Traversal0', Traversal0Like, Traversal0Like'
     -- * Non-empty traversals
   , Traversal1, Traversal1', Traversal1Like, Traversal1Like'
     -- * General traversals
   , Traversal, Traversal', TraversalLike, TraversalLike', ATraversal, ATraversal'
+    -- * Affine cotraversals
+  , Cotraversal0, Cotraversal0', Cotraversal0Like, Cotraversal0Like'
     -- * Cotraversals
   , Cotraversal, Cotraversal', CotraversalLike, CotraversalLike'
     -- * Affine folds
@@ -41,14 +41,18 @@ module Data.Profunctor.Optic.Type (
   , Fold1, Fold1Like, AFold1
     -- * General folds
   , Fold, FoldLike, FoldRep, AFold
-    -- * Unfolds  
+    -- * Affine unfolds
+  --, Unfold0, Unfold0Rep, AUnfold0
+    -- * Unfolds
   , Unfold, UnfoldRep, AUnfold
-    -- * Getters
-  , Getter, AGetter, PrimGetter, PrimGetterLike
+    -- * Views
+  , View, AView, PrimView, PrimViewLike
     -- * Reviews
   , Review, AReview, PrimReview, PrimReviewLike
     -- * Setters
-  , Setter, Setter', SetterLike, ASetter, AResetter 
+  , Setter, Setter', SetterLike, ASetter
+    -- * Resetters
+  , Resetter, Resetter', ResetterLike, AResetter
     -- * Representable & Coreprestable profunctors
   , Over, Over', Under, Under'
     -- * 'Re'
@@ -78,7 +82,6 @@ import Data.Functor.Base (NonEmptyF(..))
 import Data.Traversable
 
 import Data.Bifunctor as Export (Bifunctor (..))
-
 ---------------------------------------------------------------------
 -- 'Optic'
 ---------------------------------------------------------------------
@@ -90,7 +93,7 @@ type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
 
-type Equality s t a b = forall p. Optic p s t a b 
+type Equality s t a b = forall p. Optic p s t a b
 
 type Equality' s a = Equality s s a a
 
@@ -180,27 +183,11 @@ type GrateLike' p s a = GrateLike p s s a a
 --
 type Grid s t a b = forall p. GridLike p s t a b
 
-type Grid' s a = Grid s s a a 
+type Grid' s a = Grid s s a a
 
 type GridLike p s t a b = Closed p => LensLike p s t a b
 
 type GridLike' p s a = GridLike p s s a a
-
----------------------------------------------------------------------
--- 'Glass'
----------------------------------------------------------------------
-
--- | Glasses arise from the combination of prisms and grates.
---
--- \( \mathsf{Glass}\;S\;A = \exists D,I, S \cong D + (I \to A) \)
---
-type Glass s t a b = forall p. GlassLike p s t a b
-
-type Glass' s a = Glass s s a a
-
-type GlassLike p s t a b = Closed p => PrismLike p s t a b
-
-type GlassLike' p s a = GlassLike p s s a a
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
@@ -228,7 +215,8 @@ type Traversal1 s t a b = forall p. Traversal1Like p s t a b
 
 type Traversal1' s a = Traversal1 s s a a
 
-type Traversal1Like p s t a b = (forall x. Apply (p x)) => Traversal0Like p s t a b
+--type Traversal1Like p s t a b = (forall x. Apply (p x)) => Traversal0Like p s t a b
+type Traversal1Like p s t a b = Representable p => Apply (Rep p) => Traversal0Like p s t a b
 
 type Traversal1Like' p s a = Traversal1Like p s s a a
 
@@ -243,7 +231,8 @@ type Traversal s t a b = forall p. TraversalLike p s t a b
 type Traversal' s a = Traversal s s a a
 
 --type TraversalLike p s t a b = (forall x. Applicative (p x)) => Traversal0Like p s t a b
-type TraversalLike p s t a b = Traversing p => Traversal0Like p s t a b
+--type TraversalLike p s t a b = Traversing p => Traversal0Like p s t a b
+type TraversalLike p s t a b = Representable p => Applicative (Rep p) => Traversal0Like p s t a b
 
 type TraversalLike' p s a = TraversalLike p s s a a
 
@@ -252,22 +241,38 @@ type ATraversal f s t a b = Applicative f => Optic (Star f) s t a b
 type ATraversal' f s a = ATraversal f s s a a
 
 ---------------------------------------------------------------------
--- 'Cotraversal'
---------------------------------------------------------------------- 
+-- 'Cotraversal0'
+---------------------------------------------------------------------
 
-type Cotraversal s t a b = forall p. Distributive (Corep p) => Under p s t a b
---type Cotraversal s t a b = forall p. CotraversalLike p s t a b
+-- | A 'Cotraversal0' arises from the combination of prisms and grates.
+--
+-- \( \mathsf{Cotraversal0}\;S\;A = \exists D,I, S \cong D + (I \to A) \)
+--
+type Cotraversal0 s t a b = forall p. Cotraversal0Like p s t a b
+
+type Cotraversal0' s a = Cotraversal0 s s a a
+
+type Cotraversal0Like p s t a b = Closed p => PrismLike p s t a b
+
+type Cotraversal0Like' p s a = Cotraversal0Like p s s a a
+
+---------------------------------------------------------------------
+-- 'Cotraversal'
+---------------------------------------------------------------------
+
+type Cotraversal s t a b = forall p. CotraversalLike p s t a b
 
 type Cotraversal' s a = Cotraversal s s a a
 
 --(forall x. Coapplicative (p x))
-type CotraversalLike p s t a b = (forall x. Distributive (p x)) => GridLike p s t a b
+--type CotraversalLike p s t a b = (forall x. Distributive (p x)) => GridLike p s t a b
+type CotraversalLike p s t a b = Corepresentable p => Distributive (Corep p) => Cotraversal0Like p s t a b
 
 type CotraversalLike' p s a = CotraversalLike p s s a a
 
 ---------------------------------------------------------------------
 -- 'Fold0'
---------------------------------------------------------------------- 
+---------------------------------------------------------------------
 
 -- | A 'Fold0' extracts at most one non-summary result from a container.
 --
@@ -277,13 +282,14 @@ type Fold0Like p s a = (forall x. Contravariant (p x)) => Traversal0Like p s s a
 
 ---------------------------------------------------------------------
 -- 'Fold1'
---------------------------------------------------------------------- 
+---------------------------------------------------------------------
 
 -- | A 'Fold1' extracts a semigroupal summary from a non-empty container
 --
 type Fold1 s a = forall p. Fold1Like p s a
 
-type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a 
+type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
+--type Fold1Like p s a = Contravariant (Rep p) => Traversal1Like p s s a a
 
 type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
@@ -296,46 +302,65 @@ type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 type Fold s a = forall p. FoldLike p s a
 
 type FoldLike p s a = (forall x. Contravariant (p x)) => TraversalLike p s s a a
+--type FoldLike p s a = Contravariant (Rep p) => TraversalLike p s s a a
 
 type FoldRep r = Star (Const r)
 
 type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 
 ---------------------------------------------------------------------
+-- 'Unfold0'
+---------------------------------------------------------------------
+
+-- | A 'Unfold0' extracts at most one non-summary result from a container.
+--
+type Unfold0 s a = forall p. Unfold0Like p s a
+
+type Unfold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
+
+---------------------------------------------------------------------
 -- 'Unfold'
 ---------------------------------------------------------------------
 
---type Unfold t b = forall p. Distributive (Corep p) => Contravariant (Corep p) => Under' p t b
-type Unfold t b = forall p. Bifunctor p => CotraversalLike p t t b b
+type Unfold t b = forall p. UnfoldLike p t b
+
+type UnfoldLike p t b = Bifunctor p => CotraversalLike p t t b b
+--type UnfoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
+--type Unfold t b = forall p. Bifunctor p => CotraversalLike p t t b b
 
 type UnfoldRep r = Costar (Const r)
 
 type AUnfold r t b = Optic' (UnfoldRep r) t b
 
 ---------------------------------------------------------------------
--- 'Getter'
+-- 'View'
 ---------------------------------------------------------------------
 
--- | A 'Getter' extracts exactly one result.
+-- | A 'View' extracts exactly one result.
 --
-type Getter s a = forall p. (forall x. Contravariant (p x)) => LensLike p s s a a
+--type View s a = forall p. (forall x. Contravariant (p x)) => LensLike p s s a a
+type View s a = forall p. Strong p => PrimViewLike p s s a a
 
-type PrimGetter s t a b = forall p. PrimGetterLike p s t a b
+type PrimView s t a b = forall p. PrimViewLike p s t a b
 
-type PrimGetterLike p s t a b = Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
+--type PrimViewLike p s t a b = Contravariant (Rep p) => Over p s t a b
+type PrimViewLike p s t a b = Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
 
-type AGetter s a = Optic' (FoldRep a) s a
+type AView s a = Optic' (FoldRep a) s a
 
 ---------------------------------------------------------------------
 -- 'Review'
 ---------------------------------------------------------------------
 
 -- | A 'Review' produces a result.
-type Review t b = forall p. Bifunctor p => PrismLike p t t b b
+--type Review t b = forall p. Bifunctor p => PrismLike p t t b b
+type Review t b = forall p. Choice p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
 
-type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b 
+--type PrimReviewLike p s t a b = Contravariant (Corep p) => Under p s t a b
+
+type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b
 
 type AReview t b = Optic' (UnfoldRep b) t b
 
@@ -349,7 +374,7 @@ type AReview t b = Optic' (UnfoldRep b) t b
 -- \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
 --type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
-type SetterLike p s t a b = Mapping p => Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
+--type SetterLike p s t a b = Mapping p => Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
 --type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
 
 --type SetterLike p s t a b = Mapping p => Over p s t a b
@@ -358,15 +383,24 @@ type Setter s t a b = forall p. SetterLike p s t a b
 
 type Setter' s a = Setter s s a a
 
--- type SetterLike p s t a b = Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
+type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
 -- type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
--- type Setter s t a b = Category p => Closed p => 
+-- type Setter s t a b = Category p => Closed p =>
 -- type Setter s t a b = Optic (->) s t a b
 
 type ASetter s t a b = Optic (Star Identity) s t a b
 
-type AResetter s t a b = Optic (Costar Identity) s t a b
+---------------------------------------------------------------------
+-- 'Setter'
+---------------------------------------------------------------------
 
+type Resetter s t a b = forall p. ResetterLike p s t a b
+
+type Resetter' s a = Resetter s s a a
+
+type ResetterLike p s t a b = Strong p => Applicative (Corep p) => CotraversalLike p s t a b
+
+type AResetter s t a b = Optic (Costar Identity) s t a b
 
 ---------------------------------------------------------------------
 -- 'Over' & 'Under'
@@ -391,68 +425,22 @@ underLike sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentit
 -- | TODO: Document
 --
 cloneOver :: Optic (Star (Rep p)) s t a b -> Over p s t a b
-cloneOver = between fromStar star 
+cloneOver = between fromStar star
 
 -- | TODO: Document
 --
 cloneUnder :: Optic (Costar (Corep p)) s t a b -> Under p s t a b
-cloneUnder = between fromCostar costar 
+cloneUnder = between fromCostar costar
 
 closed' :: Under p (c -> a) (c -> b) a b
 closed' = lower cotraverse
-
-
-{-
-type SLens s t a b = forall p. Strong p => PSemigroup (,) p => Optic p s t a b
-type SLens' s a = SLens s s a a
-
---v2 :: Semigroupal p => Optic p (V2 a) (V2 b) a b
-v2 :: SLens (V2 a) (V2 b) a b
-v2 p = dimap (\(V2 x y) -> (x, y)) (\(x, y) -> V2 x y) (p *** p)
-
--- >>>  contents skipLast (1,2,3)
--- [1,2]
-skipLast :: SLens (a, a, c) (b, b, c) a b
-skipLast p = dimap group ungroup (first' (p *** p)) where
-  group  (x, y, z) = ((x, y), z)
-  ungroup ((x, y), z) = (x, y, z)
-
-skipLast' :: SLens' (V3 a) a
-skipLast' p = dimap group ungroup (first' (p *** p)) where
-  group  (V3 x y z) = ((x, y), z)
-  ungroup ((x, y), z) = V3 x y z
-
-
-v4 :: SLens (V4 a) (V4 b) a b
-v4 p = dimap (\(V4 x y z w) -> (x, (y, (z, w)))) (\(x, (y, (z, w))) -> V4 x y z w) (p *** p *** p *** p)
--}
-
-{-λ> review (v2 . right' . _V2) 1 :: V2 (Either Bool (V2 Int))
-V2 (Right (V2 1 1)) (Right (V2 1 1))
-and zipWithOf:
-
-λ> let as = V2 (Left ())     (Right (1,2))
-λ> let bs = V2 (Right (3,4)) (Right (5,6))
-λ> zipWithOf (v2 . right' . first') (,) as bs
-V2 (Left ()) (Right ((1,5),2))
-But also traverseOf:
-
-λ> let f x = state (\s -> (x + s, s +1))
-λ> evalState (traverseOf v2 f (V2 5 7)) 1
-V2 6 9
-and toListOf:
-
-λ> toListOf (v2 . v2) (V2 (V2 1 2) (V2 3 4))
-[1,2,3,4]
-
--}
 
 ---------------------------------------------------------------------
 -- 'Re'
 ---------------------------------------------------------------------
 
 
---The 'Re' type, and its instances witness the symmetry between the parameters of a 'Profunctor'. 
+--The 'Re' type, and its instances witness the symmetry between the parameters of a 'Profunctor'.
 
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
