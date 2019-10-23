@@ -23,7 +23,7 @@ library
       Data.Profunctor.Bistar
       Data.Profunctor.Monoid
       Data.Profunctor.Task
-      Data.Profunctor.Traversing1
+      Data.Profunctor.Distributing
       Data.Profunctor.Orphan
 
       Data.Profunctor.Optic
@@ -31,7 +31,6 @@ library
       Data.Profunctor.Optic.Prism
 
       Data.Profunctor.Optic.Lens
-      Data.Profunctor.Optic.Getter
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Traversal.Affine
       Data.Profunctor.Optic.Fold
@@ -39,16 +38,18 @@ library
       --Data.Profunctor.Optic.Fold.NonEmpty
 
       Data.Profunctor.Optic.Grate
-      Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Cotraversal
       Data.Profunctor.Optic.Unfold
 
+      Data.Profunctor.Optic.View
+      Data.Profunctor.Optic.Review
+
       Data.Profunctor.Optic.Setter
+      --Data.Profunctor.Optic.Resetter
 
       Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Type
-      Data.Profunctor.Optic.Indexed
       Data.Profunctor.Optic.Type.VL
 
 

@@ -43,22 +43,20 @@ import qualified Data.Functor.Rep as F
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-setting :: ((a -> b) -> s -> t) -> Setter s t a b 
-setting f = dimap (\s -> Bar $ \ab -> f ab s) lent . map'
+--setting :: ((a -> b) -> s -> t) -> Setter s t a b
+--setting f = dimap (\s -> Bar $ \ab -> f ab s) lent . map'
+setting :: ((a -> b) -> s -> t) -> Setter s t a b
+setting sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
 
 -- | TODO: Document
 --
 lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
 lifting f = lift $ genMap' f
 
--- | SEC on each value of a functor
-mapping :: Functor f => Setter (f a) (f b) a b
-mapping = map'
-
 -- | TODO: Document
 --
 grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-grating f = dimap pureTaskF (f . runTask) . map' 
+grating f = dimap pureTaskF (f . runTask) . lift collect
 
 -- | Every 'Grate' is a 'Setter'.
 --
@@ -80,6 +78,7 @@ genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
 --roam l = dimap ((values &&& info) . l (Store id)) eval . map'
 
 
+roam f = dimap (\s -> Bar $ \ab -> f ab s) lent
 
 newtype Bar t b a = Bar
   { runBar :: (a -> b) -> t }
@@ -106,7 +105,7 @@ lent m = runBar m id
 -- mapOf :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
 -- @
 mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
-mapOf = over 
+mapOf = over
 
 -- | TODO: Document
 --
@@ -219,6 +218,10 @@ cod = setting rmap
 --
 masking :: Setter (IO a) (IO b) a b
 masking = grating Ex.mask
+
+-- | SEC on each value of a functor
+mapping :: Functor f => Setter (f a) (f b) a b
+mapping = setting fmap
 
 -- | SEC for monadically transforming a monadic value
 binding :: Monad m => Setter (m a) (m b) a (m b)

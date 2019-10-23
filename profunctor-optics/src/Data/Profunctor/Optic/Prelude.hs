@@ -20,7 +20,7 @@ import Control.Applicative as Export
 import Control.Category as Export -- (Category, (>>>), (<<<))
 import Control.Monad as Export hiding (void)
 import Control.Comonad as Export
-import Data.Bifunctor as Export (Bifunctor (..)) 
+import Data.Bifunctor as Export (Bifunctor (..))
 import Data.Distributive as Export
 import Data.Functor as Export hiding (void)
 import Data.Functor.Compose as Export
@@ -29,10 +29,10 @@ import Data.Functor.Contravariant as Export hiding (($<), void)
 import Data.Functor.Contravariant.Divisible as Export
 import Data.Functor.Identity as Export
 import Data.Profunctor.Bistar as Export
-import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide, pchoose, pselect, pdivided) 
-import Data.Profunctor.Choice as Export 
+import Data.Profunctor.Arrow as Export hiding ((***), (+++), (&&&), (|||), ($$$), pliftA2, pdivide, pchoose, pselect, pdivided)
+import Data.Profunctor.Choice as Export
 import Data.Profunctor.Closed as Export
-import Data.Profunctor.Traversing as Export 
+import Data.Profunctor.Traversing as Export
 import Data.Profunctor.Mapping as Export
 import Data.Profunctor.Monoid as Export
 import Data.Profunctor.Rep as Export
@@ -44,7 +44,7 @@ import Data.Profunctor.Orphan as Export
 import Data.Void as Export
 import Prelude as Export hiding (foldr, filter, (.), id, head, tail)
 import qualified Data.Functor.Rep as F
-import qualified Data.Tuple 
+import qualified Data.Tuple
 
 import Control.Monad.Trans.Cont
 
@@ -118,13 +118,13 @@ assocr = assoc
 assocl4 :: a + b + c + d -> (((a + b) + c) + d)
 assocl4 = x . x where x = unassoc @(+)
 
-assocr4 :: (((a + b) + c) + d) -> a + b + c + d 
+assocr4 :: (((a + b) + c) + d) -> a + b + c + d
 assocr4 = x . x where x = assoc @(+)
 
 assocl5 :: a + b + c + d + e -> (((a + b) + c) + d) + e
 assocl5 = x . x . x where x = unassoc @(+)
 
-assocr5 :: (((a + b) + c) + d) + e -> a + b + c + d + e 
+assocr5 :: (((a + b) + c) + d) + e -> a + b + c + d + e
 assocr5 = x . x . x where x = assoc @(+)
 
 branch :: (a -> Bool) -> b -> c -> a -> Either b c
@@ -154,7 +154,7 @@ pleft = left'
 pright :: Choice p => p a b -> p (c + a) (c + b)
 pright = right'
 
-rcoerce  :: Profunctor p => Contravariant (p a) => p a c -> p a d
+rcoerce :: Profunctor p => Contravariant (p a) => p a c -> p a d
 rcoerce = rmap absurd . contramap absurd
 
 rcoerce' :: (Representable p, Contravariant (Rep p)) => p a b -> p a c
@@ -237,7 +237,7 @@ star' :: Applicative f => Star f a a
 star' = Star pure
 
 fromStar :: Representable p => Star (Rep p) a b -> p a b
-fromStar = tabulate . runStar 
+fromStar = tabulate . runStar
 
 fromStar' :: F.Representable f => F.Rep f -> Star f a b -> a -> b
 fromStar' i (Star f) = flip F.index i . f

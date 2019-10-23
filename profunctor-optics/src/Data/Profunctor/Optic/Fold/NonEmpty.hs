@@ -3,7 +3,7 @@ module Data.Profunctor.Optic.Fold.NonEmpty where
 import Data.DList.NonEmpty (NonEmptyDList)
 import Data.Functor.Apply (Apply(..))
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Profunctor.Optic.Getter (view, to)
+import Data.Profunctor.Optic.View (view, to)
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Semigroup
@@ -58,7 +58,7 @@ foldMap1Of = between (dstar getConst) (ustar Const)
 -- "hello" :| ["world"]
 --
 -- @
--- 'toNelOf' :: 'Getter' s a        -> s -> NonEmpty a
+-- 'toNelOf' :: 'View' s a        -> s -> NonEmpty a
 -- 'toNelOf' :: 'Fold1' s a       -> s -> NonEmpty a
 -- 'toNelOf' :: 'Lens'' s a       -> s -> NonEmpty a
 -- 'toNelOf' :: 'Iso'' s a        -> s -> NonEmpty a

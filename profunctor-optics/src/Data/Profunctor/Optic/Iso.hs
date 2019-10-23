@@ -22,10 +22,10 @@ type As a = Equality' a a
 simple :: As a
 simple = id
 
--- | Turn a 'Prism' or 'Iso' around to build a 'Getter'.
+-- | Turn a 'Prism' or 'Iso' around to build a 'View'.
 --
 -- If you have an 'Iso', 'from' is a more powerful version of this function
--- that will return an 'Iso' instead of a mere 'Getter'.
+-- that will return an 'Iso' instead of a mere 'View'.
 --
 -- >>> 5 ^.re _Left
 -- Left 5
@@ -41,8 +41,8 @@ simple = id
 -- @
 --
 -- @
--- 're' :: 'Prism' s t a b -> 'Getter' b t
--- 're' :: 'Iso' s t a b   -> 'Getter' b t
+-- 're' :: 'Prism' s t a b -> 'View' b t
+-- 're' :: 'Iso' s t a b   -> 'View' b t
 -- @
 --
 re :: Optic (Re p a b) s t a b -> Optic p b a t s
@@ -304,7 +304,7 @@ instance Choice p => Choice (Split p c d) where
 -- ^ @
 -- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
 -- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
--- split :: Getter s t a b -> Getter s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: View s t a b -> View s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
 -- @
 split 
   :: Profunctor p

@@ -1,4 +1,4 @@
-module Data.Profunctor.Optic.Getter where
+module Data.Profunctor.Optic.View where
 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
@@ -10,10 +10,10 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 
 
 ---------------------------------------------------------------------
--- 'Getter'
+-- 'View'
 ---------------------------------------------------------------------
 
--- | Build a 'Getter' from an arbitrary function.
+-- | Build a 'View' from an arbitrary function.
 --
 -- @
 -- 'to' f '.' 'to' g ≡ 'to' (g '.' f)
@@ -33,36 +33,36 @@ import Control.Monad.Trans.State.Strict (StateT(..))
 -- 5
 --
 -- @
--- 'to' :: (s -> a) -> 'Getter' s a
+-- 'to' :: (s -> a) -> 'View' s a
 -- @
 --
-to :: (s -> a) -> PrimGetter s t a b
+to :: (s -> a) -> PrimView s t a b
 to f = rcoerce . lmap f
 {-# INLINE to #-}
 
 -- @
--- 'get' :: 'AGetter' s a -> 'Getter' s a
--- 'get' :: 'Monoid' a => 'AGetter' s a -> 'Fold' s a
+-- 'get' :: 'AView' s a -> 'View' s a
+-- 'get' :: 'Monoid' a => 'AView' s a -> 'Fold' s a
 -- @
-get :: AGetter s a -> PrimGetter s t a b
+get :: AView s a -> PrimView s t a b
 get = to . view
 
 -- @
--- 'toBoth' :: 'AGetter' s a -> 'AGetter' s b -> 'Getter' s (a, b)
+-- 'toBoth' :: 'AView' s a -> 'AView' s b -> 'View' s (a, b)
 -- @
-toBoth :: AGetter s a1 -> AGetter s a2 -> PrimGetter s t (a1 , a2) b
+toBoth :: AView s a1 -> AView s a2 -> PrimView s t (a1 , a2) b
 toBoth l r = to (view l &&& view r)
 
 -- | TODO: Document
 --
-toEither :: AGetter s1 a -> AGetter s2 a -> PrimGetter (s1 + s2) t a b
+toEither :: AView s1 a -> AView s2 a -> PrimView (s1 + s2) t a b
 toEither l r = to (view l ||| view r)
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Map each part of a structure viewed through a 'Lens', 'Getter',
+-- | Map each part of a structure viewed through a 'Lens', 'View',
 -- 'Fold' or 'Traversal' to a monoid and combine the results.
 --
 -- >>> viewOf both id (["foo"], ["bar", "baz"])
@@ -85,7 +85,7 @@ toEither l r = to (view l ||| view r)
 -- 'viewOf' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
 -- 'viewOf' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
--- 'viewOf' ::                  'AGetter' s a       -> (a -> r) -> s -> r
+-- 'viewOf' ::                  'AView' s a       -> (a -> r) -> s -> r
 -- @
 --
 viewOf :: Optic' (FoldRep r) s a -> (a -> r) -> s -> r
@@ -97,15 +97,15 @@ viewOf = between (dstar getConst) (ustar Const)
 
 -- | TODO: Document
 --
-_1' :: PrimGetter (a , c) (b , c) a b
+_1' :: PrimView (a , c) (b , c) a b
 _1' = to fst
 
 -- | TODO: Document
 --
-_2' :: PrimGetter (c , a) (c , b) a b
+_2' :: PrimView (c , a) (c , b) a b
 _2' = to snd
 
--- | Build a constant-valued (index-preserving) 'PrimGetter' from an arbitrary value.
+-- | Build a constant-valued (index-preserving) 'PrimView' from an arbitrary value.
 --
 -- @
 -- 'like' a '.' 'like' b ≡ 'like' b
@@ -116,12 +116,12 @@ _2' = to snd
 -- This can be useful as a second case 'failing' a 'Fold'
 -- e.g. @foo `failing` 'like' 0@
 --
-like :: a -> PrimGetter s t a b
+like :: a -> PrimView s t a b
 like = to . const
 
 -- | TODO: Document
 --
-rcoerced :: Getter a a 
+rcoerced :: View a a 
 rcoerced = rcoerce
 
 ---------------------------------------------------------------------
@@ -132,13 +132,13 @@ infixl 8 ^.
 
 -- | TODO: Document
 --
-(^.) :: s -> AGetter s a -> a
+(^.) :: s -> AView s a -> a
 (^.) = flip view
 
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
 -- @
-view :: MonadReader s m => AGetter s a -> m a
+view :: MonadReader s m => AView s a -> m a
 view = (`views` id)
 {-# INLINE view #-}
 
@@ -151,23 +151,23 @@ views o f = Reader.asks $ viewOf o f
 
 -- | TODO: Document
 --
-use :: MonadState s m => AGetter s a -> m a
+use :: MonadState s m => AView s a -> m a
 use o = State.gets (view o)
 
--- | Extracts the portion of a log that is focused on by a 'Getter'. 
+-- | Extracts the portion of a log that is focused on by a 'View'. 
 --
 -- Given a 'Fold' or a 'Traversal', then a monoidal summary of the parts 
 -- of the log that are visited will be returned.
 --
 -- @
--- 'listening' :: 'MonadWriter' w m             => 'Getter' w u     -> m a -> m (a, u)
+-- 'listening' :: 'MonadWriter' w m             => 'View' w u     -> m a -> m (a, u)
 -- 'listening' :: 'MonadWriter' w m             => 'Lens'' w u      -> m a -> m (a, u)
 -- 'listening' :: 'MonadWriter' w m             => 'Iso'' w u       -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Fold' w u       -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Traversal'' w u -> m a -> m (a, u)
 -- 'listening' :: ('MonadWriter' w m, 'Monoid' u) => 'Prism'' w u     -> m a -> m (a, u)
 -- @
-listening :: MonadWriter w m => AGetter w u -> m a -> m (a, u)
+listening :: MonadWriter w m => AView w u -> m a -> m (a, u)
 listening l m = do
   (a, w) <- Writer.listen m
   return (a, view l w)

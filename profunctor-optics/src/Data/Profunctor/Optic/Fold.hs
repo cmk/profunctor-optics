@@ -5,7 +5,7 @@ import Data.DList (DList)
 import Data.Foldable (traverse_)
 import Data.Functor.Foldable (Recursive, Base, fold)
 import Data.Monoid
-import Data.Profunctor.Optic.Getter (to)
+import Data.Profunctor.Optic.View (to)
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Type
@@ -42,7 +42,7 @@ fold_complete o = tripping o $ folding (toListOf o)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 folding :: Foldable f =>  (s -> f a) -> Fold s a
-folding f = to f . wander traverse_
+folding f = rcoerce' . lmap f . lift traverse_
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold' using a 'Traversable' functor.
@@ -52,7 +52,7 @@ folding f = to f . wander traverse_
 -- @
 --
 folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = traversed . to f
+folded f = traversed . rcoerce' . lmap f
 
 foldLike :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
 foldLike = between (Star . (Const .)) ((getConst .) . runStar)
@@ -76,7 +76,7 @@ recursing = foldLike fold
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Map each part of a structure viewed through a 'Lens', 'Getter',
+-- | Map each part of a structure viewed through a 'Lens', 'View',
 -- 'Fold' or 'Traversal' to a monoid and combine the results.
 --
 -- >>> foldMapOf both id (["foo"], ["bar", "baz"])
@@ -103,7 +103,7 @@ foldMapOf = between ((getConst .) . runStar) (Star . (Const .))
 -- | Collects the foci of a `Fold` into a list.
 --
 toListOf :: AFold (DList a) s a -> s -> [a]
-toListOf o = flip DL.apply [] . foldMapOf o DL.singleton 
+toListOf o = flip DL.apply [] . foldMapOf o DL.singleton
 
 -- |
 --
@@ -137,7 +137,7 @@ infixl 8 ^..
 -- @
 --
 -- @
--- ('^..') :: s -> 'Getter' s a     -> [a]
+-- ('^..') :: s -> 'View' s a     -> [a]
 -- ('^..') :: s -> 'Fold' s a       -> [a]
 -- ('^..') :: s -> 'Lens'' s a      -> [a]
 -- ('^..') :: s -> 'Iso'' s a       -> [a]
@@ -155,7 +155,7 @@ infixl 8 ^..
 foldrOf :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
 foldrOf p f r = (`appEndo` r) . foldMapOf p (Endo . f)
 
--- | Left fold lift a 'Fold'. 
+-- | Left fold lift a 'Fold'.
 --
 foldlOf :: AFold (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
 foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
@@ -169,7 +169,7 @@ foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
 -- @
 -- 'foldlOf'' :: 'Iso'' s a        -> (c -> a -> c) -> c -> s -> c
 -- 'foldlOf'' :: 'Lens'' s a       -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Getter' s a        -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'View' s a        -> (c -> a -> c) -> c -> s -> c
 -- 'foldlOf'' :: 'Fold' s a        -> (c -> a -> c) -> c -> s -> c
 -- 'foldlOf'' :: 'Traversal'' s a  -> (c -> a -> c) -> c -> s -> c
 -- 'foldlOf'' :: 'Traversal0'' s a -> (c -> a -> c) -> c -> s -> c

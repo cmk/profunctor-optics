@@ -1,7 +1,7 @@
 module Data.Profunctor.Optic.Traversal where
 
 import Control.Applicative.Free.Fast
-import Data.Bitraversable 
+import Data.Bitraversable
 import Data.Foldable (traverse_)
 import Data.Functor.Identity
 import Data.Profunctor.Choice
@@ -27,12 +27,12 @@ import qualified Data.Profunctor.Traversing as T
 -- | TODO: Document, DList
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap dup (uncurry sbt) . second' . lmap sa . wander traverse
+traversal sa sbt = dimap dup (uncurry sbt) . second' . lmap sa . lift traverse
 
 -- | TODO: Document
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = wander traverse
+traversed = lift traverse
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -51,7 +51,7 @@ traversed = wander traverse
 -- @
 --
 both :: Bitraversable f => Traversal (f a a) (f b b) a b
-both = wander $ \f -> bitraverse f f
+both = lift $ \f -> bitraverse f f
 {-# INLINE both #-}
 
 ---------------------------------------------------------------------
@@ -129,7 +129,7 @@ prim_traversal k = dimap uncons cons (right' (k *** (prim_traversal k)))
 -- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
 -- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
 -- traverseOf $ _1 . _R :: Applicative f => (a -> f b) -> (c + a, d) -> f (c + b, d)
--- traverseOf == between runStar Star 
+-- traverseOf == between runStar Star
 -- @
 --
 traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t

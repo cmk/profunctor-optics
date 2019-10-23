@@ -17,7 +17,7 @@ module Data.Profunctor.Optic.Review
 
 import Control.Monad.Reader as Reader
 
-import Data.Profunctor.Optic.Getter
+import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
 
@@ -29,7 +29,7 @@ import Data.Profunctor.Optic.Iso (re)
 
 
 -- | Convert a function into a 'Review'.
---  Analagous to 'to' for 'Getter'.
+--  Analagous to 'to' for 'View'.
 --
 -- @
 -- 'unto' :: (b -> t) -> 'PrimReview' s t a b
@@ -42,7 +42,7 @@ import Data.Profunctor.Optic.Iso (re)
 unto :: (b -> t) -> PrimReview s t a b 
 unto f = lcoerce . rmap f
 
--- | Turn a 'Getter' around to get a 'Review'
+-- | Turn a 'View' around to get a 'Review'
 --
 -- @
 -- 'un' = 'unto' . 'view'
@@ -51,7 +51,7 @@ unto f = lcoerce . rmap f
 --
 -- >>> un (to length) # [1,2,3]
 -- 3
-un :: AGetter s a -> PrimReview b a t s
+un :: AView s a -> PrimReview b a t s
 un = unto . (`views` id)
 
 -- | Build a constant-valued (index-preserving) 'PrimReview' from an arbitrary value.

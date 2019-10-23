@@ -171,7 +171,7 @@ lowerL = (. _L)
 lowerR :: Iso s t (c + a) (c + b) -> Prism s t a b
 lowerR = (. _R)
 
--- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'Getter', 'Fold' (or 'Traversal').
+-- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'View', 'Fold' (or 'Traversal').
 --
 -- >>> [1..10] ^.. folded . filtered even
 -- [2,4,6,8,10]
