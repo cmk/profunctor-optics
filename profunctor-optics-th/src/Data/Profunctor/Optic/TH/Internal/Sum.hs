@@ -66,9 +66,9 @@ makePrisms = makePrisms' True
 --   _Bar :: Prism' s a
 --   _Baz :: Prism' s (Int,Char)
 --
---   _Foo = _FooBarBaz % _Foo
---   _Bar = _FooBarBaz % _Bar
---   _Baz = _FooBarBaz % _Baz
+--   _Foo = _FooBarBaz . _Foo
+--   _Bar = _FooBarBaz . _Bar
+--   _Baz = _FooBarBaz . _Baz
 --
 -- instance AsFooBarBaz (FooBarBaz a) a
 -- @
@@ -457,19 +457,19 @@ data NCon = NCon
   deriving (Eq)
 
 instance HasTypeVars NCon where
-  typeVarsEx s = traversalVL $ \f (NCon x vars y z) ->
+  typeVarsEx s = vltraversal $ \f (NCon x vars y z) ->
     let s' = foldl' (flip S.insert) s vars
     in NCon x vars <$> traverseOf (typeVarsEx s') f y
                    <*> traverseOf (typeVarsEx s') f z
 
 nconName :: Lens' NCon Name
-nconName = lensVL $ \f x -> fmap (\y -> x {_nconName = y}) (f (_nconName x))
+nconName = vllens $ \f x -> fmap (\y -> x {_nconName = y}) (f (_nconName x))
 
 nconCxt :: Lens' NCon Cxt
-nconCxt = lensVL $ \f x -> fmap (\y -> x {_nconCxt = y}) (f (_nconCxt x))
+nconCxt = vllens $ \f x -> fmap (\y -> x {_nconCxt = y}) (f (_nconCxt x))
 
 nconTypes :: Lens' NCon [Type]
-nconTypes = lensVL $ \f x -> fmap (\y -> x {_nconTypes = y}) (f (_nconTypes x))
+nconTypes = vllens $ \f x -> fmap (\y -> x {_nconTypes = y}) (f (_nconTypes x))
 
 
 -- | Normalize a single 'Con' to its constructor name and field types.

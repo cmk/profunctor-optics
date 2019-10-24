@@ -177,10 +177,10 @@ checkGaffer = gaffer
 checkGaffer_ :: Lens' (Quark a) a
 checkGaffer_ = #gaffer
 
-checkTape :: AffineTraversal' (Quark a) a
+checkTape :: Traversal0' (Quark a) a
 checkTape = tape
 
-checkTape_ :: AffineTraversal' (Quark a) a
+checkTape_ :: Traversal0' (Quark a) a
 checkTape_ = #tape
 
 data Hadron a b = Science { _a1 :: a, _a2 :: a, _c :: Either b [b] }
@@ -226,22 +226,22 @@ checkTerrain = terrain
 checkTerrain_ :: Lens' (Perambulation a b) a
 checkTerrain_ = #terrain
 
-checkAltitude :: AffineTraversal (Perambulation a b) (Perambulation a b') b b'
+checkAltitude :: Traversal0 (Perambulation a b) (Perambulation a b') b b'
 checkAltitude = altitude
 
-checkAltitude_ :: AffineTraversal (Perambulation a b) (Perambulation a b') b b'
+checkAltitude_ :: Traversal0 (Perambulation a b) (Perambulation a b') b b'
 checkAltitude_ = #altitude
 
 checkAbsurdity1 :: Eq x => Getter (Perambulation a b) (x -> y)
 checkAbsurdity1 = absurdity1
 
-checkAbsurdity2 :: Eq x => AffineFold (Perambulation a b) (x -> y)
+checkAbsurdity2 :: Eq x => Fold0 (Perambulation a b) (x -> y)
 checkAbsurdity2 = absurdity2
 
-checkDunes :: AffineTraversal' (Perambulation a b) a
+checkDunes :: Traversal0' (Perambulation a b) a
 checkDunes = dunes
 
-checkDunes_ :: AffineTraversal' (Perambulation a b) a
+checkDunes_ :: Traversal0' (Perambulation a b) a
 checkDunes_ = #dunes
 
 makeLensesFor [ ("_terrain", "allTerrain")
@@ -531,7 +531,7 @@ declareLenses [d|
 checkGaffer1 :: Lens' (Quark1 a) a
 checkGaffer1 = gaffer1
 
-checkTape1 :: AffineTraversal' (Quark1 a) a
+checkTape1 :: Traversal0' (Quark1 a) a
 checkTape1 = tape1
 
 declareFieldLabels [d|
@@ -542,7 +542,7 @@ declareFieldLabels [d|
 checkGaffer2 :: Lens' (Quark2 a) a
 checkGaffer2 = #gaffer2
 
-checkTape2 :: AffineTraversal' (Quark2 a) a
+checkTape2 :: Traversal0' (Quark2 a) a
 checkTape2 = #tape2
 
 declarePrisms [d|
@@ -639,22 +639,22 @@ declareFields [d|
     deriving (Show)
   |]
 
-checkA0 :: HasA0 t a => AffineTraversal' t a
+checkA0 :: HasA0 t a => Traversal0' t a
 checkA0 = a0
 
 checkB0 :: HasB0 t a => Lens' t a
 checkB0 = b0
 
-checkC0 :: HasC0 t a => AffineTraversal' t a
+checkC0 :: HasC0 t a => Traversal0' t a
 checkC0 = c0
 
-checkA0' :: AffineTraversal' (DeclaredFields f a) (f a)
+checkA0' :: Traversal0' (DeclaredFields f a) (f a)
 checkA0' = a0
 
 checkB0' :: Lens' (DeclaredFields f a) Int
 checkB0' = b0
 
-checkC0' :: AffineTraversal' (DeclaredFields f a) String
+checkC0' :: Traversal0' (DeclaredFields f a) String
 checkC0' = c0
 
 declareFields [d|
@@ -680,7 +680,7 @@ makeFieldLabelsWith lensRules ''Rank2Tests -- doesn't generate anything
 checkR2length :: Getter Rank2Tests ([a] -> Int)
 checkR2length = r2length
 
-checkR2nub :: Eq a => AffineFold Rank2Tests ([a] -> [a])
+checkR2nub :: Eq a => Fold0 Rank2Tests ([a] -> [a])
 checkR2nub = r2nub
 
 data PureNoFields = PureNoFieldsA | PureNoFieldsB { _pureNoFields :: Int }
@@ -713,9 +713,9 @@ checkMappingNamer = hogehoge_fieldMappingNamer
 
 data CheckLookingupNamer = CheckLookingupNamer
                            { fieldLookingupNamer :: Int }
-makeLensesWith (lensRules & lensField .~ (lookingupNamer [("fieldLookingupNamer", "foobarFieldLookingupNamer")])) ''CheckLookingupNamer
+makeLensesWith (lensRules & lensField .~ (lookingupNamer [("fieldLookingupNamer", "reviewerFieldLookingupNamer")])) ''CheckLookingupNamer
 checkLookingupNamer :: Iso' CheckLookingupNamer Int
-checkLookingupNamer = foobarFieldLookingupNamer
+checkLookingupNamer = reviewerFieldLookingupNamer
 
 data CheckUnderscoreNamer = CheckUnderscoreNamer
                             { _hogeprefix_fieldCheckUnderscoreNamer :: Int }

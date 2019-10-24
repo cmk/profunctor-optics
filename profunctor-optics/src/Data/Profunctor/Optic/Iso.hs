@@ -6,48 +6,6 @@ import Data.Profunctor.Optic.Type
 
 import Control.Monad (join)
 
----------------------------------------------------------------------
--- 'Equality' 
----------------------------------------------------------------------
-
-type As a = Equality' a a
-
----------------------------------------------------------------------
--- 'Re' 
----------------------------------------------------------------------
-
--- 'simple' is occasionally useful to constraint excessive polymorphism, 
--- e.g turn Optic into simple Optic'.
--- | @foo . (simple :: As Int) . bar@.
-simple :: As a
-simple = id
-
--- | Turn a 'Prism' or 'Iso' around to build a 'View'.
---
--- If you have an 'Iso', 'from' is a more powerful version of this function
--- that will return an 'Iso' instead of a mere 'View'.
---
--- >>> 5 ^.re _Left
--- Left 5
---
--- >>> 6 ^.re (_Left.unto succ)
--- Left 7
---
--- @
--- 'review'  ≡ 'view'  '.' 're'
--- 'reviews' ≡ 'views' '.' 're'
--- 'reuse'   ≡ 'use'   '.' 're'
--- 'reuses'  ≡ 'uses'  '.' 're'
--- @
---
--- @
--- 're' :: 'Prism' s t a b -> 'View' b t
--- 're' :: 'Iso' s t a b   -> 'View' b t
--- @
---
-re :: Optic (Re p a b) s t a b -> Optic p b a t s
-re o = (between runRe Re) o id
-{-# INLINE re #-}
 
 ---------------------------------------------------------------------
 -- 'Iso' 

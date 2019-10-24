@@ -54,6 +54,9 @@ both :: Bitraversable f => Traversal (f a a) (f b b) a b
 both = lift $ \f -> bitraverse f f
 {-# INLINE both #-}
 
+vltraversal :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+vltraversal = lift
+
 ---------------------------------------------------------------------
 -- 'TraversalRep'
 ---------------------------------------------------------------------

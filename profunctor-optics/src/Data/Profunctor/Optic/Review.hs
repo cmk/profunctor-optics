@@ -21,8 +21,6 @@ import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type 
 
-import Data.Profunctor.Optic.Iso (re)
-
 ------------------------------------------------------------------------------
 -- 'Review'
 ------------------------------------------------------------------------------

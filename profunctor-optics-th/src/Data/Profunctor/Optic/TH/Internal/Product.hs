@@ -37,7 +37,7 @@ import Optics.TH.Internal.Utils
 ------------------------------------------------------------------------
 
 typeSelf :: Traversal' Type Type
-typeSelf = traversalVL $ \f -> \case
+typeSelf = vltraversal $ \f -> \case
   ForallT tyVarBndrs ctx ty ->
     let go (KindedTV nam kind) = KindedTV <$> pure nam <*> f kind
         go (PlainTV nam)       = pure (PlainTV nam)
@@ -70,9 +70,9 @@ makeFieldOpticsForDatatype :: LensRules -> D.DatatypeInfo -> HasFieldClasses [De
 makeFieldOpticsForDatatype rules info =
   do perDef <- lift $ do
        fieldCons <- traverse normalizeConstructor cons
-       let allFields  = toListOf (folded % _2 % folded % _1 % folded) fieldCons
+       let allFields  = toListOf (folded . _2 . folded . _1 . folded) fieldCons
        let defCons    = over normFieldLabels (expandName allFields) fieldCons
-           allDefs    = setOf (normFieldLabels % folded) defCons
+           allDefs    = setOf (normFieldLabels . folded) defCons
        T.sequenceA (M.fromSet (buildScaffold True rules s defCons) allDefs)
 
      let defs = M.toList perDef
@@ -89,7 +89,7 @@ makeFieldOpticsForDatatype rules info =
 
   -- Traverse the field labels of a normalized constructor
   normFieldLabels :: Traversal [(Name,[(a,Type)])] [(Name,[(b,Type)])] a b
-  normFieldLabels = traversed % _2 % traversed % _1
+  normFieldLabels = traversed . _2 . traversed . _1
 
   -- Map a (possibly missing) field's name to zero-to-many optic definitions
   expandName :: [Name] -> Maybe Name -> [DefName]
@@ -108,9 +108,9 @@ makeFieldLabelsForDatatype :: LensRules -> D.DatatypeInfo -> Q [Dec]
 makeFieldLabelsForDatatype rules info =
   do perDef <- do
        fieldCons <- traverse normalizeConstructor cons
-       let allFields  = toListOf (folded % _2 % folded % _1 % folded) fieldCons
+       let allFields  = toListOf (folded . _2 . folded . _1 . folded) fieldCons
        let defCons    = over normFieldLabels (expandName allFields) fieldCons
-           allDefs    = setOf (normFieldLabels % folded) defCons
+           allDefs    = setOf (normFieldLabels . folded) defCons
        T.sequenceA (M.fromSet (buildScaffold False rules s defCons) allDefs)
 
      let defs = filter isRank1 $ M.toList perDef
@@ -129,7 +129,7 @@ makeFieldLabelsForDatatype rules info =
 
     -- Traverse the field labels of a normalized constructor
     normFieldLabels :: Traversal [(Name,[(a,Type)])] [(Name,[(b,Type)])] a b
-    normFieldLabels = traversed % _2 % traversed % _1
+    normFieldLabels = traversed . _2 . traversed . _1
 
     -- Map a (possibly missing) field's name to zero-to-many optic definitions
     expandName :: [Name] -> Maybe Name -> [DefName]
@@ -159,8 +159,8 @@ makeFieldLabel rules (defName, (defType, cons)) = do
         [LitT (StrTyLit fieldName), ConT $ opticTypeToTag otype, s, t', a', b'])
   instanceD context instHead (fun 'labelOptic)
   where
-    opticTypeToTag AffineFoldType      = ''An_AffineFold
-    opticTypeToTag AffineTraversalType = ''An_AffineTraversal
+    opticTypeToTag Fold0Type      = ''An_Fold0
+    opticTypeToTag Traversal0Type = ''An_Traversal0
     opticTypeToTag FoldType            = ''A_Fold
     opticTypeToTag GetterType          = ''A_Getter
     opticTypeToTag IsoType             = ''An_Iso
@@ -175,7 +175,7 @@ makeFieldLabel rules (defName, (defType, cons)) = do
         go =<< lift (D.resolveTypeSynonyms a)
       pure $ hasTypeFamilies && not (S.null bareVars)
       where
-        go (ConT nm) = has (_FamilyI % _1 % _TypeFamilyD) <$> lift (reify nm)
+        go (ConT nm) = has (_FamilyI . _1 . _TypeFamilyD) <$> lift (reify nm)
         go (VarT n)  = modify' (S.delete n) *> pure False
         go ty        = or <$> traverse go (toListOf typeSelf ty)
 
@@ -235,14 +235,14 @@ buildScaffold allowPhantomsChange rules s cons defName =
      let defType
            | Just (tyvars,cx,a') <- preview _ForallT a =
                let optic | lensCase   = GetterType
-                         | affineCase = AffineFoldType
+                         | affineCase = Fold0Type
                          | otherwise  = FoldType
                in OpticSa (null tyvars) cx optic s' a'
 
            -- Getter and Fold are always simple
            | not (_allowUpdates rules) =
                let optic | lensCase   = GetterType
-                         | affineCase = AffineFoldType
+                         | affineCase = Fold0Type
                          | otherwise  = FoldType
                in OpticSa True [] optic s' a
 
@@ -250,7 +250,7 @@ buildScaffold allowPhantomsChange rules s cons defName =
            | _simpleLenses rules || s' == t && a == b =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                         | affineCase                  = AffineTraversalType
+                         | affineCase                  = Traversal0Type
                          | otherwise                   = TraversalType
                in OpticSa True [] optic s' a
 
@@ -258,14 +258,14 @@ buildScaffold allowPhantomsChange rules s cons defName =
            | otherwise =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                         | affineCase                  = AffineTraversalType
+                         | affineCase                  = Traversal0Type
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
      return (defType, scaffolds)
   where
     consForDef :: [(Name, [Either Type Type])]
-    consForDef = over (mapped % _2 % mapped) categorize cons
+    consForDef = over (mapped . _2 . mapped) categorize cons
 
     scaffolds :: [(Name, Int, [Int])]
     scaffolds = [ (n, length ts, rightIndices ts) | (n,ts) <- consForDef ]
@@ -281,7 +281,7 @@ buildScaffold allowPhantomsChange rules s cons defName =
       | otherwise               = Left  t
 
     affectedFields :: [Int]
-    affectedFields = toListOf (folded % _3 % to length) scaffolds
+    affectedFields = toListOf (folded . _3 . to length) scaffolds
 
     lensCase :: Bool
     lensCase = all (== 1) affectedFields
@@ -295,8 +295,8 @@ buildScaffold allowPhantomsChange rules s cons defName =
                 _           -> False
 
 data OpticType
-  = AffineFoldType
-  | AffineTraversalType
+  = Fold0Type
+  | Traversal0Type
   | FoldType
   | GetterType
   | IsoType
@@ -305,10 +305,10 @@ data OpticType
   deriving Show
 
 opticTypeName :: Bool -> OpticType -> Name
-opticTypeName typeChanging  AffineTraversalType = if typeChanging
-                                                  then ''AffineTraversal
-                                                  else ''AffineTraversal'
-opticTypeName _typeChanging AffineFoldType      = ''AffineFold
+opticTypeName typeChanging  Traversal0Type = if typeChanging
+                                                  then ''Traversal0
+                                                  else ''Traversal0'
+opticTypeName _typeChanging Fold0Type      = ''Fold0
 opticTypeName _typeChanging FoldType            = ''Fold
 opticTypeName _typeChanging GetterType          = ''Getter
 opticTypeName typeChanging  IsoType             = if typeChanging
@@ -367,7 +367,7 @@ buildStab allowPhantomsChange s categorizedFields = do
       (preview _head targetFields)
 
     phantomTypeVars =
-      let allTypeVars = folded % chosen % typeVars
+      let allTypeVars = folded . chosen . typeVars
       in setOf typeVars s S.\\ setOf allTypeVars categorizedFields
 
     (fixedFields, targetFields) = partitionEithers categorizedFields
@@ -474,7 +474,7 @@ makeClassyInstance rules className methodName s defs = do
   methodss <- traverse (makeFieldOptic rules') defs
 
   lift $ instanceD (cxt[]) (return instanceHead)
-           $ valD (varP methodName) (normalB (varE 'lensVL `appE` varE 'id)) []
+           $ valD (varP methodName) (normalB (varE 'vllens `appE` varE 'id)) []
            : map return (concat methodss)
 
   where
@@ -511,7 +511,7 @@ makeFieldInstance defType className decs =
 
   containsTypeFamilies = go <=< D.resolveTypeSynonyms
     where
-    go (ConT nm) = has (_FamilyI % _1 % _TypeFamilyD) <$> reify nm
+    go (ConT nm) = has (_FamilyI . _1 . _TypeFamilyD) <$> reify nm
     go ty = or <$> traverse go (toListOf typeSelf ty)
 
   pickInstanceDec hasFamilies
@@ -532,8 +532,8 @@ makeFieldInstance defType className decs =
 makeFieldClause :: LensRules -> OpticType -> [(Name, Int, [Int])] -> ClauseQ
 makeFieldClause rules opticType cons =
   case opticType of
-    AffineFoldType      -> makeAffineFoldClause cons
-    AffineTraversalType -> makeAffineTraversalClause cons irref
+    Fold0Type      -> makeFold0Clause cons
+    Traversal0Type -> makeTraversal0Clause cons irref
     FoldType            -> makeFoldClause cons
     IsoType             -> makeIsoClause cons irref
     GetterType          -> makeGetterClause cons
@@ -542,21 +542,21 @@ makeFieldClause rules opticType cons =
   where
     irref = _lazyPatterns rules && length cons == 1
 
-makeAffineFoldClause :: [(Name, Int, [Int])] -> ClauseQ
-makeAffineFoldClause cons = do
+makeFold0Clause :: [(Name, Int, [Int])] -> ClauseQ
+makeFold0Clause cons = do
   s <- newName "s"
   clause
     []
     (normalB $ appsE
       [ varE 'afolding
       , lamE [varP s] $ caseE (varE s)
-        [ makeAffineFoldMatch conName fieldCount fields
+        [ makeFold0Match conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
         ]
       ])
     []
   where
-    makeAffineFoldMatch conName fieldCount fields = do
+    makeFold0Match conName fieldCount fields = do
       xs <- newNames "x" $ length fields
 
       let args = foldr (\(i, x) -> set (ix i) (varP x))
@@ -568,7 +568,7 @@ makeAffineFoldClause cons = do
             []  -> conE 'Nothing
             -- Con _ .. x_i .. _ -> Just x_i
             [x] -> conE 'Just `appE` varE x
-            _   -> error "AffineFold focuses on at most one field"
+            _   -> error "Fold0 focuses on at most one field"
 
       match (conP conName args)
             (normalB body)
@@ -658,7 +658,7 @@ makeLensClause cons irref = do
   clause
     []
     (normalB $ appsE
-      [ varE 'lensVL
+      [ varE 'vllens
       , lamE [varP f, varP s] $ caseE (varE s)
         [ makeLensMatch irrefP f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
@@ -688,17 +688,17 @@ makeLensMatch irrefP f conName fieldCount = \case
           []
   _       -> error "Lens focuses on exactly one field"
 
-makeAffineTraversalClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
-makeAffineTraversalClause cons irref = do
+makeTraversal0Clause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
+makeTraversal0Clause cons irref = do
   point <- newName "point"
   f     <- newName "f"
   s     <- newName "s"
   clause
     []
     (normalB $ appsE
-      [ varE 'atraversalVL
+      [ varE 'avltraversal
       , lamE [varP point, varP f, varP s] $ caseE (varE s)
-        [ makeAffineTraversalMatch point f conName fieldCount fields
+        [ makeTraversal0Match point f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
         ]
       ])
@@ -706,7 +706,7 @@ makeAffineTraversalClause cons irref = do
   where
     irrefP = if irref then tildeP else id
 
-    makeAffineTraversalMatch point f conName fieldCount = \case
+    makeTraversal0Match point f conName fieldCount = \case
       [] -> do
         xs <- newNames "x" fieldCount
         -- Con x_1 ... x_n -> point (Con x_1 .. x_n)
@@ -723,7 +723,7 @@ makeTraversalClause cons irref = do
   clause
     []
     (normalB $ appsE
-      [ varE 'traversalVL
+      [ varE 'vltraversal
       , lamE [varP f, varP s] $ caseE (varE s)
         [ makeTraversalMatch f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
@@ -816,8 +816,8 @@ addFieldClassName n = modify $ S.insert n
 ------------------------------------------------------------------------
 
  -- We want to catch type families, but not *data* families. See #799.
-_TypeFamilyD :: AffineFold Dec ()
-_TypeFamilyD = _OpenTypeFamilyD % united `afailing` _ClosedTypeFamilyD % united
+_TypeFamilyD :: Fold0 Dec ()
+_TypeFamilyD = _OpenTypeFamilyD . united `afailing` _ClosedTypeFamilyD . united
 
 -- | Template Haskell wants type variables declared in a forall, so
 -- we find all free type variables in a given type and declare them.

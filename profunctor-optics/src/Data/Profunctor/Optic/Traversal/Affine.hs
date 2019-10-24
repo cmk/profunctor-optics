@@ -79,6 +79,8 @@ type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
 
 type ATraversal0' s a = ATraversal0 s s a a
 
+type ARetraversal0 s t a b = Optic (Re (Traversal0Rep t s) a b) s t a b
+
 idTraversal0Rep :: Traversal0Rep a b a b
 idTraversal0Rep = Traversal0Rep Right (\_ -> id)
 
@@ -115,12 +117,18 @@ withTraversal0 o f = case o (Traversal0Rep Right $ const id) of Traversal0Rep x 
 --
 matching :: ATraversal0 s t a b -> s -> t + a
 matching o = withTraversal0 o $ \match _ -> match
-{-# INLINE matching #-}
 
 -- | Test whether the optic matches or not.
 --
 isMatched :: ATraversal0 s t a b -> s -> Bool
 isMatched o = either (const False) (const True) . matching o
+
+-- | Reverse match on a 'Reprism' or similar.
+--
+-- * @rematching . re $ prism _ sa ≡ sa@
+--
+rematching :: ARetraversal0 s t a b -> b -> a + t
+rematching o = matching (re o)
 
 ---------------------------------------------------------------------
 -- Common traversing0 traversals

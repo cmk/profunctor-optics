@@ -36,26 +36,30 @@ import qualified Data.Profunctor.Optic.Type.VL as VL
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . psecond
 
+-- | Build a 'Costrong' optic from a getter and setter. 
+--
+-- * @relens f g ≡ \f g -> re (lens f g)@
+--
+-- * @review $ relens f g ≡ f@
+--
+-- * @set . re $ re (lens f g) ≡ g@
+--
+-- A 'Relens' is a 'Review', so you can specialise types to obtain:
+--
+-- @ 'review' :: 'Relens'' s a -> a -> s @
+--
+relens :: (b -> t) -> (b -> s -> a) -> Relens s t a b
+relens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
+
+-- | Transform a Van Laarhoven lens into a profunctor lens.
+--
+vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+vllens  o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
+
 -- | Build a 'Lens' from its free tensor representation.
 --
 matched :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
 matched f g = dimap f g . psecond
-
--- | Build a 'Costrong' optic from a getter and setter. 
---
--- * @colens f g ≡ \f g -> re (lens f g)@
---
--- @
--- 'review' $ 'colens' f g ≡ f
--- 'set' . 're' $ 're' ('lens' f g) ≡ g
--- @
-colens :: (s -> a) -> (s -> b -> t) -> Colens b a t s
-colens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
-
--- | Transform a Van Laarhoven lens into a profunctor lens.
---
-lensvl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensvl o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
 
 -- | TODO: Document
 --

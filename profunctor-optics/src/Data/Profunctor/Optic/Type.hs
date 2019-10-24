@@ -14,13 +14,15 @@
 
 module Data.Profunctor.Optic.Type (
     -- * Optics
-    Optic, Optic', Equality, Equality'
+    Optic, Optic', Co
+    -- * Equality
+  , Equality, Equality', As
     -- * Isos
   , Iso, Iso'
-    -- * Lenses & Colenses
-  , Lens, Lens', LensLike, LensLike', Colens, Colens', ColensLike, ColensLike'
-    -- * Prisms & Coprisms
-  , Prism, Prism', PrismLike, PrismLike', Coprism, Coprism', CoprismLike, CoprismLike'
+    -- * Lenses & Relenses
+  , Lens, Lens', LensLike, LensLike', Relens, Relens', RelensLike, RelensLike'
+    -- * Prisms & Reprisms
+  , Prism, Prism', PrismLike, PrismLike', Reprism, Reprism', ReprismLike, ReprismLike'
     -- * Grates
   , Grate, Grate', GrateLike, GrateLike'
     -- * Grids
@@ -56,7 +58,7 @@ module Data.Profunctor.Optic.Type (
     -- * Representable & Coreprestable profunctors
   , Over, Over', Under, Under'
     -- * 'Re'
-  , Re(..)
+  , Re(..), re
   , module Export
 ) where
 
@@ -82,20 +84,24 @@ import Data.Functor.Base (NonEmptyF(..))
 import Data.Traversable
 
 import Data.Bifunctor as Export (Bifunctor (..))
+
 ---------------------------------------------------------------------
 -- 'Optic'
 ---------------------------------------------------------------------
-
---type Optic p s t a b = Profunctor p => p a b -> p s t
---type Optical p s t a b = p a b -> p s t
 
 type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
 
+---------------------------------------------------------------------
+-- 'Equality'
+---------------------------------------------------------------------
+
 type Equality s t a b = forall p. Optic p s t a b
 
 type Equality' s a = Equality s s a a
+
+type As a = Equality' a a
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -125,13 +131,13 @@ type LensLike p s t a b = Strong p => Optic p s t a b
 
 type LensLike' p s a = LensLike p s s a a
 
-type Colens s t a b = forall p. ColensLike p s t a b
+type Relens s t a b = forall p. RelensLike p s t a b
 
-type Colens' s a = Colens s s a a
+type Relens' s a = Relens s s a a
 
-type ColensLike p s t a b = Costrong p => Optic p s t a b
+type RelensLike p s t a b = Costrong p => Optic p s t a b
 
-type ColensLike' p s a = ColensLike p s s a a
+type RelensLike' p s a = RelensLike p s s a a
 
 ---------------------------------------------------------------------
 -- 'Prism'
@@ -149,13 +155,13 @@ type PrismLike p s t a b = Choice p => Optic p s t a b
 
 type PrismLike' p s a = PrismLike p s s a a
 
-type Coprism s t a b = forall p. CoprismLike p s t a b
+type Reprism s t a b = forall p. ReprismLike p s t a b
 
-type Coprism' s a = Coprism s s a a
+type Reprism' s a = Reprism s s a a
 
-type CoprismLike p s t a b = Cochoice p => Optic p s t a b
+type ReprismLike p s t a b = Cochoice p => Optic p s t a b
 
-type CoprismLike' p s a = CoprismLike p s s a a
+type ReprismLike' p s a = ReprismLike p s s a a
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -230,8 +236,6 @@ type Traversal s t a b = forall p. TraversalLike p s t a b
 
 type Traversal' s a = Traversal s s a a
 
---type TraversalLike p s t a b = (forall x. Applicative (p x)) => Traversal0Like p s t a b
---type TraversalLike p s t a b = Traversing p => Traversal0Like p s t a b
 type TraversalLike p s t a b = Representable p => Applicative (Rep p) => Traversal0Like p s t a b
 
 type TraversalLike' p s a = TraversalLike p s s a a
@@ -264,8 +268,6 @@ type Cotraversal s t a b = forall p. CotraversalLike p s t a b
 
 type Cotraversal' s a = Cotraversal s s a a
 
---(forall x. Coapplicative (p x))
---type CotraversalLike p s t a b = (forall x. Distributive (p x)) => GridLike p s t a b
 type CotraversalLike p s t a b = Corepresentable p => Distributive (Corep p) => Cotraversal0Like p s t a b
 
 type CotraversalLike' p s a = CotraversalLike p s s a a
@@ -366,25 +368,15 @@ type AReview t b = Optic' (UnfoldRep b) t b
 -- 'Setter'
 ---------------------------------------------------------------------
 
-
 -- | A 'Setter' modifies part of a structure.
 --
 -- \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
---type Setter s t a b = forall p. Distributive (Rep p) => Over p s t a b
---type SetterLike p s t a b = Mapping p => Closed p => (forall x. Distributive (p x)) => TraversalLike p s t a b
---type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
-
---type SetterLike p s t a b = Mapping p => Over p s t a b
 type Setter s t a b = forall p. SetterLike p s t a b
---type Setter s t a b = Optic (->) s t a b
 
 type Setter' s a = Setter s s a a
 
 type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
--- type SetterLike p s t a b = Choice p => CotraversalLike p s t a b
--- type Setter s t a b = Category p => Closed p =>
--- type Setter s t a b = Optic (->) s t a b
 
 type ASetter s t a b = Optic (Star Identity) s t a b
 
@@ -434,9 +426,45 @@ closed' :: Under p (c -> a) (c -> b) a b
 closed' = lower cotraverse
 
 ---------------------------------------------------------------------
--- 'Re'
+-- 'Equality' 
 ---------------------------------------------------------------------
 
+-- 'simple' is occasionally useful to constraint excessive polymorphism, 
+-- e.g turn Optic into simple Optic'.
+-- | @foo . (simple :: As Int) . bar@.
+simple :: As a
+simple = id
+
+---------------------------------------------------------------------
+-- 'Re' 
+---------------------------------------------------------------------
+
+-- | Turn a 'Lens', 'Prism' or 'Iso' around to build its dual.
+--
+-- If you have an 'Iso', 'from' is a more powerful version of this function
+-- that will return an 'Iso' instead of a mere 'View'.
+--
+-- >>> 5 ^.re _Left
+-- Left 5
+--
+-- >>> 6 ^.re (_Left.unto succ)
+-- Left 7
+--
+-- @
+-- 'review'  ≡ 'view'  '.' 're'
+-- 'reviews' ≡ 'views' '.' 're'
+-- 'reuse'   ≡ 'use'   '.' 're'
+-- 'reuses'  ≡ 'uses'  '.' 're'
+-- @
+--
+-- @
+-- 're' :: 'Prism' s t a b -> 'Reprism' b t
+-- 're' :: 'Iso' s t a b   -> 'View' b t
+-- @
+--
+re :: Optic (Re p a b) s t a b -> Optic p b a t s
+re o = (between runRe Re) o id
+{-# INLINE re #-}
 
 --The 'Re' type, and its instances witness the symmetry between the parameters of a 'Profunctor'.
 

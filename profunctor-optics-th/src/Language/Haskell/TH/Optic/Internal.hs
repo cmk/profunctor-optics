@@ -20,13 +20,15 @@ import Language.Haskell.TH
 
 import Data.Profunctor.Optic
 
+setOf l = foldMapOf l Set.singleton
+
 -- | Has a 'Name'
 class HasName t where
   -- | Extract (or modify) the 'Name' of something
   name :: Lens' t Name
 
 instance HasName TyVarBndr where
-  name = lensVL $ \f -> \case
+  name = vllens $ \f -> \case
     PlainTV n    -> PlainTV <$> f n
     KindedTV n k -> (`KindedTV` k) <$> f n
 
@@ -38,19 +40,19 @@ class HasTypeVars t where
   typeVarsEx :: Set Name -> Traversal' t Name
 
 instance HasTypeVars TyVarBndr where
-  typeVarsEx s = traversalVL $ \f b ->
+  typeVarsEx s = vltraversal $ \f b ->
     if view name b `Set.member` s
     then pure b
     else traverseOf name f b
 
 instance HasTypeVars Name where
-  typeVarsEx s = traversalVL $ \f n ->
+  typeVarsEx s = vltraversal $ \f n ->
     if n `Set.member` s
     then pure n
     else f n
 
 instance HasTypeVars Type where
-  typeVarsEx s = traversalVL $ \f -> \case
+  typeVarsEx s = vltraversal $ \f -> \case
     VarT n            -> VarT <$> traverseOf (typeVarsEx s) f n
     AppT l r          -> AppT <$> traverseOf (typeVarsEx s) f l
                               <*> traverseOf (typeVarsEx s) f r
@@ -68,7 +70,7 @@ instance HasTypeVars Type where
     t                 -> pure t
 
 instance HasTypeVars t => HasTypeVars [t] where
-  typeVarsEx s = traversed % typeVarsEx s
+  typeVarsEx s = traversed . typeVarsEx s
 
 
 -- | Traverse /free/ type variables
@@ -101,7 +103,7 @@ instance SubstType t => SubstType [t] where
 
 _FamilyI :: Prism' Info (Dec, [InstanceDec])
 _FamilyI
-  = prism' reviewer remitter
+  = prism' remitter reviewer
   where
       reviewer (x, y) = FamilyI x y
       remitter (FamilyI x y) = Just (x, y)
@@ -109,7 +111,7 @@ _FamilyI
 
 _ClosedTypeFamilyD :: Prism' Dec (TypeFamilyHead, [TySynEqn])
 _ClosedTypeFamilyD
-  = prism' reviewer remitter
+  = prism' remitter reviewer
   where
       reviewer (x, y) = ClosedTypeFamilyD x y
       remitter (ClosedTypeFamilyD x y) = Just (x, y)
@@ -117,7 +119,7 @@ _ClosedTypeFamilyD
 
 _OpenTypeFamilyD :: Prism' Dec TypeFamilyHead
 _OpenTypeFamilyD
-  = prism' reviewer remitter
+  = prism' remitter reviewer
   where
       reviewer = OpenTypeFamilyD
       remitter (OpenTypeFamilyD x) = Just x
@@ -125,7 +127,7 @@ _OpenTypeFamilyD
 
 _ForallT :: Prism' Type ([TyVarBndr], Cxt, Type)
 _ForallT
-  = prism' reviewer remitter
+  = prism' remitter reviewer
   where
       reviewer (x, y, z) = ForallT x y z
       remitter (ForallT x y z) = Just (x, y, z)

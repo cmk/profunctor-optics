@@ -34,18 +34,18 @@ prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 
 -- | Build a 'Cochoice' optic from a constructor and a matcher function.
 --
--- * @coprism f g ≡ \f g -> re (prism f g)@
+-- * @reprism f g ≡ \f g -> re (prism f g)@
+-- 
+-- * @view . re $ prism bat _ ≡ bat@
 --
-coprism :: (s -> t + a) -> (b -> t) -> Coprism b a t s
-coprism seta bt = unright . dimap (id ||| bt) seta
-
--- | Transform a Van Laarhoven-encoded prism into a profunctor-encoded one.
+-- * @matching . re . re $ prism _ sa ≡ sa@
+-- 
+-- A 'Reprism' is a 'View', so you can specialise types to obtain:
 --
---prismvl :: (forall f. Applicative f => Traversable g => (g a -> f b) -> g s -> f t) -> Prism s t a b
---prismvl l = undefined 
-
---prismek :: (forall f p. Applicative f => Choice p => (p a (f b) -> p s (f t)) -> Prism s t a b
---prismek l = undefined 
+-- @ view :: 'Reprism'' s a -> s -> a @
+--
+reprism :: (b -> a + t) -> (s -> a) -> Reprism s t a b
+reprism beat sa = unright . dimap (id ||| sa) beat
 
 -- | Build a 'Prism' from its free tensor representation.
 --

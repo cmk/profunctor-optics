@@ -112,14 +112,14 @@ import Data.Profunctor.Optic.TH.Internal.Sum
 -- instance
 --   (a ~ Int, b ~ Int
 --   ) => LabelOptic "age" A_Lens Animal Animal a b where
---   labelOptic = lensVL $ \\f s -> case s of
+--   labelOptic = vllens $ \\f s -> case s of
 --     Cat x1 x2 -> fmap (\\y -> Cat y x2) (f x1)
 --     Dog x1 x2 -> fmap (\\y -> Dog y x2) (f x1)
 --
 -- instance
 --   (a ~ String, b ~ String
---   ) => LabelOptic "name" An_AffineTraversal Animal Animal a b where
---   labelOptic = atraversalVL $ \\point f s -> case s of
+--   ) => LabelOptic "name" An_Traversal0 Animal Animal a b where
+--   labelOptic = avltraversal $ \\point f s -> case s of
 --     Cat x1 x2 -> fmap (\\y -> Cat x1 y) (f x2)
 --     Dog x1 x2 -> point (Dog x1 x2)
 -- @
@@ -237,18 +237,18 @@ fieldLabelsRulesFor fields = fieldLabelsRules & lensField .~ lookingupNamer fiel
 -- will create
 --
 -- @
--- absurd :: forall a b. AffineFold Animal (a -> b)
+-- absurd :: forall a b. Fold0 Animal (a -> b)
 -- absurd = afolding $ \\s -> case s of
 --   Cat _ _ -> Nothing
 --   Dog _ x -> Just x
 --
 -- age :: Lens' Animal Int
--- age = lensVL $ \\f s -> case s of
+-- age = vllens $ \\f s -> case s of
 --   Cat x1 x2 -> fmap (\\y -> Cat y x2) (f x1)
 --   Dog x1 x2 -> fmap (\\y -> Dog y x2) (f x1)
 --
--- name :: AffineTraversal' Animal String
--- name = atraversalVL $ \\point f s -> case s of
+-- name :: Traversal0' Animal String
+-- name = avltraversal $ \\point f s -> case s of
 --   Cat x1 x2 -> fmap (\\y -> Cat x1 y) (f x2)
 --   Dog x1 x2 -> point (Dog x1 x2)
 -- @
@@ -357,14 +357,14 @@ lensRulesFor fields = lensRules & lensField .~ lookingupNamer fields
 --   foo  :: Lens' c Foo
 --   fooX :: Lens' c Int
 --   fooY :: Lens' c Int
---   fooX = foo % fooX
---   fooY = foo % fooY
+--   fooX = foo . fooX
+--   fooY = foo . fooY
 --
 -- instance HasFoo Foo where
---   foo  = lensVL id
---   fooX = lensVL $ \\f s -> case s of
+--   foo  = vllens id
+--   fooX = vllens $ \\f s -> case s of
 --     Foo x1 x2 -> fmap (\\y -> Foo y x2) (f x1)
---   fooY = lensVL $ \\f s -> case s of
+--   fooY = vllens $ \\f s -> case s of
 --     Foo x1 x2 -> fmap (\\y -> Foo x1 y) (f x2)
 -- @
 --
@@ -458,7 +458,7 @@ classyRulesFor
   [(String, String)] {- ^ [(Field Name, Method Name)] -} ->
   LensRules
 classyRulesFor classFun fields = classyRules
-  & lensClass .~ (over (mapped % each) mkName . classFun . nameBase)
+  & lensClass .~ (over (mapped . each) mkName . classFun . nameBase)
   & lensField .~ lookingupNamer fields
 
 ----------------------------------------
@@ -482,18 +482,18 @@ classyRulesFor classFun fields = classyRules
 --   x :: Lens' s a
 --
 -- instance HasX (Foo a) Int where
---   x = lensVL $ \\f s -> case s of
+--   x = vllens $ \\f s -> case s of
 --     Foo x1 x2 -> fmap (\\y -> Foo y x2) (f x1)
 --
 -- class HasY s a | s -> a where
 --   y :: Lens' s a
 --
 -- instance HasY (Foo a) a where
---   y = lensVL $ \\f s -> case s of
+--   y = vllens $ \\f s -> case s of
 --     Foo x1 x2 -> fmap (\\y -> Foo x1 y) (f x2)
 --
 -- instance HasX Bar Char where
---   x = lensVL $ \\f s -> case s of
+--   x = vllens $ \\f s -> case s of
 --     Bar x1 -> fmap (\\y -> Bar y) (f x1)
 -- @
 --
@@ -595,7 +595,7 @@ declarePrisms = declareWith $ \dec -> do
 -- | Generate "simple" optics even when type-changing optics are possible.
 -- (e.g. 'Lens'' instead of 'Lens')
 simpleLenses :: Lens' LensRules Bool
-simpleLenses = lensVL $ \f r ->
+simpleLenses = vllens $ \f r ->
   fmap (\x -> r { _simpleLenses = x}) (f (_simpleLenses r))
 
 -- | Indicate whether or not to supply the signatures for the generated lenses.
@@ -603,7 +603,7 @@ simpleLenses = lensVL $ \f r ->
 -- Disabling this can be useful if you want to provide a more restricted type
 -- signature or if you want to supply hand-written haddocks.
 generateSignatures :: Lens' LensRules Bool
-generateSignatures = lensVL $ \f r ->
+generateSignatures = vllens $ \f r ->
   fmap (\x -> r { _generateSigs = x}) (f (_generateSigs r))
 
 -- | Generate "updateable" optics when 'True'. When 'False', (affine) folds will
@@ -611,7 +611,7 @@ generateSignatures = lensVL $ \f r ->
 -- instead of lenses. This mode is intended to be used for types with invariants
 -- which must be maintained by "smart" constructors.
 generateUpdateableData.Profunctor.Optic :: Lens' LensRules Bool
-generateUpdateableData.Profunctor.Optic = lensVL $ \f r ->
+generateUpdateableData.Profunctor.Optic = vllens $ \f r ->
   fmap (\x -> r { _allowUpdates = x}) (f (_allowUpdates r))
 
 -- | Generate optics using lazy pattern matches. This can
@@ -637,26 +637,26 @@ generateUpdateableData.Profunctor.Optic = lensVL $ \f r ->
 -- 'equality'':
 --
 -- @
--- strictOptic = equality' % lazyOptic
+-- strictOptic = equality' . lazyOptic
 -- @
 generateLazyPatterns :: Lens' LensRules Bool
-generateLazyPatterns = lensVL $ \f r ->
+generateLazyPatterns = vllens $ \f r ->
   fmap (\x -> r { _lazyPatterns = x}) (f (_lazyPatterns r))
 
 -- | Create the class if the constructor if generated lenses would be
 -- type-preserving and the 'lensClass' rule matches.
 createClass :: Lens' LensRules Bool
-createClass = lensVL $ \f r ->
+createClass = vllens $ \f r ->
   fmap (\x -> r { _generateClasses = x}) (f (_generateClasses r))
 
 -- | 'Lens'' to access the convention for naming fields in our 'LensRules'.
 lensField :: Lens' LensRules FieldNamer
-lensField = lensVL $ \f r ->
+lensField = vllens $ \f r ->
   fmap (\x -> r { _fieldToDef = x}) (f (_fieldToDef r))
 
 -- | 'Lens'' to access the option for naming "classy" lenses.
 lensClass :: Lens' LensRules ClassyNamer
-lensClass = lensVL $ \f r ->
+lensClass = vllens $ \f r ->
   fmap (\x -> r { _classyLenses = x }) (f (_classyLenses r))
 
 ----------------------------------------
