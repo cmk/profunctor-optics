@@ -3,6 +3,7 @@ flags: {}
 
 packages:
   - profunctor-optics
+  - profunctor-optics-th
   - profunctor-misc
 extra-deps:
   - assoc-1@sha256:8d32ce39b6b6ce15394e9346f9ddb8752885aaa506a603e65d1c2769aff79741

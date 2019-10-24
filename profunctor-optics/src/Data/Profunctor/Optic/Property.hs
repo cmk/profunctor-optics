@@ -2,6 +2,7 @@ module Data.Profunctor.Optic.Property where
 
 import Control.Applicative
 import Data.Profunctor.Optic
+import Data.Profunctor.Optic.Prelude
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -23,7 +24,7 @@ iso_tofrom sa as a = sa (as a) == a
 -- 'Prism'
 ---------------------------------------------------------------------
 
--- If we are able to view an existing focus, then building it will return the original structure. 
+-- If we are able to view an existing focus, then building it will return the original structure.
 prism_tofrom :: Eq s => (s -> s + a) -> (a -> s) -> s -> Bool
 prism_tofrom seta bt s = either id bt (seta s) == s
 
@@ -59,7 +60,7 @@ lens_fromto :: Eq a => (s -> a) -> (s -> a -> s) -> s -> a -> Bool
 lens_fromto sa sas s a = sa (sas s a) == a
 
 lens_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
-lens_idempotent sas s a1 a2 = sas (sas s a1) a2 == sas s a2 
+lens_idempotent sas s a1 a2 = sas (sas s a1) a2 == sas s a2
 
 -- | Putting back what you got doesn't change anything.
 lens_tofrom' :: Eq s => Lens' s a -> s -> Bool
@@ -84,7 +85,7 @@ lens_idempotent' o = withLens o $ const lens_idempotent
 -- * @grate (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
 --
 grate_pure :: Eq s => (((s -> a) -> a) -> s) -> s -> Bool
-grate_pure sabt s = sabt ($ s) == s 
+grate_pure sabt s = sabt ($ s) == s
 
 grate_pure' :: Eq s => (((s -> a) -> a) -> s) -> s -> a -> Bool
 grate_pure' sabt s a = sabt (const a) == s
