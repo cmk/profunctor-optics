@@ -7,33 +7,32 @@ module Data.Profunctor.Optic.Grate (
 
 
 import Data.Distributive
-import Data.Profunctor.Closed (Closed)
-import qualified Data.Profunctor.Closed as C
+import Data.Profunctor.Closed as Export
 
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude hiding (Representable(..))
 import Data.Profunctor.Rep as Export (Corepresentable(..))
 
+import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Cont
 
 import qualified Control.Exception as Ex
 import qualified Data.Functor.Rep as F
-import qualified Data.Functor.Contravariant.Rep as C
 
 
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
 
-{- 
-'Closed' lets you lift a profunctor through any representable functor (aka Naperian container). 
+{-
+'Closed' lets you lift a profunctor through any representable functor (aka Naperian container).
 In the special case where the indexing type is finitary (e.g. 'Bool') then the tabulated type is isomorphic to a fixed length vector (e.g. '(,)').
 The identity container is representable, and representable functors are closed lower composition.
 
 See https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf section 4.6
 
-The resulting 'Grate' optic sits between 'Iso' and 'Setter'. This is witnessed by  
+The resulting 'Grate' optic sits between 'Iso' and 'Setter'. This is witnessed by
 
 Profunctor Grate: Grate s t a b ~ Closed p => p a b -> p s t
 Van Laarhoven Grate: forall f. Functor f => (f a -> b) -> (f s -> t)
@@ -55,7 +54,7 @@ Grate s t a b
 
 
 Laws:
-given a van Laarhoven Grate, 
+given a van Laarhoven Grate,
 
 unzipping :: Functor f => (f a -> b) -> (f s -> t) we expect the following to hold:
 
@@ -98,12 +97,17 @@ grate sabt = dimap (flip ($)) sabt . closed
 -- @
 --
 ungrate :: Grate s t a b -> ((s -> a) -> b) -> t
-ungrate g = withGrate g id 
+ungrate g = withGrate g id
 
 -- | Transform a Van Laarhoven-encoded grate into a profunctor-encoded one.
 --
 gratevl :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
 gratevl g = undefined --flip g id
+
+-- | Construct a 'Grate' from a pair of inverses.
+--
+inverting :: (s -> a) -> (b -> t) -> Grate s t a b
+inverting sa bt = grate $ \sab -> bt (sab sa)
 
 -- | TODO: Document
 --
@@ -166,12 +170,14 @@ withGrate x k = case x (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
 constOf :: AGrate s t a b -> b -> t
 constOf x b = withGrate x $ \grt -> grt (const b)
 
--- | Transform a profunctor-encoded grate into a Van Laarhoven-encoded one.
+-- | Transform a profunctor grate into a Van Laarhoven grate.
 --
 zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> (f s -> t)
 zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
 
 -- | TODO: Document
+--
+-- @\f -> zipWithOf closed (zipWithOf closed f) === zipWithOf (closed . closed)@
 --
 zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipWithOf x comb s1 s2 = withGrate x $ \grt -> grt $ \get -> comb (get s1) (get s2)
@@ -190,12 +196,6 @@ zip4WithOf x comb s1 s2 s3 s4 = withGrate x $ \grt -> grt $ \get -> comb (get s1
 -- Common grates
 ---------------------------------------------------------------------
 
-
--- | A 'Grate' accessing the range of a function.
---
-range :: Grate (c -> a) (c -> b) a b
-range = closed
-
 -- | A 'Grate' accessing the contents of a distributive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
@@ -206,10 +206,10 @@ distributed = grate $ \f -> cotraverse f id
 represented :: F.Representable f => Grate (f a) (f b) a b
 represented = dimap F.index F.tabulate . closed
 
--- | Construct a 'Grate' from a pair of inverses.
+-- | Access the range of a 'ReaderT'.
 --
-inverted :: (s -> a) -> (b -> t) -> Grate s t a b
-inverted sa bt = grate $ \sab -> bt (sab sa)
+ranged :: Distributive m => Grate (ReaderT r m a) (ReaderT r m b) a b
+ranged = distributed
 
 -- | TODO: Document
 --
@@ -229,14 +229,14 @@ continued = grate cont
 -- | TODO: Document
 --
 continuedWith :: Cont r a -> Grate b (Cont r b) r (a -> r)
-continuedWith c = grate (`withCont` c) 
+continuedWith c = grate (`withCont` c)
 
 -- | Depend on a silent configuration parameter.
 configured :: (x -> a -> a) -> x -> Grate' a a
 configured f x = dimap (flip f) ($ x) . closed
 
 -- | Provide an initial value to a 'Semigroup'.
-pointed :: Semigroup a => a -> Grate' a a 
+pointed :: Semigroup a => a -> Grate' a a
 pointed = configured (<>)
 
 -- | Translate between different 'Star's.
