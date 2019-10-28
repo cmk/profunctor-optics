@@ -20,6 +20,8 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Task
+      Data.Profunctor.Fold
+      Data.Profunctor.Fold1
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Iso
@@ -34,7 +36,7 @@ library
 
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Cotraversal
-      Data.Profunctor.Optic.Unfold
+      Data.Profunctor.Optic.Cofold
 
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Review
@@ -84,6 +86,7 @@ library
     , foldl
     , free
     , linear
+    , machines
     , mtl
     , profunctor-misc
     , profunctors

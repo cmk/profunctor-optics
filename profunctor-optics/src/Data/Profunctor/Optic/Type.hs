@@ -9,12 +9,12 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 -- {-# LANGUAGE IncoherentInstances #-}
--- {-# LANGUAGE OverlappingInstances #-}
+-- {-# LANGUAGE RepnlappingInstances #-}
 
 
 module Data.Profunctor.Optic.Type (
     -- * Optics
-    Optic, Optic', Co
+    Optic, Optic'
     -- * Equality
   , Equality, Equality', As
     -- * Isos
@@ -27,6 +27,10 @@ module Data.Profunctor.Optic.Type (
   , Grate, Grate', GrateLike, GrateLike'
     -- * Grids
   , Grid, Grid', GridLike, GridLike'
+    -- * Repns
+  , Repn, Repn', RepnLike, RepnLike', ARepn
+    -- * Corepns
+  , Corepn, Corepn', CorepnLike, CorepnLike', ACorepn
     -- * Affine traversals
   , Traversal0, Traversal0', Traversal0Like, Traversal0Like'
     -- * Non-empty traversals
@@ -43,10 +47,10 @@ module Data.Profunctor.Optic.Type (
   , Fold1, Fold1Like, AFold1
     -- * General folds
   , Fold, FoldLike, FoldRep, AFold
-    -- * Affine unfolds
-  --, Unfold0, Unfold0Rep, AUnfold0
-    -- * Unfolds
-  , Unfold, UnfoldRep, AUnfold
+    -- * Affine cofolds
+  --, Cofold0, Cofold0Rep, ACofold0
+    -- * Cofolds
+  , Cofold, CofoldRep, ACofold
     -- * Views
   , View, AView, PrimView, PrimViewLike
     -- * Reviews
@@ -55,8 +59,6 @@ module Data.Profunctor.Optic.Type (
   , Setter, Setter', SetterLike, ASetter
     -- * Resetters
   , Resetter, Resetter', ResetterLike, AResetter
-    -- * Representable & Coreprestable profunctors
-  , Over, Over', Under, Under'
     -- * 'Re'
   , Re(..), re
   , module Export
@@ -66,14 +68,15 @@ import Data.Semigroup (First, Last)
 import Data.Profunctor.Optic.Prelude
 
 import qualified Data.Profunctor.Optic.Type.VL as VL
-import           Control.Applicative
-import           Control.Monad
-import           Control.Monad.Fix
-import           Data.Bifoldable
-import           Data.Bitraversable
-import           Data.Coerce
-import           Data.Data
-import           Data.Distributive
+import Control.Applicative
+import Control.Monad
+import Control.Comonad
+import Control.Monad.Fix
+import Data.Bifoldable
+import Data.Bitraversable
+import Data.Coerce
+import Data.Data
+import Data.Distributive
 import Data.Functor.Classes
 import Data.Functor.Apply (Apply(..))
 
@@ -84,6 +87,9 @@ import Data.Functor.Base (NonEmptyF(..))
 import Data.Traversable
 
 import Data.Bifunctor as Export (Bifunctor (..))
+
+
+import qualified Data.Functor.Rep as F
 
 ---------------------------------------------------------------------
 -- 'Optic'
@@ -196,8 +202,52 @@ type GridLike p s t a b = Closed p => LensLike p s t a b
 type GridLike' p s a = GridLike p s s a a
 
 ---------------------------------------------------------------------
+-- 'Repn'
+---------------------------------------------------------------------
+
+type Repn s t a b = forall p. RepnLike p s t a b
+
+type Repn' s a = Repn s s a a
+
+type RepnLike p s t a b = Representable p => Optic p s t a b
+
+type RepnLike' p s a = RepnLike p s s a a
+
+type ARepn f s t a b = Optic (Star f) s t a b
+
+---------------------------------------------------------------------
+-- 'Corepn'
+---------------------------------------------------------------------
+
+type Corepn s t a b = forall p. CorepnLike p s t a b
+
+type Corepn' s a = Corepn s s a a
+
+type CorepnLike p s t a b = Corepresentable p => Optic p s t a b
+
+type CorepnLike' p s a = CorepnLike p s s a a
+
+type ACorepn f s t a b = Optic (Costar f) s t a b
+
+---------------------------------------------------------------------
+-- 'Birepn'
+---------------------------------------------------------------------
+
+type Birepn s t a b = forall p. BirepnLike p s t a b
+
+type Birepn' s a = Birepn s s a a
+
+type BirepnLike p s t a b = Representable p => Corepresentable p => Optic p s t a b
+
+type BirepnLike' p s a = BirepnLike p s s a a
+
+type ABirepn f g s t a b = Optic (Bistar f g) s t a b
+
+---------------------------------------------------------------------
 -- 'Traversal0'
 ---------------------------------------------------------------------
+
+type Affine p = (Strong p, Choice p)
 
 -- | A 'Traversal0' processes at most one element, with no interactions.
 --
@@ -207,7 +257,7 @@ type Traversal0 s t a b = forall p. Traversal0Like p s t a b
 
 type Traversal0' s a = Traversal0 s s a a
 
-type Traversal0Like p s t a b = Choice p => LensLike p s t a b
+type Traversal0Like p s t a b = Affine p => Optic p s t a b
 
 type Traversal0Like' p s a = Traversal0Like p s s a a
 
@@ -222,7 +272,7 @@ type Traversal1 s t a b = forall p. Traversal1Like p s t a b
 type Traversal1' s a = Traversal1 s s a a
 
 --type Traversal1Like p s t a b = (forall x. Apply (p x)) => Traversal0Like p s t a b
-type Traversal1Like p s t a b = Representable p => Apply (Rep p) => Traversal0Like p s t a b
+type Traversal1Like p s t a b = Choice p => Apply (Rep p) => RepnLike p s t a b
 
 type Traversal1Like' p s a = Traversal1Like p s s a a
 
@@ -236,7 +286,7 @@ type Traversal s t a b = forall p. TraversalLike p s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type TraversalLike p s t a b = Representable p => Applicative (Rep p) => Traversal0Like p s t a b
+type TraversalLike p s t a b = Affine p => Applicative (Rep p) => RepnLike p s t a b
 
 type TraversalLike' p s a = TraversalLike p s s a a
 
@@ -248,6 +298,8 @@ type ATraversal' f s a = ATraversal f s s a a
 -- 'Cotraversal0'
 ---------------------------------------------------------------------
 
+type Coaffine p = (Closed p, Choice p)
+
 -- | A 'Cotraversal0' arises from the combination of prisms and grates.
 --
 -- \( \mathsf{Cotraversal0}\;S\;A = \exists D,I, S \cong D + (I \to A) \)
@@ -256,7 +308,7 @@ type Cotraversal0 s t a b = forall p. Cotraversal0Like p s t a b
 
 type Cotraversal0' s a = Cotraversal0 s s a a
 
-type Cotraversal0Like p s t a b = Closed p => PrismLike p s t a b
+type Cotraversal0Like p s t a b = Coaffine p => Optic p s t a b
 
 type Cotraversal0Like' p s a = Cotraversal0Like p s s a a
 
@@ -268,9 +320,21 @@ type Cotraversal s t a b = forall p. CotraversalLike p s t a b
 
 type Cotraversal' s a = Cotraversal s s a a
 
-type CotraversalLike p s t a b = Corepresentable p => Distributive (Corep p) => Cotraversal0Like p s t a b
+type CotraversalLike p s t a b = Coaffine p => CorepnLike p s t a b
 
 type CotraversalLike' p s a = CotraversalLike p s s a a
+
+---------------------------------------------------------------------
+-- 'Cotraversal1'
+---------------------------------------------------------------------
+
+type Cotraversal1 s t a b = forall p. Cotraversal1Like p s t a b
+
+type Cotraversal1' s a = Cotraversal1 s s a a
+
+type Cotraversal1Like p s t a b = Coaffine p => Comonad (Corep p) => CorepnLike p s t a b
+
+type Cotraversal1Like' p s a = Cotraversal1Like p s s a a
 
 ---------------------------------------------------------------------
 -- 'Fold0'
@@ -311,26 +375,26 @@ type FoldRep r = Star (Const r)
 type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 
 ---------------------------------------------------------------------
--- 'Unfold0'
+-- 'Cofold0'
 ---------------------------------------------------------------------
 
-type Unfold0 s a = forall p. Unfold0Like p s a
+type Cofold0 s a = forall p. Cofold0Like p s a
 
-type Unfold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
+type Cofold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
 
 ---------------------------------------------------------------------
--- 'Unfold'
+-- 'Cofold'
 ---------------------------------------------------------------------
 
-type Unfold t b = forall p. UnfoldLike p t b
+type Cofold t b = forall p. CofoldLike p t b
 
-type UnfoldLike p t b = Bifunctor p => CotraversalLike p t t b b
---type UnfoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
---type Unfold t b = forall p. Bifunctor p => CotraversalLike p t t b b
+type CofoldLike p t b = Bifunctor p => CotraversalLike p t t b b
+--type CofoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
+--type Cofold t b = forall p. Bifunctor p => CotraversalLike p t t b b
 
-type UnfoldRep r = Costar (Const r)
+type CofoldRep r = Costar (Const r)
 
-type AUnfold r t b = Optic' (UnfoldRep r) t b
+type ACofold r t b = Optic' (CofoldRep r) t b
 
 ---------------------------------------------------------------------
 -- 'View'
@@ -343,7 +407,7 @@ type View s a = forall p. Strong p => PrimViewLike p s s a a
 
 type PrimView s t a b = forall p. PrimViewLike p s t a b
 
---type PrimViewLike p s t a b = Contravariant (Rep p) => Over p s t a b
+--type PrimViewLike p s t a b = Contravariant (Rep p) => Repn p s t a b
 type PrimViewLike p s t a b = Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
 
 type AView s a = Optic' (FoldRep a) s a
@@ -358,11 +422,11 @@ type Review t b = forall p. Choice p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
 
---type PrimReviewLike p s t a b = Contravariant (Corep p) => Under p s t a b
+--type PrimReviewLike p s t a b = Contravariant (Corep p) => Corepn p s t a b
 
 type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b
 
-type AReview t b = Optic' (UnfoldRep b) t b
+type AReview t b = Optic' (CofoldRep b) t b
 
 ---------------------------------------------------------------------
 -- 'Setter'
@@ -393,38 +457,42 @@ type ResetterLike p s t a b = Strong p => Applicative (Corep p) => CotraversalLi
 type AResetter s t a b = Optic (Costar Identity) s t a b
 
 ---------------------------------------------------------------------
--- 'Over' & 'Under'
+-- 'Conjoined'
 ---------------------------------------------------------------------
 
-type Over p s t a b = Representable p => Optic p s t a b
+type Conjoined s t a b = forall p. ConjoinedLike p s t a b
 
-type Over' p s a = Representable p => Optic p s s a a
+type Conjoined' s a = Conjoined s s a a
 
-type Under p s t a b = Corepresentable p => Optic p s t a b
+type ConjoinedLike p s t a b = Representable p => Corepresentable p => Strong p => Applicative (Corep p) => Closed p => Distributive (Rep p) => Choice p => Optic p s t a b
 
-type Under' p s a = Under p s s a a
+type ConjoinedLike' p s a = ConjoinedLike p s s a a
 
-overLike :: ((a -> b) -> s -> t) -> ASetter s t a b
-overLike sec = between Star runStar $ \f -> Identity . sec (runIdentity . f)
+type AConjoined s t a b = Optic (Bistar Identity Identity) s t a b
 
--- | TODO: Document
---
-underLike :: ((a -> b) -> s -> t) -> AResetter s t a b
-underLike sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity
 
 -- | TODO: Document
 --
-cloneOver :: Optic (Star (Rep p)) s t a b -> Over p s t a b
-cloneOver = between fromStar star
+aresetter :: ((a -> b) -> s -> t) -> AResetter s t a b
+aresetter sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity
 
--- | TODO: Document
---
-cloneUnder :: Optic (Costar (Corep p)) s t a b -> Under p s t a b
-cloneUnder = between fromCostar costar
 
-closed' :: Under p (c -> a) (c -> b) a b
+
+closed' :: Corepn (c -> a) (c -> b) a b
 closed' = lower cotraverse
 
+-- | TODO: Document
+--
+lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> RepnLike p s t a b
+lifting f = lift $ genMap' f
+
+genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
+genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
+
+--applied :: Grate a (b -> c) (a , b) c
+--appliedl :: Grid (a -> b, a) c b c
+--appliedl = puncurry . closed
+ 
 ---------------------------------------------------------------------
 -- 'Equality' 
 ---------------------------------------------------------------------

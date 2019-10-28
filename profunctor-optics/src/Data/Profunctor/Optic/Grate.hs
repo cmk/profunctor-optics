@@ -101,8 +101,11 @@ ungrate g = withGrate g id
 
 -- | Transform a Van Laarhoven-encoded grate into a profunctor-encoded one.
 --
-gratevl :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
-gratevl g = undefined --flip g id
+-- * t runIdentity === runIdentity
+-- * t (f . fmap g . runCompose) === (t f) . fmap (t g) . runCompose
+--
+vlgrate :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
+vlgrate g = undefined --flip g id
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -172,10 +175,12 @@ constOf x b = withGrate x $ \grt -> grt (const b)
 
 -- | Transform a profunctor grate into a Van Laarhoven grate.
 --
+-- This is a more restricted version of 'cotraverseOf'
+--
 zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> (f s -> t)
 zipFWithOf x comb fs = withGrate x $ \grt -> grt $ \get -> comb (fmap get fs)
 
--- | TODO: Document
+-- | Zip over a 'Grate'. 
 --
 -- @\f -> zipWithOf closed (zipWithOf closed f) === zipWithOf (closed . closed)@
 --
@@ -208,13 +213,13 @@ represented = dimap F.index F.tabulate . closed
 
 -- | Access the range of a 'ReaderT'.
 --
-ranged :: Distributive m => Grate (ReaderT r m a) (ReaderT r m b) a b
-ranged = distributed
+forwarded :: Distributive m => Grate (ReaderT r m a) (ReaderT r m b) a b
+forwarded = distributed
 
 -- | TODO: Document
 --
-curried :: Grate a (b -> c) (a , b) c
-curried = lmap (,) . closed
+applied :: Grate a (b -> c) (a , b) c
+applied = lmap (,) . closed
 
 -- | TODO: Document
 --
@@ -232,12 +237,16 @@ continuedWith :: Cont r a -> Grate b (Cont r b) r (a -> r)
 continuedWith c = grate (`withCont` c)
 
 -- | Depend on a silent configuration parameter.
-configured :: (x -> a -> a) -> x -> Grate' a a
-configured f x = dimap (flip f) ($ x) . closed
+--
+-- >>> zipWithOf (parametrized (+) 1) (*) 2 2 
+-- 9 
+--
+parametrized :: (x -> a -> a) -> x -> Grate' a a
+parametrized f x = dimap (flip f) ($ x) . closed
 
 -- | Provide an initial value to a 'Semigroup'.
 pointed :: Semigroup a => a -> Grate' a a
-pointed = configured (<>)
+pointed = parametrized (<>)
 
 -- | Translate between different 'Star's.
 starred :: Grate (Star f a b) (Star g s t) (a -> f b) (s -> g t)

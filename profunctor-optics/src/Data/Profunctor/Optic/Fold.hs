@@ -41,7 +41,7 @@ fold_complete o = tripping o $ folding (toListOf o)
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-folding :: Foldable f =>  (s -> f a) -> Fold s a
+folding :: Foldable f => (s -> f a) -> Fold s a
 folding f = coercer . lmap f . lift traverse_
 {-# INLINE folding #-}
 

@@ -2,12 +2,11 @@
 
 module Data.Profunctor.Optic.Setter where
 
-
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Review (re)
 import Data.Profunctor.Task
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
-import Data.Profunctor.Optic.Grate -- (withGrate, forgotten)
+import Data.Profunctor.Optic.Grate
 
 import Control.Applicative (liftA)
 import Control.Monad.State as State hiding (lift)
@@ -20,7 +19,6 @@ import Data.Profunctor.Optic.Prism
 
 
 
-import qualified Data.Functor.Rep as F
 
 
 ---------------------------------------------------------------------
@@ -32,7 +30,7 @@ import qualified Data.Functor.Rep as F
 --
 -- To demote an optic to a semantic edit combinator, use the section @(l %~)@ or @over l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setting map . _1 %~ length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter map . _1 %~ length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functor laws hold:
@@ -43,26 +41,21 @@ import qualified Data.Functor.Rep as F
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
---setting :: ((a -> b) -> s -> t) -> Setter s t a b
---setting f = dimap (\s -> Bar $ \ab -> f ab s) lent . map'
-setting :: ((a -> b) -> s -> t) -> Setter s t a b
-setting sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
+setter :: ((a -> b) -> s -> t) -> Setter s t a b
+setter sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
 
--- | TODO: Document
---
-lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> Over p s t a b
-lifting f = lift $ genMap' f
-
--- | TODO: Document
---
-grating :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-grating f = dimap pureTaskF (f . runTask) . lift collect
+asetter :: ((a -> b) -> s -> t) -> ASetter s t a b
+asetter sec = between Star runStar $ \f -> Identity . sec (runIdentity . f)
 
 -- | Every 'Grate' is a 'Setter'.
 --
-grated :: (((s -> a) -> b) -> t) -> Setter s t a b
-grated sabt = setting $ lowerGrate sabt
-  where lowerGrate sabt ab s = sabt $ \sa -> ab (sa s)
+grating :: (((s -> a) -> b) -> t) -> Setter s t a b
+grating sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
+
+-- | TODO: Document
+--
+gratingF :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
+gratingF f = dimap pureTaskF (f . runTask) . lift collect
 
 ---------------------------------------------------------------------
 -- 'SetterRep'
@@ -71,8 +64,6 @@ grated sabt = setting $ lowerGrate sabt
 genMap :: Distributive f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
 genMap abst afb s = fmap (\ab -> abst ab s) (distribute afb)
 
-genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
-genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
 
 --roam :: ((i -> Store i v v) -> s -> Store a b t) -> Setter s t a b --Like p s t a b
 --roam l = dimap ((values &&& info) . l (Store id)) eval . map'
@@ -136,8 +127,8 @@ remapOf = re
 --
 -- @
 -- 'fmap' ≡ 'over' 'mapped'
--- 'setting' '.' 'over' ≡ 'id'
--- 'over' '.' 'setting' ≡ 'id'
+-- 'setter' '.' 'over' ≡ 'id'
+-- 'over' '.' 'setter' ≡ 'id'
 -- @
 --
 over :: Optic (->) s t a b -> (a -> b) -> s -> t
@@ -160,7 +151,7 @@ infixr 4 .~
 {-# INLINE (.~) #-}
 
 -- set l y (set l x a) ≡ set l y a
--- \c -> set (setting . runCayley $ c) zero one ≡ lowerCayey c
+-- \c -> set (setter . runCayley $ c) zero one ≡ lowerCayey c
 
 -- | Set all referenced fields to the given value.
 --
@@ -182,7 +173,7 @@ appendSetter o = o . (<>)
 -- Common setters
 ---------------------------------------------------------------------
 
--- | Map contravariantly by setting the input of a 'Profunctor'.
+-- | Map contravariantly by setter the input of a 'Profunctor'.
 --
 --
 -- The most common profunctor to use this with is @(->)@.
@@ -196,13 +187,13 @@ appendSetter o = o . (<>)
 -- >>> (dom %~ f) h x y
 -- h (f x) y
 --
--- Map setting the second arg of a function:
+-- Map setter the second arg of a function:
 --
 -- >>> (mapped . dom %~ f) h x y
 -- h x (f y)
 --
 dom :: Profunctor p => Setter (p b r) (p a r) a b
-dom = setting lmap
+dom = setter lmap
 {-# INLINE dom #-}
 
 -- | A grate accessing the codomain of a function.
@@ -212,69 +203,69 @@ dom = setting lmap
 -- @
 --
 cod :: Profunctor p => Setter (p r a) (p r b) a b
-cod = setting rmap
+cod = setter rmap
 
 -- | TODO: Document
 --
 masking :: Setter (IO a) (IO b) a b
-masking = grating Ex.mask
+masking = gratingF Ex.mask
 
 -- | SEC on each value of a functor
 mapping :: Functor f => Setter (f a) (f b) a b
-mapping = setting fmap
+mapping = setter fmap
 
 -- | SEC for monadically transforming a monadic value
 binding :: Monad m => Setter (m a) (m b) a (m b)
-binding = setting (=<<)
+binding = setter (=<<)
 
 -- | TODO: Document
 --
 foldMapped :: Foldable f => Monoid m => Setter (f a) m a m
-foldMapped = setting foldMap
+foldMapped = setter foldMap
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
 -- @
--- 'liftA' ≡ 'setting' 'liftedA'
+-- 'liftA' ≡ 'setter' 'liftedA'
 -- @
 --
--- >>> setting liftedA f [a,b,c]
+-- >>> setter liftedA f [a,b,c]
 -- [f a,f b,f c]
 --
 -- >>> set liftedA b (Just a)
 -- Just b
 liftedA :: Applicative f => Setter (f a) (f b) a b
-liftedA = setting liftA
+liftedA = setter liftA
 
 -- | TODO: Document
 --
 liftedM :: Monad m => Setter (m a) (m b) a b
-liftedM = setting liftM
+liftedM = setter liftM
 
 -- | Set a value using an SEC.
 --
 sets :: Setter b (a -> c) a c
-sets = setting const
+sets = setter const
 
 -- | TODO: Document
 --
 zipped :: Setter (u -> v -> a) (u -> v -> b) a b
-zipped = setting ((.)(.)(.))
+zipped = setter ((.)(.)(.))
 
 -- | TODO: Document
 --
 modded :: Setter (b -> t) (((s -> a) -> b) -> t) s a
-modded = setting $ \sa bt sab -> bt (sab sa)
+modded = setter $ \sa bt sab -> bt (sab sa)
 
 -- | TODO: Document
 --
 composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
-composed = setting between
+composed = setter between
 
 -- | SEC applying the given function only when the given predicate
 --  yields true for an input value.
 branching :: (a -> Bool) -> Setter' a a
-branching p = setting $ \f a -> if p a then f a else a
+branching p = setter $ \f a -> if p a then f a else a
 
 branching' :: (k -> Bool) -> Setter' (k -> v) v
-branching' p = setting $ \mod f a -> if p a then mod (f a) else f a
+branching' p = setter $ \mod f a -> if p a then mod (f a) else f a

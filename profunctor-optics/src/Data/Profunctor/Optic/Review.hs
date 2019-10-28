@@ -117,7 +117,7 @@ cloneReview = unto . review
 -- 'reviews o f ≡ cofoldMapOf o f'
 -- @
 --
-reviews :: MonadReader r m => AUnfold r t b -> (r -> b) -> m t
+reviews :: MonadReader r m => ACofold r t b -> (r -> b) -> m t
 reviews o f = Reader.asks $ between (dcostar Const) (ucostar getConst) o f 
 {-# INLINE reviews #-}
 

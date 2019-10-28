@@ -53,8 +53,8 @@ relens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
-vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-vllens  o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
+lensVL :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+lensVL  o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
 
 -- | Build a 'Lens' from its free tensor representation.
 --

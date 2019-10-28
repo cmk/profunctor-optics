@@ -6,7 +6,7 @@ module Data.Profunctor.Optic (
 import Data.Profunctor.Optic.Fold             as Export
 import Data.Profunctor.Optic.Fold.Affine      as Export
 --import Data.Profunctor.Optic.Fold.NonEmpty   as Export
-import Data.Profunctor.Optic.Unfold           as Export
+import Data.Profunctor.Optic.Cofold           as Export
 import Data.Profunctor.Optic.Grate            as Export
 import Data.Profunctor.Optic.Iso              as Export
 import Data.Profunctor.Optic.Lens             as Export
@@ -17,13 +17,45 @@ import Data.Profunctor.Optic.Prism            as Export
 import Data.Profunctor.Optic.Review           as Export
 import Data.Profunctor.Optic.Cotraversal      as Export
 import Data.Profunctor.Optic.Type             as Export
-import Data.Profunctor.Optic.View           as Export
+import Data.Profunctor.Optic.View             as Export
 
 import Data.Profunctor.Optic.Prelude
 import Linear.V2
 import Linear.V3
 import Linear.V4
 import Control.Monad.State
+
+import qualified Data.Profunctor.Fold as L
+
+distributed' :: Distributive f => Corepn (f a) (f b) a b
+distributed' = corepresented $ \fab fs -> fmap fab $ distribute fs
+
+--moore :: Distributive f => Optic L.Fold (f a) (f b) a b
+--moore = corepresented $ \fab fs -> fmap fab $ distribute fs
+
+mooreOf :: Distributive f => L.Fold a b -> L.Fold (f a) (f b)
+mooreOf = lower cotraverse
+
+-- | TODO: Document
+--
+cloneRepn :: Optic (Star (Rep p)) s t a b -> RepnLike p s t a b
+cloneRepn = between fromStar star
+
+-- | TODO: Document
+--
+cloneCorepn :: Optic (Costar (Corep p)) s t a b -> CorepnLike p s t a b
+cloneCorepn = between fromCostar costar
+
+represented :: ((a -> Rep p b) -> s -> Rep p t) -> RepnLike p s t a b
+represented = between tabulate sieve
+
+corepresented :: ((Corep p a -> b) -> Corep p s -> t) -> CorepnLike p s t a b
+corepresented = between cotabulate cosieve
+--moore = corepresented $ \fab fs -> fmap fab $ distribute fs
+
+type AMoore p s t a b = Optic L.Fold s t a b
+--type Mealy p s t a b = Optic L.Fold1 s t a b
+
 
 {-
 extractPair :: (forall f g. (Functor f, Functor g) => (g a -> f b) -> g s -> f t) -> (s -> a, b -> t)
@@ -70,8 +102,7 @@ v4 p = dimap (\(V4 x y z w) -> (x, (y, (z, w)))) (\(x, (y, (z, w))) -> V4 x y z 
 v2s :: SLens (V2 a) (V2 b) a b
 v2s p = dimap (\(V2 x y) -> (x, y)) (\(x, y) -> V2 x y) (p @@@ p)
 
-v2 :: Grate' (V2 a) a
-v2 = represented
+
 
 v2d :: Grate' (V2 a) a
 v2d = distributed

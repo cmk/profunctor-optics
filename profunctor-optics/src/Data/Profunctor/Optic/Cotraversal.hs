@@ -21,8 +21,16 @@ dimap (\s -> (match s, s))
 -- 'Cotraversal'
 ---------------------------------------------------------------------
 
+-- | TODO: Document, DList
+--
+--cotraversal :: Distributive f => (f s -> a) -> (f s -> b -> t) -> Cotraversal s t a b
+--cotraversal sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse
+
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
 cotraversed = lower cotraverse
+
+cotraversalVL :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversalVL = lower
 
 ---------------------------------------------------------------------
 -- Operators
