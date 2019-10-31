@@ -12,7 +12,6 @@ import qualified Data.Set as Set
 import qualified Data.IntMap.Lazy as IntMapL
 import qualified Data.IntMap.Strict as IntMapS
 import qualified Data.IntSet as IntSet
-import qualified Data.Profunctor.Optic.Type.VL as VL
 
 ---------------------------------------------------------------------
 -- 'Lens' 

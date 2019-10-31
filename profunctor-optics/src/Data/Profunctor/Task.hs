@@ -11,7 +11,6 @@ import Data.Functor.Const
 import Data.Functor.Identity 
 import Data.Profunctor
 import Data.Traversable (fmapDefault, foldMapDefault)
-import qualified Data.Functor.Rep as F
 
 import Prelude
 

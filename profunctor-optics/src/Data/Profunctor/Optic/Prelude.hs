@@ -36,7 +36,6 @@ import Data.Profunctor.Types as Export hiding (WrappedArrow(..), WrapArrow(..))
 import Data.Profunctor.Orphan as Export
 import Data.Void as Export
 import Prelude as Export hiding (foldr, filter, (.), id, head, tail)
-import qualified Data.Functor.Rep as F
 import qualified Data.Tuple
 
 import Control.Monad.Trans.Cont
@@ -57,28 +56,8 @@ infixr 4 >*<
 (>*<) :: Divisible f => f a -> f b -> f (a , b)
 (>*<) = divided
 
-env :: F.Representable f => p a b -> Environment p (f a) (f b)
-env p = Environment F.tabulate p F.index
 
-{-
-assocl :: Assoc o => a `o` (b `o` c) -> (a `o` b) `o` c
-assocl = unassoc
 
-assocr :: Assoc o => (a `o` b) `o` c -> a `o` (b `o` c)
-assocr = assoc
-
-assocl4 :: Assoc o => a `o` (b `o` (c `o` d)) -> ((a `o` b) `o` c) `o` d
-assocl4 = x . x where x = unassoc
-
-assocr4 :: Assoc o => (((a `o` b) `o` c) `o` d) -> a `o` (b `o` (c `o` d))
-assocr4 = x . x where x = assoc
-
-assocl5 :: Assoc o => a `o` (b `o` (c `o` (d `o` e))) -> (((a `o` b) `o` c) `o` d) `o` e
-assocl5 = x . x . x where x = unassoc
-
-assocr5 :: Assoc o => (((a `o` b) `o` c) `o` d) `o` e -> a `o` (b `o` (c `o` (d `o` e)))
-assocr5 = x . x . x where x = assoc
--}
 {-
 
 yoneda :: F.Representable f => CotambaraR (->) p => p a b -> p (f a) (f b)
@@ -142,17 +121,8 @@ star' = Star pure
 fromStar :: Representable p => Star (Rep p) a b -> p a b
 fromStar = tabulate . runStar
 
-fromStar' :: F.Representable f => F.Rep f -> Star f a b -> a -> b
-fromStar' i (Star f) = flip F.index i . f
-
 costar :: Cosieve p f => p a b -> Costar f a b
 costar = Costar . cosieve
-
-fromIdx :: F.Representable f => F.Rep f -> Costar f a a
-fromIdx i = Costar $ flip F.index i
-
-fromIdx' :: F.Representable f => Cont a (F.Rep f) -> Costar f a a
-fromIdx' c = Costar $ \m -> runCont c (F.index m)
 
 fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
 fromCostar = cotabulate . runCostar

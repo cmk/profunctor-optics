@@ -18,7 +18,6 @@ import Control.Monad.Trans.Reader
 import Control.Monad.Trans.Cont
 
 import qualified Control.Exception as Ex
-import qualified Data.Functor.Rep as F
 
 
 ---------------------------------------------------------------------
@@ -205,11 +204,6 @@ zip4WithOf x comb s1 s2 s3 s4 = withGrate x $ \grt -> grt $ \get -> comb (get s1
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate $ \f -> cotraverse f id
-
--- | A 'Grate' accessing the contents of a representable functor.
---
-represented :: F.Representable f => Grate (f a) (f b) a b
-represented = dimap F.index F.tabulate . closed
 
 -- | Access the range of a 'ReaderT'.
 --

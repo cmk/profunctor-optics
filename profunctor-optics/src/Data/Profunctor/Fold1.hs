@@ -14,7 +14,6 @@ import Control.Monad.Reader.Class
 import Control.Monad.Zip
 import Data.Distributive
 import Data.Functor.Apply
-import Data.Functor.Rep as Functor
 import Data.List.NonEmpty as NonEmpty
 import Data.Profunctor.Closed
 import Data.Profunctor
@@ -212,20 +211,11 @@ instance Profunctor.Corepresentable Fold1 where
   cotabulate f = Fold1 (flip (:)) pure (f . NonEmpty.fromList . Prelude.reverse)
   {-# INLINE cotabulate #-}
 
+{-
 instance Distributive (Fold1 a) where
-  distribute = distributeRep
-
-instance Functor.Representable (Fold1 a) where
-  type Rep (Fold1 a) = NonEmpty a
-  tabulate = cotabulate
-  index = cosieve
+  --distribute = distributeRep
+  distribute x = Fold1 (\fm a -> fmap (prefix1 a) fm) x (fmap extract)
+-}
 
 instance Closed Fold1 where
   closed (Fold1 h z k) = Fold1 (liftA2 h) (fmap z) (\f x -> k (f x))
-
-instance MonadReader (NonEmpty a) (Fold1 a) where
-  ask = askRep
-  local = localRep
-
-instance MonadFix (Fold1 a) where
-  mfix = mfixRep

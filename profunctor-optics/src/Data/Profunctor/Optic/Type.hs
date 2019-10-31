@@ -67,7 +67,6 @@ module Data.Profunctor.Optic.Type (
 import Data.Semigroup (First, Last)
 import Data.Profunctor.Optic.Prelude
 
-import qualified Data.Profunctor.Optic.Type.VL as VL
 import Control.Applicative
 import Control.Monad
 import Control.Comonad
@@ -89,7 +88,6 @@ import Data.Traversable
 import Data.Bifunctor as Export (Bifunctor (..))
 
 
-import qualified Data.Functor.Rep as F
 
 ---------------------------------------------------------------------
 -- 'Optic'
@@ -471,13 +469,7 @@ aresetter sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentit
 closed' :: Corepn (c -> a) (c -> b) a b
 closed' = lower cotraverse
 
--- | TODO: Document
---
-lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> RepnLike p s t a b
-lifting f = lift $ genMap' f
 
-genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
-genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
 
 --applied :: Grate a (b -> c) (a , b) c
 --appliedl :: Grid (a -> b, a) c b c

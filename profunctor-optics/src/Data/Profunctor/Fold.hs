@@ -21,7 +21,6 @@ import Data.Distributive
 import Data.Foldable
 import Data.Functor.Extend
 import Data.Functor.Bind
-import Data.Functor.Rep as F
 import Data.Profunctor.Closed
 import Data.Profunctor
 import Data.Profunctor.Sieve
@@ -93,11 +92,6 @@ instance Distributive (Fold a) where
   distribute x = Fold (\fm a -> fmap (prefix1 a) fm) x (fmap extract)
   --distribute = distributeRep
   {-# INLINE distribute #-}
-
-instance F.Representable (Fold a) where
-  type Rep (Fold a) = [a]
-  index = cosieve
-  tabulate = cotabulate
 
 instance Costrong Fold where
   unfirst = unfirstCorep
