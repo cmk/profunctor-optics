@@ -123,13 +123,6 @@ flipped = iso flip flip
 curried :: Iso ((a , b) -> c) ((d , e) -> f) (a -> b -> c) (d -> e -> f)
 curried = iso curry uncurry
 
-swapped :: Swap p => Iso (a `p` b) (c `p` d) (b `p` a) (d `p` c)
-swapped = iso swap swap
-
--- | Right association
-associated :: Assoc p => Iso ((a `p` b) `p` c) ((d `p` e) `p` f) (a `p` (b `p` c)) (d `p` (e `p` f))
-associated = iso assocr assocl
-
 -- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
 --
 -- @
@@ -240,7 +233,7 @@ paired
   -> Optic (Paired p a1 b1) s2 t2 a2 b2 
   -> Optic p (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
 paired x y = 
-  swapped . runPaired . x . Paired . swapped . runPaired . y . Paired
+  dimap swp swp . runPaired . x . Paired . dimap swp swp . runPaired . y . Paired
 
 ---------------------------------------------------------------------
 -- 'Split'
@@ -270,4 +263,4 @@ split
   -> Optic (Split p a1 b1) s2 t2 a2 b2 
   -> Optic p (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2)
 split x y = 
-  swapped . runSplit . x . Split . swapped . runSplit . y . Split
+  dimap swp' swp' . runSplit . x . Split . dimap swp' swp' . runSplit . y . Split

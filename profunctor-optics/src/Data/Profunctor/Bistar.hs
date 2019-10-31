@@ -3,13 +3,12 @@ module Data.Profunctor.Bistar where
 import Control.Applicative hiding (WrappedArrow(..))
 import Control.Arrow
 import Control.Comonad
-import Control.Comonad.Cofree (Cofree(..))
+--import Control.Comonad.Cofree (Cofree(..))
 import Control.Monad (MonadPlus(..), (>=>))
-import Control.Monad.Free (Free(..))
+--import Control.Monad.Free (Free(..))
 import Data.Distributive
 import Data.Foldable
 import Data.Functor.Contravariant
---import Data.Functor.Foldable
 import Data.Functor.Identity
 import Data.Profunctor.Types
 import Data.Traversable

@@ -271,7 +271,6 @@ type Traversal1 s t a b = forall p. Traversal1Like p s t a b
 
 type Traversal1' s a = Traversal1 s s a a
 
---type Traversal1Like p s t a b = (forall x. Apply (p x)) => Traversal0Like p s t a b
 type Traversal1Like p s t a b = Choice p => Apply (Rep p) => RepnLike p s t a b
 
 type Traversal1Like' p s a = Traversal1Like p s s a a
@@ -355,7 +354,6 @@ type Fold0Like p s a = (forall x. Contravariant (p x)) => Traversal0Like p s s a
 type Fold1 s a = forall p. Fold1Like p s a
 
 type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
---type Fold1Like p s a = Contravariant (Rep p) => Traversal1Like p s s a a
 
 type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
@@ -368,7 +366,6 @@ type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 type Fold s a = forall p. FoldLike p s a
 
 type FoldLike p s a = (forall x. Contravariant (p x)) => TraversalLike p s s a a
---type FoldLike p s a = Contravariant (Rep p) => TraversalLike p s s a a
 
 type FoldRep r = Star (Const r)
 
@@ -389,8 +386,6 @@ type Cofold0Like p s a = Bifunctor p => Cotraversal0Like p s s a a
 type Cofold t b = forall p. CofoldLike p t b
 
 type CofoldLike p t b = Bifunctor p => CotraversalLike p t t b b
---type CofoldLike p t b = Contravariant (Corep p) => CotraversalLike p t t b b
---type Cofold t b = forall p. Bifunctor p => CotraversalLike p t t b b
 
 type CofoldRep r = Costar (Const r)
 
@@ -402,12 +397,10 @@ type ACofold r t b = Optic' (CofoldRep r) t b
 
 -- | A 'View' extracts exactly one result.
 --
---type View s a = forall p. (forall x. Contravariant (p x)) => LensLike p s s a a
 type View s a = forall p. Strong p => PrimViewLike p s s a a
 
 type PrimView s t a b = forall p. PrimViewLike p s t a b
 
---type PrimViewLike p s t a b = Contravariant (Rep p) => Repn p s t a b
 type PrimViewLike p s t a b = Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
 
 type AView s a = Optic' (FoldRep a) s a
@@ -417,12 +410,9 @@ type AView s a = Optic' (FoldRep a) s a
 ---------------------------------------------------------------------
 
 -- | A 'Review' produces a result.
---type Review t b = forall p. Bifunctor p => PrismLike p t t b b
 type Review t b = forall p. Choice p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
-
---type PrimReviewLike p s t a b = Contravariant (Corep p) => Corepn p s t a b
 
 type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b
 
@@ -452,7 +442,7 @@ type Resetter s t a b = forall p. ResetterLike p s t a b
 
 type Resetter' s a = Resetter s s a a
 
-type ResetterLike p s t a b = Strong p => Applicative (Corep p) => CotraversalLike p s t a b
+type ResetterLike p s t a b = Strong p => Cotraversal1Like p s t a b
 
 type AResetter s t a b = Optic (Costar Identity) s t a b
 
@@ -464,7 +454,7 @@ type Conjoined s t a b = forall p. ConjoinedLike p s t a b
 
 type Conjoined' s a = Conjoined s s a a
 
-type ConjoinedLike p s t a b = Representable p => Corepresentable p => Strong p => Applicative (Corep p) => Closed p => Distributive (Rep p) => Choice p => Optic p s t a b
+type ConjoinedLike p s t a b = Representable p => Corepresentable p => Strong p => Comonad (Corep p) => Closed p => Distributive (Rep p) => Choice p => Optic p s t a b
 
 type ConjoinedLike' p s a = ConjoinedLike p s s a a
 

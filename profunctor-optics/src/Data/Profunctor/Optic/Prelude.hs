@@ -9,9 +9,6 @@ module Data.Profunctor.Optic.Prelude (
   , module Export
 ) where
 
-import Data.Bifunctor.Assoc as Export
-import Data.Bifunctor.Swap as Export
---import Data.Bifunctor.Flip as Export (Flip (..))
 import Data.Foldable
 import Data.Traversable
 import Control.Arrow as Export ((|||),(&&&),(+++),(***))
@@ -63,6 +60,25 @@ infixr 4 >*<
 env :: F.Representable f => p a b -> Environment p (f a) (f b)
 env p = Environment F.tabulate p F.index
 
+{-
+assocl :: Assoc o => a `o` (b `o` c) -> (a `o` b) `o` c
+assocl = unassoc
+
+assocr :: Assoc o => (a `o` b) `o` c -> a `o` (b `o` c)
+assocr = assoc
+
+assocl4 :: Assoc o => a `o` (b `o` (c `o` d)) -> ((a `o` b) `o` c) `o` d
+assocl4 = x . x where x = unassoc
+
+assocr4 :: Assoc o => (((a `o` b) `o` c) `o` d) -> a `o` (b `o` (c `o` d))
+assocr4 = x . x where x = assoc
+
+assocl5 :: Assoc o => a `o` (b `o` (c `o` (d `o` e))) -> (((a `o` b) `o` c) `o` d) `o` e
+assocl5 = x . x . x where x = unassoc
+
+assocr5 :: Assoc o => (((a `o` b) `o` c) `o` d) `o` e -> a `o` (b `o` (c `o` (d `o` e)))
+assocr5 = x . x . x where x = assoc
+-}
 {-
 
 yoneda :: F.Representable f => CotambaraR (->) p => p a b -> p (f a) (f b)

@@ -4,22 +4,18 @@ import Control.Arrow ((|||),(&&&))
 import Control.Category
 import Control.Comonad (Comonad(..))
 import Control.Monad (join)
-
 import Data.Bifunctor
-import Data.Bifunctor.Swap
-import Data.Bifunctor.Assoc
---import Data.Functor.Apply
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
-import Data.Profunctor.Rep
 import Data.Profunctor
+import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
 import Data.Void
-
 import Prelude hiding ((.), id)
 
-type (+) = Either
 infixr 5 +
+
+type (+) = Either
 
 rgt :: (a -> b) -> a + b -> b
 rgt f = either f id
@@ -42,8 +38,24 @@ dedup = join either id
 swp :: (a1 , a2) -> (a2 , a1)
 swp = snd &&& fst
 
-coswp :: (a1 + a2) -> (a2 + a1)
-coswp = Right ||| Left
+swp' :: (a1 + a2) -> (a2 + a1)
+swp' = Right ||| Left
+
+assocl :: (a , (b , c)) -> ((a , b) , c)
+assocl (a, (b, c)) = ((a, b), c)
+
+assocr :: ((a , b) , c) -> (a , (b , c))
+assocr ((a, b), c) = (a, (b, c))
+
+assocl' :: (a + (b + c)) -> ((a + b) + c)
+assocl' (Left a)          = Left (Left a)
+assocl' (Right (Left b))  = Left (Right b)
+assocl' (Right (Right c)) = Right c
+
+assocr' :: ((a + b) + c) -> (a + (b + c))
+assocr' (Left (Left a))  = Left a
+assocr' (Left (Right b)) = Right (Left b)
+assocr' (Right c)        = Right (Right c)
 
 eval :: (a , a -> b) -> b
 eval = uncurry $ flip id
@@ -54,35 +66,17 @@ apply = uncurry id
 coeval :: b -> (b -> a) + a -> a
 coeval b = either ($ b) id
 
-branch :: (a -> Bool) -> b -> c -> a -> Either b c
+branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y
 
-branch' :: (a -> Bool) -> a -> Either a a
+branch' :: (a -> Bool) -> a -> a + a
 branch' f x = branch f x x x
-
-assocl :: Assoc o => a `o` (b `o` c) -> (a `o` b) `o` c
-assocl = unassoc
-
-assocr :: Assoc o => (a `o` b) `o` c -> a `o` (b `o` c)
-assocr = assoc
-
-assocl4 :: Assoc o => a `o` (b `o` (c `o` d)) -> ((a `o` b) `o` c) `o` d
-assocl4 = x . x where x = unassoc
-
-assocr4 :: Assoc o => (((a `o` b) `o` c) `o` d) -> a `o` (b `o` (c `o` d))
-assocr4 = x . x where x = assoc
-
-assocl5 :: Assoc o => a `o` (b `o` (c `o` (d `o` e))) -> (((a `o` b) `o` c) `o` d) `o` e
-assocl5 = x . x . x where x = unassoc
-
-assocr5 :: Assoc o => (((a `o` b) `o` c) `o` d) `o` e -> a `o` (b `o` (c `o` (d `o` e)))
-assocr5 = x . x . x where x = assoc
 
 fstrong :: Functor f => f a -> b -> f (a , b)
 fstrong f b = fmap (,b) f
 
 fchoice :: Traversable f => f (a + b) -> (f a) + b
-fchoice = coswp . traverse coswp
+fchoice = swp' . traverse swp'
 
 pfirst :: Strong p => p a b -> p (a , c) (b , c)
 pfirst = first'
@@ -165,14 +159,11 @@ inl = parr Left
 inr :: Category p => Profunctor p => p b (a + b)
 inr = parr Right
 
-pdup :: Category p => Profunctor p => p a (a , a)
-pdup = parr dup
+braid :: Category p => Profunctor p => p (a , b) (b , a)
+braid = parr swp
 
-pdedup :: Category p => Profunctor p => p (b + b) b
-pdedup = parr dedup
-
-braid :: Category p => Profunctor p => Swap o => p (a `o` b) (b `o` a)
-braid = parr swap
+braid' :: Category p => Profunctor p => p (a + b) (b + a)
+braid' = parr swp'
 
 lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
 lift f = tabulate . f . sieve

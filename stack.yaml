@@ -6,4 +6,9 @@ packages:
   - profunctor-optics-th
   - profunctor-misc
 extra-deps:
-  - assoc-1@sha256:8d32ce39b6b6ce15394e9346f9ddb8752885aaa506a603e65d1c2769aff79741
+  - github: cmk/property
+    commit: 8c6527acfc44af301190a3bbbc7c36b33a9b4fc1
+  - github: cmk/connections
+    commit: 51aa231014643f6eb93ba0c7a72bdc31b4fd46a1
+  - github: cmk/rings
+    commit: 07a9982e2f8e190d389c7f78ae530d6a4ebd9c6f

@@ -96,7 +96,7 @@ instance Strong (Traversal0Rep u v) where
 
 instance Choice (Traversal0Rep u v) where
     right' (Traversal0Rep getter setter) = Traversal0Rep
-        (\eca -> assocl (second getter eca))
+        (\eca -> assocl' (second getter eca))
         (\eca v -> second (`setter` v) eca)
 
 ---------------------------------------------------------------------

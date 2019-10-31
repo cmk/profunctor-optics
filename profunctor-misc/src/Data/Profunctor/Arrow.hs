@@ -1,18 +1,9 @@
 module Data.Profunctor.Arrow where
 
-import Control.Applicative (liftA2)
 import Control.Category
-import Control.Comonad (Comonad(..))
-import Control.Monad (join)
 import Data.Profunctor
-import Data.Profunctor.Choice
-import Data.Profunctor.Sieve
-import Data.Profunctor.Strong
-import Data.Void
-
 import Data.Profunctor.Misc
 import Prelude hiding ((.), id)
-
 
 infixr 3 ***
 
@@ -22,7 +13,7 @@ x *** y = pfirst x >>> parr swp >>> pfirst y >>> parr swp
 infixr 2 +++
 
 (+++) :: Category p => Choice p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-x +++ y = pleft x >>> parr coswp >>> pleft y >>> parr coswp
+x +++ y = pleft x >>> parr swp' >>> pleft y >>> parr swp'
 
 infixr 3 &&&
 

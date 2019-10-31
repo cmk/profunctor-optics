@@ -11,7 +11,9 @@ author:         Chris McKinlay
 maintainer:     Chris McKinlay
 copyright:      2019 Chris McKinlay
 license:        BSD3
+license-file:   LICENSE
 build-type:     Simple
+extra-source-files:  ChangeLog.md
 
 source-repository head
   type: git
@@ -19,9 +21,11 @@ source-repository head
 
 library
   exposed-modules:
+      Data.Profunctor.Bistar
       Data.Profunctor.Task
       Data.Profunctor.Fold
       Data.Profunctor.Fold1
+      Data.Profunctor.Orphan
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Iso
@@ -49,6 +53,7 @@ library
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Type.VL
 
+  default-language: Haskell2010
 
 
   hs-source-dirs:
@@ -74,9 +79,7 @@ library
   build-depends:
       base >=4.9 && <5.0
     , adjunctions
-    , assoc
     , bifunctors
-    --, categories
     , comonad
     , containers
     , contravariant
@@ -84,28 +87,12 @@ library
     , dlist
     , dlist-nonempty
     , foldl
-    , free
-    , linear
-    , machines
     , mtl
     , profunctor-misc
     , profunctors
-    , pipes
+    , property
     , recursion-schemes
+    , rings
     , semigroupoids
     , tagged
     , transformers
-    , QuickCheck
-
-test-suite doctests
-  type:          exitcode-stdio-1.0
-  ghc-options:   -threaded
-  main-is:       doctests.hs
-  build-depends: 
-      base
-    , doctest >= 0.8
-    , doctest-discover
-    , profunctor-optic
-    , simple-reflect >= 0.3.1
-  hs-source-dirs: .
-
