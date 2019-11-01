@@ -4,6 +4,7 @@ flags: {}
 packages:
   - profunctor-optics
   - profunctor-optics-th
+  - profunctor-folds
   - profunctor-misc
 extra-deps:
   - github: cmk/property

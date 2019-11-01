@@ -1,10 +1,10 @@
 cabal-version: >= 1.10
 
-name:           profunctor-optics
+name:           profunctor-folds
 version:        0.0.0.1
-synopsis:       Profunctor optics
-description:    A profunctor optics library compatible with the typeclasses in 'profunctors'.
-category:       Data, Lenses
+synopsis:       Profunctor folds
+description:    Use profunctors to mediate resources and hide computations.
+category:       bsd3, control, lenses, library
 homepage:       https://github.com/cmk/profunctor-extras
 bug-reports:    https://github.com/cmk/profunctor-extras/issues
 author:         Chris McKinlay
@@ -21,33 +21,10 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Bistar
-      Data.Profunctor.Task
-      Data.Profunctor.Orphan
-
-      Data.Profunctor.Optic
-      Data.Profunctor.Optic.Iso
-      Data.Profunctor.Optic.Prism
-      Data.Profunctor.Optic.Lens
-      Data.Profunctor.Optic.Traversal
-      Data.Profunctor.Optic.Traversal.Affine
-      Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Fold.Affine
-      --Data.Profunctor.Optic.Fold.NonEmpty
-
-      Data.Profunctor.Optic.Grate
-      Data.Profunctor.Optic.Cotraversal
-      Data.Profunctor.Optic.Cofold
-      Data.Profunctor.Optic.View
-      Data.Profunctor.Optic.Review
-      Data.Profunctor.Optic.Setter
-
-      Data.Profunctor.Optic.Prelude
-      Data.Profunctor.Optic.Property
-      Data.Profunctor.Optic.Type
+      Data.Profunctor.Fold
+      Data.Profunctor.Fold1
 
   default-language: Haskell2010
-
 
   hs-source-dirs:
       src
@@ -71,20 +48,20 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
+    , adjunctions
     , bifunctors
     , comonad
-    , containers
     , contravariant
     , distributive
-    , dlist
-    , dlist-nonempty
     , foldl
     , mtl
     , profunctor-misc
+    , profunctor-optics
     , profunctors
     , property
     , recursion-schemes
     , rings
     , semigroupoids
+    , strict
     , tagged
     , transformers
