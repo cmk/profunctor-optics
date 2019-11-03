@@ -22,9 +22,11 @@ library
   exposed-modules:
       Data.Profunctor.Arrow
       Data.Profunctor.Misc
+      Data.Profunctor.Strong.Free
   hs-source-dirs:
       src
-  default-extensions: 
+  default-extensions:
+      RankNTypes
       QuantifiedConstraints
       TupleSections
       TypeOperators

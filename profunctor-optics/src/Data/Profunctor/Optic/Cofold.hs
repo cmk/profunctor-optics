@@ -1,32 +1,31 @@
 module Data.Profunctor.Optic.Cofold where
 
-import Data.Functor.Foldable (Corecursive, Base, unfold)
+import Data.Foldable (Foldable, foldMap)
+import Data.Functor.Foldable (Corecursive, Base)
 import Data.Profunctor.Optic.Prelude
-import Data.Profunctor.Optic.Review
+import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Type
 import qualified Data.List as L (unfoldr)
+import qualified Data.Functor.Foldable as F
 
 ---------------------------------------------------------------------
 -- 'Cofold'
 ---------------------------------------------------------------------
 
-unfolding :: Distributive g => (b -> t) -> Cofold (g t) b
-unfolding f = lower cotraverse . unto f --coercel' . rmap f
+cofold :: Distributive g => (b -> t) -> Cofold (g t) b
+cofold f = lower cotraverse . unto f --coercel' . rmap f
 
 corecursing :: Corecursive t => ACofold b t (Base t b)
-corecursing = unfoldLike unfold
+corecursing = acofold F.unfold
 
-unfoldLike :: ((r -> b) -> r -> t) -> ACofold r t b
-unfoldLike = between (ucostar getConst) (dcostar Const)
+acofold :: ((r -> b) -> r -> t) -> ACofold r t b
+acofold = between (ucostar getConst) (dcostar Const)
 
-unfoldr :: ACofold b [t] (Maybe (t, b))
-unfoldr = unfoldLike L.unfoldr
+acofold' :: ACofold b [t] (Maybe (t, b))
+acofold' = acofold L.unfoldr
 
 cloneCofold :: AReview t b -> Cofold t b
-cloneCofold = unto . review --coercel' . rmap . review
-
-cofolded :: (Foldable f, Monoid b) => (a -> b) -> Costar f a b
-cofolded f = Costar (foldMap f)
+cloneCofold = unto . review
 
 ---------------------------------------------------------------------
 -- Primitive operators

@@ -23,7 +23,7 @@ import qualified Data.Profunctor.Traversing as T
 -- 'Traversal'
 ---------------------------------------------------------------------
 
--- | TODO: Document, DList
+-- | TODO: Document
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
 traversal sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse
@@ -32,6 +32,11 @@ traversal sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
 traversed = lift traverse
+
+-- | Transform a Van Laarhoven 'Traversal' into a profunctor 'Traversal'.
+--
+traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversing = lift
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -53,11 +58,8 @@ both :: Bitraversable f => Traversal (f a a) (f b b) a b
 both = lift $ \f -> bitraverse f f
 {-# INLINE both #-}
 
-traversalVL :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversalVL = lift
-
 ---------------------------------------------------------------------
--- Operators
+-- Primitive Operators
 ---------------------------------------------------------------------
 
 -- | TODO: Document

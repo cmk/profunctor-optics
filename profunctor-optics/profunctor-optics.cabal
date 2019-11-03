@@ -21,7 +21,8 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Profunctor.Bistar
+      Control.Exception.Optic
+
       Data.Profunctor.Task
       Data.Profunctor.Orphan
 
@@ -30,16 +31,15 @@ library
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Traversal
-      Data.Profunctor.Optic.Traversal.Affine
+      Data.Profunctor.Optic.Traversal0
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Fold.Affine
-      --Data.Profunctor.Optic.Fold.NonEmpty
+      Data.Profunctor.Optic.Fold0
 
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Cotraversal
       Data.Profunctor.Optic.Cofold
+
       Data.Profunctor.Optic.View
-      Data.Profunctor.Optic.Review
       Data.Profunctor.Optic.Setter
 
       Data.Profunctor.Optic.Prelude
@@ -71,20 +71,18 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
+    , adjunctions
     , bifunctors
     , comonad
-    , containers
     , contravariant
     , distributive
-    , dlist
-    , dlist-nonempty
     , foldl
     , mtl
     , profunctor-misc
     , profunctors
-    , property
     , recursion-schemes
+    , resourcet
     , rings
     , semigroupoids
     , tagged
-    , transformers
+    , unliftio

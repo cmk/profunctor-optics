@@ -1,8 +1,7 @@
 module Data.Profunctor.Optic.Fold where
 
 import Control.Monad ((<=<))
-import Data.DList (DList)
-import Data.Foldable (traverse_)
+import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Functor.Foldable (Recursive, Base, fold)
 import Data.Monoid
 import Data.Profunctor.Optic.View (to)
@@ -10,55 +9,58 @@ import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Type
 
-import qualified Data.DList as DL
-
+import Control.Foldl (EndoM(..))
+import qualified Control.Foldl as L
+import qualified Data.Functor.Foldable as F
 
 import Data.Functor.Foldable (ListF(..))
 import Data.Functor.Base (NonEmptyF(..))
+
 ---------------------------------------------------------------------
 -- 'Fold'
 ---------------------------------------------------------------------
 
-
-
-{-
-
-A 'Fold' can interpret 'a' in a monoid so long as 's' can also be interpreted that way.
-
-Fold laws:
-
-fold_complete :: Fold s a -> Bool
-fold_complete o = tripping o $ folding (toListOf o)
--}
+-- | Obtain a 'Fold' using a 'Traversable' functor.
+--
+-- @
+-- 'folding' f ≡ 'lift' 'traverse' . 'to' f
+-- @
+--
+folding :: Traversable f => (s -> a) -> Fold (f s) a
+folding f = traversed . coercer . lmap f
+{-# INLINE folding #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
+-- @ 
+-- 'folding_' ('toListOf' o) ≡ o
+-- @
+--
 -- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
 --
--- >>> [1,2,3,4] ^.. folding tail
+-- >>> [1,2,3,4] ^.. folding_ tail
 -- [2,3,4]
 --
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-folding :: Foldable f => (s -> f a) -> Fold s a
-folding f = coercer . lmap f . lift traverse_
-{-# INLINE folding #-}
+folding_ :: Foldable f => (s -> f a) -> Fold s a
+folding_ f = coercer . lmap f . lift traverse_
+{-# INLINE folding_ #-}
 
--- | Obtain a 'Fold' using a 'Traversable' functor.
+---------------------------------------------------------------------
+-- 'FoldRep'
+---------------------------------------------------------------------
+
+-- | TODO: Document
 --
--- @
--- 'folded' f ≡ 'lift' 'traverse' . 'to' f
--- @
+afold :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
+afold = between (Star . (Const .)) ((getConst .) . runStar)
+
+-- | TODO: Document
 --
-folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = traversed . coercer . lmap f
-
-foldLike :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
-foldLike = between (Star . (Const .)) ((getConst .) . runStar)
-
-foldLike' :: Foldable f => AFold r (f a) a
-foldLike' = foldLike foldMap
+afold' :: Foldable f => AFold r (f a) a
+afold' = afold foldMap
 
 {-
 fromListF :: Num a => ListF a (Sum a) -> Sum a
@@ -69,8 +71,10 @@ foldMapOf (recursing) fromListF $ [1..5]
 Sum {getSum = 15}
 -}
 
+-- | TODO: Document
+--
 recursing :: Recursive s => AFold a s (Base s a)
-recursing = foldLike fold
+recursing = afold F.fold
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -102,10 +106,10 @@ foldMapOf = between ((getConst .) . runStar) (Star . (Const .))
 
 -- | Collects the foci of a `Fold` into a list.
 --
-toListOf :: AFold (DList a) s a -> s -> [a]
-toListOf o = flip DL.apply [] . foldMapOf o DL.singleton
+toListOf :: AFold (Endo [a]) s a -> s -> [a]
+toListOf o = foldrOf o (:) []
 
--- |
+-- | TODO: Document
 --
 foldOf :: Monoid a => AFold a s a -> s -> a
 foldOf = flip foldMapOf id
@@ -116,6 +120,56 @@ foldOf = flip foldMapOf id
 -- @
 toPureOf :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
 toPureOf o = foldMapOf o pure
+
+-- | Right fold lift a 'Fold'.
+-- >>> foldrOf'' folded (<>) (zero :: Int) [1..5]
+-- 15
+foldrOf :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
+foldrOf p f r = (`appEndo` r) . foldMapOf p (Endo . f)
+
+-- | Left fold lift a 'Fold'.
+--
+foldlOf :: AFold (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
+foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
+
+-- | Fold lift the elements of a structure, associating to the left, but strictly.
+--
+-- @
+-- 'Data.Foldable.foldl'' ≡ 'foldlOf'' 'folded'
+-- @
+--
+-- @
+-- 'foldlOf'' :: 'Iso'' s a        -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'Lens'' s a       -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'View' s a        -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'Fold' s a        -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'Traversal'' s a  -> (c -> a -> c) -> c -> s -> c
+-- 'foldlOf'' :: 'Traversal0'' s a -> (c -> a -> c) -> c -> s -> c
+-- @
+foldlOf' :: AFold (Endo (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
+foldlOf' o f c s = foldrOf o f' (Endo id) s `appEndo` c
+  where f' x (Endo k) = Endo $ \z -> k $! f z x
+{-# INLINE foldlOf' #-}
+
+-- | TODO: Document
+--
+foldMlOf' :: Monad m => AFold (Endo (EndoM m r)) s a -> (r -> a -> m r) -> r -> s -> m r
+foldMlOf' o f c s = foldrOf o f' mempty s `appEndoM` c
+  where f' x (EndoM k) = EndoM $ \z -> (f $! z) x >>= k
+
+-- | TODO: Document
+--
+toEndoOf :: AFold (Endo (a -> a)) s (a -> a) -> s -> a -> a
+toEndoOf o = foldrOf o (.) id
+
+-- | TODO: Document
+--
+toEndoMOf :: Monad m => AFold (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
+toEndoMOf o = foldrOf o (<=<) pure
+
+---------------------------------------------------------------------
+-- Derived operators
+---------------------------------------------------------------------
 
 infixl 8 ^..
 
@@ -145,62 +199,42 @@ infixl 8 ^..
 -- ('^..') :: s -> 'Prism'' s a     -> [a]
 -- ('^..') :: s -> 'Traversal0'' s a    -> [a]
 -- @
-(^..) :: s -> AFold (DList a) s a -> [a]
+(^..) :: s -> AFold (Endo [a]) s a -> [a]
 (^..) = flip toListOf
 {-# INLINE (^..) #-}
 
--- | Right fold lift a 'Fold'.
--- >>> foldrOf'' folded (<>) (zero :: Int) [1..5]
--- 15
-foldrOf :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
-foldrOf p f r = (`appEndo` r) . foldMapOf p (Endo . f)
-
--- | Left fold lift a 'Fold'.
+-- | TODO: Document
 --
-foldlOf :: AFold (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
-foldlOf p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
+lmaps :: Handler b a -> L.Fold a c -> L.Fold b c
+lmaps o (L.Fold h z k) = L.Fold (foldlOf' o h) z k
 
--- | Fold lift the elements of a structure, associating to the left, but strictly.
+-- | TODO: Document
 --
--- @
--- 'Data.Foldable.foldl'' ≡ 'foldlOf'' 'folded'
--- @
+lmaps' :: Monad m => HandlerM m b a -> L.FoldM m a c -> L.FoldM m b c
+lmaps' o (L.FoldM h z k) = L.FoldM (foldMlOf' o h) z k
+
+-- | TODO: Document
 --
--- @
--- 'foldlOf'' :: 'Iso'' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Lens'' s a       -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'View' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Fold' s a        -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Traversal'' s a  -> (c -> a -> c) -> c -> s -> c
--- 'foldlOf'' :: 'Traversal0'' s a -> (c -> a -> c) -> c -> s -> c
--- @
-foldlOf' :: AFold (Endo (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
-foldlOf' o f c0 s = foldrOf o f' (Endo id) s `appEndo` c0
-  where f' x (Endo k) = Endo $ \z -> k $! f z x
-{-# INLINE foldlOf' #-}
+all :: AFold All s a -> (a -> Bool) -> s -> Bool
+all o p = getAll . foldMapOf o (All . p)
 
-toEndoOf :: AFold (Endo (a -> a)) s (a -> a) -> s -> a -> a
-toEndoOf o = foldrOf o (.) id
+-- | TODO: Document
+--
+any :: AFold Any s a -> (a -> Bool) -> s -> Bool
+any o p = getAny . foldMapOf o (Any . p)
 
-toEndoMOf :: Monad m => AFold (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
-toEndoMOf o = foldrOf o (<=<) pure
-
-allOf :: AFold All s a -> (a -> Bool) -> s -> Bool
-allOf o p = getAll . foldMapOf o (All . p)
-
-anyOf :: AFold Any s a -> (a -> Bool) -> s -> Bool
-anyOf o p = getAny . foldMapOf o (Any . p)
-
-nullOf :: AFold All s a -> s -> Bool
-nullOf o = allOf o (const False)
+-- | TODO: Document
+--
+null :: AFold All s a -> s -> Bool
+null o = all o (const False)
 
 -- | Whether a `Fold` contains a given element.
-elemOf :: Eq a => AFold Any s a -> a -> s -> Bool
-elemOf p a = anyOf p (== a)
+elem :: Eq a => AFold Any s a -> a -> s -> Bool
+elem p a = any p (== a)
 
 -- | Whether a `Fold` not contains a given element.
-notElemOf :: Eq a => AFold All s a -> a -> s -> Bool
-notElemOf p a = allOf p (/= a)
+notElem :: Eq a => AFold All s a -> a -> s -> Bool
+notElem p a = all p (/= a)
 
 -- | Determines whether a `Fold` has at least one focus.
 --

@@ -13,7 +13,6 @@ import Control.Monad.Fix
 import Control.Monad.Reader.Class
 import Control.Monad.Zip
 import Data.Distributive
-import Data.Functor.Apply
 import Data.List.NonEmpty as NonEmpty
 import Data.Functor.Rep as Functor
 import Data.Profunctor.Closed
@@ -66,16 +65,6 @@ instance Functor.Representable (Fold1 a) where
   tabulate = cotabulate
 
   index = cosieve
-
-instance Apply (Fold1 a) where
-  (<.>) = (<*>)
-  {-# INLINE (<.>) #-}
-
-  (<.) m = \_ -> m
-  {-# INLINE (<.) #-}
-
-  _ .> m = m
-  {-# INLINE (.>) #-}
 
 instance Applicative (Fold1 a) where
   pure x = Fold1 (\() _ -> ()) (\_ -> ()) (\() -> x)

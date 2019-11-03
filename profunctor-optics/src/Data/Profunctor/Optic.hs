@@ -2,47 +2,70 @@ module Data.Profunctor.Optic (
   module Export
 ) where
 
-
 import Data.Profunctor.Optic.Fold             as Export
-import Data.Profunctor.Optic.Fold.Affine      as Export
---import Data.Profunctor.Optic.Fold.NonEmpty   as Export
+import Data.Profunctor.Optic.Fold0            as Export
+--import Data.Profunctor.Optic.Fold1  as Export
 import Data.Profunctor.Optic.Cofold           as Export
 import Data.Profunctor.Optic.Grate            as Export
 import Data.Profunctor.Optic.Iso              as Export
 import Data.Profunctor.Optic.Lens             as Export
 import Data.Profunctor.Optic.Traversal        as Export
-import Data.Profunctor.Optic.Traversal.Affine as Export
+import Data.Profunctor.Optic.Traversal0       as Export
 import Data.Profunctor.Optic.Setter           as Export
 import Data.Profunctor.Optic.Prism            as Export
-import Data.Profunctor.Optic.Review           as Export
 import Data.Profunctor.Optic.Cotraversal      as Export
 import Data.Profunctor.Optic.Type             as Export
 import Data.Profunctor.Optic.View             as Export
 
 import Data.Profunctor.Optic.Prelude
 
-import Control.Monad.State
+import Control.Monad.State hiding (lift)
 
-import qualified Data.Profunctor.Fold as L
+
+import qualified Data.Functor.Rep as F
+
+
+-- | TODO: Document
+--
+--aresetter :: ((a -> b) -> s -> t) -> AResetter s t a b
+--aresetter sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity
+
+env :: F.Representable f => p a b -> Environment p (f a) (f b)
+env p = Environment F.tabulate p F.index
+
+-- | TODO: Document
+--
+lifting :: F.Representable (Rep p) => ((a -> b) -> s -> t) -> RepnLike p s t a b
+lifting f = lift $ genMap' f
+
+genMap' :: F.Representable f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
+genMap' f afb s = F.tabulate $ \i -> f (flip F.index i . afb) s
+
+closed' :: Corepn (c -> a) (c -> b) a b
+closed' = lower cotraverse
+
+--set . re :: Colens s t a b -> s -> b -> a
+--reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
+--reset o = set o . re
+
+
+--applied :: Grate a (b -> c) (a , b) c
+--appliedl :: Grid (a -> b, a) c b c
+--appliedl = puncurry . closed
+
 
 distributed' :: Distributive f => Corepn (f a) (f b) a b
 distributed' = corepresented $ \fab fs -> fmap fab $ distribute fs
 
---moore :: Distributive f => Optic L.Fold (f a) (f b) a b
---moore = corepresented $ \fab fs -> fmap fab $ distribute fs
-
-mooreOf :: Distributive f => L.Fold a b -> L.Fold (f a) (f b)
-mooreOf = lower cotraverse
-
 -- | TODO: Document
 --
 cloneRepn :: Optic (Star (Rep p)) s t a b -> RepnLike p s t a b
-cloneRepn = between fromStar star
+cloneRepn = between fromStar toStar
 
 -- | TODO: Document
 --
 cloneCorepn :: Optic (Costar (Corep p)) s t a b -> CorepnLike p s t a b
-cloneCorepn = between fromCostar costar
+cloneCorepn = between fromCostar toCostar
 
 represented :: ((a -> Rep p b) -> s -> Rep p t) -> RepnLike p s t a b
 represented = between tabulate sieve
@@ -51,7 +74,7 @@ corepresented :: ((Corep p a -> b) -> Corep p s -> t) -> CorepnLike p s t a b
 corepresented = between cotabulate cosieve
 --moore = corepresented $ \fab fs -> fmap fab $ distribute fs
 
-type AMoore p s t a b = Optic L.Fold s t a b
+--type AMoore p s t a b = Optic L.Fold s t a b
 --type Mealy p s t a b = Optic L.Fold1 s t a b
 
 

@@ -22,7 +22,10 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Fold
+      --Data.Profunctor.Fold.NonEmpty
+      --Data.Profunctor.Fold.Environment
       Data.Profunctor.Fold1
+      Control.Exception.Fold
 
   default-language: Haskell2010
 
@@ -37,7 +40,6 @@ library
       FlexibleContexts
       FlexibleInstances 
       ExistentialQuantification
-      NoImplicitPrelude
       QuantifiedConstraints
       ScopedTypeVariables
       TupleSections
@@ -49,7 +51,6 @@ library
   build-depends:
       base >=4.9 && <5.0
     , adjunctions
-    , bifunctors
     , comonad
     , contravariant
     , distributive
@@ -60,8 +61,8 @@ library
     , profunctors
     , property
     , recursion-schemes
-    , rings
     , semigroupoids
     , strict
-    , tagged
     , transformers
+    , unliftio-core
+    , unliftio

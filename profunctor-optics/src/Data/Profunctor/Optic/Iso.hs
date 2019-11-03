@@ -1,42 +1,15 @@
 module Data.Profunctor.Optic.Iso where
 
+import Data.Foldable
 import Data.Profunctor.Optic.Prelude
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Type
 
 import Control.Monad (join)
 
-
 ---------------------------------------------------------------------
 -- 'Iso' 
 ---------------------------------------------------------------------
-
-{- hedgehog predicates
-
-fromTo :: Eq s => IsoRep s s a a -> s -> Bool
-fromTo (IsoRep f t) s = (t . f) s == s
-
-toFrom :: Eq a => IsoRep s s a a -> a -> Bool
-toFrom (IsoRep f t) a = (f . t) a == a
-
-Since every Iso is both a valid Lens and a valid Prism the laws for those types imply the following laws for an Iso o:
-
-viewP o (reviewP o b) ≡ b
-reviewP o (viewP o s) ≡ s
-
-Or even more powerfully using re:
-
-o . re o ≡ id
-re o . o ≡ id
-
-
-λ> from associate ((1, "hi"), True)
-(1,("hi",True))
-λ> to associate (True, ("hi", 1))
-((True,"hi"),1)
-
--}
-
 
 -- | Build an 'Iso' from two inverses.
 --
@@ -50,11 +23,15 @@ re o . o ≡ id
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap
 
---isoek :: (forall f p. Applicative f => Profunctor p => (p a (f b) -> p s (f t)) -> Prism s t a b
---isoek l = undefined 
-
---isovl :: (forall f. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Prism s t a b
---isovl l = undefined 
+-- | Invert an isomorphism.
+--
+-- @
+-- 'from' ('from' l) ≡ l
+-- @
+--
+from :: AIso s t a b -> Iso b a t s
+from l = withIso l $ \sa bt -> iso bt sa
+{-# INLINE from #-}
 
 -- | Convert from 'AIso' back to any 'Iso'.
 cloneIso :: AIso s t a b -> Iso s t a b
@@ -85,11 +62,41 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-reiso :: AIso s t a b -> (t -> s) -> b -> a
-reiso x = withIso x $ \sa bt ts -> sa . ts . bt
+instance Sieve (IsoRep a b) (PStore a b) where
+  sieve (IsoRep sa bt) s = PStore (sa s) bt
+
+instance Cosieve (IsoRep a b) (PCont a b) where
+  cosieve (IsoRep sa bt) (PCont sab) = bt (sab sa)
+
+data PStore a b t = PStore a (b -> t)
+
+values :: PStore a b t -> b -> t
+values (PStore _ bt) = bt
+
+info :: PStore a b t -> a
+info (PStore a _) = a
+
+instance Functor (PStore a b) where
+  fmap f (PStore a bt) = PStore a (f . bt)
+  {-# INLINE fmap #-}
+
+instance Profunctor (PStore a) where
+  dimap f g (PStore a bt) = PStore a (g . bt . f)
+  {-# INLINE dimap #-}
+
+instance a ~ b => Foldable (PStore a b) where
+  foldMap f (PStore b bt) = f . bt $ b
+
+newtype PCont a b s = PCont { runPCont :: (s -> a) -> b }
+
+instance Functor (PCont a b) where
+  fmap st (PCont sab) = PCont $ \ta -> sab (ta . st)
+
+runPCont' :: PCont a b a -> b
+runPCont' (PCont f) = f id
 
 ---------------------------------------------------------------------
--- Operators
+-- Primitive operators
 ---------------------------------------------------------------------
 
 -- | Extract the two functions, one from @s -> a@ and
@@ -98,14 +105,8 @@ withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
--- | Invert an isomorphism.
---
--- @
--- 'from' ('from' l) ≡ l
--- @
-from :: AIso s t a b -> Iso b a t s
-from l = withIso l $ \sa bt -> iso bt sa
-{-# INLINE from #-}
+cycleOf :: AIso s t a b -> (t -> s) -> b -> a
+cycleOf x = withIso x $ \sa bt ts -> sa . ts . bt
 
 au :: AIso s t a b -> ((b -> t) -> e -> s) -> e -> a
 au l = withIso l $ \sa bt f e -> sa (f bt e)
@@ -139,9 +140,6 @@ involuted :: (s -> a) -> Iso s a a s
 involuted = join iso
 {-# INLINE involuted #-}
 
-branched :: (a -> Bool) -> Iso a b (a + a) (b + b)
-branched f = iso (branch' f) dedup
-
 hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)
 hushed = iso (maybe (Left ()) Right) (const Nothing ||| Just)
 
@@ -158,8 +156,8 @@ coduped = iso f ((,) False ||| (,) True)
   f (False,a) = Left a
   f (True,a) = Right a
 
--- | If `a1` is obtained from `a` by removing a single value, then
--- | `Maybe a1` is isomorphic to `a`.
+-- | Remove a single value from a type.
+--
 non :: Eq a => a -> Iso' (Maybe a) a
 non def = iso (fromMaybe def) g
   where g a | a == def  = Nothing

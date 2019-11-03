@@ -32,13 +32,13 @@ module Data.Profunctor.Optic.Type (
     -- * Corepns
   , Corepn, Corepn', CorepnLike, CorepnLike', ACorepn
     -- * Affine traversals
-  , Traversal0, Traversal0', Traversal0Like, Traversal0Like'
+  , Affine, Traversal0, Traversal0', Traversal0Like, Traversal0Like'
     -- * Non-empty traversals
   , Traversal1, Traversal1', Traversal1Like, Traversal1Like'
     -- * General traversals
   , Traversal, Traversal', TraversalLike, TraversalLike', ATraversal, ATraversal'
     -- * Affine cotraversals
-  , Cotraversal0, Cotraversal0', Cotraversal0Like, Cotraversal0Like'
+  , Coaffine, Cotraversal0, Cotraversal0', Cotraversal0Like, Cotraversal0Like'
     -- * Cotraversals
   , Cotraversal, Cotraversal', CotraversalLike, CotraversalLike'
     -- * Affine folds
@@ -46,7 +46,7 @@ module Data.Profunctor.Optic.Type (
     -- * Non-empty folds
   , Fold1, Fold1Like, AFold1
     -- * General folds
-  , Fold, FoldLike, FoldRep, AFold
+  , Fold, FoldLike, FoldRep, AFold, Handler, HandlerM
     -- * Affine cofolds
   --, Cofold0, Cofold0Rep, ACofold0
     -- * Cofolds
@@ -61,7 +61,6 @@ module Data.Profunctor.Optic.Type (
   , Resetter, Resetter', ResetterLike, AResetter
     -- * 'Re'
   , Re(..), re
-  , module Export
 ) where
 
 import Data.Semigroup (First, Last)
@@ -70,7 +69,7 @@ import Data.Profunctor.Optic.Prelude
 import Control.Applicative
 import Control.Monad
 import Control.Comonad
-import Control.Monad.Fix
+import Control.Foldl (EndoM)
 import Data.Bifoldable
 import Data.Bitraversable
 import Data.Coerce
@@ -78,16 +77,12 @@ import Data.Data
 import Data.Distributive
 import Data.Functor.Classes
 import Data.Functor.Apply (Apply(..))
-
+import Data.Monoid (Endo)
 import GHC.Generics (Generic)
 import Data.Int
 import Data.Word
 import Data.Functor.Base (NonEmptyF(..))
 import Data.Traversable
-
-import Data.Bifunctor as Export (Bifunctor (..))
-
-
 
 ---------------------------------------------------------------------
 -- 'Optic'
@@ -228,20 +223,6 @@ type CorepnLike' p s a = CorepnLike p s s a a
 type ACorepn f s t a b = Optic (Costar f) s t a b
 
 ---------------------------------------------------------------------
--- 'Birepn'
----------------------------------------------------------------------
-
-type Birepn s t a b = forall p. BirepnLike p s t a b
-
-type Birepn' s a = Birepn s s a a
-
-type BirepnLike p s t a b = Representable p => Corepresentable p => Optic p s t a b
-
-type BirepnLike' p s a = BirepnLike p s s a a
-
-type ABirepn f g s t a b = Optic (Bistar f g) s t a b
-
----------------------------------------------------------------------
 -- 'Traversal0'
 ---------------------------------------------------------------------
 
@@ -361,6 +342,8 @@ type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
 -- | A 'Fold' extracts a monoidal summary from a container.
 --
+-- A 'Fold' can interpret 'a' in a monoid so long as 's' can also be interpreted that way.
+--
 type Fold s a = forall p. FoldLike p s a
 
 type FoldLike p s a = (forall x. Contravariant (p x)) => TraversalLike p s s a a
@@ -368,6 +351,12 @@ type FoldLike p s a = (forall x. Contravariant (p x)) => TraversalLike p s s a a
 type FoldRep r = Star (Const r)
 
 type AFold r s a = Monoid r => Optic' (FoldRep r) s a
+
+-- | Any lens, traversal, or prism will type-check as a `Handler`
+--
+type Handler s a = forall r. AFold (Endo (Endo r)) s a
+
+type HandlerM m s a = forall r. AFold (Endo (EndoM m r)) s a 
 
 ---------------------------------------------------------------------
 -- 'Cofold0'
@@ -393,7 +382,7 @@ type ACofold r t b = Optic' (CofoldRep r) t b
 -- 'View'
 ---------------------------------------------------------------------
 
--- | A 'View' extracts exactly one result.
+-- | A 'View' extracts a result.
 --
 type View s a = forall p. Strong p => PrimViewLike p s s a a
 
@@ -408,6 +397,7 @@ type AView s a = Optic' (FoldRep a) s a
 ---------------------------------------------------------------------
 
 -- | A 'Review' produces a result.
+--
 type Review t b = forall p. Choice p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
@@ -430,7 +420,7 @@ type Setter' s a = Setter s s a a
 
 type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
 
-type ASetter s t a b = Optic (Star Identity) s t a b
+type ASetter s t a b = Optic (->) s t a b
 
 ---------------------------------------------------------------------
 -- 'Resetter'
@@ -442,39 +432,8 @@ type Resetter' s a = Resetter s s a a
 
 type ResetterLike p s t a b = Strong p => Cotraversal1Like p s t a b
 
-type AResetter s t a b = Optic (Costar Identity) s t a b
+type AResetter s t a b = Optic (->) s t a b
 
----------------------------------------------------------------------
--- 'Conjoined'
----------------------------------------------------------------------
-
-type Conjoined s t a b = forall p. ConjoinedLike p s t a b
-
-type Conjoined' s a = Conjoined s s a a
-
-type ConjoinedLike p s t a b = Representable p => Corepresentable p => Strong p => Comonad (Corep p) => Closed p => Distributive (Rep p) => Choice p => Optic p s t a b
-
-type ConjoinedLike' p s a = ConjoinedLike p s s a a
-
-type AConjoined s t a b = Optic (Bistar Identity Identity) s t a b
-
-
--- | TODO: Document
---
-aresetter :: ((a -> b) -> s -> t) -> AResetter s t a b
-aresetter sec = between Costar runCostar $ \f -> sec (f . Identity) . runIdentity
-
-
-
-closed' :: Corepn (c -> a) (c -> b) a b
-closed' = lower cotraverse
-
-
-
---applied :: Grate a (b -> c) (a , b) c
---appliedl :: Grid (a -> b, a) c b c
---appliedl = puncurry . closed
- 
 ---------------------------------------------------------------------
 -- 'Equality' 
 ---------------------------------------------------------------------

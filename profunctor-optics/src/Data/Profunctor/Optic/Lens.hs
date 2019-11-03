@@ -3,15 +3,18 @@ module Data.Profunctor.Optic.Lens where
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Task (Store(..))
 import Data.Void (Void, absurd)
 
-import qualified Data.Map.Lazy as MapL
-import qualified Data.Map.Strict as MapS
-import qualified Data.Set as Set
-import qualified Data.IntMap.Lazy as IntMapL
-import qualified Data.IntMap.Strict as IntMapS
-import qualified Data.IntSet as IntSet
+import qualified Control.Foldl as F
+
+import GHC.IO.Exception
+import System.IO
+import Foreign.C.Types
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :m + Control.Exception
+-- >>> :m + Data.Profunctor.Optic
+
 
 ---------------------------------------------------------------------
 -- 'Lens' 
@@ -35,6 +38,16 @@ import qualified Data.IntSet as IntSet
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . psecond
 
+-- | Build a 'Lens' from its free tensor representation.
+--
+matching :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
+matching f g = dimap f g . psecond
+
+-- | Transform a Van Laarhoven lens into a profunctor lens.
+--
+vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+vllens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . pfirst
+
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
 -- * @relens f g ≡ \f g -> re (lens f g)@
@@ -49,16 +62,6 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . psecond
 --
 relens :: (b -> t) -> (b -> s -> a) -> Relens s t a b
 relens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
-
--- | Transform a Van Laarhoven lens into a profunctor lens.
---
-lensVL :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVL  o = dimap ((values &&& info) . o (Store id)) (uncurry id) . psecond
-
--- | Build a 'Lens' from its free tensor representation.
---
-matched :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
-matched f g = dimap f g . psecond
 
 -- | TODO: Document
 --
@@ -88,36 +91,13 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
 
---FreeStrong (IsoRep a b) s t = IsoRep a b s (s -> t) = (s -> a, b -> s -> t)
---FreeChoice (IsoRep a b) s t = IsoRep a b ? ? = (s -> (Either a t), b -> t).
+instance Sieve (LensRep a b) (PStore a b) where
+  sieve (LensRep sa sbt) s = PStore (sa s) (sbt s)
 
-newtype FreeStrong p s t = FreeStrong (p s (s -> t))
+instance Representable (LensRep a b) where
+  type Rep (LensRep a b) = PStore a b
 
-instance Profunctor p => Profunctor (FreeStrong p) where
-  dimap l r (FreeStrong p) = FreeStrong (dimap l (dimap l r) p)
-
-instance Profunctor p => Strong (FreeStrong p) where
-  first' (FreeStrong p) = FreeStrong (dimap fst first p)
-
-mapFreeStrong :: (Profunctor p, Profunctor q) => (p :-> q) -> (FreeStrong p :-> FreeStrong q)
-mapFreeStrong eta (FreeStrong p) = FreeStrong (eta p)
-
-lowerFS :: Strong p => FreeStrong p a b -> p a b
-lowerFS (FreeStrong p) = peval p
-
-unitFS :: Profunctor p => p :-> FreeStrong p
-unitFS p = FreeStrong (rmap const p)
-
--- 'counit' preserves strength.
--- <https://r6research.livejournal.com/27858.html>
-counitFS :: Strong p => FreeStrong p :-> p
-counitFS (FreeStrong p) = dimap dup apply (pfirst p)
-
-toFreeStrong :: Profunctor p => Pastro p a b -> FreeStrong p a b
-toFreeStrong (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
-
-toPastro :: FreeStrong p a b -> Pastro p a b
-toPastro (FreeStrong p) = Pastro apply p dup
+  tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -174,40 +154,47 @@ void = lens absurd const
 
 -- | TODO: Document
 --
-uncurried :: Lens (a , b) c a (b -> c)
-uncurried = rmap apply . pfirst
-
--- | TODO: Document
---
 ix :: Eq k => k -> Lens' (k -> v) v
 ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
 
 -- | TODO: Document
 --
-at :: Ord k => k -> Lens' (MapL.Map k v) (Maybe v)
-at k = lens (MapL.lookup k) (flip $ maybe (MapL.delete k) (MapL.insert k))
+foldedl :: Lens s s a b -> s -> F.Fold b a
+foldedl o x = withLens o $ \sa sbt -> F.Fold sbt x sa
 
 -- | TODO: Document
 --
-at' :: Ord k => k -> Lens' (MapS.Map k v) (Maybe v)
-at' k = lens (MapS.lookup k) (flip $ maybe (MapS.delete k) (MapS.insert k))
+uncurried :: Lens (a , b) c a (b -> c)
+uncurried = rmap apply . pfirst
 
--- | TODO: Document
---
-contains :: Ord k => k -> Lens' (Set.Set k) Bool
-contains k = lens (Set.member k) (flip $ \nv -> if nv then Set.insert k else Set.delete k)
+----------------------------------------------------------------------------------------------------
+-- IO Exceptions
+----------------------------------------------------------------------------------------------------
 
--- | TODO: Document
+-- | Where the error happened.
 --
-intAt :: Int -> Lens' (IntMapL.IntMap v) (Maybe v)
-intAt k = lens (IntMapL.lookup k) (flip $ maybe (IntMapL.delete k) (IntMapL.insert k))
+location :: Lens' IOException String
+location = lens ioe_location $ \s e -> s { ioe_location = e }
 
--- | TODO: Document
+-- | Error type specific information.
 --
-intAt' :: Int -> Lens' (IntMapS.IntMap v) (Maybe v)
-intAt' k = lens (IntMapS.lookup k) (flip $ maybe (IntMapS.delete k) (IntMapS.insert k))
+description :: Lens' IOException String
+description = lens ioe_description $ \s e -> s { ioe_description = e }
 
--- | TODO: Document
+-- | The handle used by the action flagging this error.
+-- 
+handle :: Lens' IOException (Maybe Handle)
+handle = lens ioe_handle $ \s e -> s { ioe_handle = e }
+
+-- | 'fileName' the error is related to.
 --
-intContains :: Int -> Lens' IntSet.IntSet Bool
-intContains k = lens (IntSet.member k) (flip $ \nv -> if nv then IntSet.insert k else IntSet.delete k)
+fileName :: Lens' IOException (Maybe FilePath)
+fileName = lens ioe_filename $ \s e -> s { ioe_filename = e }
+
+-- | 'errno' leading to this error, if any.
+--
+errno :: Lens' IOException (Maybe CInt)
+errno = lens ioe_errno $ \s e -> s { ioe_errno = e }
+
+errorType :: Lens' IOException IOErrorType
+errorType = lens ioe_type $ \s e -> s { ioe_type = e }

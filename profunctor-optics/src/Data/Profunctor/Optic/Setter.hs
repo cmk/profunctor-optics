@@ -2,8 +2,13 @@
 
 module Data.Profunctor.Optic.Setter where
 
+import Control.Exception (Exception(..), SomeException, AsyncException, ArrayException, ArithException)
+import GHC.IO.Exception
+
+import Data.Semiring
+import Data.Foldable (Foldable, foldMap)
+import Data.Profunctor.Optic.Iso (PStore(..), iso)
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Review (re)
 import Data.Profunctor.Task
 import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
 import Data.Profunctor.Optic.Grate
@@ -13,18 +18,16 @@ import Control.Monad.State as State hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Control.Monad.Reader as Reader hiding (lift)
 
+import UnliftIO
 import qualified Control.Exception as Ex
-
+import qualified UnliftIO.Exception as Ux 
 import Data.Profunctor.Optic.Prism
-
-
-
+import Control.Monad.Trans.Resource
 
 
 ---------------------------------------------------------------------
 -- Setter
 ---------------------------------------------------------------------
-
 
 -- | Promote a <http://conal.net/blog/posts/semantic-editor-combinators semantic editor combinator> to a modify-only optic.
 --
@@ -42,71 +45,45 @@ import Data.Profunctor.Optic.Prism
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter sec = dimap (Store id) (\(Store g s) -> sec g s) . lift collect
-
-asetter :: ((a -> b) -> s -> t) -> ASetter s t a b
-asetter sec = between Star runStar $ \f -> Identity . sec (runIdentity . f)
+setter sec = dimap (flip PStore id) (\(PStore s ab) -> sec ab s) . lift collect
 
 -- | Every 'Grate' is a 'Setter'.
 --
-grating :: (((s -> a) -> b) -> t) -> Setter s t a b
-grating sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
+closing :: (((s -> a) -> b) -> t) -> Setter s t a b
+closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 
 -- | TODO: Document
 --
-gratingF :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-gratingF f = dimap pureTaskF (f . runTask) . lift collect
+closingF :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
+closingF f = dimap pureTaskF (f . runTask) . lift collect
 
----------------------------------------------------------------------
--- 'SetterRep'
----------------------------------------------------------------------
+infixl 6 %
 
-genMap :: Distributive f => ((a -> b) -> s -> t) -> (a -> f b) -> s -> f t
-genMap abst afb s = fmap (\ab -> abst ab s) (distribute afb)
+-- | Sum two SECs
+--
+(%) :: Setter' a a -> Setter' a a -> Setter' a a
+(%) f g = setter $ \h -> (f %~ h) . (g %~ h)
 
+-- >>> toSemiring $ zero % one :: Int
+-- 1
+-- >>> toSemiring $ zero . one :: Int
+-- 0
+toSemiring :: Monoid a => Semiring a => Setter' a a -> a
+toSemiring a = over a (unit <>) mempty
 
---roam :: ((i -> Store i v v) -> s -> Store a b t) -> Setter s t a b --Like p s t a b
---roam l = dimap ((values &&& info) . l (Store id)) eval . map'
-
-
-roam f = dimap (\s -> Bar $ \ab -> f ab s) lent
-
-newtype Bar t b a = Bar
-  { runBar :: (a -> b) -> t }
-  deriving Functor
-
-lent :: Bar t a a -> t
-lent m = runBar m id
-
---prim_setter :: Choice p => (forall x. Applicative (p x)) => p a b -> p (Store a c t) (Store b c t)
-
---prim_setter p = pure (\c -> (undefined, c)) <*> (puncurry . closed $ p)
+fromSemiring :: Monoid a => Semiring a => a -> Setter' a a
+fromSemiring a = setter $ \ f y -> a >< f mempty <> y
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- mapOf l id ≡ id
--- mapOf l f . mapOf l g ≡ mapOf l (f . g)
---
--- 'mapOf' ('cayley' a) ('Data.Semiring.one' <>) 'Data.Semiring.zero' ≡ a
---
--- ^ @
--- mapOf :: Setter s t a b -> (a -> r) -> s -> r
--- mapOf :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
--- @
-mapOf :: Optic (->) s t a b -> (a -> b) -> s -> t
-mapOf = over
-
--- | TODO: Document
---
-remapOf :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
-remapOf = re
-
 -- | Modify the target of a 'Lens' or all the targets of a 'Setter' or 'Traversal'.
 --
+-- @ over l id ≡ id @
+--
 -- @
--- 'over' l f '.' 'over' l g = 'over' l (f '.' g)
+-- 'over' l f '.' 'over' l g ≡ 'over' l (f '.' g)
 -- @
 --
 --
@@ -131,8 +108,24 @@ remapOf = re
 -- 'over' '.' 'setter' ≡ 'id'
 -- @
 --
+-- @ 'over' ('cayley' a) ('Data.Semiring.unit' <>) 'Data.Monoid.mempty' ≡ a @
+--
+-- @
+-- over :: Setter s t a b -> (a -> r) -> s -> r
+-- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- @
+--
 over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
+
+-- | TODO: Document
+--
+reover :: Optic (Re (->) a b) s t a b -> (t -> s) -> (b -> a)
+reover = re
+
+---------------------------------------------------------------------
+-- Derived operators
+---------------------------------------------------------------------
 
 infixr 4 %~
 
@@ -156,22 +149,21 @@ infixr 4 .~
 -- | Set all referenced fields to the given value.
 --
 set :: Optic (->) s t a b -> b -> s -> t
-set o b s = o (const b) s
-
---set . re :: Colens s t a b -> s -> b -> a
---reset :: Optic (Re (->) a b) s t a b -> b -> s -> a
---reset o = set o . re
-
--- | Set all referenced fields to the given value.
---reset :: AResetter s t a b -> b -> s -> t
---reset l b = under l (const b)
-
-appendSetter :: Semigroup a => Setter s t a a -> a -> s -> t
-appendSetter o = o . (<>)
+set o b = o (const b)
 
 ---------------------------------------------------------------------
 -- Common setters
 ---------------------------------------------------------------------
+
+-- | The unit SEC
+--
+one :: Monoid a => Semiring a => Setter' a a
+one = setter id
+
+-- | The zero SEC
+--
+zero :: Monoid a => Semiring a => Setter' a a
+zero = setter $ const id
 
 -- | Map contravariantly by setter the input of a 'Profunctor'.
 --
@@ -205,18 +197,15 @@ dom = setter lmap
 cod :: Profunctor p => Setter (p r a) (p r b) a b
 cod = setter rmap
 
--- | TODO: Document
+-- | SEC for monadically transforming a monadic value.
 --
-masking :: Setter (IO a) (IO b) a b
-masking = gratingF Ex.mask
+bound :: Monad m => Setter (m a) (m b) a (m b)
+bound = setter (=<<)
 
--- | SEC on each value of a functor
-mapping :: Functor f => Setter (f a) (f b) a b
-mapping = setter fmap
-
--- | SEC for monadically transforming a monadic value
-binding :: Monad m => Setter (m a) (m b) a (m b)
-binding = setter (=<<)
+-- | SEC on each value of a functor.
+--
+fmapped :: Functor f => Setter (f a) (f b) a b
+fmapped = setter fmap
 
 -- | TODO: Document
 --
@@ -264,8 +253,47 @@ composed = setter between
 
 -- | SEC applying the given function only when the given predicate
 --  yields true for an input value.
-branching :: (a -> Bool) -> Setter' a a
-branching p = setter $ \f a -> if p a then f a else a
+branched :: (a -> Bool) -> Setter' a a
+branched p = setter $ \f a -> if p a then f a else a
 
-branching' :: (k -> Bool) -> Setter' (k -> v) v
-branching' p = setter $ \mod f a -> if p a then mod (f a) else f a
+branched' :: (k -> Bool) -> Setter' (k -> v) v
+branched' p = setter $ \mod f a -> if p a then mod (f a) else f a
+
+-- | This 'Setter' can be used to purely map over the 'Exception's an
+-- arbitrary expression might throw; it is a variant of 'mapException' in
+-- the same way that 'mapped' is a variant of 'fmap'.
+--
+-- > 'mapException' ≡ 'over' 'excepted'
+--
+-- This view that every Haskell expression can be regarded as carrying a bag
+-- of 'Exception's is detailed in “A Semantics for Imprecise Exceptions” by
+-- Peyton Jones & al. at PLDI ’99.
+--
+-- The following maps failed assertions to arithmetic overflow:
+--
+-- >>> handleOf _Overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
+-- "caught"
+-- 
+exmapped :: Exception e0 => Exception e1 => Setter s s e0 e1
+exmapped = setter Ex.mapException
+
+-- | A type restricted version of 'mappedException'. 
+--
+-- This function avoids the type ambiguity in the input 'Exception' when using 'set'.
+--
+-- The following maps any exception to arithmetic overflow:
+--
+-- >>> handleOf _Overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped' .~ Overflow)
+-- "caught"
+exmapped' :: Exception e => Setter s s SomeException e
+exmapped' = exmapped
+
+-- | TODO: Document
+--
+masked' :: MonadUnliftIO m => Setter (m a) (m b) a b
+masked' = closingF Ux.mask
+
+-- | TODO: Document
+--
+resmasked :: MonadResource m => Setter (ResIO a) (m b) a b
+resmasked = closingF resourceMask

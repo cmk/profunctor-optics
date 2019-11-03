@@ -171,6 +171,26 @@ lift f = tabulate . f . sieve
 lower :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
 lower f = cotabulate . f . cosieve
 
+star :: Applicative f => Star f a a
+star = Star pure
+
+toStar :: Sieve p f => p d c -> Star f d c
+toStar = Star . sieve
+
+fromStar :: Representable p => Star (Rep p) a b -> p a b
+fromStar = tabulate . runStar
+
+costar :: Foldable f => Monoid b => (a -> b) -> Costar f a b
+costar f = Costar (foldMap f)
+
+uncostar :: Applicative f => Costar f a b -> a -> b
+uncostar f = runCostar f . pure
+
+toCostar :: Cosieve p f => p a b -> Costar f a b
+toCostar = Costar . cosieve
+
+fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
+fromCostar = cotabulate . runCostar
 
 infixr 3 @@@
 
