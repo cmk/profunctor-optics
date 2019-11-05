@@ -1,5 +1,3 @@
-[poptic](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/poptics.pdf)
-
 `profunctor-optics` is much indebted to prior work by: Ed Kmett, Russell O’Connor, Twan van Laarhoven, Phil Freeman, Oleg Grenrus, and many others. Several papers and talks by Jeremy Gibbons, Matthew Pickering, Guillaume Boisseau, and Brendan Fong were also invaluable.
 
 Its purpose is to provide a semantically precise and performant implementation of profunctor optics, suitable for application development. It's written in the open style of the `lens` library, and introduces no additional type classes.
@@ -10,7 +8,7 @@ Why a profunctor optics library? Several reasons:
 - There are many useful classes of optic not easily expressible in the Van Laarhoven style.
 - I found certain aspects of `lens` frustrating for application development.
 
-If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and the 'Don't Fear the Profunctor Optics' series are good general introductions:
+If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and the following series are good general introductions:
 
 - [Don't Fear the Profunctor Optics, part 1](https://github.com/hablapps/DontFearTheProfunctorOptics/blob/master/Optics.md)
 - [Don't Fear the Profunctor Optics, part 2](https://github.com/hablapps/DontFearTheProfunctorOptics/blob/master/Profunctors.md)
