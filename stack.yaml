@@ -12,4 +12,4 @@ extra-deps:
   - github: cmk/connections
     commit: 51aa231014643f6eb93ba0c7a72bdc31b4fd46a1
   - github: cmk/rings
-    commit: 07a9982e2f8e190d389c7f78ae530d6a4ebd9c6f
+    commit: 5115fea78e9c9a2fff1ed75915d6d5d60f730606

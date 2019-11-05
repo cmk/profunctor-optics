@@ -4,17 +4,23 @@ import Control.Applicative
 import Control.Comonad
 import Control.Foldl
 import Data.Distributive
-import Data.Foldable
+import Data.Bifunctor
+import Data.Functor.Apply
 import Data.Functor.Contravariant
 import Data.Functor.Rep as Functor
-import Data.Monoid
 import Data.Profunctor
-import Data.Profunctor.Choice
-import Data.Profunctor.Closed
 import Data.Profunctor.Rep as Profunctor
 import Data.Profunctor.Sieve
 
 import Prelude
+
+instance Contravariant f => Contravariant (Star f a) where
+  contramap f (Star g) = Star $ contramap f . g
+
+instance Contravariant f => Bifunctor (Costar f) where
+  first f (Costar g) = Costar $ g . contramap f
+
+  second f (Costar g) = Costar $ f . g
 
 instance Cochoice (Forget r) where 
   unleft (Forget f) = Forget $ f . Left
@@ -25,9 +31,6 @@ instance Comonad f => Strong (Costar f) where
   first' (Costar f) = Costar $ \x -> (f (fmap fst x), snd (extract x))
 
   second' (Costar f) = Costar $ \x -> (fst (extract x), f (fmap snd x))
-
-instance Contravariant f => Contravariant (Star f a) where
-  contramap f (Star g) = Star $ contramap f . g
 
 instance Distributive (Fold a) where
   distribute = distributeRep

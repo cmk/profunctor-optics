@@ -1,15 +1,11 @@
 module Data.Profunctor.Optic.Prism where
 
-import Control.Exception (Exception(..), SomeException, AsyncException, ArrayException, ArithException)
+import Control.Exception
 import Control.Monad (guard)
+import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Iso
-
-import GHC.Conc (ThreadId)
 import GHC.IO.Exception
-import System.IO
-
 import qualified Control.Exception as Ex 
 
 ---------------------------------------------------------------------
@@ -61,6 +57,8 @@ handling sea ebt = dimap sea ebt . pright
 reprism :: (b -> a + t) -> (s -> a) -> Reprism s t a b
 reprism beat sa = unright . dimap (id ||| sa) beat
 
+-- | TODO: Document
+--
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
 
@@ -103,6 +101,8 @@ instance Choice (PrismRep a b) where
 -- Primitive operators
 ---------------------------------------------------------------------
 
+-- | TODO: Document
+--
 withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 
@@ -111,6 +111,8 @@ withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 splitting :: Prism s1 t1 a1 b1 -> Prism s2 t2 a2 b2 -> Prism (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2) 
 splitting = split
 
+-- | TODO: Document
+--
 prismr :: (s -> t + a) -> (b -> t) -> Prism (c + s) (d + t) (c + a) (d + b)
 prismr f g = between runSplit Split (prism f g)
 
@@ -137,14 +139,15 @@ without k =
 {-# INLINE without #-}
 
 -- | 'lift' a 'Prism' through a 'Traversable' functor, 
--- giving a Prism that matches only if all the elements of the container
--- matchOf the 'Prism'.
+-- giving a 'Prism' that matches only if all the elements of the container
+-- match the 'Prism'.
 --
--- >>> [Left 1, Right "foo", Left 4, Right "woot"]^..below _R
+-- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below _R
 -- []
 --
--- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"]^..below _R
+-- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below _R
 -- [["hail hydra!","foo","blah","woot"]]
+--
 below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
 below k =
   withPrism k $ \seta bt ->
@@ -168,6 +171,16 @@ _L = pleft
 _R :: Prism (c + a) (c + b) a b
 _R = pright
 
+-- | Prism for the `Just` constructor of `Maybe`.
+--
+_Just :: Prism (Maybe a) (Maybe b) a b
+_Just = flip prism Just $ maybe (Left Nothing) Right
+
+-- | Prism for the `Nothing` constructor of `Maybe`.
+--
+_Nothing :: Prism (Maybe a) (Maybe b) () ()
+_Nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+
 -- | TODO: Document
 --
 lowerL :: Iso s t (a + c) (b + c) -> Prism s t a b
@@ -188,28 +201,26 @@ filtered f = iso (branch' f) dedup . _R
 
 -- | TODO: Document
 --
-selected :: Eq k => k -> Prism' (k , v) v
-selected i = flip prism ((,) i) $ \kv@(k,v) -> branch (==i) kv v k
+selected :: Eq a => a -> Prism' (a , b) b
+selected x = flip prism ((,) x) $ \kv@(k,v) -> branch (==x) kv v k
 
 -- | Create a 'Prism' from a value and a predicate.
+--
 nearly ::  a -> (a -> Bool) -> Prism' a ()
 nearly x f = prism' (guard . f) (const x)
 
--- | 'only' focuses not just on a case, but a specific value of that case.
+-- | Focus not just on a case, but a specific value of that case.
+--
 only :: Eq a => a -> Prism' a ()
 only x = nearly x (x==)
 
-lessThan :: Bounded s => Ord s => s -> Prism' s Ordering
-lessThan s = flip prism' (const s) $ \s' -> if s' < s then Just LT else Nothing  
+-- | TODO: Document
+--
+lessThan :: Bounded a => Ord a => a -> Prism' a Ordering
+lessThan x = flip prism' (const x) $ \x' -> if x' < x then Just LT else Nothing  
 
--- | Prism for the `Just` constructor of `Maybe`.
-_Just :: Prism (Maybe a) (Maybe b) a b
-_Just = flip prism Just $ maybe (Left Nothing) Right
-
--- | Prism for the `Nothing` constructor of `Maybe`.
-_Nothing :: Prism (Maybe a) (Maybe b) () ()
-_Nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
-
+-- | TODO: Document
+--
 excepted :: Exception a => Prism' SomeException a
 excepted = prism' fromException toException
 
@@ -225,60 +236,98 @@ _IOException = excepted
 -- IO Error Types
 ----------------------------------------------------------------------------------------------------
 
+-- | TODO: Document
+--
 _AlreadyExists :: Prism' IOErrorType ()
 _AlreadyExists = only AlreadyExists
 
+-- | TODO: Document
+--
 _NoSuchThing :: Prism' IOErrorType ()
 _NoSuchThing = only NoSuchThing
 
+-- | TODO: Document
+--
 _ResourceBusy :: Prism' IOErrorType ()
 _ResourceBusy = only ResourceBusy
 
+-- | TODO: Document
+--
 _ResourceExhausted :: Prism' IOErrorType ()
 _ResourceExhausted = only ResourceExhausted
 
+-- | TODO: Document
+--
 _EOF :: Prism' IOErrorType ()
 _EOF = only EOF
 
+-- | TODO: Document
+--
 _IllegalOperation :: Prism' IOErrorType ()
 _IllegalOperation = only IllegalOperation
 
+-- | TODO: Document
+--
 _PermissionDenied :: Prism' IOErrorType ()
 _PermissionDenied = only PermissionDenied
 
+-- | TODO: Document
+--
 _UserError :: Prism' IOErrorType ()
 _UserError = only UserError
 
+-- | TODO: Document
+--
 _UnsatisfiedConstraints :: Prism' IOErrorType ()
 _UnsatisfiedConstraints = only UnsatisfiedConstraints
 
+-- | TODO: Document
+--
 _SystemError :: Prism' IOErrorType ()
 _SystemError = only SystemError
 
+-- | TODO: Document
+--
 _ProtocolError :: Prism' IOErrorType ()
 _ProtocolError = only ProtocolError
 
+-- | TODO: Document
+--
 _OtherError :: Prism' IOErrorType ()
 _OtherError = only OtherError
 
+-- | TODO: Document
+--
 _InvalidArgument :: Prism' IOErrorType ()
 _InvalidArgument = only InvalidArgument
 
+-- | TODO: Document
+--
 _InappropriateType :: Prism' IOErrorType ()
 _InappropriateType = only InappropriateType
 
+-- | TODO: Document
+--
 _HardwareFault :: Prism' IOErrorType ()
 _HardwareFault = only HardwareFault
 
+-- | TODO: Document
+--
 _UnsupportedOperation :: Prism' IOErrorType ()
 _UnsupportedOperation = only UnsupportedOperation
 
+-- | TODO: Document
+--
 _TimeExpired :: Prism' IOErrorType ()
 _TimeExpired = only TimeExpired
 
+-- | TODO: Document
+--
 _ResourceVanished :: Prism' IOErrorType ()
 _ResourceVanished = only ResourceVanished
 
+-- | TODO: Document
+--
 _Interrupted :: Prism' IOErrorType ()
 _Interrupted = only Interrupted
 

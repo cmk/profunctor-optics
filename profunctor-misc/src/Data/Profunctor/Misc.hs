@@ -138,6 +138,9 @@ cochoice f = unright . dimap dedup f
 pull :: Strong p => p a b -> p a (a , b)
 pull = lmap dup . psecond
 
+pull' :: Strong p => p b c -> p (a , b) b
+pull' = shiftr . pull
+
 parr :: Category p => Profunctor p => (a -> b) -> p a b
 parr f = dimap id f id
 
@@ -194,9 +197,9 @@ fromCostar = cotabulate . runCostar
 
 infixr 3 @@@
 
--- | TODO: Document
---
--- @p <*> x ≡ dimap dup eval (p @@@ x)@
+-- ^ @
+-- p <*> x ≡ dimap dup eval (p @@@ x)
+-- @
 --
 (@@@) :: Profunctor p => (forall x. Applicative (p x)) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
 f @@@ g = pappend f g
@@ -224,8 +227,14 @@ papply f x = dimap dup apply (f @@@ x)
 pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
 pliftA2 f x y = dimap dup f $ pappend x y
 
+pushr :: Closed p => (forall x. Applicative (p x)) => p (a , b) c -> p a b -> p a c
+pushr = papply . pcurry 
+
+pushl :: Closed p => (forall x. Applicative (p x)) => p a c -> p b c -> p a (b -> c)
+pushl f g = pcurry $ pdivided f g
+
 ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
 ppure b = dimap (const ()) (const b) $ pure ()
 
-pabsurd :: Profunctor p =>  (forall x. Divisible (p x)) => p Void a
+pabsurd :: Profunctor p => (forall x. Divisible (p x)) => p Void a
 pabsurd = rmap absurd $ conquer

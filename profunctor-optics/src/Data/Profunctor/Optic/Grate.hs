@@ -1,74 +1,28 @@
 
-module Data.Profunctor.Optic.Grate (
-    module Data.Profunctor.Optic.Grate
-  , module Export
-  , Costar (..)
-) where
-
+module Data.Profunctor.Optic.Grate where
 
 import Control.Monad.Reader
 import Control.Monad.Cont
+import Control.Monad.IO.Unlift
 import Data.Distributive
-import Data.Profunctor.Closed as Export
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Prelude hiding (Representable(..))
-import Data.Profunctor.Rep as Export (Corepresentable(..))
-
-import UnliftIO
-import qualified UnliftIO.Exception as Ux 
+import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Rep (unfirstCorep)
 import qualified Data.Functor.Rep as F
---import qualified Control.Exception as Ex
-
+import qualified Control.Exception as Ex
 
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
 
-{-
-'Closed' lets you lift a profunctor through any representable functor (aka Naperian container).
-In the special case where the indexing type is finitary (e.g. 'Bool') then the tabulated type is isomorphic to a fixed length vector (e.g. '(,)').
-The identity container is representable, and representable functors are closed lower composition.
-
-See https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf section 4.6
-
-The resulting 'Grate' optic sits between 'Iso' and 'Setter'. This is witnessed by
-
-Profunctor Grate: Grate s t a b ~ Closed p => p a b -> p s t
-Van Laarhoven Grate: forall f. Functor f => (f a -> b) -> (f s -> t)
-Normal Grate: ((s -> a) -> b) -> t
-
-∀ F:Functor. (F a -> b) -> (F s -> t)
- ≅ [ flip ]
-∀ F:Functor. F s -> (F a -> b) -> t
- ≅ [ yoneda ]
-∀ F:Functor. (∀ c. (s -> c) -> F c) -> (F a -> b) -> t
- = [ definition of natural transformation ]
-∀ F:Functor. (((->) s) :~> F) -> (F a -> b) -> t
- ≅ [ higher-order yoneda]
-((->) s a -> b) -> t
- =
-((s -> a) -> b) -> t
- =
-Grate s t a b
-
-
-Laws:
-given a van Laarhoven Grate,
-
-unzipping :: Functor f => (f a -> b) -> (f s -> t) we expect the following to hold:
-
-unzipping runIdentity = runIdentity
-
--- curry' :: Closed p => p (a, b) c -> p a (b -> c)
-unzipping (g . fmap f . getCompose) = unzipping g . fmap (grate f) . getCompose
-
--}
-
-
--- | Build a grate from a nested continuation.
+-- | Build a 'Grate' from a nested continuation.
 --
 -- \( \quad \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
+--
+-- The resulting optic is the corepresentable counterpart to 'Lens', and sits between 'Iso' and 'Setter'.
+--
+-- See <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf> section 4.6
 --
 -- /Caution/: In order for the 'Grate' to be well-defined, you must ensure that the two grate laws hold:
 --
@@ -80,27 +34,6 @@ unzipping (g . fmap f . getCompose) = unzipping g . fmap (grate f) . getCompose
 --
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
-
--- | Transform a Van Laarhoven grate into a profunctor grate.
---
--- * t runIdentity === runIdentity
--- * t (f . fmap g . runCompose) === (t f) . fmap (t g) . runCompose
---
-grating :: (forall g. Functor g => (g a -> b) -> g s -> t) -> Grate s t a b
-grating g = undefined --flip g id
-
---foo :: Functor f => (f a -> b) -> f s -> (((s -> a) -> b) -> t) -> t
---foo abst fs = grate $ \get -> abst (fmap get fs)
-
--- | Transform a Van Laarhoven lens into a profunctor lens.
---
---vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
---vllens  o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . pfirst
-
--- | Build a grate from an unzipping function.
---
---corepresenting :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Corepn s t a b
---corepresenting = under
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -217,7 +150,9 @@ parametrized f x = dimap (flip f) ($ x) . closed
 -- | TODO: Document
 --
 masked :: MonadUnliftIO m => Grate (m a) (m b) (m a) (m b)
-masked = grate Ux.mask
+masked = grate mask
+ where
+  mask f = withRunInIO $ \run -> Ex.mask $ \unmask -> run $ f $ liftIO . unmask . run
 
 -- | TODO: Document
 --

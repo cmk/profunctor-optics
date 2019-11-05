@@ -2,26 +2,18 @@ module Data.Profunctor.Optic.View where
 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
-import Data.Profunctor.Optic.Prism (_Just)
-import Control.Exception (Exception(..))
-import GHC.Conc (ThreadId)
-import qualified UnliftIO.Exception as Ux
-
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State hiding (StateT(..))
 
 ---------------------------------------------------------------------
--- 'View'
+-- 'View' & 'Review'
 ---------------------------------------------------------------------
 
 -- | Build a 'View' from an arbitrary function.
 --
 -- @
 -- 'to' f '.' 'to' g ≡ 'to' (g '.' f)
--- @
---
--- @
 -- a '^.' 'to' f ≡ f a
 -- @
 --
@@ -42,83 +34,77 @@ to :: (s -> a) -> PrimView s t a b
 to f = coercer . lmap f
 {-# INLINE to #-}
 
--- | Convert a function into a 'Review'.
---  Analagous to 'to' for 'View'.
+-- | Build a 'Review' from an arbitrary function.
 --
 -- @
--- 'unto' :: (b -> t) -> 'PrimReview' s t a b
+-- 'from' ≡ 're' . 'to'
 -- @
 --
--- @
--- 'unto' = 'un' . 'to'
--- @
---
-unto :: (b -> t) -> PrimReview s t a b 
-unto f = coercel . rmap f
-
--- | Turn a 'View' around to get a 'Review'
---
--- @
--- 'un' = 'unto' . 'view'
--- 'unto' = 'un' . 'to'
--- @
---
--- >>> un (to length) # [1,2,3]
+-- >>> (from Prelude.length) # [1,2,3]
 -- 3
-un :: AView s a -> PrimReview b a t s
-un = unto . (`views` id)
-
+--
 -- @
--- 'toBoth' :: 'AView' s a -> 'AView' s b -> 'View' s (a, b)
+-- 'from' :: (b -> t) -> 'Review' t b
+-- @
+--
+from :: (b -> t) -> PrimReview s t a b 
+from f = coercel . rmap f
+{-# INLINE from #-}
+
+-- ^ @
+-- 'toBoth' :: 'View' s a -> 'View' s b -> 'View' s (a, b)
 -- @
 --
 toBoth :: AView s a1 -> AView s a2 -> PrimView s t (a1 , a2) b
 toBoth l r = to (view l &&& view r)
+{-# INLINE toBoth #-}
 
 -- | TODO: Document
 --
-untoBoth :: AReview t1 b -> AReview t2 b -> PrimReview s (t1 , t2) a b
-untoBoth l r = unto (review l &&& review r)
+fromBoth :: AReview t1 b -> AReview t2 b -> PrimReview s (t1 , t2) a b
+fromBoth l r = from (review l &&& review r)
+{-# INLINE fromBoth #-}
 
 -- | TODO: Document
 --
 toEither :: AView s1 a -> AView s2 a -> PrimView (s1 + s2) t a b
 toEither l r = to (view l ||| view r)
+{-# INLINE toEither #-}
 
 -- | TODO: Document
 --
-untoEither :: AReview t b1 -> AReview t b2 -> PrimReview s t a (b1 + b2)
-untoEither l r = unto (review l ||| review r)
+fromEither :: AReview t b1 -> AReview t b2 -> PrimReview s t a (b1 + b2)
+fromEither l r = from (review l ||| review r)
+{-# INLINE fromEither #-}
 
--- @
+-- ^ @
 -- 'cloneView' :: 'AView' s a -> 'View' s a
 -- 'cloneView' :: 'Monoid' a => 'AView' s a -> 'Fold' s a
 -- @
+--
 cloneView :: AView s a -> PrimView s s a a
 cloneView = to . view
+{-# INLINE cloneView #-}
 
 -- | TODO: Document
 --
 cloneReview :: AReview t b -> PrimReview t t b b
-cloneReview = unto . review
+cloneReview = from . review
+{-# INLINE cloneReview #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Map each part of a structure viewed through a 'Lens', 'View',
--- 'Fold' or 'Traversal' to a monoid and combine the results.
+-- | Map each part of a structure viewed to a SEC.
+--
+-- @
+-- 'Data.Foldable.foldMap' = 'viewOf' 'folding''
+-- 'viewOf' ≡ 'views'
+-- @
 --
 -- >>> viewOf both id (["foo"], ["bar", "baz"])
 -- ["foo","bar","baz"]
---
--- @
--- 'Data.Foldable.foldMap' = 'viewOf' 'folded'
--- @
---
--- @
--- 'viewOf' ≡ 'views'
--- @
 --
 -- @
 -- 'viewOf' ::                  'Iso'' s a        -> (a -> r) -> s -> r
@@ -133,12 +119,14 @@ cloneReview = unto . review
 -- @
 --
 viewOf :: Optic' (FoldRep r) s a -> (a -> r) -> s -> r
-viewOf = between (dstar getConst) (ustar Const)
+viewOf = between ((getConst .) . runStar) (Star . (Const . ))
+{-# INLINE viewOf #-}
 
 -- | TODO: Document
 --
 reviewOf :: Optic' (CofoldRep r) t b -> (r -> b) -> r -> t
-reviewOf = between (dcostar Const) (ucostar getConst)
+reviewOf = between ((. Const) . runCostar) (Costar . (. getConst))
+{-# INLINE reviewOf #-}
 
 ---------------------------------------------------------------------
 -- Common 'View's and 'Review's
@@ -146,13 +134,15 @@ reviewOf = between (dcostar Const) (ucostar getConst)
 
 -- | TODO: Document
 --
-coercingr :: View a a 
-coercingr = coercer
+coercedr :: PrimView a x a y
+coercedr = coercer
+{-# INLINE coercedr #-}
 
 -- | TODO: Document
 --
-coercingl :: Review b b
-coercingl = coercel
+coercedl :: PrimReview x b y b
+coercedl = coercel
+{-# INLINE coercedl #-}
 
 -- | TODO: Document
 --
@@ -167,12 +157,12 @@ _2' = to snd
 -- | TODO: Document
 --
 _L' :: PrimReview (a + c) (b + c) a b
-_L' = coercel . rmap Left
+_L' = from Left
 
 -- | TODO: Document
 --
 _R' :: PrimReview (c + a) (c + b) a b
-_R' = coercel . rmap Right
+_R' = from Right
 
 -- | Build a constant-valued (index-preserving) 'PrimView' from an arbitrary value.
 --
@@ -187,17 +177,19 @@ _R' = coercel . rmap Right
 --
 like :: a -> PrimView s t a b
 like = to . const
+{-# INLINE like #-}
 
 -- | Build a constant-valued (index-preserving) 'PrimReview' from an arbitrary value.
 --
 -- @
 -- 'relike' a '.' 'relike' b ≡ 'relike' a
 -- 'relike' a '#' b ≡ a
--- 'relike' a '#' b ≡ 'unto' ('const' a) '#' b
+-- 'relike' a '#' b ≡ 'from' ('const' a) '#' b
 -- @
 --
 relike :: t -> PrimReview s t a b
-relike t = unto (const t)
+relike = from . const
+{-# INLINE relike #-}
 
 ---------------------------------------------------------------------
 -- Derived operators
@@ -209,13 +201,14 @@ infixl 8 ^.
 --
 (^.) :: s -> AView s a -> a
 (^.) = flip view
+{-# INLINE ( ^. ) #-}
 
 infixr 8 #
 
 -- | An infix alias for 'review'. Dual to '^.'.
 --
 -- @
--- 'unto' f # x ≡ f x
+-- 'from' f # x ≡ f x
 -- l # x ≡ x '^.' 're' l
 -- @
 --
@@ -242,7 +235,10 @@ o # b = review o b
 
 -- ^ @
 -- 'view o ≡ foldMapOf o id'
+-- 'review'  ≡ 'view'  '.' 're'
+-- 'reviews' ≡ 'views' '.' 're'
 -- @
+--
 view :: MonadReader s m => AView s a -> m a
 view = (`views` id)
 {-# INLINE view #-}
@@ -267,13 +263,13 @@ views o f = Reader.asks $ viewOf o f
 --
 -- @
 -- 'reviews' ≡ 'views' '.' 're'
--- 'reviews' ('unto' f) g ≡ g '.' f
+-- 'reviews' ('from' f) g ≡ g '.' f
 -- @
 --
 -- >>> reviews _Left isRight "mustard"
 -- False
 --
--- >>> reviews (unto succ) (*2) 3
+-- >>> reviews (from succ) (*2) 3
 -- 8
 --
 -- Usually this function is used in the @(->)@ 'Monad' with a 'Prism' or 'Iso', in which case it may be useful to think of
@@ -300,44 +296,6 @@ reviews o f = Reader.asks $ reviewOf o f
 {-# INLINE reviews #-}
 
 ---------------------------------------------------------------------
--- Exception handling
----------------------------------------------------------------------
-
--- | Throw an 'Exception' described by a 'Prism'. Exceptions may be thrown from
--- purely functional code, but may only be caught within the 'IO' 'Monad'.
---
--- @
--- 'throws' o ≡ 'throwIO' . 'review' o
--- @
---
--- @
--- 'throws' o e \`seq\` x  ≡ 'throws' o e
--- @
---
-throws :: MonadIO m => Exception t => AReview t b -> b -> m r
-throws o = Ux.throwIO . review o
-
--- | Similar to 'throws' but specialised for the common case of
---   error constructors with no arguments.
---
--- @
--- data MyError = Foo | Bar
--- makePrisms ''MyError
--- 'throws_' _Foo :: 'MonadError' MyError m => m a
--- @
-throws_ :: MonadIO m => Exception t => AReview t () -> m r
-throws_ l = throws l ()
-
--- | 'throwsTo' raises an 'Exception' specified by a 'Prism' in the target thread.
---
--- @
--- 'throwsTo' thread o ≡ 'throwTo' thread . 'review' o
--- @
---
-throwsTo :: MonadIO m => Exception t => ThreadId -> AReview t b -> b -> m ()
-throwsTo tid o = Ux.throwTo tid . review o
-
----------------------------------------------------------------------
 -- 'MonadState' and 'MonadWriter'
 ---------------------------------------------------------------------
 
@@ -345,6 +303,7 @@ throwsTo tid o = Ux.throwTo tid . review o
 --
 use :: MonadState s m => AView s a -> m a
 use o = State.gets (view o)
+{-# INLINE use #-}
 
 -- | Extracts the portion of a log that is focused on by a 'View'. 
 --

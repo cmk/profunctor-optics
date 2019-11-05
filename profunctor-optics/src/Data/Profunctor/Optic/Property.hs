@@ -1,8 +1,20 @@
 module Data.Profunctor.Optic.Property where
 
 import Control.Applicative
-import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Iso
+--import Data.Profunctor.Optic.View
+import Data.Profunctor.Optic.Setter
+import Data.Profunctor.Optic.Lens
+import Data.Profunctor.Optic.Prism
+--import Data.Profunctor.Optic.Grate
+--import Data.Profunctor.Optic.Fold
+--import Data.Profunctor.Optic.Fold0
+--import Data.Profunctor.Optic.Cofold
+--import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Traversal0
+--import Data.Profunctor.Optic.Cotraversal
 
 ---------------------------------------------------------------------
 -- 'Iso'

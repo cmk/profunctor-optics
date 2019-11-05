@@ -293,9 +293,9 @@ makeConIsoExp con = appsE [varE 'iso, remitter, reviewer]
 
 -- | Construct a Review expression
 --
--- unto (\(x,y,z) -> Con x y z)
+-- from (\(x,y,z) -> Con x y z)
 makeConReviewExp :: NCon -> ExpQ
-makeConReviewExp con = appE (varE 'unto) reviewer
+makeConReviewExp con = appE (varE 'from) reviewer
   where
   conName = view nconName con
   fields  = length (view nconTypes con)

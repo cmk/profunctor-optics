@@ -1,17 +1,31 @@
 module Data.Profunctor.Optic.Iso where
 
+import Control.Monad (join)
 import Data.Foldable
-import Data.Profunctor.Optic.Prelude
 import Data.Maybe (fromMaybe)
+import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 
-import Control.Monad (join)
+---------------------------------------------------------------------
+-- 'Equality' 
+---------------------------------------------------------------------
+
+-- | Constrain excessive polymorphism.
+--
+-- e.g turn an 'Optic' into an 'Optic'':
+--
+-- @
+-- foo . (simple :: As Int) . bar
+-- @
+--
+simple :: As a
+simple = id
 
 ---------------------------------------------------------------------
 -- 'Iso' 
 ---------------------------------------------------------------------
 
--- | Build an 'Iso' from two inverses.
+-- | Build an 'Iso' invert two inverses.
 --
 -- /Caution/: In order for the generated iso family to be well-defined,
 -- you must ensure that the two isomorphism laws hold:
@@ -26,14 +40,14 @@ iso = dimap
 -- | Invert an isomorphism.
 --
 -- @
--- 'from' ('from' l) ≡ l
+-- 'invert' ('invert' l) ≡ l
 -- @
 --
-from :: AIso s t a b -> Iso b a t s
-from l = withIso l $ \sa bt -> iso bt sa
-{-# INLINE from #-}
+invert :: AIso s t a b -> Iso b a t s
+invert l = withIso l $ \sa bt -> iso bt sa
+{-# INLINE invert #-}
 
--- | Convert from 'AIso' back to any 'Iso'.
+-- | Convert invert 'AIso' back to any 'Iso'.
 cloneIso :: AIso s t a b -> Iso s t a b
 cloneIso k = withIso k iso
 {-# INLINE cloneIso #-}
@@ -99,8 +113,8 @@ runPCont' (PCont f) = f id
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Extract the two functions, one from @s -> a@ and
--- one from @b -> t@ that characterize an 'Iso'.
+-- | Extract the two functions, one invert @s -> a@ and
+-- one invert @b -> t@ that characterize an 'Iso'.
 withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
@@ -156,7 +170,7 @@ coduped = iso f ((,) False ||| (,) True)
   f (False,a) = Left a
   f (True,a) = Right a
 
--- | Remove a single value from a type.
+-- | Remove a single value invert a type.
 --
 non :: Eq a => a -> Iso' (Maybe a) a
 non def = iso (fromMaybe def) g
@@ -168,10 +182,10 @@ non def = iso (fromMaybe def) g
 -- This function assumes that @p a@ holds @'True'@ and generates an isomorphism between @'Maybe' (a | 'not' (p a))@ and @a@.
 --
 -- >>> Map.empty & at "hello" . anon Map.empty Map.null . at "world" ?~ "!!!"
--- fromList [("hello",fromList [("world","!!!")])]
+-- invertList [("hello",invertList [("world","!!!")])]
 --
--- >>> fromList [("hello",fromList [("world","!!!")])] & at "hello" . anon Map.empty Map.null . at "world" .~ Nothing
--- fromList []
+-- >>> invertList [("hello",invertList [("world","!!!")])] & at "hello" . anon Map.empty Map.null . at "world" .~ Nothing
+-- invertList []
 --
 anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
 anon a p = iso (fromMaybe a) go where

@@ -1,14 +1,8 @@
 {-# LANGUAGE TupleSections #-}
-
 module Data.Profunctor.Optic.Traversal0 where
 
-import Data.Bitraversable 
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
-
-import Data.Profunctor.Optic.Prism
-import Data.Maybe (fromMaybe)
-import Data.Functor.Base (NonEmptyF(..))
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
@@ -18,8 +12,8 @@ import Data.Functor.Base (NonEmptyF(..))
 --
 -- \( \quad \mathsf{Traversal0}\;S\;A =\exists C, D, S \cong D + C \times A \)
 --
--- /Caution/: In order for the generated affine family to be well-defined,
--- you must ensure that the three lens affine traversal laws hold:
+-- /Caution/: In order for the 'Traversal0' to be well-defined,
+-- you must ensure that the three affine traversal laws hold:
 --
 -- * @sta (sbt (a, s)) ≡ either (Left . const a) Right (sta s)@
 --
@@ -41,8 +35,8 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
-traversing0 :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . pfirst . pleft
+traversal0VL :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversal0VL f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . pfirst . pleft
   where
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
@@ -104,8 +98,10 @@ instance Functor (PStore0 a b) where
 withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
 withTraversal0 o f = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> f x y
 
--- | Retrieve the value targeted by a 'Traversal0' or return the original
--- value while allowing the type to change if it does not match.
+-- | Retrieve the value targeted by a 'Traversal0' or return the original.
+--
+--
+-- Allows the type to change if the optic does not match.
 --
 -- @
 -- 'preview' o ≡ 'either' ('const' 'Nothing') 'id' . 'matchOf' o
@@ -123,8 +119,19 @@ rematchOf o = matchOf (re o)
 
 -- | Test whether the optic matches or not.
 --
+-- >>> isMatched _Just Nothing
+-- False
+--
 isMatched :: ATraversal0 s t a b -> s -> Bool
 isMatched o = either (const False) (const True) . matchOf o
+
+-- | Test whether the optic matches or not.
+--
+-- >>> isntMatched _Just Nothing
+-- True
+--
+isntMatched :: ATraversal0 s t a b -> s -> Bool
+isntMatched o = either (const True) (const False) . matchOf o
 
 ---------------------------------------------------------------------
 -- Common affine traversals
@@ -135,20 +142,22 @@ isMatched o = either (const False) (const True) . matchOf o
 nulled :: Traversal0' s a
 nulled = traversal0 Left const 
 
--- | Filter result(s) of a fold that don't satisfy a predicate.
+-- | Filter result(s) that don't satisfy a predicate.
 --
-filtering :: (s -> Bool) -> Traversal0' s s
-filtering p = traversing0 $ \point f a -> if p a then f a else point a
-
--- | Obtain a 'Traversal0' that can be composed with to filter another 'Lens', 'Iso', 'View', 'Fold' (or 'Traversal').
+-- /Caution/: While this is a valid 'Traversal0', it is only a valid 'Traversal'
+-- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
+--
+-- @
+-- 'filtered0' p ≡ 'vltraversal0' $ \point f a -> if p a then f a else point a
+-- @
 --
 -- >>> [1..10] ^.. fold id . filtered0 even
 -- [2,4,6,8,10]
 --
-filtered0 :: (s -> Bool) -> Traversal0' s s
+filtered0 :: (a -> Bool) -> Traversal0' a a
 filtered0 p = traversal0 (branch' p) (flip const)
 
 -- | TODO: Document
 --
-selected0 :: (k -> Bool) -> Traversal0' (k, v) v
+selected0 :: (a -> Bool) -> Traversal0' (a, b) b
 selected0 p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)

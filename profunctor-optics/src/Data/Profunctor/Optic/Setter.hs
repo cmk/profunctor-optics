@@ -2,28 +2,16 @@
 
 module Data.Profunctor.Optic.Setter where
 
-import Control.Exception (Exception(..), SomeException, AsyncException, ArrayException, ArithException)
-import GHC.IO.Exception
-
-import Data.Semiring
-import Data.Foldable (Foldable, foldMap)
-import Data.Profunctor.Optic.Iso (PStore(..), iso)
-import Data.Profunctor.Optic.Type
-import Data.Profunctor.Task
-import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
-import Data.Profunctor.Optic.Grate
-
 import Control.Applicative (liftA)
-import Control.Monad.State as State hiding (lift)
-import Control.Monad.Writer as Writer hiding (lift)
+import Control.Exception (Exception(..), SomeException)
 import Control.Monad.Reader as Reader hiding (lift)
-
-import UnliftIO
+import Control.Monad.Writer as Writer hiding (lift)
+import Data.Foldable (Foldable, foldMap)
+import Data.Profunctor.Optic.Iso (PStore(..))
+import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
+import Data.Profunctor.Optic.Type
+import Data.Semiring
 import qualified Control.Exception as Ex
-import qualified UnliftIO.Exception as Ux 
-import Data.Profunctor.Optic.Prism
-import Control.Monad.Trans.Resource
-
 
 ---------------------------------------------------------------------
 -- Setter
@@ -52,11 +40,6 @@ setter sec = dimap (flip PStore id) (\(PStore s ab) -> sec ab s) . lift collect
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 
--- | TODO: Document
---
-closingF :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-closingF f = dimap pureTaskF (f . runTask) . lift collect
-
 infixl 6 %
 
 -- | Sum two SECs
@@ -80,12 +63,11 @@ fromSemiring a = setter $ \ f y -> a >< f mempty <> y
 
 -- | Modify the target of a 'Lens' or all the targets of a 'Setter' or 'Traversal'.
 --
--- @ over l id ≡ id @
+-- @ 'over' l 'id' ≡ 'id' @
 --
 -- @
 -- 'over' l f '.' 'over' l g ≡ 'over' l (f '.' g)
 -- @
---
 --
 -- >>> over mapped f (over mapped g [a,b,c]) == over mapped (f . g) [a,b,c]
 -- True
@@ -143,10 +125,9 @@ infixr 4 .~
 (.~) = set
 {-# INLINE (.~) #-}
 
--- set l y (set l x a) ≡ set l y a
--- \c -> set (setter . runCayley $ c) zero one ≡ lowerCayey c
-
 -- | Set all referenced fields to the given value.
+--
+-- @ set l y (set l x a) ≡ set l y a @
 --
 set :: Optic (->) s t a b -> b -> s -> t
 set o b = o (const b)
@@ -251,13 +232,15 @@ modded = setter $ \sa bt sab -> bt (sab sa)
 composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
 composed = setter between
 
--- | SEC applying the given function only when the given predicate
---  yields true for an input value.
+-- | Apply a function only when the given predicate holds.
+--
 branched :: (a -> Bool) -> Setter' a a
 branched p = setter $ \f a -> if p a then f a else a
 
+-- | TODO: Document
+--
 branched' :: (k -> Bool) -> Setter' (k -> v) v
-branched' p = setter $ \mod f a -> if p a then mod (f a) else f a
+branched' p = setter $ \md f a -> if p a then md (f a) else f a
 
 -- | This 'Setter' can be used to purely map over the 'Exception's an
 -- arbitrary expression might throw; it is a variant of 'mapException' in
@@ -285,15 +268,6 @@ exmapped = setter Ex.mapException
 --
 -- >>> handleOf _Overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped' .~ Overflow)
 -- "caught"
+--
 exmapped' :: Exception e => Setter s s SomeException e
 exmapped' = exmapped
-
--- | TODO: Document
---
-masked' :: MonadUnliftIO m => Setter (m a) (m b) a b
-masked' = closingF Ux.mask
-
--- | TODO: Document
---
-resmasked :: MonadResource m => Setter (ResIO a) (m b) a b
-resmasked = closingF resourceMask

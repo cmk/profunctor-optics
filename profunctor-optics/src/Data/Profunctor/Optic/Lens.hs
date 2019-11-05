@@ -1,20 +1,18 @@
 module Data.Profunctor.Optic.Lens where
 
+import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Iso
 import Data.Void (Void, absurd)
-
-import qualified Control.Foldl as F
-
+import Foreign.C.Types
 import GHC.IO.Exception
 import System.IO
-import Foreign.C.Types
+import qualified Control.Foldl as F
+
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :m + Control.Exception
 -- >>> :m + Data.Profunctor.Optic
-
 
 ---------------------------------------------------------------------
 -- 'Lens' 
@@ -103,6 +101,11 @@ instance Representable (LensRep a b) where
 -- Primitive operators
 ---------------------------------------------------------------------
 
+-- | TODO: Document
+--
+withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
+withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
+
 -- | Analogous to @(***)@ from 'Control.Arrow'
 --
 pairing :: Lens s1 t1 a1 b1 -> Lens s2 t2 a2 b2 -> Lens (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
@@ -112,11 +115,6 @@ pairing = paired
 --
 lens2 :: (s -> a) -> (s -> b -> t) -> Lens (c, s) (d, t) (c, a) (d, b)
 lens2 f g = between runPaired Paired (lens f g)
-
--- | TODO: Document
---
-withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
 
 ---------------------------------------------------------------------
 -- Common lenses 
