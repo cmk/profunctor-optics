@@ -22,7 +22,7 @@ import Data.Semigroup.Traversable.Class as Export
 --
 --
 traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse1
+traversal1 sa sbt = dimap fork (uncurry sbt) . psecond . lmap sa . lift traverse1
 
 -- | Transform a Van Laarhoven 'Traversal1' into a profunctor 'Traversal1'.
 --

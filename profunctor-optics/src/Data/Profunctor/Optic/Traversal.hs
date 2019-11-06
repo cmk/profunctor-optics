@@ -11,7 +11,7 @@ import Data.Profunctor.Optic.Type
 -- | TODO: Document
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap dup (uncurry sbt) . psecond . lmap sa . lift traverse
+traversal sa sbt = dimap fork (uncurry sbt) . psecond . lmap sa . lift traverse
 
 -- | Transform a Van Laarhoven 'Traversal' into a profunctor 'Traversal'.
 --

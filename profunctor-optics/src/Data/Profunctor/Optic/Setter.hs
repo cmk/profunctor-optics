@@ -44,17 +44,17 @@ infixl 6 %
 
 -- | Sum two SECs
 --
-(%) :: Setter' a a -> Setter' a a -> Setter' a a
+(%) :: Cayley a -> Cayley a -> Cayley a
 (%) f g = setter $ \h -> (f %~ h) . (g %~ h)
 
 -- >>> toSemiring $ zero % one :: Int
 -- 1
 -- >>> toSemiring $ zero . one :: Int
 -- 0
-toSemiring :: Monoid a => Semiring a => Setter' a a -> a
+toSemiring :: Monoid a => Semiring a => Cayley a -> a
 toSemiring a = over a (unit <>) mempty
 
-fromSemiring :: Monoid a => Semiring a => a -> Setter' a a
+fromSemiring :: Monoid a => Semiring a => a -> Cayley a
 fromSemiring a = setter $ \ f y -> a >< f mempty <> y
 
 ---------------------------------------------------------------------

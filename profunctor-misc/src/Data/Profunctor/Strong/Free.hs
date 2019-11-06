@@ -27,10 +27,10 @@ instance ProfunctorMonad FreeStrong where
 -- See <https://r6research.livejournal.com/27858.html>.
 --
 counitFS :: Strong p => FreeStrong p :-> p
-counitFS (FreeStrong p) = dimap dup apply (first' p)
+counitFS (FreeStrong p) = dimap fork apply (first' p)
 
 toPastro :: FreeStrong p a b -> Pastro p a b
-toPastro (FreeStrong p) = Pastro apply p dup
+toPastro (FreeStrong p) = Pastro apply p fork
 
 fromPastro :: Profunctor p => Pastro p a b -> FreeStrong p a b
 fromPastro (Pastro l m r) = FreeStrong (dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)

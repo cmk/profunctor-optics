@@ -1,10 +1,10 @@
 module Data.Profunctor.Optic.Iso where
 
-import Control.Monad (join)
 import Data.Foldable
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
+import qualified Control.Monad as M (join)
 
 ---------------------------------------------------------------------
 -- 'Equality' 
@@ -151,7 +151,7 @@ curried = iso curry uncurry
 -- "lived"
 --
 involuted :: (s -> a) -> Iso s a a s
-involuted = join iso
+involuted = M.join iso
 {-# INLINE involuted #-}
 
 hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)

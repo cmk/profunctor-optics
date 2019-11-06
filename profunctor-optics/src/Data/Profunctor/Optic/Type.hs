@@ -15,7 +15,7 @@ module Data.Profunctor.Optic.Type (
     -- * Views & Reviews
   , View, AView, PrimView, PrimViewLike, Review, AReview, PrimReview, PrimReviewLike
     -- * Setters & Resetters
-  , Setter, Setter', SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
+  , Setter, Setter', Cayley, SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
     -- * Lenses & Relenses
   , Lens, Lens', LensLike, LensLike', Relens, Relens', RelensLike, RelensLike'
     -- * Prisms & Reprisms
@@ -151,6 +151,8 @@ type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p 
 
 type ASetter s t a b = Optic (->) s t a b
 
+type Cayley a = Setter' a a
+
 ---------------------------------------------------------------------
 -- 'Resetter'
 ---------------------------------------------------------------------
@@ -159,7 +161,7 @@ type Resetter s t a b = forall p. ResetterLike p s t a b
 
 type Resetter' s a = Resetter s s a a
 
-type ResetterLike p s t a b = Strong p => Traversable (Corep p) => Cotraversal1Like p s t a b
+type ResetterLike p s t a b = Strong p => Traversable (Corep p) => CotraversalLike p s t a b
 
 type AResetter s t a b = Optic (->) s t a b
 

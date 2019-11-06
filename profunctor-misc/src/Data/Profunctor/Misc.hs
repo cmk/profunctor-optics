@@ -3,7 +3,6 @@ module Data.Profunctor.Misc where
 import Control.Arrow ((|||),(&&&))
 import Control.Category
 import Control.Comonad (Comonad(..))
-import Control.Monad (join)
 import Data.Bifunctor
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
@@ -12,6 +11,7 @@ import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
 import Data.Void
 import Prelude hiding ((.), id)
+import qualified Control.Monad as M (join)
 
 infixr 5 +
 
@@ -29,17 +29,32 @@ lft f = either id f
 lft' :: a + Void -> a
 lft' = lft absurd
 
-dup :: a -> (a , a)
-dup = join (,)
-
-dedup :: (a + a) -> a
-dedup = join either id
-
 swp :: (a1 , a2) -> (a2 , a1)
 swp = snd &&& fst
 
 swp' :: (a1 + a2) -> (a2 + a1)
 swp' = Right ||| Left
+
+fork :: a -> (a , a)
+fork = M.join (,)
+
+join :: (a + a) -> a
+join = M.join either id
+
+eval :: (a , a -> b) -> b
+eval = uncurry $ flip id
+
+apply :: (b -> a , b) -> a
+apply = uncurry id
+
+coeval :: b -> (b -> a) + a -> a
+coeval b = either ($ b) id
+
+branch :: (a -> Bool) -> b -> c -> a -> b + c
+branch f y z x = if f x then Right z else Left y
+
+branch' :: (a -> Bool) -> a -> a + a
+branch' f x = branch f x x x
 
 assocl :: (a , (b , c)) -> ((a , b) , c)
 assocl (a, (b, c)) = ((a, b), c)
@@ -56,21 +71,6 @@ assocr' :: ((a + b) + c) -> (a + (b + c))
 assocr' (Left (Left a))  = Left a
 assocr' (Left (Right b)) = Right (Left b)
 assocr' (Right c)        = Right (Right c)
-
-eval :: (a , a -> b) -> b
-eval = uncurry $ flip id
-
-apply :: (b -> a , b) -> a
-apply = uncurry id
-
-coeval :: b -> (b -> a) + a -> a
-coeval b = either ($ b) id
-
-branch :: (a -> Bool) -> b -> c -> a -> b + c
-branch f y z x = if f x then Right z else Left y
-
-branch' :: (a -> Bool) -> a -> a + a
-branch' f x = branch f x x x
 
 fstrong :: Functor f => f a -> b -> f (a , b)
 fstrong f b = fmap (,b) f
@@ -124,19 +124,19 @@ coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
 coercel' = lower (. phantom)
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
-strong f = dimap dup f . psecond
+strong f = dimap fork f . psecond
 
 costrong :: Costrong p => ((a , b) -> c) -> p c a -> p b a
-costrong f = unsecond . dimap f dup
+costrong f = unsecond . dimap f fork
 
 choice :: Choice p => (c -> (a + b)) -> p b a -> p c a
-choice f = dimap f dedup . pright
+choice f = dimap f join . pright
 
 cochoice :: Cochoice p => (c -> (a + b)) -> p a c -> p a b
-cochoice f = unright . dimap dedup f
+cochoice f = unright . dimap join f
 
 pull :: Strong p => p a b -> p a (a , b)
-pull = lmap dup . psecond
+pull = lmap fork . psecond
 
 pull' :: Strong p => p b c -> p (a , b) b
 pull' = shiftr . pull
@@ -198,7 +198,7 @@ fromCostar = cotabulate . runCostar
 infixr 3 @@@
 
 -- ^ @
--- p <*> x ≡ dimap dup eval (p @@@ x)
+-- p <*> x ≡ dimap fork eval (p @@@ x)
 -- @
 --
 (@@@) :: Profunctor p => (forall x. Applicative (p x)) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
@@ -220,12 +220,12 @@ pdivided = pdivide id
 -- | Profunctor equivalent of '<*>'.
 --
 papply :: Profunctor p => (forall x. Applicative (p x)) => p a (b -> c) -> p a b -> p a c
-papply f x = dimap dup apply (f @@@ x)
+papply f x = dimap fork apply (f @@@ x)
 
 -- | Profunctor equivalent of 'liftA2'.
 --
 pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
-pliftA2 f x y = dimap dup f $ pappend x y
+pliftA2 f x y = dimap fork f $ pappend x y
 
 pushr :: Closed p => (forall x. Applicative (p x)) => p (a , b) c -> p a b -> p a c
 pushr = papply . pcurry 

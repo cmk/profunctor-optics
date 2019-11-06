@@ -18,7 +18,7 @@ x +++ y = pleft x >>> parr swp' >>> pleft y >>> parr swp'
 infixr 3 &&&
 
 (&&&) :: Category p => Strong p => p a b1 -> p a b2 -> p a (b1 , b2)
-x &&& y = dimap dup id $ x *** y 
+x &&& y = dimap fork id $ x *** y 
 
 infixr 2 |||
 
@@ -28,10 +28,10 @@ x ||| y = pchoose id x y
 infixr 0 $$$
 
 ($$$) :: Category p => Strong p => p a (b -> c) -> p a b -> p a c
-($$$) f x = dimap dup apply (f *** x)
+($$$) f x = dimap fork apply (f *** x)
 
 pselect :: Category p => Choice p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
 pselect f x y = dimap Left f $ x +++ y
 
 pchoose :: Category p => Choice p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b
-pchoose f x y = dimap f dedup $ x +++ y
+pchoose f x y = dimap f join $ x +++ y

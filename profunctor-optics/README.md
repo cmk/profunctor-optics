@@ -1,12 +1,14 @@
+[Hackage link](http://hackage.haskell.org/package/profunctor-optics)
+
 `profunctor-optics` is much indebted to prior work by: Ed Kmett, Russell O’Connor, Twan van Laarhoven, Phil Freeman, Oleg Grenrus, and many others. Several papers and talks by Jeremy Gibbons, Matthew Pickering, Guillaume Boisseau, and Brendan Fong were also invaluable.
 
-Its purpose is to provide a semantically precise and performant implementation of profunctor optics, suitable for application development. It's written in the open style of the `lens` library, and introduces no additional type classes.
+The goal is to provide a semantically precise and performant implementation of profunctor optics, suitable for application development. The library is written in the open style of the `lens` library, and introduces no additional type classes.
 
 Why a profunctor optics library? Several reasons:
 
 - It's much cleaner to start with profunctors, and a dependency on `profunctors` no longer seems like as much of an imposition as it did in 2011.
 - There are many useful classes of optic not easily expressible in the Van Laarhoven style.
-- I found certain aspects of `lens` frustrating for application development.
+- I found certain aspects of `lens` frustrating to use for application development.
 
 If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and the following series are good general introductions:
 

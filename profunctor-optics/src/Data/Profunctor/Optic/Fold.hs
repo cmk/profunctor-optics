@@ -8,7 +8,7 @@ import Data.Monoid
 import Data.Prd (Prd(..), Min(..), Max(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Semiring (Semiring(..))
-import Data.Profunctor.Optic.Prelude hiding (min, max, join)
+import Data.Profunctor.Optic.Prelude hiding (min, max, joins)
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (to, view, cloneView)
@@ -295,24 +295,6 @@ endo o = foldsr o (.) id
 endoM :: Monad m => AFold (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
 endoM o = foldsr o (<=<) pure
 
--- | TODO: Document
---
-all :: AFold All s a -> (a -> Bool) -> s -> Bool
-all o p = getAll . foldMapOf o (All . p)
-
--- | TODO: Document
---
-any :: AFold Any s a -> (a -> Bool) -> s -> Bool
-any o p = getAny . foldMapOf o (Any . p)
-
--- | Determine whether a `Fold` contains a given element.
-elem :: Eq a => AFold Any s a -> a -> s -> Bool
-elem p a = any p (== a)
-
--- | Determine whether a `Fold` not contains a given element.
-notElem :: Eq a => AFold All s a -> a -> s -> Bool
-notElem p a = all p (/= a)
-
 -- | Determine whether a `Fold` has at least one focus.
 --
 has :: AFold Any s a -> s -> Bool
@@ -325,8 +307,8 @@ hasnt p = getAll . foldMapOf p (const (All False))
 
 -- | TODO: Document
 --
-null :: AFold All s a -> s -> Bool
-null o = all o (const False)
+nulls :: AFold All s a -> s -> Bool
+nulls o = all o (const False)
 
 -- | Find the minimum of a totally ordered set. 
 --
@@ -348,22 +330,41 @@ pmin o = foldsM' o Prd.pmin
 pmax :: Eq a => Prd a => AFold (Endo (EndoM Maybe a)) s a -> a -> s -> Maybe a
 pmax o = foldsM' o Prd.pmax
 
--- | Find the (partial) join of a sublattice. 
+-- | Find the (partial) joins of a sublattice. 
 --
-join :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
-join o = foldsl' o (\/)
+joins :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
+joins o = foldsl' o (\/)
 
--- | Find the join of a sublattice or return the bottom element.
+-- | Find the joins of a sublattice or return the bottom element.
 --
-join' :: Lattice a => Min a => AFold (Endo (Endo a)) s a -> s -> a
-join' o = join o minimal
+joins' :: Lattice a => Min a => AFold (Endo (Endo a)) s a -> s -> a
+joins' o = joins o minimal
 
--- | Find the (partial) meet of a sublattice.
+-- | Find the (partial) meets of a sublattice.
 --
-meet :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
-meet o = foldsl' o (/\)
+meets :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
+meets o = foldsl' o (/\)
 
--- | Find the meet of a sublattice or return the top element.
+-- | Find the meets of a sublattice or return the top element.
 --
-meet' :: Lattice a => Max a => AFold (Endo (Endo a)) s a -> s -> a
-meet' o = meet o maximal
+meets' :: Lattice a => Max a => AFold (Endo (Endo a)) s a -> s -> a
+meets' o = meets o maximal
+
+-- | TODO: Document
+--
+all :: AFold All s a -> (a -> Bool) -> s -> Bool
+all o p = getAll . foldMapOf o (All . p)
+
+-- | TODO: Document
+--
+any :: AFold Any s a -> (a -> Bool) -> s -> Bool
+any o p = getAny . foldMapOf o (Any . p)
+
+-- | Determine whether a `Fold` contains a given element.
+elem :: Eq a => AFold Any s a -> a -> s -> Bool
+elem p a = any p (== a)
+
+-- | Determine whether a `Fold` not contains a given element.
+notElem :: Eq a => AFold All s a -> a -> s -> Bool
+notElem p a = all p (/= a)
+

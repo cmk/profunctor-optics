@@ -197,7 +197,7 @@ lowerR = (. _R)
 -- [2,4,6,8,10]
 --
 filtered :: (a -> Bool) -> Prism' a a
-filtered f = iso (branch' f) dedup . _R 
+filtered f = iso (branch' f) join . _R 
 
 -- | TODO: Document
 --

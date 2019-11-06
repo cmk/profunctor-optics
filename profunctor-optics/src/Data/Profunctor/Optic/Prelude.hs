@@ -12,7 +12,7 @@ import Control.Arrow as Export ((|||),(&&&),(+++),(***))
 import Control.Comonad as Export (Cokleisli(..))
 import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Category as Export
-import Control.Monad as Export hiding (void)
+import Control.Monad as Export hiding (void, join)
 import Control.Comonad as Export
 import Data.Bifunctor as Export (Bifunctor (..))
 import Data.Distributive as Export
