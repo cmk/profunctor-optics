@@ -43,8 +43,8 @@ matching f g = dimap f g . psecond
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
-vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-vllens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . pfirst
+lensVL :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+lensVL o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . pfirst
 
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
