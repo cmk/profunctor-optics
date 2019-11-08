@@ -2,6 +2,10 @@ module Data.Profunctor.Optic.Prism where
 
 import Control.Exception
 import Control.Monad (guard)
+import Data.Bifunctor
+import Data.Bits (Bits, bit, testBit)
+import Data.List (stripPrefix)
+import Data.Profunctor.Choice (PastroSum(..), TambaraSum(..))
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Prelude 
 import Data.Profunctor.Optic.Type
@@ -16,8 +20,9 @@ import qualified Control.Exception as Ex
 --
 -- \( \quad \mathsf{Prism}\;S\;A = \exists D, S \cong D + A \)
 --
--- /Caution/: In order for the generated prism family to be well-defined,
--- you must ensure that the three prism laws hold:
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
 --
 -- * @seta (bt b) ≡ Right b@
 --
@@ -28,7 +33,7 @@ import qualified Control.Exception as Ex
 -- See 'Data.Profunctor.Optic.Property'.
 --
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
-prism seta bt = dimap seta (id ||| bt) . pright
+prism seta bt = dimap seta (id ||| bt) . right'
 
 -- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
 --
@@ -40,7 +45,7 @@ prism' sma as = flip prism as $ \s -> maybe (Left s) Right (sma s)
 -- Useful for constructing prisms from try and handle functions.
 --
 handling :: (s -> e + a) -> (e + b -> t) -> Prism s t a b
-handling sea ebt = dimap sea ebt . pright
+handling sea ebt = dimap sea ebt . right'
 
 -- | Build a 'Cochoice' optic from a constructor and a matcher function.
 --
@@ -56,6 +61,11 @@ handling sea ebt = dimap sea ebt . pright
 --
 reprism :: (b -> a + t) -> (s -> a) -> Reprism s t a b
 reprism beat sa = unright . dimap (id ||| sa) beat
+
+-- | Lift a 'Prism' into a 'PastroSum'.
+--
+pastroSum :: Prism s t a b -> p a b -> PastroSum p s t
+pastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (swp' . sta)
 
 -- | TODO: Document
 --
@@ -142,10 +152,10 @@ without k =
 -- giving a 'Prism' that matches only if all the elements of the container
 -- match the 'Prism'.
 --
--- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below _R
+-- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right
 -- []
 --
--- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below _R
+-- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right
 -- [["hail hydra!","foo","blah","woot"]]
 --
 below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
@@ -163,33 +173,33 @@ below k =
 
 -- | TODO: Document
 --
-_L :: Prism (a + c) (b + c) a b
-_L = pleft
+left :: Prism (a + c) (b + c) a b
+left = left'
 
 -- | TODO: Document
 --
-_R :: Prism (c + a) (c + b) a b
-_R = pright
+right :: Prism (c + a) (c + b) a b
+right = right'
 
 -- | Prism for the `Just` constructor of `Maybe`.
 --
-_Just :: Prism (Maybe a) (Maybe b) a b
-_Just = flip prism Just $ maybe (Left Nothing) Right
+just :: Prism (Maybe a) (Maybe b) a b
+just = flip prism Just $ maybe (Left Nothing) Right
 
 -- | Prism for the `Nothing` constructor of `Maybe`.
 --
-_Nothing :: Prism (Maybe a) (Maybe b) () ()
-_Nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+nothing :: Prism (Maybe a) (Maybe b) () ()
+nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 
 -- | TODO: Document
 --
-lowerL :: Iso s t (a + c) (b + c) -> Prism s t a b
-lowerL = (. _L)
+lowerl :: Iso s t (a + c) (b + c) -> Prism s t a b
+lowerl = (. left)
 
 -- | TODO: Document
 --
-lowerR :: Iso s t (c + a) (c + b) -> Prism s t a b
-lowerR = (. _R)
+lowerr :: Iso s t (c + a) (c + b) -> Prism s t a b
+lowerr = (. right)
 
 -- | Obtain a 'Prism' that can be composed with to filter another 'Lens', 'Iso', 'View', 'Fold' (or 'Traversal').
 --
@@ -197,22 +207,32 @@ lowerR = (. _R)
 -- [2,4,6,8,10]
 --
 filtered :: (a -> Bool) -> Prism' a a
-filtered f = iso (branch' f) join . _R 
+filtered f = iso (branch' f) join . right 
 
 -- | TODO: Document
 --
 selected :: Eq a => a -> Prism' (a , b) b
 selected x = flip prism ((,) x) $ \kv@(k,v) -> branch (==x) kv v k
 
--- | Create a 'Prism' from a value and a predicate.
+-- | 'Prism' into the remainder of a list with a given prefix.
 --
-nearly ::  a -> (a -> Bool) -> Prism' a ()
-nearly x f = prism' (guard . f) (const x)
+prefixed :: Eq a => [a] -> Prism' [a] [a]
+prefixed ps = prism' (stripPrefix ps) (ps ++)
 
 -- | Focus not just on a case, but a specific value of that case.
 --
 only :: Eq a => a -> Prism' a ()
 only x = nearly x (x==)
+
+-- | Create a 'Prism' from a value and a predicate.
+--
+nearly ::  a -> (a -> Bool) -> Prism' a ()
+nearly x f = prism' (guard . f) (const x)
+
+-- | Focus on the truth value of the nth bit in a bit array.
+--
+nthBit :: Bits s => Int -> Prism' s ()
+nthBit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
 -- | TODO: Document
 --
@@ -221,16 +241,16 @@ lessThan x = flip prism' (const x) $ \x' -> if x' < x then Just LT else Nothing
 
 -- | TODO: Document
 --
-excepted :: Exception a => Prism' SomeException a
-excepted = prism' fromException toException
+exception :: Exception a => Prism' SomeException a
+exception = prism' fromException toException
 
 -- | Exceptions that occur in the 'IO' 'Monad'. 
 --
 -- An 'IOException' records a more specific error type, a descriptive string and possibly the handle 
 -- that was used when the error was flagged.
 --
-_IOException :: Prism' SomeException IOException
-_IOException = excepted
+ioException :: Prism' SomeException IOException
+ioException = exception
 
 ----------------------------------------------------------------------------------------------------
 -- IO Error Types
@@ -238,98 +258,98 @@ _IOException = excepted
 
 -- | TODO: Document
 --
-_AlreadyExists :: Prism' IOErrorType ()
-_AlreadyExists = only AlreadyExists
+alreadyExists :: Prism' IOErrorType ()
+alreadyExists = only AlreadyExists
 
 -- | TODO: Document
 --
-_NoSuchThing :: Prism' IOErrorType ()
-_NoSuchThing = only NoSuchThing
+noSuchThing :: Prism' IOErrorType ()
+noSuchThing = only NoSuchThing
 
 -- | TODO: Document
 --
-_ResourceBusy :: Prism' IOErrorType ()
-_ResourceBusy = only ResourceBusy
+resourceBusy :: Prism' IOErrorType ()
+resourceBusy = only ResourceBusy
 
 -- | TODO: Document
 --
-_ResourceExhausted :: Prism' IOErrorType ()
-_ResourceExhausted = only ResourceExhausted
+resourceExhausted :: Prism' IOErrorType ()
+resourceExhausted = only ResourceExhausted
 
 -- | TODO: Document
 --
-_EOF :: Prism' IOErrorType ()
-_EOF = only EOF
+eof :: Prism' IOErrorType ()
+eof = only EOF
 
 -- | TODO: Document
 --
-_IllegalOperation :: Prism' IOErrorType ()
-_IllegalOperation = only IllegalOperation
+illegalOperation :: Prism' IOErrorType ()
+illegalOperation = only IllegalOperation
 
 -- | TODO: Document
 --
-_PermissionDenied :: Prism' IOErrorType ()
-_PermissionDenied = only PermissionDenied
+permissionDenied :: Prism' IOErrorType ()
+permissionDenied = only PermissionDenied
 
 -- | TODO: Document
 --
-_UserError :: Prism' IOErrorType ()
-_UserError = only UserError
+userError :: Prism' IOErrorType ()
+userError = only UserError
 
 -- | TODO: Document
 --
-_UnsatisfiedConstraints :: Prism' IOErrorType ()
-_UnsatisfiedConstraints = only UnsatisfiedConstraints
+unsatisfiedConstraints :: Prism' IOErrorType ()
+unsatisfiedConstraints = only UnsatisfiedConstraints
 
 -- | TODO: Document
 --
-_SystemError :: Prism' IOErrorType ()
-_SystemError = only SystemError
+systemError :: Prism' IOErrorType ()
+systemError = only SystemError
 
 -- | TODO: Document
 --
-_ProtocolError :: Prism' IOErrorType ()
-_ProtocolError = only ProtocolError
+protocolError :: Prism' IOErrorType ()
+protocolError = only ProtocolError
 
 -- | TODO: Document
 --
-_OtherError :: Prism' IOErrorType ()
-_OtherError = only OtherError
+otherError :: Prism' IOErrorType ()
+otherError = only OtherError
 
 -- | TODO: Document
 --
-_InvalidArgument :: Prism' IOErrorType ()
-_InvalidArgument = only InvalidArgument
+invalidArgument :: Prism' IOErrorType ()
+invalidArgument = only InvalidArgument
 
 -- | TODO: Document
 --
-_InappropriateType :: Prism' IOErrorType ()
-_InappropriateType = only InappropriateType
+inappropriateType :: Prism' IOErrorType ()
+inappropriateType = only InappropriateType
 
 -- | TODO: Document
 --
-_HardwareFault :: Prism' IOErrorType ()
-_HardwareFault = only HardwareFault
+hardwareFault :: Prism' IOErrorType ()
+hardwareFault = only HardwareFault
 
 -- | TODO: Document
 --
-_UnsupportedOperation :: Prism' IOErrorType ()
-_UnsupportedOperation = only UnsupportedOperation
+unsupportedOperation :: Prism' IOErrorType ()
+unsupportedOperation = only UnsupportedOperation
 
 -- | TODO: Document
 --
-_TimeExpired :: Prism' IOErrorType ()
-_TimeExpired = only TimeExpired
+timeExpired :: Prism' IOErrorType ()
+timeExpired = only TimeExpired
 
 -- | TODO: Document
 --
-_ResourceVanished :: Prism' IOErrorType ()
-_ResourceVanished = only ResourceVanished
+resourceVanished :: Prism' IOErrorType ()
+resourceVanished = only ResourceVanished
 
 -- | TODO: Document
 --
-_Interrupted :: Prism' IOErrorType ()
-_Interrupted = only Interrupted
+interrupted :: Prism' IOErrorType ()
+interrupted = only Interrupted
 
 ----------------------------------------------------------------------------------------------------
 -- Async Exceptions
@@ -339,8 +359,8 @@ _Interrupted = only Interrupted
 -- been raised, the thread's stack will certainly be below its limit again,
 -- but the programmer should take remedial action immediately.
 --
-_StackOverflow :: Prism' AsyncException ()
-_StackOverflow = dimap seta (either id id) . right' . rmap (const Ex.StackOverflow)
+stackOverflow :: Prism' AsyncException ()
+stackOverflow = dimap seta (either id id) . right' . rmap (const Ex.StackOverflow)
   where seta Ex.StackOverflow = Right ()
         seta t = Left t
 
@@ -348,8 +368,8 @@ _StackOverflow = dimap seta (either id id) . right' . rmap (const Ex.StackOverfl
 --
 -- See 'GHC.IO.Exception' for more information.
 -- 
-_HeapOverflow :: Prism' AsyncException ()
-_HeapOverflow = dimap seta (either id id) . right' . rmap (const Ex.HeapOverflow)
+heapOverflow :: Prism' AsyncException ()
+heapOverflow = dimap seta (either id id) . right' . rmap (const Ex.HeapOverflow)
   where seta Ex.HeapOverflow = Right ()
         seta t = Left t
 
@@ -357,8 +377,8 @@ _HeapOverflow = dimap seta (either id id) . right' . rmap (const Ex.HeapOverflow
 -- 'Control.Concurrent.killThread', or by the system if it needs to terminate
 -- the thread for some reason.
 --
-_ThreadKilled :: Prism' AsyncException ()
-_ThreadKilled = dimap seta (either id id) . right' . rmap (const Ex.ThreadKilled)
+threadKilled :: Prism' AsyncException ()
+threadKilled = dimap seta (either id id) . right' . rmap (const Ex.ThreadKilled)
   where seta Ex.ThreadKilled = Right ()
         seta t = Left t
 
@@ -366,8 +386,8 @@ _ThreadKilled = dimap seta (either id id) . right' . rmap (const Ex.ThreadKilled
 -- the user requests to terminate the program via the usual mechanism(s)
 -- (/e.g./ Control-C in the console).
 --
-_UserInterrupt :: Prism' AsyncException ()
-_UserInterrupt = dimap seta (either id id) . right' . rmap (const Ex.UserInterrupt)
+userInterrupt :: Prism' AsyncException ()
+userInterrupt = dimap seta (either id id) . right' . rmap (const Ex.UserInterrupt)
   where seta Ex.UserInterrupt = Right ()
         seta t = Left t
 
@@ -377,36 +397,36 @@ _UserInterrupt = dimap seta (either id id) . right' . rmap (const Ex.UserInterru
 
 -- | Detect arithmetic overflow.
 --
-_Overflow :: Prism' ArithException ()
-_Overflow = dimap seta (either id id) . right' . rmap (const Ex.Overflow)
+overflow :: Prism' ArithException ()
+overflow = dimap seta (either id id) . right' . rmap (const Ex.Overflow)
   where seta Ex.Overflow = Right ()
         seta t = Left t
 
 -- | Detect arithmetic underflow.
 --
-_Underflow :: Prism' ArithException ()
-_Underflow = dimap seta (either id id) . right' . rmap (const Ex.Underflow)
+underflow :: Prism' ArithException ()
+underflow = dimap seta (either id id) . right' . rmap (const Ex.Underflow)
   where seta Ex.Underflow = Right ()
         seta t = Left t
 
 -- | Detect arithmetic loss of precision.
 --
-_LossOfPrecision :: Prism' ArithException ()
-_LossOfPrecision = dimap seta (either id id) . right' . rmap (const Ex.LossOfPrecision)
+leftossOfPrecision :: Prism' ArithException ()
+leftossOfPrecision = dimap seta (either id id) . right' . rmap (const Ex.LossOfPrecision)
   where seta Ex.LossOfPrecision = Right ()
         seta t = Left t
 
 -- | Detect division by zero.
 --
-_DivideByZero :: Prism' ArithException ()
-_DivideByZero = dimap seta (either id id) . right' . rmap (const Ex.DivideByZero)
+divideByZero :: Prism' ArithException ()
+divideByZero = dimap seta (either id id) . right' . rmap (const Ex.DivideByZero)
   where seta Ex.DivideByZero = Right ()
         seta t = Left t
 
 -- | Detect exceptional denormalized floating pure.
 --
-_Denormal :: Prism' ArithException ()
-_Denormal = dimap seta (either id id) . right' . rmap (const Ex.Denormal)
+denormal :: Prism' ArithException ()
+denormal = dimap seta (either id id) . right' . rmap (const Ex.Denormal)
   where seta Ex.Denormal = Right ()
         seta t = Left t
 
@@ -416,8 +436,8 @@ _Denormal = dimap seta (either id id) . right' . rmap (const Ex.Denormal)
 --
 -- <http://haskell.1045720.n5.nabble.com/Data-Ratio-and-exceptions-td5711246.html>
 --
-_RatioZeroDenominator :: Prism' ArithException ()
-_RatioZeroDenominator = dimap seta (either id id) . right' . rmap (const Ex.RatioZeroDenominator)
+rightatioZeroDenominator :: Prism' ArithException ()
+rightatioZeroDenominator = dimap seta (either id id) . right' . rmap (const Ex.RatioZeroDenominator)
   where seta Ex.RatioZeroDenominator = Right ()
         seta t = Left t
 
@@ -427,15 +447,15 @@ _RatioZeroDenominator = dimap seta (either id id) . right' . rmap (const Ex.Rati
 
 -- | Detect attempts to index an array outside its declared bounds.
 --
-_IndexOutOfBounds :: Prism' ArrayException String
-_IndexOutOfBounds = dimap seta (either id id) . right' . rmap Ex.IndexOutOfBounds
+indexOutOfBounds :: Prism' ArrayException String
+indexOutOfBounds = dimap seta (either id id) . right' . rmap Ex.IndexOutOfBounds
   where seta (Ex.IndexOutOfBounds r) = Right r
         seta t = Left t
 
 -- | Detect attempts to evaluate an element of an array that has not been initialized.
 --
-_UndefinedElement :: Prism' ArrayException String
-_UndefinedElement = dimap seta (either id id) . right' . rmap Ex.UndefinedElement
+undefinedElement :: Prism' ArrayException String
+undefinedElement = dimap seta (either id id) . right' . rmap Ex.UndefinedElement
   where seta (Ex.UndefinedElement r) = Right r
         seta t = Left t
 
@@ -446,78 +466,78 @@ _UndefinedElement = dimap seta (either id id) . right' . rmap Ex.UndefinedElemen
 trivial :: Profunctor p => t -> Optic' p t ()
 trivial t = const () `dimap` const t
 
-_AssertionFailed :: Prism' Ex.AssertionFailed String
-_AssertionFailed = iso (\(Ex.AssertionFailed a) -> a) Ex.AssertionFailed
+assertionFailed :: Prism' Ex.AssertionFailed String
+assertionFailed = iso (\(Ex.AssertionFailed a) -> a) Ex.AssertionFailed
 
 -- | Thrown when the runtime system detects that the computation is guaranteed
 -- not to terminate. Note that there is no guarantee that the runtime system
 -- will notice whether any given computation is guaranteed to terminate or not.
 --
-_NonTermination :: Prism' Ex.NonTermination ()
-_NonTermination = trivial Ex.NonTermination
+nonTermination :: Prism' Ex.NonTermination ()
+nonTermination = trivial Ex.NonTermination
 
 -- | Thrown when the program attempts to call atomically, from the
 -- 'Control.Monad.STM' package, inside another call to atomically.
 --
-_NestedAtomically :: Prism' Ex.NestedAtomically ()
-_NestedAtomically = trivial Ex.NestedAtomically
+nestedAtomically :: Prism' Ex.NestedAtomically ()
+nestedAtomically = trivial Ex.NestedAtomically
 
 -- | The thread is blocked on an 'Control.Concurrent.MVar.MVar', but there
 -- are no other references to the 'Control.Concurrent.MVar.MVar' so it can't
 -- ever continue.
 --
-_BlockedIndefinitelyOnMVar :: Prism' Ex.BlockedIndefinitelyOnMVar ()
-_BlockedIndefinitelyOnMVar = trivial Ex.BlockedIndefinitelyOnMVar
+blockedIndefinitelyOnMVar :: Prism' Ex.BlockedIndefinitelyOnMVar ()
+blockedIndefinitelyOnMVar = trivial Ex.BlockedIndefinitelyOnMVar
 
 -- | The thread is waiting to retry an 'Control.Monad.STM.STM' transaction,
 -- but there are no other references to any TVars involved, so it can't ever
 -- continue.
 --
-_BlockedIndefinitelyOnSTM :: Prism' Ex.BlockedIndefinitelyOnSTM ()
-_BlockedIndefinitelyOnSTM = trivial Ex.BlockedIndefinitelyOnSTM
+blockedIndefinitelyOnSTM :: Prism' Ex.BlockedIndefinitelyOnSTM ()
+blockedIndefinitelyOnSTM = trivial Ex.BlockedIndefinitelyOnSTM
 
 -- | There are no runnable threads, so the program is deadlocked. The
 -- 'Deadlock' 'Exception' is raised in the main thread only.
 --
-_Deadlock :: Prism' Ex.Deadlock ()
-_Deadlock = trivial Ex.Deadlock
+deadlock :: Prism' Ex.Deadlock ()
+deadlock = trivial Ex.Deadlock
 
 -- | A class method without a definition (neither a default definition,
 -- nor a definition in the appropriate instance) was called.
 --
-_NoMethodError :: Prism' Ex.NoMethodError String
-_NoMethodError = iso (\(Ex.NoMethodError a) -> a) Ex.NoMethodError
+noMethodError :: Prism' Ex.NoMethodError String
+noMethodError = iso (\(Ex.NoMethodError a) -> a) Ex.NoMethodError
 
 -- | A pattern match failed.
 --
-_PatternMatchFail :: Prism' Ex.PatternMatchFail String
-_PatternMatchFail = iso (\(Ex.PatternMatchFail a) -> a) Ex.PatternMatchFail
+patternMatchFail :: Prism' Ex.PatternMatchFail String
+patternMatchFail = iso (\(Ex.PatternMatchFail a) -> a) Ex.PatternMatchFail
 
 -- | An uninitialised record field was used.
 --
-_RecConError :: Prism' Ex.RecConError String
-_RecConError = iso (\(Ex.RecConError a) -> a) Ex.RecConError
+rightecConError :: Prism' Ex.RecConError String
+rightecConError = iso (\(Ex.RecConError a) -> a) Ex.RecConError
 
 -- | A record selector was applied to a constructor without the appropriate
 -- field. This can only happen with a datatype with multiple constructors,
 -- where some fields are in one constructor but not another.
 --
-_RecSelError :: Prism' Ex.RecSelError String
-_RecSelError = iso (\(Ex.RecSelError a) -> a) Ex.RecSelError
+rightecSelError :: Prism' Ex.RecSelError String
+rightecSelError = iso (\(Ex.RecSelError a) -> a) Ex.RecSelError
 
 -- | A record update was performed on a constructor without the
 -- appropriate field. This can only happen with a datatype with multiple
 -- constructors, where some fields are in one constructor but not another.
 --
-_RecUpdError :: Prism' Ex.RecUpdError String
-_RecUpdError = iso (\(Ex.RecUpdError a) -> a) Ex.RecUpdError
+rightecUpdError :: Prism' Ex.RecUpdError String
+rightecUpdError = iso (\(Ex.RecUpdError a) -> a) Ex.RecUpdError
 
 -- | Thrown when the user calls 'Prelude.error'.
 --
-_ErrorCall :: Prism' Ex.ErrorCall String
-_ErrorCall = iso (\(Ex.ErrorCall a) -> a) Ex.ErrorCall
+errorCall :: Prism' Ex.ErrorCall String
+errorCall = iso (\(Ex.ErrorCall a) -> a) Ex.ErrorCall
 
 -- | This thread has exceeded its allocation limit.
 --
-_AllocationLimitExceeded :: Prism' Ex.AllocationLimitExceeded ()
-_AllocationLimitExceeded = trivial AllocationLimitExceeded
+allocationLimitExceeded :: Prism' Ex.AllocationLimitExceeded ()
+allocationLimitExceeded = trivial AllocationLimitExceeded

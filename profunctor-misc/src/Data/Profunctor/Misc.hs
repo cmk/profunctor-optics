@@ -78,24 +78,6 @@ fstrong f b = fmap (,b) f
 fchoice :: Traversable f => f (a + b) -> (f a) + b
 fchoice = swp' . traverse swp'
 
-pfirst :: Strong p => p a b -> p (a , c) (b , c)
-pfirst = first'
-
-psecond :: Strong p => p a b -> p (c , a) (c , b)
-psecond = second'
-
-pleft :: Choice p => p a b -> p (a + c) (b + c)
-pleft = left'
-
-pright :: Choice p => p a b -> p (c + a) (c + b)
-pright = right'
-
-pcurry :: Closed p => p (a , b) c -> p a (b -> c)
-pcurry = curry'
-
-puncurry :: Strong p => p a (b -> c) -> p (a , b) c
-puncurry = uncurry'
-
 peval :: Strong p => p a (a -> b) -> p a b
 peval = rmap eval . pull
 
@@ -111,32 +93,32 @@ shiftl = dimap Right Left
 shiftr :: Profunctor p => p b (c , d) -> p (a , b) c
 shiftr = dimap snd fst
 
-coercer :: Profunctor p => Contravariant (p a) => p a c -> p a d
+coercer :: Profunctor p => Contravariant (p a) => p a b -> p a c
 coercer = rmap absurd . contramap absurd
 
 coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
 coercer' = lift (phantom .)
 
-coercel :: Profunctor p => Bifunctor p => p a c -> p b c
+coercel :: Profunctor p => Bifunctor p => p a b -> p c b
 coercel = first absurd . lmap absurd
 
 coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
 coercel' = lower (. phantom)
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
-strong f = dimap fork f . psecond
+strong f = dimap fork f . second'
 
 costrong :: Costrong p => ((a , b) -> c) -> p c a -> p b a
 costrong f = unsecond . dimap f fork
 
 choice :: Choice p => (c -> (a + b)) -> p b a -> p c a
-choice f = dimap f join . pright
+choice f = dimap f join . right'
 
 cochoice :: Cochoice p => (c -> (a + b)) -> p a c -> p a b
 cochoice f = unright . dimap join f
 
 pull :: Strong p => p a b -> p a (a , b)
-pull = lmap fork . psecond
+pull = lmap fork . second'
 
 pull' :: Strong p => p b c -> p (a , b) b
 pull' = shiftr . pull
@@ -195,6 +177,18 @@ toCostar = Costar . cosieve
 fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
 fromCostar = cotabulate . runCostar
 
+pushr :: Closed p => (forall x. Applicative (p x)) => p (a , b) c -> p a b -> p a c
+pushr = papply . curry' 
+
+pushl :: Closed p => (forall x. Applicative (p x)) => p a c -> p b c -> p a (b -> c)
+pushl f g = curry' $ pdivided f g
+
+ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
+ppure b = dimap (const ()) (const b) $ pure ()
+
+pabsurd :: Profunctor p => (forall x. Divisible (p x)) => p Void a
+pabsurd = rmap absurd $ conquer
+
 infixr 3 @@@
 
 -- ^ @
@@ -226,15 +220,3 @@ papply f x = dimap fork apply (f @@@ x)
 --
 pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
 pliftA2 f x y = dimap fork f $ pappend x y
-
-pushr :: Closed p => (forall x. Applicative (p x)) => p (a , b) c -> p a b -> p a c
-pushr = papply . pcurry 
-
-pushl :: Closed p => (forall x. Applicative (p x)) => p a c -> p b c -> p a (b -> c)
-pushl f g = pcurry $ pdivided f g
-
-ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
-ppure b = dimap (const ()) (const b) $ pure ()
-
-pabsurd :: Profunctor p => (forall x. Divisible (p x)) => p Void a
-pabsurd = rmap absurd $ conquer

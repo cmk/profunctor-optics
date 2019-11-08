@@ -8,7 +8,7 @@ import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Optic.Iso (PStore(..))
-import Data.Profunctor.Optic.Prelude hiding (Bifunctor(..))
+import Data.Profunctor.Optic.Prelude
 import Data.Profunctor.Optic.Type
 import Data.Semiring
 import qualified Control.Exception as Ex
@@ -21,7 +21,7 @@ import qualified Control.Exception as Ex
 --
 -- To demote an optic to a semantic edit combinator, use the section @(l %~)@ or @over l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter map . _1 %~ length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter map . first %~ length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated family to be well-defined, you must ensure that the two functor laws hold:
@@ -78,10 +78,10 @@ fromSemiring a = setter $ \ f y -> a >< f mempty <> y
 -- >>> over mapped (*10) [1,2,3]
 -- [10,20,30]
 --
--- >>> over _1 f (a,b)
+-- >>> over first f (a,b)
 -- (f a,b)
 --
--- >>> over _1 show (10,20)
+-- >>> over first show (10,20)
 -- ("10",20)
 --
 -- @
@@ -246,7 +246,7 @@ branched' p = setter $ \md f a -> if p a then md (f a) else f a
 -- arbitrary expression might throw; it is a variant of 'mapException' in
 -- the same way that 'mapped' is a variant of 'fmap'.
 --
--- > 'mapException' ≡ 'over' 'excepted'
+-- > 'mapException' ≡ 'over' 'exception'
 --
 -- This view that every Haskell expression can be regarded as carrying a bag
 -- of 'Exception's is detailed in “A Semantics for Imprecise Exceptions” by
@@ -254,7 +254,7 @@ branched' p = setter $ \md f a -> if p a then md (f a) else f a
 --
 -- The following maps failed assertions to arithmetic overflow:
 --
--- >>> handleOf _Overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
+-- >>> handleOf overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
 -- "caught"
 -- 
 exmapped :: Exception e0 => Exception e1 => Setter s s e0 e1
@@ -266,7 +266,7 @@ exmapped = setter Ex.mapException
 --
 -- The following maps any exception to arithmetic overflow:
 --
--- >>> handleOf _Overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped' .~ Overflow)
+-- >>> handleOf overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped' .~ Overflow)
 -- "caught"
 --
 exmapped' :: Exception e => Setter s s SomeException e

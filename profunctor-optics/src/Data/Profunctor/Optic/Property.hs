@@ -8,7 +8,7 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Prism
---import Data.Profunctor.Optic.Grate
+import Data.Profunctor.Optic.Grate
 --import Data.Profunctor.Optic.Fold
 --import Data.Profunctor.Optic.Fold0
 --import Data.Profunctor.Optic.Cofold
@@ -64,7 +64,6 @@ prism_fromto' o = withPrism o prism_fromto
 --
 -- * @set o c (set o b a) ≡ set o c a@
 --
-
 lens_tofrom :: Eq s => (s -> a) -> (s -> a -> s) -> s -> Bool
 lens_tofrom sa sas s = sas s (sa s) == s
 
@@ -75,14 +74,17 @@ lens_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
 lens_idempotent sas s a1 a2 = sas (sas s a1) a2 == sas s a2
 
 -- | Putting back what you got doesn't change anything.
+--
 lens_tofrom' :: Eq s => Lens' s a -> s -> Bool
 lens_tofrom' o = withLens o lens_tofrom
 
 -- | You get back what you put in.
+--
 lens_fromto' :: Eq a => Lens' s a -> s -> a -> Bool
 lens_fromto' o = withLens o lens_fromto
 
 -- | Setting twice is the same as setting once.
+--
 lens_idempotent' :: Eq s => Lens' s a -> s -> a -> a -> Bool
 lens_idempotent' o = withLens o $ const lens_idempotent
 
@@ -92,15 +94,17 @@ lens_idempotent' o = withLens o $ const lens_idempotent
 
 -- | The 'Grate' laws are that of an algebra for a parameterised continuation monad.
 --
--- * @grate ($ s) ≡ s@
+-- * @sabt ($ s) ≡ s@
 --
--- * @grate (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
---
-grate_pure :: Eq s => (((s -> a) -> a) -> s) -> s -> Bool
-grate_pure sabt s = sabt ($ s) == s
+grate_pure :: Eq s => Grate' s a -> s -> Bool
+grate_pure o s = withGrate o $ \sabt -> sabt ($ s) == s
 
-grate_pure' :: Eq s => (((s -> a) -> a) -> s) -> s -> a -> Bool
-grate_pure' sabt s a = sabt (const a) == s
+-- | The 'Grate' laws are that of an algebra for a parameterised continuation monad.
+--
+-- * @sabt (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
+--
+grate_compose :: Eq s => Grate' s a -> ((((s -> a) -> a) -> a) -> a) -> Bool
+grate_compose o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k -> f ($ k))
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
@@ -162,8 +166,8 @@ traverse_pure o s = o pure s == (pure s :: f s)
 --
 -- 3. @over o f . over o g ≡ over o (f . g)@
 
-setter_id :: Eq s => Setter' s a -> s -> Bool
-setter_id o s = over o id s == s
+setter_pure :: Eq s => Setter' s a -> s -> Bool
+setter_pure o s = over o id s == s
 
 setter_compose :: Eq s => Setter' s a -> (a -> a) -> (a -> a) -> s -> Bool
 setter_compose o f g s = (over o f . over o g) s == over o (f . g) s

@@ -9,6 +9,7 @@ import GHC.IO.Exception
 import System.IO
 import qualified Control.Foldl as F
 
+import Data.Profunctor.Strong (Pastro(..), Tambara(..))
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :m + Control.Exception
@@ -22,8 +23,9 @@ import qualified Control.Foldl as F
 --
 -- \( \quad \mathsf{Lens}\;S\;A = \exists C, S \cong C \times A \)
 --
--- /Caution/: In order for the generated lens family to be well-defined,
--- you must ensure that the three lens laws hold:
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
 --
 -- * @sa (sbt s a) ≡ a@
 --
@@ -34,17 +36,17 @@ import qualified Control.Foldl as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
-lens sa sbt = dimap (id &&& sa) (uncurry sbt) . psecond
+lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- | Build a 'Lens' from its free tensor representation.
 --
 matching :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
-matching f g = dimap f g . psecond
+matching f g = dimap f g . second'
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
-lensVL :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVL o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . pfirst
+plens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+plens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
 
 -- | Build a 'Costrong' optic from a getter and setter. 
 --
@@ -61,6 +63,21 @@ lensVL o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . p
 relens :: (b -> t) -> (b -> s -> a) -> Relens s t a b
 relens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
 
+-- | Lift a 'Lens' into a 'Pastro'.
+--
+pastro :: ALens s t a b -> p a b -> Pastro p s t
+pastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swp) p (\s -> (sa s, s))
+
+-- | Lift a 'Lens' into a 'Tambara'.
+--
+tambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
+tambara o p = withLens o $ \sa sbt -> Tambara (first' . dimap (id &&& sa) (uncurry sbt) . second' $ p)
+
+-- | Lift a 'Lens'' into a Moore machine.
+--
+foldingl :: ALens s s a b -> s -> F.Fold b a
+foldingl o s = withLens o $ \sa sbs -> F.Fold sbs s sa
+
 -- | TODO: Document
 --
 cloneLens :: ALens s t a b -> Lens s t a b
@@ -71,6 +88,7 @@ cloneLens o = withLens o lens
 ---------------------------------------------------------------------
 
 -- | The `LensRep` profunctor precisely characterizes a 'Lens'.
+--
 data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
 
 type ALens s t a b = Optic (LensRep a b) s t a b
@@ -78,16 +96,14 @@ type ALens s t a b = Optic (LensRep a b) s t a b
 type ALens' s a = ALens s s a a
 
 instance Profunctor (LensRep a b) where
-
   dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
 
 instance Strong (LensRep a b) where
-
   first' (LensRep sa sbt) =
-    LensRep (\(a, _) -> sa a) (\(s, c) b -> ((sbt s b), c))
+    LensRep (\(a, _) -> sa a) (\(s, c) b -> (sbt s b, c))
 
   second' (LensRep sa sbt) =
-    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, (sbt s b)))
+    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
 
 instance Sieve (LensRep a b) (PStore a b) where
   sieve (LensRep sa sbt) s = PStore (sa s) (sbt s)
@@ -104,7 +120,7 @@ instance Representable (LensRep a b) where
 -- | TODO: Document
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens l f = case l (LensRep id $ \_ b -> b) of LensRep x y -> f x y
+withLens o f = case o (LensRep id $ \_ b -> b) of LensRep x y -> f x y
 
 -- | Analogous to @(***)@ from 'Control.Arrow'
 --
@@ -122,23 +138,23 @@ lens2 f g = between runPaired Paired (lens f g)
 
 -- | TODO: Document
 --
-_1 :: Lens (a , c) (b , c) a b
-_1 = pfirst
+first :: Lens (a , c) (b , c) a b
+first = first'
 
 -- | TODO: Document
 --
-_2 :: Lens (c , a) (c , b) a b
-_2 = psecond
+second :: Lens (c , a) (c , b) a b
+second = second'
 
 -- | TODO: Document
 --
 lower1 :: Iso s t (a , x) (b , x) -> Lens s t a b
-lower1 = (. _1)
+lower1 = (. first)
 
 -- | TODO: Document
 --
 lower2 :: Iso s t (x , a) (x , b) -> Lens s t a b
-lower2 = (. _2)
+lower2 = (. second)
 
 -- | There is a `Unit` in everything.
 --
@@ -157,13 +173,8 @@ ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
 
 -- | TODO: Document
 --
-foldedl :: Lens s s a b -> s -> F.Fold b a
-foldedl o x = withLens o $ \sa sbt -> F.Fold sbt x sa
-
--- | TODO: Document
---
 uncurried :: Lens (a , b) c a (b -> c)
-uncurried = rmap apply . pfirst
+uncurried = rmap apply . first'
 
 ----------------------------------------------------------------------------------------------------
 -- IO Exceptions

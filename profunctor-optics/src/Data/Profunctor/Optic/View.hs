@@ -23,7 +23,7 @@ import Control.Monad.State as State hiding (StateT(..))
 -- >>> 5 ^. to succ
 -- 6
 --
--- >>> (0, -5) ^. _2 . to abs
+-- >>> (0, -5) ^. second . to abs
 -- 5
 --
 -- @
@@ -144,26 +144,6 @@ coercedl :: PrimReview x b y b
 coercedl = coercel
 {-# INLINE coercedl #-}
 
--- | TODO: Document
---
-_1' :: PrimView (a , c) (b , c) a b
-_1' = to fst
-
--- | TODO: Document
---
-_2' :: PrimView (c , a) (c , b) a b
-_2' = to snd
-
--- | TODO: Document
---
-_L' :: PrimReview (a + c) (b + c) a b
-_L' = from Left
-
--- | TODO: Document
---
-_R' :: PrimReview (c + a) (c + b) a b
-_R' = from Right
-
 -- | Build a constant-valued (index-preserving) 'PrimView' from an arbitrary value.
 --
 -- @
@@ -214,7 +194,7 @@ infixr 8 #
 --
 -- This is commonly used when using a 'Prism' as a smart constructor.
 --
--- >>> _Left # 4
+-- >>> lefteft # 4
 -- Left 4
 --
 -- But it can be used for any 'Prism'
@@ -266,7 +246,7 @@ views o f = Reader.asks $ viewOf o f
 -- 'reviews' ('from' f) g ≡ g '.' f
 -- @
 --
--- >>> reviews _Left isRight "mustard"
+-- >>> reviews lefteft isRight "mustard"
 -- False
 --
 -- >>> reviews (from succ) (*2) 3

@@ -14,7 +14,6 @@ import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Category as Export
 import Control.Monad as Export hiding (void, join)
 import Control.Comonad as Export
-import Data.Bifunctor as Export (Bifunctor (..))
 import Data.Distributive as Export
 import Data.Function as Export ((&))
 import Data.Functor as Export hiding (void)

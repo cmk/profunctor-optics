@@ -8,12 +8,12 @@ import Prelude hiding ((.), id)
 infixr 3 ***
 
 (***) :: Category p => Strong p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-x *** y = pfirst x >>> parr swp >>> pfirst y >>> parr swp
+x *** y = first' x >>> parr swp >>> first' y >>> parr swp
 
 infixr 2 +++
 
 (+++) :: Category p => Choice p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-x +++ y = pleft x >>> parr swp' >>> pleft y >>> parr swp'
+x +++ y = left' x >>> parr swp' >>> left' y >>> parr swp'
 
 infixr 3 &&&
 

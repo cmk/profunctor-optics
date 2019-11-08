@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Data.Profunctor.Optic.Traversal0 where
 
+import Data.Bifunctor
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
 
@@ -24,7 +25,7 @@ import Data.Profunctor.Optic.Prelude
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-traversal0 sta sbt = dimap f g . pright . pfirst
+traversal0 sta sbt = dimap f g . right' . first'
   where f s = (,s) <$> sta s
         g = id ||| (uncurry . flip $ sbt)
 
@@ -36,7 +37,7 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
 traversal0VL :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversal0VL f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . pfirst . pleft
+traversal0VL f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
   where
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
@@ -119,7 +120,7 @@ rematchOf o = matchOf (re o)
 
 -- | Test whether the optic matches or not.
 --
--- >>> isMatched _Just Nothing
+-- >>> isMatched just Nothing
 -- False
 --
 isMatched :: ATraversal0 s t a b -> s -> Bool
@@ -127,7 +128,7 @@ isMatched o = either (const False) (const True) . matchOf o
 
 -- | Test whether the optic matches or not.
 --
--- >>> isntMatched _Just Nothing
+-- >>> isntMatched just Nothing
 -- True
 --
 isntMatched :: ATraversal0 s t a b -> s -> Bool
