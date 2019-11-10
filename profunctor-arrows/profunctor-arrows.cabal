@@ -1,6 +1,6 @@
 cabal-version: >= 1.10
 
-name:           profunctor-misc
+name:           profunctor-arrows
 version:        0.0.0.1
 synopsis:       Profunctor miscellany
 description:    Miscellaneous functions on profunctors
@@ -21,16 +21,19 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Arrow
+      Data.Profunctor.Free
       Data.Profunctor.Misc
-      Data.Profunctor.Strong.Free
   hs-source-dirs:
       src
   default-extensions:
       RankNTypes
-      QuantifiedConstraints
+      ConstraintKinds
+      TypeFamilies
       TupleSections
       TypeOperators
       FlexibleContexts
+      FlexibleInstances
+      QuantifiedConstraints
   default-language: Haskell2010
   ghc-options: -Wall
   build-depends:
@@ -38,3 +41,5 @@ library
     , comonad           >= 4     && < 6
     , contravariant     >= 1     && < 2
     , profunctors       >= 5.3   && < 6
+    , containers
+    , tagged

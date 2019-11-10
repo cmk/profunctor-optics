@@ -1,7 +1,7 @@
 module Data.Profunctor.Misc where
 
 import Control.Arrow ((|||),(&&&))
-import Control.Category
+import Control.Category (Category)
 import Control.Comonad (Comonad(..))
 import Data.Bifunctor
 import Data.Functor.Contravariant
@@ -10,7 +10,8 @@ import Data.Profunctor
 import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
 import Data.Void
-import Prelude hiding ((.), id)
+import Prelude
+import qualified Control.Category as C (id)
 import qualified Control.Monad as M (join)
 
 infixr 5 +
@@ -32,8 +33,8 @@ lft' = lft absurd
 swp :: (a1 , a2) -> (a2 , a1)
 swp = snd &&& fst
 
-swp' :: (a1 + a2) -> (a2 + a1)
-swp' = Right ||| Left
+eswp :: (a1 + a2) -> (a2 + a1)
+eswp = Right ||| Left
 
 fork :: a -> (a , a)
 fork = M.join (,)
@@ -62,21 +63,36 @@ assocl (a, (b, c)) = ((a, b), c)
 assocr :: ((a , b) , c) -> (a , (b , c))
 assocr ((a, b), c) = (a, (b, c))
 
-assocl' :: (a + (b + c)) -> ((a + b) + c)
-assocl' (Left a)          = Left (Left a)
-assocl' (Right (Left b))  = Left (Right b)
-assocl' (Right (Right c)) = Right c
+eassocl :: (a + (b + c)) -> ((a + b) + c)
+eassocl (Left a)          = Left (Left a)
+eassocl (Right (Left b))  = Left (Right b)
+eassocl (Right (Right c)) = Right c
 
-assocr' :: ((a + b) + c) -> (a + (b + c))
-assocr' (Left (Left a))  = Left a
-assocr' (Left (Right b)) = Right (Left b)
-assocr' (Right c)        = Right (Right c)
+eassocr :: ((a + b) + c) -> (a + (b + c))
+eassocr (Left (Left a))  = Left a
+eassocr (Left (Right b)) = Right (Left b)
+eassocr (Right c)        = Right (Right c)
 
 fstrong :: Functor f => f a -> b -> f (a , b)
 fstrong f b = fmap (,b) f
 
 fchoice :: Traversable f => f (a + b) -> (f a) + b
-fchoice = swp' . traverse swp'
+fchoice = eswp . traverse eswp
+
+forget1 :: ((c , a) -> (c , b)) -> a -> b
+forget1 f a = b where (c, b) = f (c, a)
+
+forget2 :: ((a , c) -> (b , c)) -> a -> b
+forget2 f a = b where (b, c) = f (a, c)
+
+forgetl :: ((c + a) -> (c + b)) -> a -> b
+forgetl f = go . Right where go = either (go . Left) id . f
+
+forgetr :: ((a + c) -> (b + c)) -> a -> b
+forgetr f = go . Left where go = either id (go . Right) . f
+
+unarr :: Comonad w => Sieve p w => p a b -> a -> b 
+unarr = (extract .) . sieve
 
 peval :: Strong p => p a (a -> b) -> p a b
 peval = rmap eval . pull
@@ -123,33 +139,6 @@ pull = lmap fork . second'
 pull' :: Strong p => p b c -> p (a , b) b
 pull' = shiftr . pull
 
-parr :: Category p => Profunctor p => (a -> b) -> p a b
-parr f = dimap id f id
-
-punarr :: Comonad w => Sieve p w => p a b -> a -> b 
-punarr = (extract .) . sieve
-
-returnP :: Category p => Profunctor p => p a a
-returnP = parr id
-
-ex1 :: Category p => Profunctor p => p (a , b) b
-ex1 = parr snd
-
-ex2 :: Category p => Profunctor p => p (a , b) a
-ex2 = parr fst
-
-inl :: Category p => Profunctor p => p a (a + b)
-inl = parr Left
-
-inr :: Category p => Profunctor p => p b (a + b)
-inr = parr Right
-
-braid :: Category p => Profunctor p => p (a , b) (b , a)
-braid = parr swp
-
-braid' :: Category p => Profunctor p => p (a + b) (b + a)
-braid' = parr swp'
-
 lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
 lift f = tabulate . f . sieve
 
@@ -191,7 +180,9 @@ pabsurd = rmap absurd $ conquer
 
 infixr 3 @@@
 
--- ^ @
+-- | Profunctorial version of '***' from 'Control.Arrow'.
+--
+-- @
 -- p <*> x ≡ dimap fork eval (p @@@ x)
 -- @
 --

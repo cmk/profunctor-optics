@@ -7,6 +7,7 @@ import Data.Void (Void, absurd)
 import Foreign.C.Types
 import GHC.IO.Exception
 import System.IO
+import qualified Data.Bifunctor as B
 import qualified Control.Foldl as F
 
 import Data.Profunctor.Strong (Pastro(..), Tambara(..))
@@ -19,7 +20,7 @@ import Data.Profunctor.Strong (Pastro(..), Tambara(..))
 -- 'Lens' 
 ---------------------------------------------------------------------
 
--- | Build a 'Strong' optic from a getter and setter.
+-- | Build a 'Lens' from a getter and setter.
 --
 -- \( \quad \mathsf{Lens}\;S\;A = \exists C, S \cong C \times A \)
 --
@@ -33,22 +34,19 @@ import Data.Profunctor.Strong (Pastro(..), Tambara(..))
 --
 -- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
 -- See 'Data.Profunctor.Optic.Property'.
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
--- | Build a 'Lens' from its free tensor representation.
---
-matching :: (s -> (x , a)) -> ((x , b) -> t) -> Lens s t a b
-matching f g = dimap f g . second'
-
--- | Transform a Van Laarhoven lens into a profunctor lens.
---
-plens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-plens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
-
--- | Build a 'Costrong' optic from a getter and setter. 
+-- | Build a 'Relens' from a getter and setter. 
 --
 -- * @relens f g ≡ \f g -> re (lens f g)@
 --
@@ -60,18 +58,33 @@ plens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . fi
 --
 -- @ 'review' :: 'Relens'' s a -> a -> s @
 --
-relens :: (b -> t) -> (b -> s -> a) -> Relens s t a b
-relens sa sbt = unsecond . dimap (uncurry sbt) (id &&& sa)
+relens :: (b -> s -> a) -> (b -> t) -> Relens s t a b
+relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
+
+-- | Transform a Van Laarhoven lens into a profunctor lens.
+--
+lensing :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+lensing o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
+
+-- | Build a 'Lens' from its free tensor representation.
+--
+matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
+matching sca cbt = dimap sca cbt . second'
+
+-- | Build a 'Relens' from its free tensor representation.
+--
+rematching :: ((c , s) -> a) -> (b -> (c , t)) -> Relens s t a b
+rematching csa bct = unsecond . dimap csa bct
 
 -- | Lift a 'Lens' into a 'Pastro'.
 --
-pastro :: ALens s t a b -> p a b -> Pastro p s t
-pastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swp) p (\s -> (sa s, s))
+toPastro :: ALens s t a b -> p a b -> Pastro p s t
+toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swp) p (\s -> (sa s, s))
 
 -- | Lift a 'Lens' into a 'Tambara'.
 --
-tambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
-tambara o p = withLens o $ \sa sbt -> Tambara (first' . dimap (id &&& sa) (uncurry sbt) . second' $ p)
+toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
+toTambara o p = withLens o $ \sa sbt -> Tambara (first . lens sa sbt $ p)
 
 -- | Lift a 'Lens'' into a Moore machine.
 --
@@ -82,6 +95,11 @@ foldingl o s = withLens o $ \sa sbs -> F.Fold sbs s sa
 --
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens o = withLens o lens 
+
+-- | TODO: Document
+--
+cloneRelens :: ARelens s t a b -> Relens s t a b
+cloneRelens o = withRelens o relens 
 
 ---------------------------------------------------------------------
 -- 'LensRep'
@@ -113,14 +131,31 @@ instance Representable (LensRep a b) where
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
+data RelensRep a b s t = RelensRep (b -> s -> a) (b -> t)
+
+type ARelens s t a b = Optic (RelensRep a b) s t a b
+
+instance Profunctor (RelensRep a b) where
+  dimap f g (RelensRep bsa bt) = RelensRep (\b s -> bsa b (f s)) (g . bt)
+
+instance Costrong (RelensRep a b) where
+  unfirst (RelensRep baca bbc) = RelensRep (curry foo) (forget2 $ bbc . fst)
+    where foo = uncurry baca . shuffle . B.second undefined . swp --TODO: B.second bbc
+          shuffle (x,(y,z)) = (y,(x,z))
+
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | TODO: Document
+-- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens o f = case o (LensRep id $ \_ b -> b) of LensRep x y -> f x y
+withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
+
+-- | Extract the two functions that characterize a 'Relens'.
+--
+withRelens :: ARelens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
+withRelens l f = case l (RelensRep (flip const) id) of RelensRep x y -> f x y
 
 -- | Analogous to @(***)@ from 'Control.Arrow'
 --
@@ -148,13 +183,13 @@ second = second'
 
 -- | TODO: Document
 --
-lower1 :: Iso s t (a , x) (b , x) -> Lens s t a b
-lower1 = (. first)
+refirst :: Relens a b (a , c) (b , c)
+refirst = unfirst
 
 -- | TODO: Document
 --
-lower2 :: Iso s t (x , a) (x , b) -> Lens s t a b
-lower2 = (. second)
+resecond :: Relens a b (c , a) (c , b)
+resecond = unsecond
 
 -- | There is a `Unit` in everything.
 --
@@ -170,11 +205,6 @@ void = lens absurd const
 --
 ix :: Eq k => k -> Lens' (k -> v) v
 ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
-
--- | TODO: Document
---
-uncurried :: Lens (a , b) c a (b -> c)
-uncurried = rmap apply . first'
 
 ----------------------------------------------------------------------------------------------------
 -- IO Exceptions

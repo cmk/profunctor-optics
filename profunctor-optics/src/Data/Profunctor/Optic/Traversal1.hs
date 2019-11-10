@@ -33,13 +33,13 @@ traversal1 sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversal1VL :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
-traversal1VL abst = lift abst
+traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+traversing1 abst = lift abst
 
 -- | Create a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = lift traverse1
+traversed1 = traversing1 traverse1
 
 ---------------------------------------------------------------------
 -- Primitive operators

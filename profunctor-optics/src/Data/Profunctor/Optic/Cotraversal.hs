@@ -7,15 +7,15 @@ import Data.Profunctor.Optic.Prelude
 -- 'Cotraversal'
 ---------------------------------------------------------------------
 
+-- | Transform a Van Laarhoven 'Cotraversal' into a profunctor 'Cotraversal'.
+--
+cotraversing :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversing = lower
+
 -- | TODO: Document
 --
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = lower cotraverse
-
--- | Transform a Van Laarhoven 'Cotraversal' into a profunctor 'Cotraversal'.
---
-cotraversalVL :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversalVL = lower
+cotraversed = cotraversing cotraverse
 
 ---------------------------------------------------------------------
 -- Operators

@@ -25,6 +25,14 @@ import qualified Control.Exception as Ex
 -- The resulting optic is the corepresentable counterpart to 'Lens', 
 -- and sits between 'Iso' and 'Setter'.
 --
+-- A 'Grate' lets you lift a profunctor through any representable 
+-- functor (aka Naperian container). In the special case where the 
+-- indexing type is finitary (e.g. 'Bool') then the tabulated type is 
+-- isomorphic to a fixed length vector (e.g. 'V3 a').
+--
+-- The identity container is representable, and representable functors 
+-- are closed under composition.
+--
 -- See <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf>
 -- section 4.6 for more background on 'Grate's.
 --
@@ -35,6 +43,13 @@ import qualified Control.Exception as Ex
 -- * @sabt ($ s) ≡ s@
 --
 -- * @sabt (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -48,8 +63,8 @@ inverting sa bt = grate $ \sab -> bt (sab sa)
 
 -- | Lift a 'Grate' into an 'Environment'.
 --
-environment :: Grate s t a b -> p a b -> Environment p s t
-environment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
+toEnvironment :: Grate s t a b -> p a b -> Environment p s t
+toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
 
 -- | TODO: Document
 --

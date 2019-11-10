@@ -30,7 +30,8 @@ simple = id
 -- 'Iso' 
 ---------------------------------------------------------------------
 
--- | Build an 'Iso' invert two inverses.
+{-# INLINE iso #-}
+-- | Build an 'Iso' from two inverses.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
@@ -40,37 +41,54 @@ simple = id
 --
 -- * @bt . sa ≡ id@
 --
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
 iso = dimap
-{-# INLINE iso #-}
 
+{-# INLINE adapting #-}
+-- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
+--
+adapting :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
+adapting abst = iso f g
+  where f = getConst . (abst (Const . runIdentity)) . Identity
+        g = runIdentity . (abst (Identity . getConst)) . Const
+
+{-# INLINE invert #-}
 -- | Invert an isomorphism.
 --
+-- For any valid 'Iso' /o/ we have:
 -- @
--- 'invert' ('invert' l) ≡ l
+-- 'invert' ('invert' o) ≡ o
 -- @
 --
 invert :: AIso s t a b -> Iso b a t s
 invert o = withIso o $ \sa bt -> iso bt sa
-{-# INLINE invert #-}
 
+{-# INLINE toYoneda #-}
 -- | Lift an 'Iso' into a 'Yoneda'.
 --
-yoneda :: Profunctor p => Iso s t a b -> p a b -> Yoneda p s t
-yoneda o p = withIso o $ \sa bt -> Yoneda $ \f g -> dimap (sa . f) (g . bt) p 
-{-# INLINE yoneda #-}
+toYoneda :: Profunctor p => Iso s t a b -> p a b -> Yoneda p s t
+toYoneda o p = withIso o $ \sa bt -> Yoneda $ \f g -> dimap (sa . f) (g . bt) p 
 
+{-# INLINE toCoyoneda #-}
 -- | Lift an 'Iso' into a 'Coyoneda'.
 --
-coyoneda :: Iso s t a b -> p a b -> Coyoneda p s t
-coyoneda o p = withIso o $ \sa bt -> Coyoneda sa bt p
-{-# INLINE coyoneda #-}
+toCoyoneda :: Iso s t a b -> p a b -> Coyoneda p s t
+toCoyoneda o p = withIso o $ \sa bt -> Coyoneda sa bt p
 
+{-# INLINE cloneIso #-}
 -- | Convert from 'AIso' back to any 'Iso'.
 --
 cloneIso :: AIso s t a b -> Iso s t a b
 cloneIso k = withIso k iso
-{-# INLINE cloneIso #-}
 
 ---------------------------------------------------------------------
 -- 'IsoRep'
@@ -133,58 +151,71 @@ runPCont' (PCont f) = f id
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Extract the two functions, one invert @s -> a@ and
--- one invert @b -> t@ that characterize an 'Iso'.
+{-# INLINE withIso #-}
+-- | Extract the two functions that characterize an 'Iso'.
+--
 withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
-{-# INLINE withIso #-}
 
+{-# INLINE cycleOf #-}
 -- | TODO: Document
 --
 cycleOf :: AIso s t a b -> (t -> s) -> b -> a
 cycleOf x = withIso x $ \sa bt ts -> sa . ts . bt
-{-# INLINE cycleOf #-}
 
+{-# INLINE au #-}
 -- | TODO: Document
 --
 au :: AIso s t a b -> ((b -> t) -> e -> s) -> e -> a
 au l = withIso l $ \sa bt f e -> sa (f bt e)
-{-# INLINE au #-}
 
+{-# INLINE aup #-}
 -- | TODO: Document
 --
 aup :: Profunctor p => AIso s t a b -> (p r a -> e -> b) -> p r s -> e -> t
 aup l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
-{-# INLINE aup #-}
 
 ---------------------------------------------------------------------
 -- Common isos
 ---------------------------------------------------------------------
 
+{-# INLINE flipped #-}
 -- | TODO: Document
 --
 flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
 flipped = iso flip flip
-{-# INLINE flipped #-}
 
+{-# INLINE uncurried #-}
 -- | TODO: Document
 --
-curried :: Iso ((a , b) -> c) ((d , e) -> f) (a -> b -> c) (d -> e -> f)
-curried = iso curry uncurry
-{-# INLINE curried #-}
+uncurried :: Iso ((a , b) -> c) ((d , e) -> f) (a -> b -> c) (d -> e -> f)
+uncurried = iso curry uncurry
 
+{-# INLINE swapped #-}
 -- | TODO: Document
 --
 swapped :: Iso (a , b) (c , d) (b , a) (d , c)
 swapped = iso swp swp
-{-# INLINE swapped #-}
 
+{-# INLINE eswapped #-}
 -- | TODO: Document
 --
-swapped' :: Iso (a + b) (c + d) (b + a) (d + c)
-swapped' = iso swp' swp'
-{-# INLINE swapped' #-}
+eswapped :: Iso (a + b) (c + d) (b + a) (d + c)
+eswapped = iso eswp eswp
 
+{-# INLINE associated #-}
+-- | 'Iso' defined by left-association of nested tuples.
+--
+associated :: Iso (a , (b , c)) (d , (e , f)) ((a , b) , c) ((d , e) , f)
+associated = iso assocl assocr
+
+{-# INLINE eassociated #-}
+-- | 'Iso' defined by left-association of nested tuples.
+--
+eassociated :: Iso (a + (b + c)) (d + (e + f)) ((a + b) + c) ((d + e) + f)
+eassociated = iso eassocl eassocr
+
+{-# INLINE involuted #-}
 -- | Given a function that is its own inverse, this gives you an 'Iso' using it in both directions.
 --
 -- @
@@ -199,41 +230,8 @@ swapped' = iso swp' swp'
 --
 involuted :: (s -> a) -> Iso s a a s
 involuted = M.join iso
-{-# INLINE involuted #-}
 
--- | TODO: Document
---
-hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)
-hushed = iso (maybe (Left ()) Right) (const Nothing ||| Just)
-{-# INLINE hushed #-}
-
--- | TODO: Document
---
-duped :: Iso (Bool -> a) (Bool -> b) (a , a) (b , b)
-duped = iso to fro
- where
-  to f = (f False, f True)
-  fro p True = fst p
-  fro p False = snd p
-{-# INLINE duped #-}
-
--- | TODO: Document
---
-deduped :: Iso (Bool , a) (Bool , b) (a + a) (b + b)
-deduped = iso f ((,) False ||| (,) True)
- where
-  f (False,a) = Left a
-  f (True,a) = Right a
-{-# INLINE deduped #-}
-
--- | Remove a single value from a type.
---
-non :: Eq a => a -> Iso' (Maybe a) a
-non def = iso (fromMaybe def) g
-  where g a | a == def  = Nothing
-            | otherwise = Just a
-{-# INLINE non #-}
-
+{-# INLINE added #-}
 -- | The group isomorphism defined by an element's action.
 --
 -- >>> [1..3] ^.. traversed . added 1000
@@ -241,8 +239,8 @@ non def = iso (fromMaybe def) g
 --
 added :: Group a => a -> Iso' a a
 added n = iso (<> n) (<< n)
-{-# INLINE added #-}
 
+{-# INLINE subtracted #-}
 -- | The group isomorphism defined by an element's inverse action.
 --
 -- @
@@ -251,8 +249,41 @@ added n = iso (<> n) (<< n)
 --
 subtracted :: Group a => a -> Iso' a a
 subtracted n = iso (<< n) (<> n)
-{-# INLINE subtracted #-}
 
+{-# INLINE hushed #-}
+-- | TODO: Document
+--
+hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)
+hushed = iso (maybe (Left ()) Right) (const Nothing ||| Just)
+
+{-# INLINE duped #-}
+-- | TODO: Document
+--
+duped :: Iso (Bool -> a) (Bool -> b) (a , a) (b , b)
+duped = iso to fro
+ where
+  to f = (f False, f True)
+  fro p True = fst p
+  fro p False = snd p
+
+{-# INLINE eduped #-}
+-- | TODO: Document
+--
+eduped :: Iso (Bool , a) (Bool , b) (a + a) (b + b)
+eduped = iso f ((,) False ||| (,) True)
+ where
+  f (False,a) = Left a
+  f (True,a) = Right a
+
+{-# INLINE non #-}
+-- | Remove a single value from a type.
+--
+non :: Eq a => a -> Iso' (Maybe a) a
+non def = iso (fromMaybe def) g
+  where g a | a == def  = Nothing
+            | otherwise = Just a
+
+{-# INLINE anon #-}
 -- | @'anon' a p@ generalizes @'non' a@ to take any value and a predicate.
 --
 -- This function assumes that @p a@ holds @'True'@ and generates an isomorphism between @'Maybe' (a | 'not' (p a))@ and @a@.
@@ -267,7 +298,26 @@ anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
 anon a p = iso (fromMaybe a) go where
   go b | p b       = Nothing
        | otherwise = Just b
-{-# INLINE anon #-}
+
+-- | TODO: Document
+--
+lower1 :: Iso s t (a , c) (b , c) -> Lens s t a b
+lower1 = (. first')
+
+-- | TODO: Document
+--
+lower2 :: Iso s t (c , a) (c , b) -> Lens s t a b
+lower2 = (. second')
+
+-- | TODO: Document
+--
+lowerl :: Iso s t (a + c) (b + c) -> Prism s t a b
+lowerl = (. left')
+
+-- | TODO: Document
+--
+lowerr :: Iso s t (c + a) (c + b) -> Prism s t a b
+lowerr = (. right')
 
 -- | TODO: Document
 --
@@ -338,7 +388,7 @@ paired x y =
 newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
 fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
-fromTambaraSum = Split . swapped' . runTambaraSum
+fromTambaraSum = Split . eswapped . runTambaraSum
 
 instance Profunctor p => Profunctor (Split p c d) where
   dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
@@ -359,4 +409,4 @@ split
   -> Optic (Split p a1 b1) s2 t2 a2 b2 
   -> Optic p (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2)
 split x y = 
-  swapped' . runSplit . x . Split . swapped' . runSplit . y . Split
+  eswapped . runSplit . x . Split . eswapped . runSplit . y . Split

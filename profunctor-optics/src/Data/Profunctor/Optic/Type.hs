@@ -15,7 +15,7 @@ module Data.Profunctor.Optic.Type (
     -- * Views & Reviews
   , View, AView, PrimView, PrimViewLike, Review, AReview, PrimReview, PrimReviewLike
     -- * Setters & Resetters
-  , Setter, Setter', Cayley, SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
+  , Setter, Setter', SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
     -- * Lenses & Relenses
   , Lens, Lens', LensLike, LensLike', Relens, Relens', RelensLike, RelensLike'
     -- * Prisms & Reprisms
@@ -104,6 +104,14 @@ type As a = Equality' a a
 --
 -- \( \mathsf{Iso}\;S\;A = S \cong A \)
 --
+-- For any valid 'Iso' /o/ we have:
+-- @
+-- o . re o ≡ id
+-- re o . o ≡ id
+-- view o (review o b) ≡ b
+-- review o (view o s) ≡ s
+-- @
+--
 type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
 type Iso' s a = Iso s s a a
@@ -147,8 +155,6 @@ type Setter' s a = Setter s s a a
 type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
 
 type ASetter s t a b = Optic (->) s t a b
-
-type Cayley a = Setter' a a
 
 type Resetter s t a b = forall p. ResetterLike p s t a b
 

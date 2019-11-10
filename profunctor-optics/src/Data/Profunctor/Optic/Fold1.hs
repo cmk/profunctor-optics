@@ -20,21 +20,46 @@ A 'Fold1' can interpret 'a' in a semigroup so long as 's' can also be interprete
 Fold1 laws:
 fold1_complete :: Fold1 s a -> Bool
 fold1_complete o = tripping o $ folding1 (toNonEmptyOf o)
+
 -}
 
--- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
+-- | Transform a Van Laarhoven 'Fold1' into a profunctor 'Fold1'.
 --
--- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
+-- See 'Data.Profunctor.Optic.Property'.
 --
--- >>> [1,2,3,4] ^.. folding tail
--- [2,3,4]
---
-folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = coercer . lmap f . lift traverse1_
+folding1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
+folding1 f = coercer . lift f . coercer
 {-# INLINE folding1 #-}
 
+-- | Obtain a 'Fold1' using a 'Traversable1' functor.
+--
+-- @
+-- 'folded1' f ≡ 'traversed1' . 'to' f
+-- 'folded1' f ≡ 'folding1' 'traverse1' . 'to' f
+-- @
+--
 folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = lift traverse1 . to f
+folded1 f = folding1 traverse1 . to f
+{-# INLINE folded1 #-}
+
+-- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
+--
+-- @ 
+-- 'folded1_' ('toNonEmptyOf' o) ≡ o
+-- 'folded1_' f ≡ 'to' f . 'folding1' 'traverse_'
+-- 'folded1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+-- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
+--
+-- >>> 1 :| [2,3,4] ^.. folded1_ tail
+-- [2,3,4]
+--
+folded1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
+folded1_ f = to f . folding1 traverse_
+{-# INLINE folded1_ #-}
 
 fold1Like :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
 fold1Like = between ((Star . (Const . ))) ((getConst .) . runStar)
@@ -44,46 +69,6 @@ fold1Like' = fold1Like foldMap1
 
 cloneFold1 :: Semigroup a => AFold1 a s a -> Fold1 s a
 cloneFold1 = to . view
-
--- | Transform a Van Laarhoven 'Fold1' into a profunctor 'Fold1'.
---
-fold1VL :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-fold1VL f = coercer . lift f . coercer
-{-# INLINE fold1VL #-}
-
--- | Obtain a 'Fold' using a 'Traversable' functor.
---
--- @
--- 'folded' f ≡ 'lift' 'traverse' . 'to' f
--- @
---
-folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = traversed1 . to f
-{-# INLINE folded1 #-}
-
--- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
---
--- @ 
--- 'folding1' ('toNonEmptyOf' o) ≡ o
--- @
---
--- This can be useful to lift operations from @Data.NonEmpty@ and elsewhere into a 'Fold1'.
---
--- >>> [1,2,3,4] ^.. folding1 tail
--- [2,3,4]
---
---
--- See 'Data.Profunctor.Optic.Property'.
---
-folding1 :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1 f = coercer . lmap f . lift traverse_
-{-# INLINE folding1 #-}
-
--- | TODO: Document
---
-folding1' :: Foldable1 f => Fold1 (f a) a
-folding1' = folding1 id
-{-# INLINE folding1' #-}
 
 -- | Build a 'Fold1' from a 'View'.
 --

@@ -73,7 +73,7 @@ library
     , distributive
     , foldl
     , mtl
-    , profunctor-misc
+    , profunctor-arrows
     , profunctors
     , recursion-schemes
     , rings
