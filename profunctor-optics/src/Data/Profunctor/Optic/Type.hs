@@ -132,7 +132,7 @@ type AView s a = Optic' (FoldRep a) s a
 
 -- | A 'Review' produces a result.
 --
-type Review t b = forall p. Choice p => PrimReviewLike p t t b b
+type Review t b = forall p. Costrong p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
 
@@ -154,7 +154,9 @@ type Setter' s a = Setter s s a a
 
 type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
 
-type ASetter s t a b = Optic (->) s t a b
+--type ASetter s t a b = Optic (->) s t a b
+
+type ASetter s t a b = (a -> Identity b) -> s -> Identity t
 
 type Resetter s t a b = forall p. ResetterLike p s t a b
 
@@ -162,7 +164,9 @@ type Resetter' s a = Resetter s s a a
 
 type ResetterLike p s t a b = Strong p => Traversable (Corep p) => CotraversalLike p s t a b
 
-type AResetter s t a b = Optic (->) s t a b
+--type AResetter s t a b = Optic (->) s t a b
+
+type AResetter s t a b = (Identity a -> b) -> Identity s -> t
 
 ---------------------------------------------------------------------
 -- 'Lens' & 'Relens'

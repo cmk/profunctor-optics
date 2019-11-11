@@ -22,7 +22,7 @@ import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export
 import Data.Functor.Contravariant.Divisible as Export
 import Data.Functor.Identity as Export
-import Data.Profunctor.Misc as Export
+import Data.Profunctor.Extra as Export
 import Data.Profunctor.Types as Export
 import Data.Void as Export
 import Prelude as Export hiding (Foldable(..), all, any, min, max, head, tail)

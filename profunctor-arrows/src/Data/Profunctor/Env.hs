@@ -6,7 +6,7 @@ import Control.Comonad (Comonad, Cokleisli(..))
 import Control.Monad hiding (join)
 import Data.Profunctor
 import Data.Profunctor.Free
-import Data.Profunctor.Misc
+import Data.Profunctor.Extra
 
 import Prelude
 

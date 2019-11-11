@@ -2,8 +2,8 @@ cabal-version: >= 1.10
 
 name:           profunctor-arrows
 version:        0.0.0.1
-synopsis:       Profunctor miscellany
-description:    Miscellaneous functions on profunctors
+synopsis:       Profunctor arrows
+description:    Profunctor prearrows, arrows, and transformers.
 category:       Data, Profunctors
 homepage:       https://github.com/cmk/profunctor-extras
 bug-reports:    https://github.com/cmk/profunctor-extras/issues
@@ -21,8 +21,17 @@ source-repository head
 library
   exposed-modules:
       Data.Profunctor.Arrow
-      Data.Profunctor.Free
-      Data.Profunctor.Misc
+      Data.Profunctor.Arrow.Free
+      Data.Profunctor.Trans.Adapter
+      Data.Profunctor.Trans.Affine
+      Data.Profunctor.Trans.Choice
+      Data.Profunctor.Trans.Closed
+      Data.Profunctor.Trans.Strong
+      Data.Profunctor.Trans.Traversal
+      Data.Profunctor.Extra
+      Data.Profunctor.Scratch
+  other-modules:
+      Data.Profunctor.Trans.Internal
   hs-source-dirs:
       src
   default-extensions:
@@ -39,7 +48,7 @@ library
   build-depends:
       base              >= 4.9   && <5.0
     , comonad           >= 4     && < 6
-    , contravariant     >= 1     && < 2
+    , distributive
     , profunctors       >= 5.3   && < 6
     , containers
     , tagged
