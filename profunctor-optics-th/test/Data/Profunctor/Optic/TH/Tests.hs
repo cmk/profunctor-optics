@@ -177,10 +177,10 @@ checkGaffer = gaffer
 checkGaffer_ :: Lens' (Quark a) a
 checkGaffer_ = #gaffer
 
-checkTape :: Traversal0' (Quark a) a
+checkTape :: Affine' (Quark a) a
 checkTape = tape
 
-checkTape_ :: Traversal0' (Quark a) a
+checkTape_ :: Affine' (Quark a) a
 checkTape_ = #tape
 
 data Hadron a b = Science { _a1 :: a, _a2 :: a, _c :: Either b [b] }
@@ -226,10 +226,10 @@ checkTerrain = terrain
 checkTerrain_ :: Lens' (Perambulation a b) a
 checkTerrain_ = #terrain
 
-checkAltitude :: Traversal0 (Perambulation a b) (Perambulation a b') b b'
+checkAltitude :: Affine (Perambulation a b) (Perambulation a b') b b'
 checkAltitude = altitude
 
-checkAltitude_ :: Traversal0 (Perambulation a b) (Perambulation a b') b b'
+checkAltitude_ :: Affine (Perambulation a b) (Perambulation a b') b b'
 checkAltitude_ = #altitude
 
 checkAbsurdity1 :: Eq x => Getter (Perambulation a b) (x -> y)
@@ -238,10 +238,10 @@ checkAbsurdity1 = absurdity1
 checkAbsurdity2 :: Eq x => Fold0 (Perambulation a b) (x -> y)
 checkAbsurdity2 = absurdity2
 
-checkDunes :: Traversal0' (Perambulation a b) a
+checkDunes :: Affine' (Perambulation a b) a
 checkDunes = dunes
 
-checkDunes_ :: Traversal0' (Perambulation a b) a
+checkDunes_ :: Affine' (Perambulation a b) a
 checkDunes_ = #dunes
 
 makeLensesFor [ ("_terrain", "allTerrain")
@@ -531,7 +531,7 @@ declareLenses [d|
 checkGaffer1 :: Lens' (Quark1 a) a
 checkGaffer1 = gaffer1
 
-checkTape1 :: Traversal0' (Quark1 a) a
+checkTape1 :: Affine' (Quark1 a) a
 checkTape1 = tape1
 
 declareFieldLabels [d|
@@ -542,7 +542,7 @@ declareFieldLabels [d|
 checkGaffer2 :: Lens' (Quark2 a) a
 checkGaffer2 = #gaffer2
 
-checkTape2 :: Traversal0' (Quark2 a) a
+checkTape2 :: Affine' (Quark2 a) a
 checkTape2 = #tape2
 
 declarePrisms [d|
@@ -639,22 +639,22 @@ declareFields [d|
     deriving (Show)
   |]
 
-checkA0 :: HasA0 t a => Traversal0' t a
+checkA0 :: HasA0 t a => Affine' t a
 checkA0 = a0
 
 checkB0 :: HasB0 t a => Lens' t a
 checkB0 = b0
 
-checkC0 :: HasC0 t a => Traversal0' t a
+checkC0 :: HasC0 t a => Affine' t a
 checkC0 = c0
 
-checkA0' :: Traversal0' (DeclaredFields f a) (f a)
+checkA0' :: Affine' (DeclaredFields f a) (f a)
 checkA0' = a0
 
 checkB0' :: Lens' (DeclaredFields f a) Int
 checkB0' = b0
 
-checkC0' :: Traversal0' (DeclaredFields f a) String
+checkC0' :: Affine' (DeclaredFields f a) String
 checkC0' = c0
 
 declareFields [d|

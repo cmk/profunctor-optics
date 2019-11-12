@@ -118,7 +118,7 @@ import Data.Profunctor.Optic.TH.Internal.Sum
 --
 -- instance
 --   (a ~ String, b ~ String
---   ) => LabelOptic "name" An_Traversal0 Animal Animal a b where
+--   ) => LabelOptic "name" An_Affine Animal Animal a b where
 --   labelOptic = avltraversal $ \\point f s -> case s of
 --     Cat x1 x2 -> fmap (\\y -> Cat x1 y) (f x2)
 --     Dog x1 x2 -> point (Dog x1 x2)
@@ -247,7 +247,7 @@ fieldLabelsRulesFor fields = fieldLabelsRules & lensField .~ lookingupNamer fiel
 --   Cat x1 x2 -> fmap (\\y -> Cat y x2) (f x1)
 --   Dog x1 x2 -> fmap (\\y -> Dog y x2) (f x1)
 --
--- name :: Traversal0' Animal String
+-- name :: Affine' Animal String
 -- name = avltraversal $ \\point f s -> case s of
 --   Cat x1 x2 -> fmap (\\y -> Cat x1 y) (f x2)
 --   Dog x1 x2 -> point (Dog x1 x2)

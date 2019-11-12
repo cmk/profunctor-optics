@@ -4,45 +4,13 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module Data.Profunctor.Arrow.Free where
 
-import Control.Arrow (Arrow, Kleisli(..))
 import Control.Category hiding ((.), id)
-import Control.Comonad (Comonad, Cokleisli(..))
-import Control.Monad hiding (join)
 import Data.Profunctor
-import Data.Profunctor.Extra
-
-import qualified Control.Arrow as A
+import Data.Profunctor.Arrow
+import Data.Profunctor.Traversing
 import qualified Control.Category as C
 
-import Data.Profunctor.Arrow
-import Data.Profunctor.Composition
-import Data.Profunctor.Choice
-import Data.Profunctor.Closed
-import Data.Profunctor.Strong
-import Data.Profunctor.Traversing
-import Data.Profunctor.Mapping
-import Data.Profunctor.Monad
-import Data.Profunctor.Yoneda
---import Data.Profunctor.Free
-
 import Prelude
-
-import Data.Kind
-import Data.Functor.Compose
-import Data.Functor.Identity
-import Data.Monoid (Any(..))
-import Data.Set (Set)
-import Data.Map (Map)
-import qualified Data.Map as M
-import qualified Data.Set as S
-
-
-{-
-A free prearrow is one that gives us an instance of Category and Profunctor for any type with minimal effort from that type. 
-A truly free prearrow would provide (.) and dimap. But we can actually separate those two and do them one at a time. 
-If we separate (.) and dimap, we can start with the data source, give it a Profunctor instance on Free, and then give it a Category instance that preserves the Profunctor instance. 
-This will be valuable because it means we can change the Profunctor instance and the data source in isolation from each other and from the Category instance.
--}
 
 -- | Free monoid in the category of profunctors.
 --
@@ -92,7 +60,6 @@ foldFree pq (Free p f) = pq p <<< foldFree pq f
 hoistFree :: p :-> q -> Free p a b -> Free q a b
 hoistFree _ (Parr ab)  = Parr ab
 hoistFree pq (Free p f) = Free (pq p) (hoistFree pq f)
-
 
 -- Analog of 'Const' for pliftows
 newtype Append r a b = Append { getAppend :: r }

@@ -1,8 +1,10 @@
 [Hackage link](http://hackage.haskell.org/package/profunctor-optics)
 
-`profunctor-optics` is based on prior work by: Ed Kmett, Russell O’Connor, Twan van Laarhoven, Phil Freeman, Oleg Grenrus, and many others. Several papers and talks by Jeremy Gibbons, Matthew Pickering, Guillaume Boisseau, and Brendan Fong were also invaluable.
+`profunctor-optics` is based on prior work by: Ed Kmett, Russell O’Connor, Twan van Laarhoven, and many others. Several papers, posts, and talks by Jeremy Gibbons, Matthew Pickering, Oleg Grenrus, Guillaume Boisseau, and others were also invaluable.
 
 The goal here is to provide a semantically precise and performant implementation of profunctor optics, based on the `profunctors` package and suitable for application development.
+
+Types, names, etc are kept as close to the `lens` versions as possible for compatibility and comprehension.
 
 Why a profunctor optics library? Several reasons:
 

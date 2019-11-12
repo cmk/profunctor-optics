@@ -31,15 +31,12 @@ library
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Fold0
-      Data.Profunctor.Optic.Cofold
       Data.Profunctor.Optic.Traversal
-      Data.Profunctor.Optic.Traversal0
-      Data.Profunctor.Optic.Traversal1
-      Data.Profunctor.Optic.Cotraversal
-      Data.Profunctor.Optic.Prelude
       Data.Profunctor.Optic.Property
+      Data.Profunctor.Optic.Exception
       Data.Profunctor.Orphan
+
+  other-modules: Data.Profunctor.Optic.Import
 
   default-language: Haskell2010
 
@@ -77,6 +74,7 @@ library
     , profunctors
     , recursion-schemes
     , rings
+    , safe
     , semigroupoids
+    , tagged
     , unliftio-core
-    , dlist-nonempty

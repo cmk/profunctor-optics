@@ -1,7 +1,7 @@
 module Data.Profunctor.Optic.Property where
 
 import Control.Applicative
-import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Iso
 --import Data.Profunctor.Optic.View
@@ -10,11 +10,7 @@ import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Grate
 --import Data.Profunctor.Optic.Fold
---import Data.Profunctor.Optic.Fold0
---import Data.Profunctor.Optic.Cofold
---import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Traversal0
---import Data.Profunctor.Optic.Cotraversal
+import Data.Profunctor.Optic.Traversal
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -110,28 +106,27 @@ grate_compose o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k
 -- 'Traversal0'
 ---------------------------------------------------------------------
 
-atraversal_tofrom :: Eq a => Eq s => (s -> s + a) -> (s -> a -> s) -> s -> a -> Bool
-atraversal_tofrom seta sbt s a = seta (sbt s a) == either (Left . flip const a) Right (seta s)
+traversal0_tofrom :: Eq a => Eq s => (s -> s + a) -> (s -> a -> s) -> s -> a -> Bool
+traversal0_tofrom seta sbt s a = seta (sbt s a) == either (Left . flip const a) Right (seta s)
 
-atraversal_fromto :: Eq s => (s -> s + a) -> (s -> a -> s) -> s -> Bool
-atraversal_fromto seta sbt s = either id (sbt s) (seta s) == s
+traversal0_fromto :: Eq s => (s -> s + a) -> (s -> a -> s) -> s -> Bool
+traversal0_fromto seta sbt s = either id (sbt s) (seta s) == s
 
-atraversal_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
-atraversal_idempotent sbt s a1 a2 = sbt (sbt s a1) a2 == sbt s a2
+traversal0_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
+traversal0_idempotent sbt s a1 a2 = sbt (sbt s a1) a2 == sbt s a2
 
-atraversal_tofrom' :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
-atraversal_tofrom' o = withTraversal0 o atraversal_tofrom
+traversal0_tofrom' :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
+traversal0_tofrom' o = withTraversal0 o traversal0_tofrom
 
-atraversal_fromto' :: Eq s => Traversal0' s a -> s -> Bool
-atraversal_fromto' o = withTraversal0 o atraversal_fromto
+traversal0_fromto' :: Eq s => Traversal0' s a -> s -> Bool
+traversal0_fromto' o = withTraversal0 o traversal0_fromto
 
-atraversal_idempotent' :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
-atraversal_idempotent' o = withTraversal0 o $ const atraversal_idempotent
+traversal0_idempotent' :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
+traversal0_idempotent' o = withTraversal0 o $ const traversal0_idempotent
 
 ---------------------------------------------------------------------
 -- 'Traversal'
 ---------------------------------------------------------------------
-
 
 -- | 'Traversal' is a valid 'Setter' with the following additional laws:
 --

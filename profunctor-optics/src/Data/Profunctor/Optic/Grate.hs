@@ -1,5 +1,36 @@
 
-module Data.Profunctor.Optic.Grate where
+module Data.Profunctor.Optic.Grate (
+    -- * Types
+    Grate
+  , Grate'
+  , AGrate
+  , AGrate'
+    -- * Constructors
+  , grate
+  , inverting
+  , toEnvironment
+  , cloneGrate
+    -- * Representatives
+  , GrateRep(..)
+    -- * Primitive operators
+  , withGrate 
+  , constOf
+  , zipWithOf
+  , zip3WithOf
+  , zip4WithOf 
+  , zipFWithOf 
+    -- * Common optics
+  , distributed
+  , represented
+  , mappended 
+  , sappended 
+  , masked 
+  , unlifted 
+  , forwarded
+  , continued
+  , starred
+  , costarred
+) where
 
 import Control.Monad.Reader
 import Control.Monad.Cont
@@ -8,7 +39,7 @@ import Data.Distributive
 import Data.Profunctor.Closed (Environment(..))
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import Data.Semiring
 import qualified Data.Functor.Rep as F
@@ -18,7 +49,7 @@ import qualified Control.Exception as Ex
 -- 'Grate'
 ---------------------------------------------------------------------
 
--- | Build a 'Grate' from a nested continuation.
+-- | Obtain a 'Grate' from a nested continuation.
 --
 -- \( \quad \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
 --
@@ -28,7 +59,7 @@ import qualified Control.Exception as Ex
 -- A 'Grate' lets you lift a profunctor through any representable 
 -- functor (aka Naperian container). In the special case where the 
 -- indexing type is finitary (e.g. 'Bool') then the tabulated type is 
--- isomorphic to a fixed length vector (e.g. 'V3 a').
+-- isomorphic to a fixed length vector (e.g. 'V2 a').
 --
 -- The identity container is representable, and representable functors 
 -- are closed under composition.
@@ -99,9 +130,6 @@ instance Corepresentable (GrateRep a b) where
   type Corep (GrateRep a b) = PCont a b
 
   cotabulate f = GrateRep $ f . PCont
-
-reviewGrate :: GrateRep a b s t -> b -> t
-reviewGrate (GrateRep e) b = e (const b)
 
 ---------------------------------------------------------------------
 -- Primitive operators

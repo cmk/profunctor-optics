@@ -4,7 +4,7 @@ import Data.DList.NonEmpty (NonEmptyDList)
 import Data.Functor.Apply (Apply(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor.Optic.View (view, to)
-import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 import Data.Semigroup
 import Data.Semigroup.Foldable
@@ -23,64 +23,13 @@ fold1_complete o = tripping o $ folding1 (toNonEmptyOf o)
 
 -}
 
--- | Transform a Van Laarhoven 'Fold1' into a profunctor 'Fold1'.
---
--- See 'Data.Profunctor.Optic.Property'.
---
-folding1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-folding1 f = coercer . lift f . coercer
-{-# INLINE folding1 #-}
 
--- | Obtain a 'Fold1' using a 'Traversable1' functor.
---
--- @
--- 'folded1' f ≡ 'traversed1' . 'to' f
--- 'folded1' f ≡ 'folding1' 'traverse1' . 'to' f
--- @
---
-folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = folding1 traverse1 . to f
-{-# INLINE folded1 #-}
 
--- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
---
--- @ 
--- 'folded1_' ('toNonEmptyOf' o) ≡ o
--- 'folded1_' f ≡ 'to' f . 'folding1' 'traverse_'
--- 'folded1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
--- @
---
--- See 'Data.Profunctor.Optic.Property'.
---
--- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
---
--- >>> 1 :| [2,3,4] ^.. folded1_ tail
--- [2,3,4]
---
-folded1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
-folded1_ f = to f . folding1 traverse_
-{-# INLINE folded1_ #-}
 
-fold1Like :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-fold1Like = between ((Star . (Const . ))) ((getConst .) . runStar)
 
-fold1Like' :: Foldable1 f => AFold1 r (f a) a
-fold1Like' = fold1Like foldMap1
 
-cloneFold1 :: Semigroup a => AFold1 a s a -> Fold1 s a
-cloneFold1 = to . view
 
--- | Build a 'Fold1' from a 'View'.
---
-toFold1 :: AView s a -> Fold1 s a
-toFold1 = to . view
-{-# INLINE toFold1 #-}
 
--- | Build a monoidal 'View' from a 'Fold'.
---
-fromFold1 :: Semigroup a => AFold1 a s a -> View s a
-fromFold1 = cloneView
-{-# INLINE fromFold1 #-}
 
 ---------------------------------------------------------------------
 -- 'Fold1Rep'
@@ -96,46 +45,105 @@ afold1 = between (Star . (Const .)) ((getConst .) . runStar)
 afold1' :: Foldable f => AFold1 r (f a) a
 afold1' = afold1 foldMap
 
--- | TODO: Document
---
-recursing1 :: Recursive s => AFold1 a s (Base s a)
-recursing1 = afold1 F.fold
+
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
-foldMap1Of :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
-foldMap1Of = between ((getConst .) . runStar) ((Star . (Const . )))
 
--- | Extract a 'NonEmpty' of the targets of 'Fold1'.
+-- | Helper for 'Optics.Fold.traverseOf_' and the like for better
+-- efficiency than the foldr-based version.
 --
--- >>> toNonEmptyOf both1 ("hello", "world")
--- "hello" :| ["world"]
+-- Note that the argument @a@ of the result should not be used.
+newtype Traversed f a = Traversed (f a)
+
+runTraversed :: Functor f => Traversed f a -> f ()
+runTraversed (Traversed fa) = () <$ fa
+{-# INLINE runTraversed #-}
+
+instance Applicative f => Semigroup (Traversed f a) where
+  Traversed ma <> Traversed mb = Traversed (ma *> mb)
+  {-# INLINE (<>) #-}
+
+instance Applicative f => Monoid (Traversed f a) where
+  mempty = Traversed (pure (error "Traversed: value used"))
+  mappend = (<>)
+  {-# INLINE mempty #-}
+  {-# INLINE mappend #-}
+
+--traverseOf_ :: (Is k A_Fold, Applicative f) => Optic' k is s a -> (a -> f r) -> s -> f ()
+traverseOf_ o = \f -> runTraversed . foldMapOf o (Traversed #. f)
+{-# INLINE traverseOf_ #-}
+
+--summing :: Optic' p s a -> Optic' p s a -> Fold s a
+summing :: Applicative f => AFold (Traversed f a) s a -> AFold (Traversed f a) s a -> Fold s a
+summing a b = folding $ \f s -> traverseOf_ a f s *> traverseOf_ b f s
+
+
+
+
+
+  , foldsl1
+  , foldsl1'
+
+-- | A variant of 'foldlOf' that has no base case and thus may only be applied to lenses and structures such
+-- that the 'Lens' views at least one element of the structure.
+--
+-- >>> foldsl1 each (+) (1,2,3,4)
+-- 10
 --
 -- @
--- 'toNonEmptyOf' :: 'View' s a        -> s -> NonEmpty a
--- 'toNonEmptyOf' :: 'Fold1' s a       -> s -> NonEmpty a
--- 'toNonEmptyOf' :: 'Lens'' s a       -> s -> NonEmpty a
--- 'toNonEmptyOf' :: 'Iso'' s a        -> s -> NonEmpty a
--- 'toNonEmptyOf' :: 'Traversal1'' s a -> s -> NonEmpty a
--- 'toNonEmptyOf' :: 'Prism'' s a      -> s -> NonEmpty a
+-- 'foldsl1' l f ≡ 'Prelude.foldl1' f '.' 'toListOf' l
+-- 'Data.Foldable.foldl1' ≡ 'foldsl1' 'folded'
 -- @
-toNonEmptyOf :: AFold1 (NonEmptyDList a) s a -> s -> NonEmpty a
-toNonEmptyOf o = flip NEL.apply [] . foldMap1Of o NEL.singleton
+--
+-- @
+-- 'foldsl1' :: 'Getter' s a     -> (a -> a -> a) -> s -> a
+-- 'foldsl1' :: 'Fold' s a       -> (a -> a -> a) -> s -> a
+-- 'foldsl1' :: 'Iso'' s a       -> (a -> a -> a) -> s -> a
+-- 'foldsl1' :: 'Lens'' s a      -> (a -> a -> a) -> s -> a
+-- 'foldsl1' :: 'Traversal'' s a -> (a -> a -> a) -> s -> a
+-- @
+--foldsl1 :: HasCallStack => Getting (Dual (Endo (Maybe a))) s a -> (a -> a -> a) -> s -> a
+foldsl1 l def f xs = fromMaybe (error "foldsl1: empty structure") (foldsl l mf Nothing xs) where
+  mf mx y = Just $ case mx of
+    Nothing -> y
+    Just x  -> f x y
+{-# INLINE foldsl1 #-}
 
+-- | A variant of 'foldlOf'' that has no base case and thus may only be applied
+-- to folds and structures such that the fold views at least one element of
+-- the structure.
+--
+-- @
+-- 'foldsl1'' l f ≡ 'Data.List.foldl1'' f '.' 'toListOf' l
+-- @
+--
+-- @
+-- 'foldsl1'' :: 'Getter' s a     -> (a -> a -> a) -> s -> a
+-- 'foldsl1'' :: 'Fold' s a       -> (a -> a -> a) -> s -> a
+-- 'foldsl1'' :: 'Iso'' s a       -> (a -> a -> a) -> s -> a
+-- 'foldsl1'' :: 'Lens'' s a      -> (a -> a -> a) -> s -> a
+-- 'foldsl1'' :: 'Traversal'' s a -> (a -> a -> a) -> s -> a
+-- @
+--foldsl1' :: HasCallStack => Getting (Endo (Endo (Maybe a))) s a -> (a -> a -> a) -> s -> a
+foldsl1' l f xs = fromMaybe (error "foldsl1': empty structure") (foldsl' l mf Nothing xs) where
+  mf Nothing y = Just $! y
+  mf (Just x) y = Just $! f x y
+{-# INLINE foldsl1' #-}
+
+
+{-
 -- | Find the join of a sublattice. 
 --
-join1 :: Lattice a => AFold1 (Endo (Endo a)) s a -> s -> a
-join1 o = undefined
+joins1 :: Lattice a => AFold1 (Endo (Endo a)) s a -> s -> a
+joins1 o = undefined
 
 -- | Find the meet of a sublattice.
 --
 meet1 :: Lattice a => AFold1 (Endo (Endo a)) s a -> s -> a
 meet1 o = undefined
 
-nonunital :: Foldable f => Foldable g => Semiring r => AFold1 r (f (g a)) a
-nonunital = afold Rng.nonunital -- ???
+-}
 
-presemiring :: Foldable1 f => Foldable1 g => Semiring r => AFold1 r (f (g a)) a
-presemiring = afold1 Rng.presemiring
