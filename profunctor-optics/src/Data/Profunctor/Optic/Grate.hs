@@ -1,14 +1,47 @@
 
-module Data.Profunctor.Optic.Grate where
+module Data.Profunctor.Optic.Grate (
+    -- * Types
+    Grate
+  , Grate'
+  , AGrate
+  , AGrate'
+    -- * Constructors
+  , grate
+  , inverting
+  , toEnvironment
+  , cloneGrate
+    -- * Representatives
+  , GrateRep(..)
+    -- * Primitive operators
+  , withGrate 
+  , constOf
+  , zipWithOf
+  , zip3WithOf
+  , zip4WithOf 
+  , zipFWithOf 
+    -- * Common optics
+  , distributed
+  , represented
+  , connected
+  , mappended 
+  , sappended 
+  , masked 
+  , unlifted 
+  , forwarded
+  , continued
+  , starred
+  , costarred
+) where
 
 import Control.Monad.Reader
 import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
+import Data.Connection (Conn(..))
 import Data.Profunctor.Closed (Environment(..))
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Prelude
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import Data.Semiring
 import qualified Data.Functor.Rep as F
@@ -18,9 +51,7 @@ import qualified Control.Exception as Ex
 -- 'Grate'
 ---------------------------------------------------------------------
 
--- | Build a 'Grate' from a nested continuation.
---
--- \( \quad \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
+-- | Obtain a 'Grate' from a nested continuation.
 --
 -- The resulting optic is the corepresentable counterpart to 'Lens', 
 -- and sits between 'Iso' and 'Setter'.
@@ -28,7 +59,7 @@ import qualified Control.Exception as Ex
 -- A 'Grate' lets you lift a profunctor through any representable 
 -- functor (aka Naperian container). In the special case where the 
 -- indexing type is finitary (e.g. 'Bool') then the tabulated type is 
--- isomorphic to a fixed length vector (e.g. 'V3 a').
+-- isomorphic to a fixed length vector (e.g. 'V2 a').
 --
 -- The identity container is representable, and representable functors 
 -- are closed under composition.
@@ -100,9 +131,6 @@ instance Corepresentable (GrateRep a b) where
 
   cotabulate f = GrateRep $ f . PCont
 
-reviewGrate :: GrateRep a b s t -> b -> t
-reviewGrate (GrateRep e) b = e (const b)
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -158,6 +186,21 @@ distributed = grate $ \f -> cotraverse f id
 --
 represented :: F.Representable f => Grate (f a) (f b) a b
 represented = dimap F.index F.tabulate . closed
+
+-- | Lift a Galois connection into a 'Grate'. 
+--
+-- Useful for giving precise semantics to numerical computations.
+--
+-- This is an example of a 'Grate' that would not be a legal 'Iso',
+-- as Galois connections are not in general inverses.
+--
+-- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 1
+-- 127
+-- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 2
+-- 127
+--
+connected :: Conn s a -> Grate' s a
+connected (Conn f g) = inverting f g
 
 -- | TODO: Document
 --

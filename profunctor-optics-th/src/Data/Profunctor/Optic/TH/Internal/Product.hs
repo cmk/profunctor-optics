@@ -160,7 +160,7 @@ makeFieldLabel rules (defName, (defType, cons)) = do
   instanceD context instHead (fun 'labelOptic)
   where
     opticTypeToTag Fold0Type      = ''An_Fold0
-    opticTypeToTag Traversal0Type = ''An_Traversal0
+    opticTypeToTag AffineType = ''An_Affine
     opticTypeToTag FoldType            = ''A_Fold
     opticTypeToTag GetterType          = ''A_Getter
     opticTypeToTag IsoType             = ''An_Iso
@@ -250,7 +250,7 @@ buildScaffold allowPhantomsChange rules s cons defName =
            | _simpleLenses rules || s' == t && a == b =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                         | affineCase                  = Traversal0Type
+                         | affineCase                  = AffineType
                          | otherwise                   = TraversalType
                in OpticSa True [] optic s' a
 
@@ -258,7 +258,7 @@ buildScaffold allowPhantomsChange rules s cons defName =
            | otherwise =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                         | affineCase                  = Traversal0Type
+                         | affineCase                  = AffineType
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
@@ -296,7 +296,7 @@ buildScaffold allowPhantomsChange rules s cons defName =
 
 data OpticType
   = Fold0Type
-  | Traversal0Type
+  | AffineType
   | FoldType
   | GetterType
   | IsoType
@@ -305,9 +305,9 @@ data OpticType
   deriving Show
 
 opticTypeName :: Bool -> OpticType -> Name
-opticTypeName typeChanging  Traversal0Type = if typeChanging
-                                                  then ''Traversal0
-                                                  else ''Traversal0'
+opticTypeName typeChanging  AffineType = if typeChanging
+                                                  then ''Affine
+                                                  else ''Affine'
 opticTypeName _typeChanging Fold0Type      = ''Fold0
 opticTypeName _typeChanging FoldType            = ''Fold
 opticTypeName _typeChanging GetterType          = ''Getter
@@ -499,7 +499,7 @@ makeFieldClass defType className methodName =
   s = mkName "s"
   a = mkName "a"
 
--- | Build an instance for a field. If the field’s type contains any type
+-- | Obtain an instance for a field. If the field’s type contains any type
 -- families, will produce an equality constraint to avoid a type family
 -- application in the instance head.
 makeFieldInstance :: OpticStab -> Name -> [DecQ] -> DecQ
@@ -533,7 +533,7 @@ makeFieldClause :: LensRules -> OpticType -> [(Name, Int, [Int])] -> ClauseQ
 makeFieldClause rules opticType cons =
   case opticType of
     Fold0Type      -> makeFold0Clause cons
-    Traversal0Type -> makeTraversal0Clause cons irref
+    AffineType -> makeAffineClause cons irref
     FoldType            -> makeFoldClause cons
     IsoType             -> makeIsoClause cons irref
     GetterType          -> makeGetterClause cons
@@ -609,7 +609,7 @@ makeFoldClause cons = do
             (normalB body)
             []
 
--- | Build a getter clause that retrieves the field at the given index.
+-- | Obtain a getter clause that retrieves the field at the given index.
 makeGetterClause :: [(Name, Int, [Int])] -> ClauseQ
 makeGetterClause cons = do
   s <- newName "s"
@@ -633,7 +633,7 @@ makeGetterClause cons = do
               []
       _       -> error "Getter focuses on exactly one field"
 
--- | Build a clause that constructs an Iso.
+-- | Obtain a clause that constructs an Iso.
 makeIsoClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
 makeIsoClause fields irref = case fields of
   [(conName, 1, [0])] -> do
@@ -649,7 +649,7 @@ makeIsoClause fields irref = case fields of
   where
     irrefP = if irref then tildeP else id
 
--- | Build a lens clause that updates the field at the given index. When irref
+-- | Obtain a lens clause that updates the field at the given index. When irref
 -- is 'True' the value with be matched with an irrefutable pattern.
 makeLensClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
 makeLensClause cons irref = do
@@ -688,8 +688,8 @@ makeLensMatch irrefP f conName fieldCount = \case
           []
   _       -> error "Lens focuses on exactly one field"
 
-makeTraversal0Clause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
-makeTraversal0Clause cons irref = do
+makeAffineClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
+makeAffineClause cons irref = do
   point <- newName "point"
   f     <- newName "f"
   s     <- newName "s"
@@ -698,7 +698,7 @@ makeTraversal0Clause cons irref = do
     (normalB $ appsE
       [ varE 'avltraversal
       , lamE [varP point, varP f, varP s] $ caseE (varE s)
-        [ makeTraversal0Match point f conName fieldCount fields
+        [ makeAffineMatch point f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
         ]
       ])
@@ -706,7 +706,7 @@ makeTraversal0Clause cons irref = do
   where
     irrefP = if irref then tildeP else id
 
-    makeTraversal0Match point f conName fieldCount = \case
+    makeAffineMatch point f conName fieldCount = \case
       [] -> do
         xs <- newNames "x" fieldCount
         -- Con x_1 ... x_n -> point (Con x_1 .. x_n)

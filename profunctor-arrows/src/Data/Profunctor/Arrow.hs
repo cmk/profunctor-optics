@@ -4,57 +4,19 @@
 {-# LANGUAGE ExistentialQuantification #-}
 module Data.Profunctor.Arrow where
 
-import Control.Arrow (Arrow, Kleisli(..))
+import Control.Arrow (Arrow)
 import Control.Category hiding ((.), id)
-import Control.Comonad (Comonad, Cokleisli(..))
-import Control.Monad hiding (join)
 import Data.Profunctor
 import Data.Profunctor.Extra
-
+import Prelude
 import qualified Control.Arrow as A
 import qualified Control.Category as C
-
-import Data.Profunctor.Composition
-import Data.Profunctor.Choice
-import Data.Profunctor.Closed
-import Data.Profunctor.Strong
-import Data.Profunctor.Traversing
-import Data.Profunctor.Mapping
-import Data.Profunctor.Monad
-import Data.Profunctor.Yoneda
---import Data.Profunctor.Free
-
-import Prelude
-
-import Data.Kind
-import Data.Functor.Compose
-import Data.Functor.Identity
-import Data.Monoid (Any(..))
-import Data.Set (Set)
-import Data.Map (Map)
-import qualified Data.Map as M
-import qualified Data.Set as S
-
-{-
---data PArrow p a b = forall x y. PArrow { runPArrow :: p (b , x) y -> p (a , x) y }
-data Exp p q a b = forall d . Exp ( p b d -> q a d)
-instance (Profunctor g,Profunctor h) => Profunctor (Exp g h) where
-  dimap m1 m2 (Exp gh) = Exp (dimap m1 id . gh . dimap m2 id)
-
-instance (Profunctor p, Profunctor q) => Profunctor (Rift p q) where
-  dimap ca bd f = Rift (lmap ca . runRift f . lmap bd)
-
-phi ::(Procompose f g :-> h) -> (f :-> Rift g h)
---phi :: (Procompose p q d c -> b x1 x2) -> p x2 c -> Rift q b x1 d
-phi m f = Rift (\g -> m (Procompose f g))
---Procompose :: p x c -> q d x -> Procompose p q d c
--}
 
 newtype PArrow p a b = PArrow { runPArrow :: forall x y. p (b , x) y -> p (a , x) y }
 
 instance Profunctor p => Profunctor (PArrow p) where
-  dimap f g (PArrow pp) = PArrow $ \p -> dimap (lift f) id (pp (dimap (lift g) id p))
-    where lift f (a, b) = (f a, b)
+  dimap f g (PArrow pp) = PArrow $ \p -> dimap (lft f) id (pp (dimap (lft g) id p))
+    where lft h (a, b) = (h a, b)
 
 instance Profunctor p => Category (PArrow p) where
   id = PArrow id
@@ -64,13 +26,11 @@ instance Profunctor p => Category (PArrow p) where
 instance Profunctor p => Strong (PArrow p) where
   first' (PArrow pp) = PArrow $ lmap assocr . pp . lmap assocl
 
--- repn . abst = id
--- abst . repn = id
-repn :: Arrow a => a b c -> PArrow a b c
-repn x = PArrow (\z -> A.first x >>> z)
+toArrow :: Arrow a => PArrow a b c -> a b c
+toArrow (PArrow aa) = A.arr (\x -> (x,())) >>> aa (A.arr fst)
 
-abst :: Arrow a => PArrow a b c -> a b c
-abst (PArrow aa) = A.arr (\x -> (x,())) >>> aa (A.arr fst)
+fromArrow :: Arrow a => a b c -> PArrow a b c
+fromArrow x = PArrow (\z -> A.first x >>> z)
 
 -- @
 -- (a '>>>' b) '>>>' c = a '>>>' (b '>>>' c)

@@ -1,28 +1,54 @@
-module Data.Profunctor.Optic.Lens where
-
-import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Prelude
-import Data.Profunctor.Optic.Type
-import Data.Void (Void, absurd)
-import Foreign.C.Types
-import GHC.IO.Exception
-import System.IO
-import qualified Data.Bifunctor as B
-import qualified Control.Foldl as F
+module Data.Profunctor.Optic.Lens (
+    -- * Types
+    Lens
+  , Lens'
+  , ALens
+  , ALens'
+  , Relens
+  , Relens'
+  , ARelens
+  , ARelens'
+    -- * Constructors
+  , lens
+  , relens
+  , lensing
+  , matching
+  , rematching
+  , toPastro
+  , toTambara
+  , foldingl
+  , cloneLens
+  , cloneRelens
+    -- * Representatives
+  , LensRep(..)
+  , RelensRep(..)
+    -- * Primitive operators
+  , withLens
+  , withRelens
+    -- * Common optics
+  , first
+  , second
+  , refirst
+  , resecond
+    -- * Derived operators
+  , unit
+  , void 
+  , ix
+) where
 
 import Data.Profunctor.Strong (Pastro(..), Tambara(..))
--- $setup
--- >>> :set -XNoOverloadedStrings
--- >>> :m + Control.Exception
--- >>> :m + Data.Profunctor.Optic
+import Data.Profunctor.Optic.Iso
+import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Type
+import Data.Void (Void, absurd)
+import qualified Data.Bifunctor as B
+import qualified Control.Foldl as F
 
 ---------------------------------------------------------------------
 -- 'Lens' 
 ---------------------------------------------------------------------
 
--- | Build a 'Lens' from a getter and setter.
---
--- \( \quad \mathsf{Lens}\;S\;A = \exists C, S \cong C \times A \)
+-- | Obtain a 'Lens' from a getter and setter.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
@@ -46,7 +72,7 @@ import Data.Profunctor.Strong (Pastro(..), Tambara(..))
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
--- | Build a 'Relens' from a getter and setter. 
+-- | Obtain a 'Relens' from a getter and setter. 
 --
 -- * @relens f g ≡ \f g -> re (lens f g)@
 --
@@ -58,6 +84,8 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 --
 -- @ 'review' :: 'Relens'' s a -> a -> s @
 --
+-- See 'Data.Profunctor.Optic.Property'.
+--
 relens :: (b -> s -> a) -> (b -> t) -> Relens s t a b
 relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 
@@ -66,12 +94,12 @@ relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 lensing :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 lensing o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
 
--- | Build a 'Lens' from its free tensor representation.
+-- | Obtain a 'Lens' from its free tensor representation.
 --
 matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
 matching sca cbt = dimap sca cbt . second'
 
--- | Build a 'Relens' from its free tensor representation.
+-- | Obtain a 'Relens' from its free tensor representation.
 --
 rematching :: ((c , s) -> a) -> (b -> (c , t)) -> Relens s t a b
 rematching csa bct = unsecond . dimap csa bct
@@ -135,6 +163,8 @@ data RelensRep a b s t = RelensRep (b -> s -> a) (b -> t)
 
 type ARelens s t a b = Optic (RelensRep a b) s t a b
 
+type ARelens' s a = ARelens s s a a 
+
 instance Profunctor (RelensRep a b) where
   dimap f g (RelensRep bsa bt) = RelensRep (\b s -> bsa b (f s)) (g . bt)
 
@@ -156,16 +186,6 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 --
 withRelens :: ARelens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
 withRelens l f = case l (RelensRep (flip const) id) of RelensRep x y -> f x y
-
--- | Analogous to @(***)@ from 'Control.Arrow'
---
-pairing :: Lens s1 t1 a1 b1 -> Lens s2 t2 a2 b2 -> Lens (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
-pairing = paired
-
--- | TODO: Document
---
-lens2 :: (s -> a) -> (s -> b -> t) -> Lens (c, s) (d, t) (c, a) (d, b)
-lens2 f g = between runPaired Paired (lens f g)
 
 ---------------------------------------------------------------------
 -- Common lenses 
@@ -205,35 +225,3 @@ void = lens absurd const
 --
 ix :: Eq k => k -> Lens' (k -> v) v
 ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
-
-----------------------------------------------------------------------------------------------------
--- IO Exceptions
-----------------------------------------------------------------------------------------------------
-
--- | Where the error happened.
---
-location :: Lens' IOException String
-location = lens ioe_location $ \s e -> s { ioe_location = e }
-
--- | Error type specific information.
---
-description :: Lens' IOException String
-description = lens ioe_description $ \s e -> s { ioe_description = e }
-
--- | The handle used by the action flagging this error.
--- 
-handle :: Lens' IOException (Maybe Handle)
-handle = lens ioe_handle $ \s e -> s { ioe_handle = e }
-
--- | 'fileName' the error is related to.
---
-fileName :: Lens' IOException (Maybe FilePath)
-fileName = lens ioe_filename $ \s e -> s { ioe_filename = e }
-
--- | 'errno' leading to this error, if any.
---
-errno :: Lens' IOException (Maybe CInt)
-errno = lens ioe_errno $ \s e -> s { ioe_errno = e }
-
-errorType :: Lens' IOException IOErrorType
-errorType = lens ioe_type $ \s e -> s { ioe_type = e }
