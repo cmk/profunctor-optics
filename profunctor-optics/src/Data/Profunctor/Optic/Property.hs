@@ -16,15 +16,23 @@ import Data.Profunctor.Optic.Traversal
 -- 'Iso'
 ---------------------------------------------------------------------
 
+-- | TODO: Document
+--
 iso_fromto' :: Eq s => Iso' s a -> s -> Bool
 iso_fromto' o = withIso o iso_fromto
 
+-- | TODO: Document
+--
 iso_tofrom' :: Eq a => Iso' s a -> a -> Bool
 iso_tofrom' o = withIso o iso_tofrom
 
+-- | TODO: Document
+--
 iso_fromto :: Eq s => (s -> a) -> (a -> s) -> s -> Bool
 iso_fromto sa as s = as (sa s) == s
 
+-- | TODO: Document
+--
 iso_tofrom :: Eq a => (s -> a) -> (a -> s) -> a -> Bool
 iso_tofrom sa as a = sa (as a) == a
 
@@ -40,6 +48,8 @@ prism_tofrom seta bt s = either id bt (seta s) == s
 prism_fromto :: Eq s => Eq a => (s -> s + a) -> (a -> s) -> a -> Bool
 prism_fromto seta bt a = seta (bt a) == Right a
 
+-- | TODO: Document
+--
 prism_tofrom' :: Eq s => Prism' s a -> s -> Bool
 prism_tofrom' o = withPrism o prism_tofrom
 
@@ -63,9 +73,13 @@ prism_fromto' o = withPrism o prism_fromto
 lens_tofrom :: Eq s => (s -> a) -> (s -> a -> s) -> s -> Bool
 lens_tofrom sa sas s = sas s (sa s) == s
 
+-- | TODO: Document
+--
 lens_fromto :: Eq a => (s -> a) -> (s -> a -> s) -> s -> a -> Bool
 lens_fromto sa sas s a = sa (sas s a) == a
 
+-- | TODO: Document
+--
 lens_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
 lens_idempotent sas s a1 a2 = sas (sas s a1) a2 == sas s a2
 
@@ -106,21 +120,33 @@ grate_compose o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k
 -- 'Traversal0'
 ---------------------------------------------------------------------
 
+-- | TODO: Document
+--
 traversal0_tofrom :: Eq a => Eq s => (s -> s + a) -> (s -> a -> s) -> s -> a -> Bool
 traversal0_tofrom seta sbt s a = seta (sbt s a) == either (Left . flip const a) Right (seta s)
 
+-- | TODO: Document
+--
 traversal0_fromto :: Eq s => (s -> s + a) -> (s -> a -> s) -> s -> Bool
 traversal0_fromto seta sbt s = either id (sbt s) (seta s) == s
 
+-- | TODO: Document
+--
 traversal0_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
 traversal0_idempotent sbt s a1 a2 = sbt (sbt s a1) a2 == sbt s a2
 
+-- | TODO: Document
+--
 traversal0_tofrom' :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
 traversal0_tofrom' o = withTraversal0 o traversal0_tofrom
 
+-- | TODO: Document
+--
 traversal0_fromto' :: Eq s => Traversal0' s a -> s -> Bool
 traversal0_fromto' o = withTraversal0 o traversal0_fromto
 
+-- | TODO: Document
+--
 traversal0_idempotent' :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
 traversal0_idempotent' o = withTraversal0 o $ const traversal0_idempotent
 
@@ -142,7 +168,6 @@ traversal0_idempotent' o = withTraversal0 o $ const traversal0_idempotent
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-
 traverse_pure :: forall f s a. (Applicative f, Eq (f s)) => ((a -> f a) -> s -> f s) -> s -> Bool
 traverse_pure o s = o pure s == (pure s :: f s)
 
@@ -160,12 +185,16 @@ traverse_pure o s = o pure s == (pure s :: f s)
 -- 2. @over o id ≡ id@
 --
 -- 3. @over o f . over o g ≡ over o (f . g)@
-
+--
 setter_pure :: Eq s => Setter' s a -> s -> Bool
 setter_pure o s = over o id s == s
 
+-- | TODO: Document
+--
 setter_compose :: Eq s => Setter' s a -> (a -> a) -> (a -> a) -> s -> Bool
 setter_compose o f g s = (over o f . over o g) s == over o (f . g) s
 
+-- | TODO: Document
+--
 setter_idempotent :: Eq s => Setter' s a -> s -> a -> a -> Bool
 setter_idempotent o s a b = set o b (set o a s) == set o b s

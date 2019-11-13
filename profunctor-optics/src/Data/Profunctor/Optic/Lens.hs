@@ -50,8 +50,6 @@ import qualified Control.Foldl as F
 
 -- | Obtain a 'Lens' from a getter and setter.
 --
--- \( \quad \mathsf{Lens}\;S\;A = \exists C, S \cong C \times A \)
---
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
 -- properties:

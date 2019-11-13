@@ -43,7 +43,9 @@ module Data.Profunctor.Optic.Iso (
   , duped
   , eduped
   , non 
-  , anon 
+  , anon
+    -- * Auxilliary Types
+  , Re(..) 
 ) where
 
 import Data.Foldable

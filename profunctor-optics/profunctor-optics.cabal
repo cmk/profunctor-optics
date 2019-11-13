@@ -33,8 +33,11 @@ library
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Property
-      Data.Profunctor.Optic.Exception
       Data.Profunctor.Orphan
+      Control.Exception.Optic
+      Numeric.Optic.Int
+      Numeric.Optic.Word
+      Numeric.Optic.Float
 
   other-modules: Data.Profunctor.Optic.Import
 

@@ -1,4 +1,4 @@
-module Data.Profunctor.Optic.Exception(
+module Control.Exception.Optic (
     exception
   , ioException
     -- * IO Error Fields

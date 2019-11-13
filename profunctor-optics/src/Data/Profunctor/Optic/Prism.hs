@@ -64,8 +64,6 @@ import Data.Profunctor.Optic.Type
 
 -- | Obtain a 'Prism' from a constructor and a matcher function.
 --
--- \( \quad \mathsf{Prism}\;S\;A = \exists D, S \cong D + A \)
---
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
 -- properties:

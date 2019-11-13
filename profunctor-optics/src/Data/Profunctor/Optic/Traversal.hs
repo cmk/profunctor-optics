@@ -1,9 +1,22 @@
 {-# LANGUAGE TupleSections #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Types
-    ATraversal0 
+    Traversal0
+  , Traversal0'
+  , ATraversal0 
   , ATraversal0'
-  , ARetraversal0
+  , Traversal
+  , Traversal'
+  , ATraversal
+  , ATraversal'
+  , Traversal1
+  , Traversal1'
+  , ATraversal1
+  , ATraversal1'
+  , Cotraversal
+  , Cotraversal'
+  , ACotraversal
+  , ACotraversal'
     -- * Constructors
   , traversal0
   , traversal0'
@@ -21,7 +34,6 @@ module Data.Profunctor.Optic.Traversal (
     -- * Primitive operators
   , withTraversal0
   , matchOf
-  , rematchOf
   , traverseOf
   , traverse1Of
   , cotraverseOf
@@ -53,12 +65,11 @@ import Data.Profunctor.Optic.Type
 -- 'Traversal0', 'Traversal', 'Traversal1', & 'Cotraversal'
 ---------------------------------------------------------------------
 
--- | Create an 'Traversal0' from a constructor and a matcher.
---
--- \( \quad \mathsf{Traversal0}\;S\;A =\exists C, D, S \cong D + C \times A \)
+-- | Create a 'Traversal0' from a constructor and a matcher.
 --
 -- /Caution/: In order for the 'Traversal0' to be well-defined,
--- you must ensure that the three affine traversal laws hold:
+-- you must ensure that the input functions satisfy the following
+-- properties:
 --
 -- * @sta (sbt (a, s)) ≡ either (Left . const a) Right (sta s)@
 --
@@ -80,7 +91,7 @@ traversal0 sta sbt = dimap f g . right' . first'
   where f s = (,s) <$> sta s
         g = id ||| (uncurry . flip $ sbt)
 
--- | Create a 'Traversal0'' from a constructor and a matcher function.
+-- | Obtain a 'Traversal0'' from a constructor and a matcher function.
 --
 traversal0' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
 traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
@@ -125,7 +136,7 @@ traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id eb
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
 
--- | Transform a Van Laarhoven 'Traversal' into a profunctor 'Traversal'.
+-- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -139,7 +150,7 @@ traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id eb
 traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
 traversing abst = lift abst
 
--- | Transform a Van Laarhoven 'Traversal1' into a profunctor 'Traversal1'.
+-- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
 -- /Caution/: In order for the generated family to be well-defined,
 -- you must ensure that the traversal1 law holds for the input function:
@@ -151,7 +162,7 @@ traversing abst = lift abst
 traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
 traversing1 abst = lift abst
 
--- | Transform a Van Laarhoven 'Cotraversal' into a profunctor 'Cotraversal'.
+-- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
 cotraversing :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
 cotraversing = lower
@@ -161,7 +172,7 @@ cotraversing = lower
 traversed :: Traversable f => Traversal (f a) (f b) a b
 traversed = traversing traverse
 
--- | Create a 'Traversal1' from a 'Traversable1' functor.
+-- | Obtain a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
 traversed1 = traversing1 traverse1
@@ -181,8 +192,6 @@ data Traversal0Rep a b s t = Traversal0Rep (s -> t + a) (s -> b -> t)
 type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
 
 type ATraversal0' s a = ATraversal0 s s a a
-
-type ARetraversal0 s t a b = Optic (Re (Traversal0Rep t s) a b) s t a b
 
 instance Profunctor (Traversal0Rep u v) where
   dimap f g (Traversal0Rep getter setter) = Traversal0Rep
@@ -239,13 +248,6 @@ withTraversal0 o f = case o (Traversal0Rep Right $ const id) of Traversal0Rep x 
 --
 matchOf :: ATraversal0 s t a b -> s -> t + a
 matchOf o = withTraversal0 o $ \match _ -> match
-
--- | Reverse match on a 'Reprism' or similar.
---
--- * @rematching . re $ prism _ sa ≡ sa@
---
-rematchOf :: ARetraversal0 s t a b -> b -> a + t
-rematchOf o = matchOf (re o)
 
 -- | 
 --

@@ -22,6 +22,7 @@ module Data.Profunctor.Optic.Grate (
     -- * Common optics
   , distributed
   , represented
+  , connected
   , mappended 
   , sappended 
   , masked 
@@ -36,6 +37,7 @@ import Control.Monad.Reader
 import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
+import Data.Connection (Conn(..))
 import Data.Profunctor.Closed (Environment(..))
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
@@ -50,8 +52,6 @@ import qualified Control.Exception as Ex
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Grate' from a nested continuation.
---
--- \( \quad \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
 --
 -- The resulting optic is the corepresentable counterpart to 'Lens', 
 -- and sits between 'Iso' and 'Setter'.
@@ -186,6 +186,21 @@ distributed = grate $ \f -> cotraverse f id
 --
 represented :: F.Representable f => Grate (f a) (f b) a b
 represented = dimap F.index F.tabulate . closed
+
+-- | Lift a Galois connection into a 'Grate'. 
+--
+-- Useful for giving precise semantics to numerical computations.
+--
+-- This is an example of a 'Grate' that would not be a legal 'Iso',
+-- as Galois connections are not in general inverses.
+--
+-- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 1
+-- 127
+-- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 2
+-- 127
+--
+connected :: Conn s a -> Grate' s a
+connected (Conn f g) = inverting f g
 
 -- | TODO: Document
 --
