@@ -1,3 +1,4 @@
+{-# Language GADTs #-}
 module Data.Profunctor.Optic (
     module Type
   , module Operator

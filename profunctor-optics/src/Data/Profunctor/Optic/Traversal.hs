@@ -8,15 +8,34 @@ import Data.Profunctor.Optic.Type
 -- 'Traversal'
 ---------------------------------------------------------------------
 
--- | TODO: Document
+-- | Build a 'Traversal' from a getter and setter.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
+--
+-- * @sa (sbt s a) ≡ a@
+--
+-- * @sbt s (sa s) ≡ s@
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap fork (uncurry sbt) . psecond . lmap sa . lift traverse
+traversal sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse
 
 -- | Transform a Van Laarhoven 'Traversal' into a profunctor 'Traversal'.
 --
--- /Caution/: In order for the generated family to be well-defined,
--- you must ensure that the traversal laws hold for the input function:
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
 --
 -- * @abst pure ≡ pure@
 --
@@ -24,13 +43,13 @@ traversal sa sbt = dimap fork (uncurry sbt) . psecond . lmap sa . lift traverse
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversalVL :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversalVL abst = lift abst
+traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversing abst = lift abst
 
 -- | TODO: Document
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = lift traverse
+traversed = traversing traverse
 
 ---------------------------------------------------------------------
 -- Primitive Operators

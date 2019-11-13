@@ -24,43 +24,39 @@ import qualified Prelude as Pre
 
 -- | Transform a Van Laarhoven 'Fold' into a profunctor 'Fold'.
 --
-foldVL :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
-foldVL f = coercer . lift f . coercer
-{-# INLINE foldVL #-}
+folding :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
+folding abst = coercer . lift abst . coercer
+{-# INLINE folding #-}
 
 -- | Obtain a 'Fold' using a 'Traversable' functor.
 --
 -- @
--- 'folded' f ≡ 'lift' 'traverse' . 'to' f
+-- 'folded' f ≡ 'traversed' . 'to' f
+-- 'folded' f ≡ 'folding' 'traverse' . 'to' f
 -- @
 --
 folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = traversed . to f
+folded f = folding traverse . to f
 {-# INLINE folded #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
 -- @ 
--- 'folding' ('toListOf' o) ≡ o
+-- 'folded_' ('toListOf' o) ≡ o
+-- 'folded_' f ≡ 'to' f . 'folding' 'traverse_'
+-- 'folded_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
 -- @
---
--- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
---
--- >>> [1,2,3,4] ^.. folding tail
--- [2,3,4]
---
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-folding :: Foldable f => (s -> f a) -> Fold s a
-folding f = coercer . lmap f . lift traverse_
-{-# INLINE folding #-}
-
--- | TODO: Document
+-- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
 --
-folding' :: Foldable f => Fold (f a) a
-folding' = folding id
-{-# INLINE folding' #-}
+-- >>> [1,2,3,4] ^.. folded_ tail
+-- [2,3,4]
+--
+folded_ :: Foldable f => (s -> f a) -> Fold s a
+folded_ f = to f . folding traverse_
+{-# INLINE folded_ #-}
 
 -- | Build a 'Fold' from a 'View'.
 --

@@ -15,7 +15,7 @@ module Data.Profunctor.Optic.Type (
     -- * Views & Reviews
   , View, AView, PrimView, PrimViewLike, Review, AReview, PrimReview, PrimReviewLike
     -- * Setters & Resetters
-  , Setter, Setter', Cayley, SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
+  , Setter, Setter', SetterLike, ASetter , Resetter, Resetter', ResetterLike, AResetter
     -- * Lenses & Relenses
   , Lens, Lens', LensLike, LensLike', Relens, Relens', RelensLike, RelensLike'
     -- * Prisms & Reprisms
@@ -54,6 +54,7 @@ module Data.Profunctor.Optic.Type (
 ) where
 
 import Control.Foldl (EndoM)
+import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Monoid (Endo)
 import Data.Profunctor.Optic.Prelude
@@ -103,12 +104,20 @@ type As a = Equality' a a
 --
 -- \( \mathsf{Iso}\;S\;A = S \cong A \)
 --
+-- For any valid 'Iso' /o/ we have:
+-- @
+-- o . re o ≡ id
+-- re o . o ≡ id
+-- view o (review o b) ≡ b
+-- review o (view o s) ≡ s
+-- @
+--
 type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
 type Iso' s a = Iso s s a a
 
 ---------------------------------------------------------------------
--- 'View'
+-- 'View' & 'Review'
 ---------------------------------------------------------------------
 
 -- | A 'View' extracts a result.
@@ -121,13 +130,9 @@ type PrimViewLike p s t a b = Profunctor p => (forall x. Contravariant (p x)) =>
 
 type AView s a = Optic' (FoldRep a) s a
 
----------------------------------------------------------------------
--- 'Review'
----------------------------------------------------------------------
-
 -- | A 'Review' produces a result.
 --
-type Review t b = forall p. Choice p => PrimReviewLike p t t b b
+type Review t b = forall p. Costrong p => PrimReviewLike p t t b b
 
 type PrimReview s t a b = forall p. PrimReviewLike p s t a b
 
@@ -136,7 +141,7 @@ type PrimReviewLike p s t a b = Profunctor p => Bifunctor p => Optic p s t a b
 type AReview t b = Optic' (CofoldRep b) t b
 
 ---------------------------------------------------------------------
--- 'Setter'
+-- 'Setter' & 'Resetter'
 ---------------------------------------------------------------------
 
 -- | A 'Setter' modifies part of a structure.
@@ -149,13 +154,9 @@ type Setter' s a = Setter s s a a
 
 type SetterLike p s t a b = Closed p => Distributive (Rep p) => TraversalLike p s t a b
 
-type ASetter s t a b = Optic (->) s t a b
+--type ASetter s t a b = Optic (->) s t a b
 
-type Cayley a = Setter' a a
-
----------------------------------------------------------------------
--- 'Resetter'
----------------------------------------------------------------------
+type ASetter s t a b = (a -> Identity b) -> s -> Identity t
 
 type Resetter s t a b = forall p. ResetterLike p s t a b
 
@@ -163,13 +164,15 @@ type Resetter' s a = Resetter s s a a
 
 type ResetterLike p s t a b = Strong p => Traversable (Corep p) => CotraversalLike p s t a b
 
-type AResetter s t a b = Optic (->) s t a b
+--type AResetter s t a b = Optic (->) s t a b
+
+type AResetter s t a b = (Identity a -> b) -> Identity s -> t
 
 ---------------------------------------------------------------------
--- 'Lens'
+-- 'Lens' & 'Relens'
 ---------------------------------------------------------------------
 
--- | Lenses access one piece of a product structure.
+-- | Lenses access one piece of a product.
 --
 -- \( \mathsf{Lens}\;S\;A  = \exists C, S \cong C \times A \)
 --
@@ -190,10 +193,10 @@ type RelensLike p s t a b = Costrong p => Optic p s t a b
 type RelensLike' p s a = RelensLike p s s a a
 
 ---------------------------------------------------------------------
--- 'Prism'
+-- 'Prism' & 'Reprism'
 ---------------------------------------------------------------------
 
--- | Prisms access one piece of a sum structure.
+-- | Prisms access one piece of a sum.
 --
 -- \( \mathsf{Prism}\;S\;A = \exists D, S \cong D + A \)
 --
@@ -217,7 +220,7 @@ type ReprismLike' p s a = ReprismLike p s s a a
 -- 'Grate'
 ---------------------------------------------------------------------
 
--- | Grates access the codomain of an indexed structure.
+-- | Grates access the codomain of a function.
 --
 --  \( \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
 --
@@ -442,10 +445,10 @@ type ACorepn f s t a b = Optic (Costar f) s t a b
 -- If you have an 'Iso', 'from' is a more powerful version of this function
 -- that will return an 'Iso' instead of a mere 'View'.
 --
--- >>> 5 ^. re _L
+-- >>> 5 ^. re left
 -- Left 5
 --
--- >>> 6 ^. re (_L . from succ)
+-- >>> 6 ^. re (left . from succ)
 -- Left 7
 --
 -- @
@@ -472,13 +475,13 @@ instance Profunctor p => Profunctor (Re p s t) where
   dimap f g (Re p) = Re (p . dimap g f)
 
 instance Strong p => Costrong (Re p s t) where
-  unfirst (Re p) = Re (p . pfirst)
+  unfirst (Re p) = Re (p . first')
 
 instance Costrong p => Strong (Re p s t) where
   first' (Re p) = Re (p . unfirst)
 
 instance Choice p => Cochoice (Re p s t) where
-  unright (Re p) = Re (p . pright)
+  unright (Re p) = Re (p . right')
 
 instance Cochoice p => Choice (Re p s t) where
   right' (Re p) = Re (p . unright)

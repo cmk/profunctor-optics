@@ -14,9 +14,9 @@ import qualified Data.Functor.Foldable as F
 
 -- | Transform a Van Laarhoven 'Cofold' into a profunctor 'Cofold'.
 --
-cofoldVL :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cofold t b
-cofoldVL f = coercel . lower f . coercel
-{-# INLINE cofoldVL #-}
+cofolding :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cofold t b
+cofolding f = coercel . lower f . coercel
+{-# INLINE cofolding #-}
 
 -- | TODO: Document
 --

@@ -4,7 +4,7 @@ import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Data.Maybe
 import Data.Profunctor.Optic.Prelude
-import Data.Profunctor.Optic.Prism (_Just)
+import Data.Profunctor.Optic.Prism (just)
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (to)
 
@@ -16,14 +16,14 @@ import Data.Profunctor.Optic.View (to)
 --
 -- @
 -- 'fold0' ('toMaybeOf' o) ≡ o
--- 'fold0' ('view' o) ≡ o . '_Just'
+-- 'fold0' ('view' o) ≡ o . 'just'
 -- @
 --
 -- >>> [Just 1, Nothing] ^.. folding id . fold0 id
 -- [1]
 --
 fold0 :: (s -> Maybe a) -> Fold0 s a
-fold0 f = to (\s -> maybe (Left s) Right (f s)) . pright
+fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
 {-# INLINE fold0 #-}
 
 infixl 3 `failing` -- Same as (<|>)
@@ -37,12 +37,12 @@ failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
 -- | Build a 'Fold0' from a 'View'.
 --
 -- @
--- 'toFold0' o ≡ o . '_Just'
+-- 'toFold0' o ≡ o . 'just'
 -- 'toFold0' o ≡ 'fold0' ('view' o)
 -- @
 --
 toFold0 :: View s (Maybe a) -> Fold0 s a
-toFold0 = (. _Just)
+toFold0 = (. just)
 {-# INLINE toFold0 #-}
 
 -- | Build a 'View' from a 'Fold0' 
@@ -138,10 +138,10 @@ infixl 8 ^?
 -- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial
 -- 'View' this can be a convenient way to extract the optional value.
 --
--- >>> Left 4 ^? _L
+-- >>> Left 4 ^? left
 -- Just 4
 --
--- >>> Right 4 ^? _L
+-- >>> Right 4 ^? left
 -- Nothing
 --
 (^?) :: s -> AFold0 a s a -> Maybe a
@@ -149,7 +149,7 @@ s ^? o = toMaybeOf o s
 
 -- | Check to see if this 'Fold0' doesn't match.
 --
--- >>> is _Just Nothing
+-- >>> is just Nothing
 -- False
 --
 is :: AFold0 a s a -> s -> Bool
@@ -158,7 +158,7 @@ is k s = isJust (preview k s)
 
 -- | Check to see if this 'Fold0' doesn't match.
 --
--- >>> isnt _Just Nothing
+-- >>> isnt just Nothing
 -- True
 --
 isnt :: AFold0 a s a -> s -> Bool

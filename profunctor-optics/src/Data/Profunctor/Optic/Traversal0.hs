@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections #-}
 module Data.Profunctor.Optic.Traversal0 where
 
+import Data.Bifunctor
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Prelude
 
@@ -21,10 +22,17 @@ import Data.Profunctor.Optic.Prelude
 --
 -- * @sbt (a2, (sbt (a1, s))) ≡ sbt (a2, s)@
 --
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-traversal0 sta sbt = dimap f g . pright . pfirst
+traversal0 sta sbt = dimap f g . right' . first'
   where f s = (,s) <$> sta s
         g = id ||| (uncurry . flip $ sbt)
 
@@ -35,8 +43,8 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
-traversal0VL :: (forall f. Functor f => (forall r. r -> f r) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversal0VL f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . pfirst . pleft
+traversing0 :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
   where
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
@@ -66,7 +74,7 @@ instance Strong (Traversal0Rep u v) where
 
 instance Choice (Traversal0Rep u v) where
   right' (Traversal0Rep getter setter) = Traversal0Rep
-      (\eca -> assocl' (second getter eca))
+      (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
 instance Sieve (Traversal0Rep a b) (PStore0 a b) where
@@ -119,7 +127,7 @@ rematchOf o = matchOf (re o)
 
 -- | Test whether the optic matches or not.
 --
--- >>> isMatched _Just Nothing
+-- >>> isMatched just Nothing
 -- False
 --
 isMatched :: ATraversal0 s t a b -> s -> Bool
@@ -127,7 +135,7 @@ isMatched o = either (const False) (const True) . matchOf o
 
 -- | Test whether the optic matches or not.
 --
--- >>> isntMatched _Just Nothing
+-- >>> isntMatched just Nothing
 -- True
 --
 isntMatched :: ATraversal0 s t a b -> s -> Bool
@@ -142,22 +150,26 @@ isntMatched o = either (const True) (const False) . matchOf o
 nulled :: Traversal0' s a
 nulled = traversal0 Left const 
 
+-- | TODO: Document
+--
+-- See also 'Data.Profunctor.Optic.Prism.keyed'.
+--
+selected :: (a -> Bool) -> Traversal0' (a, b) b
+selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+
 -- | Filter result(s) that don't satisfy a predicate.
 --
 -- /Caution/: While this is a valid 'Traversal0', it is only a valid 'Traversal'
 -- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
 --
 -- @
--- 'filtered0' p ≡ 'vltraversal0' $ \point f a -> if p a then f a else point a
+-- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
 -- @
 --
--- >>> [1..10] ^.. fold id . filtered0 even
+-- >>> [1..10] ^.. fold id . predicated even
 -- [2,4,6,8,10]
 --
-filtered0 :: (a -> Bool) -> Traversal0' a a
-filtered0 p = traversal0 (branch' p) (flip const)
-
--- | TODO: Document
+-- See also 'Data.Profunctor.Optic.Prism.filtered'.
 --
-selected0 :: (a -> Bool) -> Traversal0' (a, b) b
-selected0 p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+predicated :: (a -> Bool) -> Traversal0' a a
+predicated p = traversal0 (branch' p) (flip const)
