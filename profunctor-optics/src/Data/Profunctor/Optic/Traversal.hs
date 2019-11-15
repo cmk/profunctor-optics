@@ -26,9 +26,6 @@ module Data.Profunctor.Optic.Traversal (
   , traversing
   , traversing1
   , cotraversing
-  , traversed 
-  , traversed1
-  , cotraversed
     -- * Representatives
   , Traversal0Rep(..)
     -- * Primitive operators
@@ -41,23 +38,27 @@ module Data.Profunctor.Optic.Traversal (
   , sequence1Of
   , distributeOf
     -- * Common optics
+  , traversed 
+  , traversed1
+  , cotraversed
   , nulled
-  , selected
-  , predicated
+  , both
+  , both1
+  , duplicated
   , bitraversed
   , bitraversed1
+  , selected
+  , predicated
   , repeated 
   , iterated
   , cycled 
     -- * Derived operators
-  , isMatched
-  , isntMatched 
+  , matches
 ) where
 
 import Data.Bifunctor (first, second)
 import Data.Bitraversable
 import Data.Semigroup.Bitraversable
-import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 
@@ -148,7 +149,7 @@ traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id eb
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversing abst = lift abst
+traversing abst = tabulate . abst . sieve
 
 -- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
@@ -160,27 +161,12 @@ traversing abst = lift abst
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
-traversing1 abst = lift abst
+traversing1 abst = tabulate . abst . sieve 
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
-cotraversing :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversing = lower
-
--- | TODO: Document
---
-traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = traversing traverse
-
--- | Obtain a 'Traversal1' from a 'Traversable1' functor.
---
-traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = traversing1 traverse1
-
--- | TODO: Document
---
-cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cotraversing cotraverse
+cotraversing :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversing abst = cotabulate . abst . cosieve 
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'
@@ -318,12 +304,27 @@ sequence1Of t = traverse1Of t id
 
 -- | TODO: Document
 --
-distributeOf :: Functor f => ACotraversal f s t a (f a) -> f s -> t
+distributeOf :: ComonadApply f => ACotraversal f s t a (f a) -> f s -> t
 distributeOf t = cotraverseOf t id
 
 ---------------------------------------------------------------------
 -- Common 'Traversal0's, 'Traversal's, 'Traversal1's, & 'Cotraversal's
 ---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+traversed :: Traversable f => Traversal (f a) (f b) a b
+traversed = traversing traverse
+
+-- | Obtain a 'Traversal1' from a 'Traversable1' functor.
+--
+traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
+traversed1 = traversing1 traverse1
+
+-- | TODO: Document
+--
+cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
+cotraversed = cotraversing cotraverse
 
 -- | TODO: Document
 --
@@ -333,29 +334,27 @@ nulled = traversal0 Left const
 
 -- | TODO: Document
 --
--- See also 'Data.Profunctor.Optic.Prism.keyed'.
+-- >>> traverseOf both (pure . length) ("hello","world")
+-- (5,5)
 --
-selected :: (a -> Bool) -> Traversal0' (a, b) b
-selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
-{-# INLINE selected #-}
+both :: Traversal (a , a) (b , b) a b
+both p = p **** p
 
--- | Filter result(s) that don't satisfy a predicate.
+-- | TODO: Document
 --
--- /Caution/: While this is a valid 'Traversal0', it is only a valid 'Traversal'
--- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
+-- >>> traverse1Of both1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
+-- (5,5)
 --
--- @
--- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
--- @
+both1 :: Traversal1 (a , a) (b , b) a b
+both1 p = dimap fst (,) p <<.>> lmap snd p
+
+-- | Duplicate the results of any 'Fold'. 
 --
--- >>> [1..10] ^.. fold id . predicated even
--- [2,4,6,8,10]
+-- >>> toListOf (both . duplicated) ("hello","world")
+-- ["hello","hello","world","world"]
 --
--- See also 'Data.Profunctor.Optic.Prism.filtered'.
---
-predicated :: (a -> Bool) -> Traversal0' a a
-predicated p = traversal0 (branch' p) (flip const)
-{-# INLINE predicated #-}
+duplicated :: Traversal a b a b
+duplicated p = pappend p p
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -389,6 +388,32 @@ bitraversed = lift $ \f -> bitraverse f f
 bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
 bitraversed1 = lift $ \f -> bitraverse1 f f
 {-# INLINE bitraversed1 #-}
+
+-- | TODO: Document
+--
+-- See also 'Data.Profunctor.Optic.Prism.keyed'.
+--
+selected :: (a -> Bool) -> Traversal0' (a, b) b
+selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+{-# INLINE selected #-}
+
+-- | Filter result(s) that don't satisfy a predicate.
+--
+-- /Caution/: While this is a valid 'Traversal0', it is only a valid 'Traversal'
+-- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
+--
+-- @
+-- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
+-- @
+--
+-- >>> [1..10] ^.. fold id . predicated even
+-- [2,4,6,8,10]
+--
+-- See also 'Data.Profunctor.Optic.Prism.filtered'.
+--
+predicated :: (a -> Bool) -> Traversal0' a a
+predicated p = traversal0 (branch' p) (flip const)
+{-# INLINE predicated #-}
 
 -- | Form a 'Traversal1'' by repeating the input forever.
 --
@@ -441,17 +466,9 @@ cycled o = lift $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 
 -- | Test whether the optic matches or not.
 --
--- >>> isMatched just Nothing
+-- >>> matches just Nothing
 -- False
 --
-isMatched :: ATraversal0 s t a b -> s -> Bool
-isMatched o = either (const False) (const True) . matchOf o
-
--- | Test whether the optic matches or not.
---
--- >>> isntMatched just Nothing
--- True
---
-isntMatched :: ATraversal0 s t a b -> s -> Bool
-isntMatched o = either (const True) (const False) . matchOf o
-
+matches :: ATraversal0 s t a b -> s -> Bool
+matches o = either (const False) (const True) . matchOf o
+{-# INLINE matches #-}

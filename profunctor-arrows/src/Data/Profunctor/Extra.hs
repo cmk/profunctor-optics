@@ -1,5 +1,64 @@
-module Data.Profunctor.Extra where
+module Data.Profunctor.Extra (
+    type (+)
+  , rgt
+  , rgt'
+  , lft
+  , lft'
+  , swp
+  , eswp
+  , fork
+  , join
+  , eval
+  , apply
+  , coeval 
+  , branch
+  , branch'
+  , assocl
+  , assocr
+  , eassocl
+  , eassocr
+  , fstrong 
+  , fchoice
+  , forget1
+  , forget2
+  , forgetl
+  , forgetr
+  , unarr
+  , peval 
+  , constl
+  , constr
+  , shiftl
+  , shiftr
+  , coercel 
+  , coercer
+  , coercel'
+  , coercer'
+  , strong 
+  , costrong
+  , choice
+  , cochoice
+  , pull
+  , pull'
+  , lift
+  , colift
+  , star
+  , toStar
+  , fromStar 
+  , costar
+  , uncostar
+  , toCostar
+  , fromCostar
+  , pushr
+  , pushl 
+  , pliftA
+  , pdivide
+  , pappend
+  , (<<*>>)
+  , (****)
+  , (&&&&)
+) where
 
+import Control.Applicative (liftA2)
 import Control.Arrow ((|||),(&&&))
 import Control.Category (Category)
 import Control.Comonad (Comonad(..))
@@ -19,194 +78,234 @@ type (+) = Either
 
 rgt :: (a -> b) -> a + b -> b
 rgt f = either f id
- 
+{-# INLINE rgt #-}
+
 rgt' :: Void + b -> b
 rgt' = rgt absurd 
+{-# INLINE rgt' #-}
 
 lft :: (b -> a) -> a + b -> a
 lft f = either id f
+{-# INLINE lft #-}
 
 lft' :: a + Void -> a
 lft' = lft absurd
+{-# INLINE lft' #-}
 
 swp :: (a1 , a2) -> (a2 , a1)
 swp = snd &&& fst
+{-# INLINE swp #-}
 
 eswp :: (a1 + a2) -> (a2 + a1)
 eswp = Right ||| Left
+{-# INLINE eswp #-}
 
 fork :: a -> (a , a)
 fork = M.join (,)
+{-# INLINE fork #-}
 
 join :: (a + a) -> a
 join = M.join either id
+{-# INLINE join #-}
 
 eval :: (a , a -> b) -> b
 eval = uncurry $ flip id
+{-# INLINE eval #-}
 
 apply :: (b -> a , b) -> a
 apply = uncurry id
+{-# INLINE apply #-}
 
 coeval :: b -> (b -> a) + a -> a
 coeval b = either ($ b) id
+{-# INLINE coeval #-}
 
 branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y
+{-# INLINE branch #-}
 
 branch' :: (a -> Bool) -> a -> a + a
 branch' f x = branch f x x x
+{-# INLINE branch' #-}
 
 assocl :: (a , (b , c)) -> ((a , b) , c)
 assocl (a, (b, c)) = ((a, b), c)
+{-# INLINE assocl #-}
 
 assocr :: ((a , b) , c) -> (a , (b , c))
 assocr ((a, b), c) = (a, (b, c))
+{-# INLINE assocr #-}
 
 eassocl :: (a + (b + c)) -> ((a + b) + c)
 eassocl (Left a)          = Left (Left a)
 eassocl (Right (Left b))  = Left (Right b)
 eassocl (Right (Right c)) = Right c
+{-# INLINE eassocl #-}
 
 eassocr :: ((a + b) + c) -> (a + (b + c))
 eassocr (Left (Left a))  = Left a
 eassocr (Left (Right b)) = Right (Left b)
 eassocr (Right c)        = Right (Right c)
+{-# INLINE eassocr #-}
 
 fstrong :: Functor f => f a -> b -> f (a , b)
 fstrong f b = fmap (,b) f
+{-# INLINE fstrong #-}
 
 fchoice :: Traversable f => f (a + b) -> (f a) + b
 fchoice = eswp . traverse eswp
+{-# INLINE fchoice #-}
 
-forget1 :: ((c , a) -> (c , b)) -> a -> b
+forget1 :: ((c, a) -> (c, b)) -> a -> b
 forget1 f a = b where (c, b) = f (c, a)
+{-# INLINE forget1 #-}
 
-forget2 :: ((a , c) -> (b , c)) -> a -> b
+forget2 :: ((a, c) -> (b, c)) -> a -> b
 forget2 f a = b where (b, c) = f (a, c)
+{-# INLINE forget2 #-}
 
-forgetl :: ((c + a) -> (c + b)) -> a -> b
+forgetl :: (c + a -> c + b) -> a -> b
 forgetl f = go . Right where go = either (go . Left) id . f
+{-# INLINE forgetl #-}
 
-forgetr :: ((a + c) -> (b + c)) -> a -> b
+forgetr :: (a + c -> b + c) -> a -> b
 forgetr f = go . Left where go = either id (go . Right) . f
+{-# INLINE forgetr #-}
 
 unarr :: Comonad w => Sieve p w => p a b -> a -> b 
 unarr = (extract .) . sieve
+{-# INLINE unarr #-}
 
 peval :: Strong p => p a (a -> b) -> p a b
 peval = rmap eval . pull
+{-# INLINE peval #-}
 
 constl :: Profunctor p => b -> p b c -> p a c
 constl = lmap . const
+{-# INLINE constl #-}
 
 constr :: Profunctor p => c -> p a b -> p a c
 constr = rmap . const
+{-# INLINE constr #-}
 
 shiftl :: Profunctor p => p (a + b) c -> p b (c + d)
 shiftl = dimap Right Left
+{-# INLINE shiftl #-}
 
 shiftr :: Profunctor p => p b (c , d) -> p (a , b) c
 shiftr = dimap snd fst
-
-coercer :: Profunctor p => Contravariant (p a) => p a b -> p a c
-coercer = rmap absurd . contramap absurd
-
-coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
-coercer' = lift (phantom .)
+{-# INLINE shiftr #-}
 
 coercel :: Profunctor p => Bifunctor p => p a b -> p c b
 coercel = first absurd . lmap absurd
+{-# INLINE coercel #-}
+
+coercer :: Profunctor p => Contravariant (p a) => p a b -> p a c
+coercer = rmap absurd . contramap absurd
+{-# INLINE coercer #-}
 
 coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
-coercel' = lower (. phantom)
+coercel' = colift (. phantom)
+{-# INLINE coercel' #-}
+
+coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
+coercer' = lift (phantom .)
+{-# INLINE coercer' #-}
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
 strong f = dimap fork f . second'
+{-# INLINE strong #-}
 
 costrong :: Costrong p => ((a , b) -> c) -> p c a -> p b a
 costrong f = unsecond . dimap f fork
+{-# INLINE costrong #-}
 
 choice :: Choice p => (c -> (a + b)) -> p b a -> p c a
 choice f = dimap f join . right'
+{-# INLINE choice #-}
 
 cochoice :: Cochoice p => (c -> (a + b)) -> p a c -> p a b
 cochoice f = unright . dimap join f
+{-# INLINE cochoice #-}
 
 pull :: Strong p => p a b -> p a (a , b)
 pull = lmap fork . second'
+{-# INLINE pull #-}
 
 pull' :: Strong p => p b c -> p (a , b) b
 pull' = shiftr . pull
+{-# INLINE pull' #-}
 
 lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
 lift f = tabulate . f . sieve
+{-# INLINE lift #-}
 
-lower :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
-lower f = cotabulate . f . cosieve
+colift :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
+colift f = cotabulate . f . cosieve
+{-# INLINE colift #-}
 
 star :: Applicative f => Star f a a
 star = Star pure
+{-# INLINE star #-}
 
 toStar :: Sieve p f => p d c -> Star f d c
 toStar = Star . sieve
+{-# INLINE toStar #-}
 
 fromStar :: Representable p => Star (Rep p) a b -> p a b
 fromStar = tabulate . runStar
+{-# INLINE fromStar #-}
 
 costar :: Foldable f => Monoid b => (a -> b) -> Costar f a b
 costar f = Costar (foldMap f)
+{-# INLINE costar #-}
 
 uncostar :: Applicative f => Costar f a b -> a -> b
 uncostar f = runCostar f . pure
+{-# INLINE uncostar #-}
 
 toCostar :: Cosieve p f => p a b -> Costar f a b
 toCostar = Costar . cosieve
+{-# INLINE toCostar #-}
 
 fromCostar :: Corepresentable p => Costar (Corep p) a b -> p a b
 fromCostar = cotabulate . runCostar
+{-# INLINE fromCostar #-}
 
-pushr :: Closed p => (forall x. Applicative (p x)) => p (a , b) c -> p a b -> p a c
-pushr = papply . curry' 
+pushr :: Closed p => Representable p => Applicative (Rep p) => p (a , b) c -> p a b -> p a c
+pushr = (<<*>>) . curry' 
+{-# INLINE pushr #-}
 
-pushl :: Closed p => (forall x. Applicative (p x)) => p a c -> p b c -> p a (b -> c)
-pushl f g = curry' $ pdivided f g
+pushl :: Closed p => Representable p => Applicative (Rep p) => p a c -> p b c -> p a (b -> c)
+pushl p q = curry' $ pdivide id p q
+{-# INLINE pushl #-}
 
-ppure :: Profunctor p => (forall x. Applicative (p x)) => b -> p a b
-ppure b = dimap (const ()) (const b) $ pure ()
+pliftA :: Representable p => Applicative (Rep p) => (b -> c -> d) -> p a b -> p a c -> p a d
+pliftA f x y = tabulate $ \s -> liftA2 f (sieve x s) (sieve y s)
+{-# INLINE pliftA #-}
 
---pabsurd :: Profunctor p => (forall x. Divisible (p x)) => p Void a
---pabsurd = rmap absurd $ conquer
+infixl 4 <<*>>
 
-infixr 3 @@@
+(<<*>>) :: Representable p => Applicative (Rep p) => p a (b -> c) -> p a b -> p a c
+(<<*>>) = pliftA ($)
+{-# INLINE (<<*>>) #-}
 
--- | Profunctor version of '***' from 'Control.Arrow'.
---
--- @
--- p <*> x ≡ dimap fork eval (p @@@ x)
--- @
---
-(@@@) :: Profunctor p => (forall x. Applicative (p x)) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-f @@@ g = pappend f g
+infixr 3 ****
 
-pappend :: Profunctor p => (forall x. Applicative (p x)) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-pappend f g = dimap fst (,) f <*> lmap snd g
+(****) :: Representable p => Applicative (Rep p) => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
+p **** q = dimap fst (,) p <<*>> lmap snd q
+{-# INLINE (****) #-}
 
--- | Profunctor equivalent of 'Data.Functor.Divisible.divide'.
---
-pdivide :: Profunctor p => (forall x. Applicative (p x)) => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
-pdivide f x y = dimap f fst $ x @@@ y
+infixr 3 &&&&
 
--- | Profunctor equivalent of 'Data.Functor.Divisible.divided'.
---
-pdivided :: Profunctor p => (forall x. Applicative (p x)) => p a1 b -> p a2 b -> p (a1 , a2) b
-pdivided = pdivide id
+(&&&&) ::  Representable p => Applicative (Rep p) => p a b1 -> p a b2 -> p a (b1 , b2)
+p &&&& q = pliftA (,) p q
+{-# INLINE (&&&&) #-}
 
--- | Profunctor equivalent of '<*>'.
---
-papply :: Profunctor p => (forall x. Applicative (p x)) => p a (b -> c) -> p a b -> p a c
-papply f x = dimap fork apply (f @@@ x)
+pdivide :: Representable p => Applicative (Rep p) => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
+pdivide f p q = dimap f fst $ dimap fst (,) p <<*>> lmap snd q
+{-# INLINE pdivide #-}
 
--- | Profunctor equivalent of 'liftA2'.
---
-pliftA2 :: Profunctor p => (forall x. Applicative (p x)) => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
-pliftA2 f x y = dimap fork f $ pappend x y
+pappend :: Representable p => Applicative (Rep p) => p a b -> p a b -> p a b
+pappend = pdivide fork
+{-# INLINE pappend #-}

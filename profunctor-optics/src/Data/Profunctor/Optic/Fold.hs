@@ -9,18 +9,18 @@ module Data.Profunctor.Optic.Fold (
   , Unfold
   , AUnfold
     -- * Constructors
-  , folding
+  , vlfold
+  , vlfold1
+  , vlunfold 
+  , folding0 
+  , folding 
+  , afolding
   , folding1
+  , afolding1
   , unfolding 
-  , folded0 
-  , folded 
-  , afolded
-  , folded1
-  , afolded1
-  , unfolded 
-  , aunfolded
-  , folded_
-  , folded1_
+  , aunfolding
+  , folding_
+  , folding1_
   , failing 
   , recursing
   , recursing1 
@@ -49,6 +49,12 @@ module Data.Profunctor.Optic.Fold (
   , productOf
   , product1Of
     -- * Common optics
+  , folded0
+  , folded
+  , folded1 
+  , unfolded 
+  , folded_ 
+  , folded1_
   , unital
   , unital1
   , presemiring
@@ -86,13 +92,22 @@ module Data.Profunctor.Optic.Fold (
   , any 
   , elem
   , pelem
+    -- * MonadUnliftIO 
+  , tries
+  , tries_ 
+  , catches
+  , catches_
+  , handles
+  , handles_
     -- * Auxilliary Types
   , All, Any
   , NonEmptyDList(..)
 ) where
 
+import Control.Exception (Exception)
 import Control.Foldl (EndoM(..))
 import Control.Monad ((<=<))
+import Control.Monad.IO.Unlift
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
 import Data.Foldable (Foldable, foldMap, traverse_)
@@ -103,10 +118,12 @@ import Data.Monoid hiding (All(..), Any(..))
 import Data.Prd (Prd(..), Min(..), Max(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (just)
+import Data.Profunctor.Optic.Prism (right, just, async)
+import Data.Profunctor.Optic.Traversal (matches)
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (to, from, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
+import qualified Control.Exception as Ex
 import qualified Control.Foldl as L
 import qualified Data.Functor.Foldable as F
 import qualified Data.List.NonEmpty as NEL
@@ -120,136 +137,136 @@ import qualified Prelude as Pre
 
 -- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
 --
-folding :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
-folding f = coercer . lift f . coercer
-{-# INLINE folding #-}
+vlfold :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
+vlfold f = coercer . lift f . coercer
+{-# INLINE vlfold #-}
 
 -- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-folding1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-folding1 f = coercer . lift f . coercer
-{-# INLINE folding1 #-}
+vlfold1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
+vlfold1 f = coercer . lift f . coercer
+{-# INLINE vlfold1 #-}
 
 -- | Obtain a 'Unfold' from a Van Laarhoven 'Unfold'.
 --
-unfolding :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Unfold t b
-unfolding f = coercel . lower f . coercel
-{-# INLINE unfolding #-}
+vlunfold :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Unfold t b
+vlunfold f = coercel . colift f . coercel
+{-# INLINE vlunfold #-}
 
 -- | Obtain a 'Fold0' from a partial function.
 --
 -- @
--- 'folded0' ('maybeOf' o) ≡ o
--- 'folded0' ('view' o) ≡ o . 'just'
+-- 'folding0' ('maybeOf' o) ≡ o
+-- 'folding0' ('view' o) ≡ o . 'just'
 -- @
 --
--- >>> preview (folded0 listToMaybe) "foo"
+-- >>> preview (folding0 listToMaybe) "foo"
 -- Just 'f'
 --
--- >>> [Just 1, Nothing] ^.. folded id . folded0 id
+-- >>> [Just 1, Nothing] ^.. folded . folded0
 -- [1]
 --
-folded0 :: (s -> Maybe a) -> Fold0 s a
-folded0 f = to (\s -> maybe (Left s) Right (f s)) . right'
-{-# INLINE folded0 #-}
+folding0 :: (s -> Maybe a) -> Fold0 s a
+folding0 f = to (\s -> maybe (Left s) Right (f s)) . right'
+{-# INLINE folding0 #-}
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
 --
 -- @
--- 'folded' f ≡ 'traversed' . 'to' f
--- 'folded' f ≡ 'folding' 'traverse' . 'to' f
+-- 'folding' f ≡ 'traversed' . 'to' f
+-- 'folding' f ≡ 'vlfold' 'traverse' . 'to' f
 -- @
 --
-folded :: Traversable f => (s -> a) -> Fold (f s) a
-folded f = folding traverse . to f
-{-# INLINE folded #-}
+folding :: Traversable f => (s -> a) -> Fold (f s) a
+folding f = vlfold traverse . to f
+{-# INLINE folding #-}
 
 -- | TODO: Document
 --
-afolded :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
-afolded o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolded #-}
+afolding :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
+afolding o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afolding #-}
 
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
 -- @
--- 'folded1' f ≡ 'traversed1' . 'to' f
--- 'folded1' f ≡ 'folding1' 'traverse1' . 'to' f
+-- 'folding1' f ≡ 'traversed1' . 'to' f
+-- 'folding1' f ≡ 'vlfold1' 'traverse1' . 'to' f
 -- @
 --
-folded1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folded1 f = folding1 traverse1 . to f
-{-# INLINE folded1 #-}
+folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
+folding1 f = vlfold1 traverse1 . to f
+{-# INLINE folding1 #-}
 
 -- | TODO: Document
 --
-afolded1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-afolded1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolded1 #-}
+afolding1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
+afolding1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afolding1 #-}
 
 -- | Obtain an 'Unfold' from a 'Distributive' functor. 
 --
 -- @
--- 'unfolded' f ≡ 'cotraversed' . 'from' f
--- 'unfolded' f ≡ 'unfolding' 'cotraverse' . 'from' f
+-- 'unfolding' f ≡ 'cotraversed' . 'from' f
+-- 'unfolding' f ≡ 'vlunfold' 'cotraverse' . 'from' f
 -- @
 --
-unfolded :: Distributive f => (b -> t) -> Unfold (f t) b
-unfolded f = unfolding cotraverse . from f
-{-# INLINE unfolded #-}
+unfolding :: Distributive f => (b -> t) -> Unfold (f t) b
+unfolding f = vlunfold cotraverse . from f
+{-# INLINE unfolding #-}
 
 -- | TODO: Document
 --
-aunfolded :: ((r -> b) -> r -> t) -> AUnfold r t b
-aunfolded o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE aunfolded #-}
+aunfolding :: ((r -> b) -> r -> t) -> AUnfold r t b
+aunfolding o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE aunfolding #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
 -- @ 
--- 'folded_' ('toListOf' o) ≡ o
--- 'folded_' f ≡ 'to' f . 'folding' 'traverse_'
--- 'folded_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
+-- 'folding_' ('toListOf' o) ≡ o
+-- 'folding_' f ≡ 'to' f . 'vlfold' 'traverse_'
+-- 'folding_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
 -- @
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
 --
--- >>> [1,2,3,4] ^.. folded_ tail
+-- >>> [1,2,3,4] ^.. folding_ tail
 -- [2,3,4]
 --
-folded_ :: Foldable f => (s -> f a) -> Fold s a
-folded_ f = to f . folding traverse_
-{-# INLINE folded_ #-}
+folding_ :: Foldable f => (s -> f a) -> Fold s a
+folding_ f = to f . vlfold traverse_
+{-# INLINE folding_ #-}
 
 -- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
 --
 -- @ 
--- 'folded1_' ('toNelOf' o) ≡ o
--- 'folded1_' f ≡ 'to' f . 'folding1' 'traverse_'
--- 'folded1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
+-- 'folding1_' ('toNelOf' o) ≡ o
+-- 'folding1_' f ≡ 'to' f . 'vlfold1' 'traverse_'
+-- 'folding1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
 -- @
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
 --
--- >>> 1 :| [2,3,4] ^.. folded1_ tail
+-- >>> 1 :| [2,3,4] ^.. folding1_ tail
 -- [2,3,4]
 --
-folded1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
-folded1_ f = to f . folding1 traverse1_
-{-# INLINE folded1_ #-}
+folding1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
+folding1_ f = to f . vlfold1 traverse1_
+{-# INLINE folding1_ #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
 -- | Try the first 'Fold0'. If it returns no entry, try the second one.
 --
 failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
-failing a b = folded0 $ \s -> maybe (preview b s) Just (preview a s)
+failing a b = folding0 $ \s -> maybe (preview b s) Just (preview a s)
 {-# INLINE failing #-}
 
 {-
@@ -266,26 +283,26 @@ Sum {getSum = 15}
 -- | TODO: Document
 --
 recursing :: Recursive s => AFold a s (Base s a)
-recursing = afolded F.fold
+recursing = afolding F.fold
 {-# INLINE recursing #-}
 
 -- | TODO: Document
 --
 recursing1 :: Recursive s => AFold1 a s (Base s a)
-recursing1 = afolded1 F.fold
+recursing1 = afolding1 F.fold
 {-# INLINE recursing1 #-}
 
 -- | TODO: Document
 --
 corecursing :: Corecursive t => AUnfold b t (Base t b)
-corecursing = aunfolded F.unfold
+corecursing = aunfolding F.unfold
 {-# INLINE corecursing #-}
 
 -- | Obtain a 'Fold0' from a 'View'.
 --
 -- @
 -- 'toFold0' o ≡ o . 'just'
--- 'toFold0' o ≡ 'folded0' ('view' o)
+-- 'toFold0' o ≡ 'folding0' ('view' o)
 -- @
 --
 toFold0 :: View s (Maybe a) -> Fold0 s a
@@ -384,7 +401,7 @@ previewOf o = runFold0Rep #. o .# Fold0Rep
 -- | Map parts of a structure to a monoid and combine the results.
 --
 -- @
--- 'Data.Foldable.foldMap' = 'foldMapOf' 'folding''
+-- 'Data.Foldable.foldMap' = 'foldMapOf' 'vlfold''
 -- @
 --
 -- >>> foldMapOf both id (["foo"], ["bar", "baz"])
@@ -478,7 +495,7 @@ toPureOf o = foldMapOf o pure
 --
 -- For semirings without a multiplicative unit this is equivalent to @const mempty@:
 --
--- >>> prod (folded id) Just [1..(5 :: Int)]
+-- >>> prod (folding id) Just [1..(5 :: Int)]
 -- Just 0
 --
 -- In this situation you most likely want to use 'product1Of'.
@@ -496,6 +513,45 @@ product1Of o p = getProd . foldMap1Of o (Prod . p)
 ---------------------------------------------------------------------
 -- Common 'Fold's
 ---------------------------------------------------------------------
+
+-- | Obtain a 'Fold0' from a partial function.
+--
+-- >>> [Just 1, Nothing] ^.. folded . folded0
+-- [1]
+--
+folded0 :: Fold0 (Maybe a) a
+folded0 = folding0 id
+{-# INLINE folded0 #-}
+
+-- | Obtain a 'Fold' from a 'Traversable' functor.
+--
+folded :: Traversable f => Fold (f a) a
+folded = folding id
+{-# INLINE folded #-}
+
+-- | Obtain a 'Fold1' from a 'Traversable1' functor.
+--
+folded1 :: Traversable1 f => Fold1 (f a) a
+folded1 = folding1 id
+{-# INLINE folded1 #-}
+
+-- | Obtain an 'Unfold' from a 'Distributive' functor. 
+--
+unfolded :: Distributive f => Unfold (f b) b
+unfolded = unfolding id
+{-# INLINE unfolded #-}
+
+-- | The canonical 'Fold'.
+--
+folded_ :: Foldable f => Fold (f a) a
+folded_ = folding_ id
+{-# INLINE folded_ #-}
+
+-- | The canonical 'Fold1'.
+--
+folded1_ :: Foldable1 f => Fold1 (f a) a
+folded1_ = folding1_ id
+{-# INLINE folded1_ #-}
 
 -- | Compute the result of an expression in a unital semiring.
 --
@@ -557,7 +613,7 @@ presemiring = summed1 . multiplied1
 -- 21
 --
 summed :: Foldable f => Monoid r => AFold r (f a) a
-summed = afolded foldMap
+summed = afolding foldMap
 
 -- | Compute the semigroup sum of a 'Fold1'.
 --
@@ -567,7 +623,7 @@ summed = afolded foldMap
 -- 10
 --
 summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
-summed1 = afolded1 foldMap1
+summed1 = afolding1 foldMap1
 
 -- | Compute the semiring product of a 'Fold'.
 --
@@ -585,7 +641,7 @@ summed1 = afolded1 foldMap1
 -- In this situation you most likely want to use 'multiplied1'.
 --
 multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
-multiplied = afolded Rng.product
+multiplied = afolding Rng.product
 
 -- | Compute the semiring product of a 'Fold1'.
 --
@@ -593,7 +649,7 @@ multiplied = afolded Rng.product
 -- Just 120 
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
-multiplied1 = afolded1 Rng.product1
+multiplied1 = afolding1 Rng.product1
 
 -- | Precompose with a Moore machine.
 --
@@ -654,18 +710,20 @@ isnt k s = not (isJust (preview k s))
 --
 preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
 preview o = Reader.asks $ maybeOf o
+{-# INLINE preview #-}
 
 -- | TODO: Document
 --
 preuse :: MonadState s m => AFold0 a s a -> m (Maybe a)
 preuse o = State.gets $ preview o
+{-# INLINE preuse #-}
 
 infixl 8 ^..
 
 -- | Infix version of 'toListOf'.
 --
 -- @
--- 'Data.Foldable.toList' xs ≡ xs '^..' 'folded'
+-- 'Data.Foldable.toList' xs ≡ xs '^..' 'folding'
 -- ('^..') ≡ 'flip' 'toListOf'
 -- @
 --
@@ -695,7 +753,7 @@ infixl 8 ^..
 
 -- | Right fold over a 'Fold'.
 --
--- >>> foldsr'' folded (<>) (zero :: Int) [1..5]
+-- >>> foldsr'' folding (<>) (zero :: Int) [1..5]
 -- 15
 --
 foldsr :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
@@ -709,7 +767,7 @@ foldsl p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
 -- | Fold lift the elements of a structure, associating to the left, but strictly.
 --
 -- @
--- 'Data.Foldable.foldl'' ≡ 'foldsl'' 'folded'
+-- 'Data.Foldable.foldl'' ≡ 'foldsl'' 'folding'
 -- @
 --
 -- @
@@ -816,6 +874,67 @@ elem o a = any o (== a)
 --
 pelem :: Prd a => AFold Any s a -> a -> s -> Bool
 pelem o a = foldMapOf o (Prd.=~ a)
+
+------------------------------------------------------------------------------
+-- 'MonadUnliftIO'
+------------------------------------------------------------------------------
+
+-- | Test for synchronous exceptions that match a given optic.
+--
+-- Rethrows async exceptions synchronously in order to preserve async behavior.
+--
+-- @
+-- 'tries' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> m ('Either' e a)
+-- 'tries' 'exception' :: 'MonadUnliftIO' m => 'Exception' e => m a -> m ('Either' e a)
+-- @
+--
+tries :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Either e a)
+tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
+  if matches async e then throwM e else run $ maybe (throwM e) (return . Left) (preview o e)
+
+-- | A variant of 'tries' that returns synchronous exceptions.
+--
+tries_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Maybe a)
+tries_ o a = preview right `liftM` tries o a
+{-# INLINE tries_ #-}
+
+-- | Catch synchronous exceptions that match a given optic.
+--
+-- Rethrows async exceptions synchronously in order to preserve async behavior.
+--
+-- @
+-- 'catches' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> (e -> m a) -> m a
+-- 'catches' 'exception' :: 'MonadUnliftIO' m => Exception e => m a -> (e -> m a) -> m a
+-- @
+--
+catches :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> (e -> m a) -> m a
+catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
+  if matches async e then throwM e else run $ maybe (throwM e) ea (preview o e)
+
+-- | Catch synchronous exceptions that match a given optic, discarding the match.
+--
+-- >>> catches_ assertionFailed (Ex.assert False (return "uncaught")) (return "caught")
+-- "caught"
+--
+catches_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+catches_ o x y = catches o x $ const y
+{-# INLINE catches_ #-}
+
+-- | Flipped variant of 'catches'.
+--
+handles :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> (e -> m a) -> m a -> m a
+handles o = flip $ catches o
+
+-- | Flipped variant of 'catches_'.
+--
+-- >>> handles overflow (return "caught") $ Ex.throwIO Overflow
+-- "caught"
+--
+handles_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+handles_ o = flip $ catches_ o
+
+throwM :: MonadIO m => Exception e => e -> m a
+throwM = liftIO . Ex.throwIO
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types

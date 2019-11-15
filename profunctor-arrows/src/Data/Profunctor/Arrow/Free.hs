@@ -1,16 +1,41 @@
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE Arrows #-}
-{-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE ExistentialQuantification #-}
 module Data.Profunctor.Arrow.Free where
 
+import Control.Arrow (Arrow)
 import Control.Category hiding ((.), id)
 import Data.Profunctor
 import Data.Profunctor.Arrow
+import Data.Profunctor.Extra
 import Data.Profunctor.Traversing
+import qualified Control.Arrow as A
 import qualified Control.Category as C
 
 import Prelude
+
+-- | Lift a profunctor into an 'Arrow' cofreely.
+--
+newtype PArrow p a b = PArrow { runPArrow :: forall x y. p (b , x) y -> p (a , x) y }
+
+instance Profunctor p => Profunctor (PArrow p) where
+  dimap f g (PArrow pp) = PArrow $ \p -> dimap (lft f) id (pp (dimap (lft g) id p))
+    where lft h (a, b) = (h a, b)
+
+instance Profunctor p => Category (PArrow p) where
+  id = PArrow id
+
+  PArrow pp . PArrow qq = PArrow $ \r -> qq (pp r)
+
+instance Profunctor p => Strong (PArrow p) where
+  first' (PArrow pp) = PArrow $ lmap assocr . pp . lmap assocl
+
+toArrow :: Arrow a => PArrow a b c -> a b c
+toArrow (PArrow aa) = A.arr (\x -> (x,())) >>> aa (A.arr fst)
+{-# INLINE toArrow #-}
+
+fromArrow :: Arrow a => a b c -> PArrow a b c
+fromArrow x = PArrow (\z -> A.first x >>> z)
+{-# INLINE fromArrow #-}
 
 -- | Free monoid in the category of profunctors.
 --
@@ -55,11 +80,13 @@ instance Mapping p => Mapping (Free p) where
 foldFree :: Category q => Profunctor q => p :-> q -> Free p a b -> q a b
 foldFree _ (Parr ab) = arr ab
 foldFree pq (Free p f) = pq p <<< foldFree pq f
+{-# INLINE foldFree  #-}
 
 -- | Lift a natural transformation from @f@ to @g@ into a natural transformation from @'Free' f@ to @'Free' g@.
 hoistFree :: p :-> q -> Free p a b -> Free q a b
 hoistFree _ (Parr ab)  = Parr ab
 hoistFree pq (Free p f) = Free (pq p) (hoistFree pq f)
+{-# INLINE hoistFree #-}
 
 -- Analog of 'Const' for pliftows
 newtype Append r a b = Append { getAppend :: r }

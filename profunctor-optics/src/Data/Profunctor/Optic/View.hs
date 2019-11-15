@@ -9,8 +9,8 @@ module Data.Profunctor.Optic.View (
     -- * Constructors
   , to
   , from
-  , toBoth
-  , fromEither
+  , toProduct
+  , fromSum
   , cloneView 
   , cloneReview
     -- * Representatives
@@ -25,7 +25,12 @@ module Data.Profunctor.Optic.View (
   , view 
   , review
   , (^.)
-  , (#) 
+  , (#)
+    -- * MonadIO
+  , throws
+  , throws_
+  , throwsTo
+    -- * MonadState & MonadWriter
   , use
   , reuse
   , uses 
@@ -34,11 +39,15 @@ module Data.Profunctor.Optic.View (
   , listenings
 ) where
 
-import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.Import
+import Control.Exception (Exception)
+import Control.Monad.IO.Class
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State hiding (StateT(..))
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Import
+import GHC.Conc (ThreadId)
+import qualified Control.Exception as Ex
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -88,22 +97,22 @@ from f = coercel . rmap f
 -- | Combine two 'View's into a 'View' to a product.
 --
 -- @
--- 'toBoth' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
+-- 'toProduct' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
 -- @
 --
-toBoth :: AView s a1 -> AView s a2 -> PrimView s t (a1 , a2) b
-toBoth l r = to (view l &&& view r)
-{-# INLINE toBoth #-}
+toProduct :: AView s a1 -> AView s a2 -> PrimView s t (a1 , a2) b
+toProduct l r = to (view l &&& view r)
+{-# INLINE toProduct #-}
 
 -- | Combine two 'Review's into a 'Review' from a sum.
 --
 -- @
--- 'fromEither' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
+-- 'fromSum' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
 -- @
 --
-fromEither :: AReview t b1 -> AReview t b2 -> PrimReview s t a (b1 + b2)
-fromEither l r = from (review l ||| review r)
-{-# INLINE fromEither #-}
+fromSum :: AReview t b1 -> AReview t b2 -> PrimReview s t a (b1 + b2)
+fromSum l r = from (review l ||| review r)
+{-# INLINE fromSum #-}
 
 -- | TODO: Document
 --
@@ -305,9 +314,36 @@ o # b = review o b
 {-# INLINE ( # ) #-}
 
 ---------------------------------------------------------------------
--- 'MonadState' and 'MonadWriter'
+-- 'MonadIO'
 ---------------------------------------------------------------------
 
+-- | Throw an exception described by an optic.
+--
+-- @
+-- 'throws' o e \`seq\` x  ≡ 'throws' o e
+-- @
+--
+throws :: MonadIO m => Exception e => AReview e b -> b -> m r
+throws o = reviews o $ liftIO . Ex.throwIO
+{-# INLINE throws #-}
+
+-- | Variant of 'throws' for error constructors with no arguments.
+--
+throws_ :: MonadIO m => Exception e => AReview e () -> m r
+throws_ o = throws o ()
+
+-- | Raise an 'Exception' specified by an optic in the target thread.
+--
+-- @
+-- 'throwsTo' thread o ≡ 'throwTo' thread . 'review' o
+-- @
+--
+throwsTo :: MonadIO m => Exception e => ThreadId -> AReview e b -> b -> m ()
+throwsTo tid o = reviews o (liftIO . Ex.throwTo tid)
+
+---------------------------------------------------------------------
+-- 'MonadState' and 'MonadWriter'
+---------------------------------------------------------------------
 
 -- | TODO: Document
 --

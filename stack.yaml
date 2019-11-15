@@ -9,6 +9,6 @@ extra-deps:
   - github: cmk/property
     commit: 8c6527acfc44af301190a3bbbc7c36b33a9b4fc1
   - github: cmk/connections
-    commit: 51aa231014643f6eb93ba0c7a72bdc31b4fd46a1
+    commit: a45bdf0483cc7f8e06b21a7d872ccb04877ffc38
   - github: cmk/rings
-    commit: 5115fea78e9c9a2fff1ed75915d6d5d60f730606
+    commit: 838243cae84c3b025e1f363360b2f4f746b79f66

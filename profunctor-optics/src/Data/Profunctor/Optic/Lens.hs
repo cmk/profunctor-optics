@@ -11,7 +11,7 @@ module Data.Profunctor.Optic.Lens (
     -- * Constructors
   , lens
   , relens
-  , lensing
+  , vllens
   , matching
   , rematching
   , toPastro
@@ -91,8 +91,8 @@ relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
-lensing :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensing o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
+vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+vllens o = dimap ((info &&& values) . o (flip PStore id)) (uncurry id . swp) . first'
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --

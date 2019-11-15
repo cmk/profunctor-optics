@@ -13,6 +13,7 @@ module Data.Profunctor.Optic.Setter (
   , setter
   , resetter
   , closing
+  , closingf
   , (%)
   , toSemiring
   , fromSemiring
@@ -37,7 +38,6 @@ module Data.Profunctor.Optic.Setter (
   , reviewed
   , composed
   , exmapped
-  , exmapped'
     -- * Derived operators
   , (%~)
   , (.~)
@@ -47,6 +47,7 @@ module Data.Profunctor.Optic.Setter (
   , (?~)
   , (<>~)
   , (><~)
+    -- * MonadState
   , (.=)
   , assigns
   , (%=)
@@ -57,9 +58,9 @@ module Data.Profunctor.Optic.Setter (
 ) where
 
 import Control.Applicative (liftA)
-import Control.Exception (Exception(..), SomeException)
+import Control.Exception (Exception(..))
+import Control.Monad.IO.Unlift
 import Control.Monad.State as State hiding (lift)
-import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
@@ -68,9 +69,6 @@ import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Type
 import Data.Semiring
 import qualified Control.Exception as Ex
-
-import qualified Data.List as L (unfoldr)
-import qualified Data.Functor.Foldable as F
 
 ---------------------------------------------------------------------
 -- Setter
@@ -123,12 +121,17 @@ setter abst = dimap (flip PStore id) (\(PStore s ab) -> abst ab s) . lift collec
 -- See 'Data.Profunctor.Optic.Property'.
 --
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> PCont $ \ab -> abst ab s) runPCont' . lower (\f -> fmap f . sequence1)
+resetter abst = dimap (\s -> PCont $ \ab -> abst ab s) runPCont' . colift (\f -> fmap f . sequence1)
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
+
+-- | TODO: Document
+--
+closingf :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
+closingf f = dimap pureTaskF (f . runTask) . lift collect
 
 infixl 6 %
 
@@ -373,37 +376,18 @@ composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
 composed = setter between
 {-# INLINE composed #-}
 
--- | This 'Setter' can be used to purely map over the 'Exception's an
--- arbitrary expression might throw; it is a variant of 'mapException' in
--- the same way that 'mapped' is a variant of 'fmap'.
+-- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
 --
--- > 'mapException' ≡ 'over' 'exception'
---
--- This view that every Haskell expression can be regarded as carrying a bag
--- of 'Exception's is detailed in “A Semantics for Imprecise Exceptions” by
--- Peyton Jones & al. at PLDI ’99.
---
--- The following maps failed assertions to arithmetic overflow:
---
--- >>> handleOf overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
+-- >>> handles overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
 -- "caught"
--- 
-exmapped :: Exception e0 => Exception e1 => Setter s s e0 e1
+--
+-- @
+-- exmapped :: Exception e => Setter s s SomeException e
+-- @
+--
+exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
 exmapped = setter Ex.mapException
 {-# INLINE exmapped #-}
-
--- | A type restricted version of 'mappedException'. 
---
--- This function avoids the type ambiguity in the input 'Exception' when using 'set'.
---
--- The following maps any exception to arithmetic overflow:
---
--- >>> handleOf overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped' .~ Overflow)
--- "caught"
---
-exmapped' :: Exception e => Setter s s SomeException e
-exmapped' = exmapped
-{-# INLINE exmapped' #-}
 
 ---------------------------------------------------------------------
 -- Derived operators
@@ -481,7 +465,7 @@ infixr 4 ?~
 --
 -- '?~' can be used type-changily:
 --
--- >>> ('a', ('b', 'c')) & _2.bitraversed ?~ 'x'
+-- >>> ('a', ('b', 'c')) & _2.both ?~ 'x'
 -- ('a',(Just 'x',Just 'x'))
 --
 -- @
@@ -498,10 +482,10 @@ o ?~ b = set o (Just b)
 
 -- | Modify the target by adding another value.
 --
--- >>> bitraversed <>~ False $ (False,True)
+-- >>> both <>~ False $ (False,True)
 -- (False,True)
 --
--- >>> bitraversed <>~ "!!!" $ ("hello","world")
+-- >>> both <>~ "!!!" $ ("hello","world")
 -- ("hello!!!","world!!!")
 --
 -- @
@@ -518,7 +502,7 @@ l <>~ n = over l (<> n)
 
 -- | Modify the target by multiplying by another value.
 --
--- >>> bitraversed ><~ False $ (False,True)
+-- >>> both ><~ False $ (False,True)
 -- (False,False)
 --
 -- @
@@ -540,7 +524,7 @@ l ><~ n = over l (>< n)
 -- >>> execState (do _1 .= c; _2 .= d) (a,b)
 -- (c,d)
 --
--- >>> execState (bitraversed .= c) (a,b)
+-- >>> execState (both .= c) (a,b)
 -- (c,c)
 --
 -- @
@@ -562,7 +546,7 @@ l .= b = State.modify (l .~ b)
 -- >>> execState (do assigns _1 c; assigns _2 d) (a,b)
 -- (c,d)
 --
--- >>> execState (bitraversed .= c) (a,b)
+-- >>> execState (both .= c) (a,b)
 -- (c,c)
 --
 -- @
@@ -584,7 +568,7 @@ assigns l b = State.modify (set l b)
 -- >>> execState (do _1 %= f;_2 %= g) (a,b)
 -- (f a,g b)
 --
--- >>> execState (do bitraversed %= f) (a,b)
+-- >>> execState (do both %= f) (a,b)
 -- (f a,f b)
 --
 -- @
@@ -634,10 +618,10 @@ l ?= b = State.modify (l ?~ b)
 
 -- | Modify the target(s) of a settable optic by adding a value.
 --
--- >>> execState (bitraversed <>= False) (False,True)
+-- >>> execState (both <>= False) (False,True)
 -- (False,True)
 --
--- >>> execState (bitraversed <>= "!!!") ("hello","world")
+-- >>> execState (both <>= "!!!") ("hello","world")
 -- ("hello!!!","world!!!")
 --
 -- @
@@ -654,7 +638,7 @@ l <>= a = State.modify (l <>~ a)
 
 -- | Modify the target(s) of a settable optic by mulitiplying by a value.
 --
--- >>> execState (bitraversed ><= False) (False,True)
+-- >>> execState (both ><= False) (False,True)
 -- (False,False)
 --
 -- @
@@ -668,3 +652,17 @@ l <>= a = State.modify (l <>~ a)
 (><=) :: MonadState s m => Semiring a => ASetter' s a -> a -> m ()
 l ><= a = State.modify (l ><~ a)
 {-# INLINE (><=) #-}
+
+---------------------------------------------------------------------
+-- Internal
+---------------------------------------------------------------------
+
+newtype Task i k v = Task { runTask :: forall f. Functor f => (i -> f k) -> f v }
+
+instance Functor (Task i k) where
+  fmap f (Task fps) = Task $ (fmap f) . fps
+  {-# INLINE fmap #-}
+
+pureTaskF :: a -> Task a b b
+pureTaskF a = Task $ \aft -> fmap id (aft a)
+{-# INLINE pureTaskF #-}

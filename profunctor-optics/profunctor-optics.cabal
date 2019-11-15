@@ -21,6 +21,11 @@ source-repository head
 
 library
   exposed-modules:
+      Control.Exception.Optic
+      Numeric.Optic
+      Numeric.Optic.Int
+      Numeric.Optic.Word
+      Numeric.Optic.Float
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Operator
@@ -34,10 +39,6 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Property
       Data.Profunctor.Orphan
-      Control.Exception.Optic
-      Numeric.Optic.Int
-      Numeric.Optic.Word
-      Numeric.Optic.Float
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -65,8 +66,6 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
       base >=4.9 && <5.0
-    , adjunctions
-    , bifunctors
     , comonad
     , connections
     , contravariant
@@ -77,7 +76,6 @@ library
     , profunctors
     , recursion-schemes
     , rings
-    , safe
     , semigroupoids
     , tagged
     , unliftio-core

@@ -1,13 +1,29 @@
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 module Control.Exception.Optic (
-    exception
+    -- * Common optics
+    unlifted
+  , exmapped
+  , exception
+  , pattern Exception
+    -- * Derived operators
+  , throws
+  , throws_
+  , throwsTo
+  , tries
+  , tries_
+  , catches
+  , catches_
+  , handles
+  , handles_
   , ioException
     -- * IO Error Fields
-  , location
-  , description
-  , handle
-  , fileName
-  , errno
-  , errorType
+  , ioeLocation
+  , ioeDescription
+  , ioeHandle
+  , ioeFileName
+  , ioeErrno
+  , ioeErrorType
     -- * IO Error Types
   , alreadyExists
   , noSuchThing
@@ -26,6 +42,10 @@ module Control.Exception.Optic (
   , hardwareFault
   , unsupportedOperation
     -- * Async Exceptions
+  , sync
+  , async
+  , asyncException
+  , pattern AsyncException
   , timeExpired
   , resourceVanished
   , interrupted
@@ -44,7 +64,7 @@ module Control.Exception.Optic (
   , indexOutOfBounds
   , undefinedElement 
     -- * Miscellaneous Exceptions
-  , trivial 
+  , illegal 
   , assertionFailed 
   , nonTermination
   , nestedAtomically
@@ -60,49 +80,61 @@ module Control.Exception.Optic (
   , allocationLimitExceeded 
 ) where
 
-import Control.Exception hiding (handle)
+import Control.Exception (Exception(..), SomeException(..), SomeAsyncException(..), 
+  AsyncException(..), IOException(..), ArithException(..), ArrayException(..)) 
+import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Lens
-import Data.Profunctor.Optic.Prism
-import Data.Profunctor.Optic.Type
 import Foreign.C.Types
 import GHC.IO.Exception (IOErrorType)
 import System.IO
 import qualified Control.Exception as Ex 
 import qualified GHC.IO.Exception as Ghc
 
+pattern Exception :: forall a. Exception a => a -> SomeException
+pattern Exception e <- (preview exception -> Just e) where Exception e = review exception e
+
+pattern AsyncException :: forall a. Exception a => a -> SomeException
+pattern AsyncException e <- (preview asyncException -> Just e) where AsyncException e = review asyncException e
+
 ----------------------------------------------------------------------------------------------------
 -- IO Exceptions
 ----------------------------------------------------------------------------------------------------
 
+-- | Exceptions that occur in the 'IO' 'Monad'. 
+--
+-- An 'IOException' records a more specific error type, a descriptive string and possibly the handle 
+-- that was used when the error was flagged.
+--
+ioException :: Prism' SomeException IOException
+ioException = exception
+
 -- | Where the error happened.
 --
-location :: Lens' IOException String
-location = lens Ghc.ioe_location $ \s e -> s { Ghc.ioe_location = e }
+ioeLocation :: Lens' IOException String
+ioeLocation = lens Ghc.ioe_location $ \s e -> s { Ghc.ioe_location = e }
 
 -- | Error type specific information.
 --
-description :: Lens' IOException String
-description = lens Ghc.ioe_description $ \s e -> s { Ghc.ioe_description = e }
+ioeDescription :: Lens' IOException String
+ioeDescription = lens Ghc.ioe_description $ \s e -> s { Ghc.ioe_description = e }
 
 -- | The handle used by the action flagging this error.
 -- 
-handle :: Lens' IOException (Maybe Handle)
-handle = lens Ghc.ioe_handle $ \s e -> s { Ghc.ioe_handle = e }
+ioeHandle :: Lens' IOException (Maybe Handle)
+ioeHandle = lens Ghc.ioe_handle $ \s e -> s { Ghc.ioe_handle = e }
 
 -- | 'fileName' the error is related to.
 --
-fileName :: Lens' IOException (Maybe FilePath)
-fileName = lens Ghc.ioe_filename $ \s e -> s { Ghc.ioe_filename = e }
+ioeFileName :: Lens' IOException (Maybe FilePath)
+ioeFileName = lens Ghc.ioe_filename $ \s e -> s { Ghc.ioe_filename = e }
 
 -- | 'errno' leading to this error, if any.
 --
-errno :: Lens' IOException (Maybe CInt)
-errno = lens Ghc.ioe_errno $ \s e -> s { Ghc.ioe_errno = e }
+ioeErrno :: Lens' IOException (Maybe CInt)
+ioeErrno = lens Ghc.ioe_errno $ \s e -> s { Ghc.ioe_errno = e }
 
-errorType :: Lens' IOException IOErrorType
-errorType = lens Ghc.ioe_type $ \s e -> s { Ghc.ioe_type = e }
+ioeErrorType :: Lens' IOException IOErrorType
+ioeErrorType = lens Ghc.ioe_type $ \s e -> s { Ghc.ioe_type = e }
 
 ----------------------------------------------------------------------------------------------------
 -- IO Error Types
@@ -212,36 +244,28 @@ interrupted = only Ghc.Interrupted
 -- but the programmer should take remedial action immediately.
 --
 stackOverflow :: Prism' AsyncException ()
-stackOverflow = dimap sta (either id id) . right' . rmap (const Ex.StackOverflow)
-  where sta Ex.StackOverflow = Right ()
-        sta t = Left t
+stackOverflow = only Ex.StackOverflow
 
 -- | The program's heap usage has exceeded its limit.
 --
 -- See 'GHC.IO.Exception' for more information.
 -- 
 heapOverflow :: Prism' AsyncException ()
-heapOverflow = dimap sta (either id id) . right' . rmap (const Ex.HeapOverflow)
-  where sta Ex.HeapOverflow = Right ()
-        sta t = Left t
+heapOverflow = only Ex.HeapOverflow
 
 -- | This 'Exception' is raised by another thread calling
 -- 'Control.Concurrent.killThread', or by the system if it needs to terminate
 -- the thread for some reason.
 --
 threadKilled :: Prism' AsyncException ()
-threadKilled = dimap sta (either id id) . right' . rmap (const Ex.ThreadKilled)
-  where sta Ex.ThreadKilled = Right ()
-        sta t = Left t
+threadKilled = only Ex.ThreadKilled
 
 -- | This 'Exception' is raised by default in the main thread of the program when
 -- the user requests to terminate the program via the usual mechanism(s)
 -- (/e.g./ Control-C in the console).
 --
 userInterrupt :: Prism' AsyncException ()
-userInterrupt = dimap sta (either id id) . right' . rmap (const Ex.UserInterrupt)
-  where sta Ex.UserInterrupt = Right ()
-        sta t = Left t
+userInterrupt = only Ex.UserInterrupt
 
 ----------------------------------------------------------------------------------------------------
 -- Arithmetic exceptions
@@ -250,48 +274,32 @@ userInterrupt = dimap sta (either id id) . right' . rmap (const Ex.UserInterrupt
 -- | Detect arithmetic overflow.
 --
 overflow :: Prism' ArithException ()
-overflow = dimap sta (either id id) . right' . rmap (const Ex.Overflow)
-  where sta Ex.Overflow = Right ()
-        sta t = Left t
+overflow = only Ex.Overflow
 
 -- | Detect arithmetic underflow.
 --
 underflow :: Prism' ArithException ()
-underflow = dimap sta (either id id) . right' . rmap (const Ex.Underflow)
-  where sta Ex.Underflow = Right ()
-        sta t = Left t
+underflow = only Ex.Underflow
 
 -- | Detect arithmetic loss of precision.
 --
 lossOfPrecision :: Prism' ArithException ()
-lossOfPrecision = dimap sta (either id id) . right' . rmap (const Ex.LossOfPrecision)
-  where sta Ex.LossOfPrecision = Right ()
-        sta t = Left t
+lossOfPrecision = only Ex.LossOfPrecision
 
 -- | Detect division by zero.
 --
 divideByZero :: Prism' ArithException ()
-divideByZero = dimap sta (either id id) . right' . rmap (const Ex.DivideByZero)
-  where sta Ex.DivideByZero = Right ()
-        sta t = Left t
+divideByZero = only Ex.DivideByZero
 
--- | Detect exceptional denormalized floating pure.
+-- | Detect whether a FLOP was performed on a subnormal number. 
 --
 denormal :: Prism' ArithException ()
-denormal = dimap sta (either id id) . right' . rmap (const Ex.Denormal)
-  where sta Ex.Denormal = Right ()
-        sta t = Left t
+denormal = only Ex.Denormal
 
 -- | Detect zero denominators.
 --
--- Added in @base@ 4.6 in response to this libraries discussion:
---
--- <http://haskell.1045720.n5.nabble.com/Data-Ratio-and-exceptions-td5711246.html>
---
 ratioZeroDenominator :: Prism' ArithException ()
-ratioZeroDenominator = dimap sta (either id id) . right' . rmap (const Ex.RatioZeroDenominator)
-  where sta Ex.RatioZeroDenominator = Right ()
-        sta t = Left t
+ratioZeroDenominator = only Ex.RatioZeroDenominator
 
 ----------------------------------------------------------------------------------------------------
 -- Array Exceptions
@@ -300,14 +308,14 @@ ratioZeroDenominator = dimap sta (either id id) . right' . rmap (const Ex.RatioZ
 -- | Detect attempts to index an array outside its declared bounds.
 --
 indexOutOfBounds :: Prism' ArrayException String
-indexOutOfBounds = dimap sta (either id id) . right' . rmap Ex.IndexOutOfBounds
+indexOutOfBounds = dimap sta join . right' . rmap Ex.IndexOutOfBounds
   where sta (Ex.IndexOutOfBounds r) = Right r
         sta t = Left t
 
 -- | Detect attempts to evaluate an element of an array that has not been initialized.
 --
 undefinedElement :: Prism' ArrayException String
-undefinedElement = dimap sta (either id id) . right' . rmap Ex.UndefinedElement
+undefinedElement = dimap sta join . right' . rmap Ex.UndefinedElement
   where sta (Ex.UndefinedElement r) = Right r
         sta t = Left t
 
@@ -315,8 +323,9 @@ undefinedElement = dimap sta (either id id) . right' . rmap Ex.UndefinedElement
 -- Miscellaneous Exceptions
 ----------------------------------------------------------------------------------------------------
 
-trivial :: Profunctor p => t -> Optic' p t ()
-trivial t = const () `dimap` const t
+-- hack to get prisms for exceptions w/o an Eq instance 
+illegal :: Profunctor p => t -> Optic' p t ()
+illegal t = const () `dimap` const t
 
 assertionFailed :: Prism' Ex.AssertionFailed String
 assertionFailed = iso (\(Ex.AssertionFailed a) -> a) Ex.AssertionFailed
@@ -326,33 +335,33 @@ assertionFailed = iso (\(Ex.AssertionFailed a) -> a) Ex.AssertionFailed
 -- will notice whether any given computation is guaranteed to terminate or not.
 --
 nonTermination :: Prism' Ex.NonTermination ()
-nonTermination = trivial Ex.NonTermination
+nonTermination = illegal Ex.NonTermination
 
 -- | Thrown when the program attempts to call atomically, from the
 -- 'Control.Monad.STM' package, inside another call to atomically.
 --
 nestedAtomically :: Prism' Ex.NestedAtomically ()
-nestedAtomically = trivial Ex.NestedAtomically
+nestedAtomically = illegal Ex.NestedAtomically
 
 -- | The thread is blocked on an 'Control.Concurrent.MVar.MVar', but there
 -- are no other references to the 'Control.Concurrent.MVar.MVar' so it can't
 -- ever continue.
 --
 blockedIndefinitelyOnMVar :: Prism' Ex.BlockedIndefinitelyOnMVar ()
-blockedIndefinitelyOnMVar = trivial Ex.BlockedIndefinitelyOnMVar
+blockedIndefinitelyOnMVar = illegal Ex.BlockedIndefinitelyOnMVar
 
 -- | The thread is waiting to retry an 'Control.Monad.STM.STM' transaction,
 -- but there are no other references to any TVars involved, so it can't ever
 -- continue.
 --
 blockedIndefinitelyOnSTM :: Prism' Ex.BlockedIndefinitelyOnSTM ()
-blockedIndefinitelyOnSTM = trivial Ex.BlockedIndefinitelyOnSTM
+blockedIndefinitelyOnSTM = illegal Ex.BlockedIndefinitelyOnSTM
 
 -- | There are no runnable threads, so the program is deadlocked. The
 -- 'Deadlock' 'Exception' is raised in the main thread only.
 --
 deadlock :: Prism' Ex.Deadlock ()
-deadlock = trivial Ex.Deadlock
+deadlock = illegal Ex.Deadlock
 
 -- | A class method without a definition (neither a default definition,
 -- nor a definition in the appropriate instance) was called.
@@ -392,4 +401,4 @@ errorCall = iso (\(Ex.ErrorCall a) -> a) Ex.ErrorCall
 -- | This thread has exceeded its allocation limit.
 --
 allocationLimitExceeded :: Prism' Ex.AllocationLimitExceeded ()
-allocationLimitExceeded = trivial AllocationLimitExceeded
+allocationLimitExceeded = illegal Ex.AllocationLimitExceeded

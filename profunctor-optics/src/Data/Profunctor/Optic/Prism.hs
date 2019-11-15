@@ -12,6 +12,7 @@ module Data.Profunctor.Optic.Prism (
   , prism
   , prism' 
   , reprism
+  , reprism'
   , handling
   , rehandling
   , aside
@@ -43,8 +44,10 @@ module Data.Profunctor.Optic.Prism (
   , only
   , nearly
   , nthbit
+  , sync
+  , async
   , exception
-  , ioException
+  , asyncException
 ) where
 
 import Control.Exception
@@ -95,9 +98,17 @@ prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 --
 -- @
 -- reprism f g ≡ \f g -> re (prism f g)
--- view . re $ prism bat _ ≡ bat
--- matchOf . re . re $ prism _ sa ≡ sa
 -- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
+--
+-- * @bat (bt b) ≡ Right b@
+--
+-- * @(id ||| bt) (bat b) ≡ b@
+--
+-- * @left bat (bat b) ≡ left Left (bat b)@
 --
 -- A 'Reprism' is a 'View', so you can specialise types to obtain:
 --
@@ -105,6 +116,11 @@ prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 --
 reprism :: (s -> a) -> (b -> a + t) -> Reprism s t a b
 reprism sa bat = unright . dimap (id ||| sa) bat
+
+-- | Create a 'Reprism' from a reviewer and a matcher function that produces a 'Maybe'.
+--
+reprism' :: (t -> b) -> (b -> Maybe t) -> Reprism' t b
+reprism' tb bt = reprism tb $ \b -> maybe (Left b) Right (bt b)
 
 -- | Obtain a 'Prism' from its free tensor representation.
 --
@@ -265,7 +281,6 @@ withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 withReprism :: AReprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
 withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
 
-
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Reprism's
 ---------------------------------------------------------------------
@@ -330,7 +345,7 @@ only x = nearly x (x==)
 
 -- | Create a 'Prism' from a value and a predicate.
 --
-nearly ::  a -> (a -> Bool) -> Prism' a ()
+nearly :: a -> (a -> Bool) -> Prism' a ()
 nearly x f = prism' (guard . f) (const x)
 
 -- | Focus on the truth value of the nth bit in a bit array.
@@ -338,15 +353,26 @@ nearly x f = prism' (guard . f) (const x)
 nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
+-- | Check whether an exception is synchronous.
+--
+sync :: Exception e => Prism' e e 
+sync = filtered $ \e -> case fromException (toException e) of
+  Just (SomeAsyncException _) -> False
+  Nothing -> True
+
+-- | Check whether an exception is asynchronous.
+--
+async :: Exception e => Prism' e e 
+async = filtered $ \e -> case fromException (toException e) of
+  Just (SomeAsyncException _) -> True
+  Nothing -> False
+
 -- | TODO: Document
 --
-exception :: Exception a => Prism' SomeException a
+exception :: Exception e => Prism' SomeException e
 exception = prism' fromException toException
 
--- | Exceptions that occur in the 'IO' 'Monad'. 
+-- | TODO: Document
 --
--- An 'IOException' records a more specific error type, a descriptive string and possibly the handle 
--- that was used when the error was flagged.
---
-ioException :: Prism' SomeException IOException
-ioException = exception
+asyncException :: Exception e => Prism' SomeException e
+asyncException = prism' asyncExceptionFromException asyncExceptionToException
