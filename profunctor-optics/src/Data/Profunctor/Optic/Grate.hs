@@ -21,16 +21,10 @@ module Data.Profunctor.Optic.Grate (
   , zipFWithOf 
     -- * Common optics
   , distributed
-  , represented
   , connected
-  , mappended 
-  , sappended 
-  , masked 
-  , unlifted 
   , forwarded
   , continued
-  , starred
-  , costarred
+  , unlifted
 ) where
 
 import Control.Monad.Reader
@@ -44,7 +38,6 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import Data.Semiring
-import qualified Data.Functor.Rep as F
 import qualified Control.Exception as Ex
 
 ---------------------------------------------------------------------
@@ -176,16 +169,7 @@ zipFWithOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 -- | Access the contents of a distributive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
-distributed = grate $ \f -> cotraverse f id
-
--- | A 'Grate' accessing the contents of a representable functor.
---
--- @
--- represented :: Grate (c -> a) (c -> b) a b
--- @
---
-represented :: F.Representable f => Grate (f a) (f b) a b
-represented = dimap F.index F.tabulate . closed
+distributed = grate (`cotraverse` id)
 
 -- | Lift a Galois connection into a 'Grate'. 
 --
@@ -202,44 +186,32 @@ represented = dimap F.index F.tabulate . closed
 connected :: Conn s a -> Grate' s a
 connected (Conn f g) = inverting f g
 
--- | TODO: Document
+-- | Lift an action into a 'MonadReader'.
 --
-mappended :: Monoid a => Grate' a a
-mappended = dimap (flip (<>)) ($ mempty) . closed
-
--- | TODO: Document
+-- @
+-- 'zipWithOf' 'forwarded' :: 'Distributive' m => 'MonadReader' r m => (a -> a -> b) -> m a -> m a -> m b
+-- @
 --
-sappended :: Monoid a => Semiring a => Grate' a a
-sappended = dimap (flip (><)) ($ unit) . closed
-
--- | TODO: Document
---
-masked :: MonadUnliftIO m => Grate (m a) (m b) (m a) (m b)
-masked = grate mask
- where
-  mask f = withRunInIO $ \run -> Ex.mask $ \unmask -> run $ f $ liftIO . unmask . run
-
--- | TODO: Document
---
-unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
-unlifted = grate withRunInIO
-
--- | Access the range of a 'ReaderT'.
---
-forwarded :: Distributive m => Grate (ReaderT r m a) (ReaderT r m b) a b
+forwarded :: Distributive m => MonadReader r m => Grate (m a) (m b) a b
 forwarded = distributed
 
--- | TODO: Document
+-- | Lift an action into a continuation.
+--
+-- @
+-- 'zipWithOf' 'continued' :: (r -> r -> r) -> s -> s -> Cont r s
+-- @
 --
 continued :: Grate a (Cont r a) r r
 continued = grate cont
 
--- | Translate between different 'Star's.
+-- | Unlift an action into an 'IO' context.
 --
-starred :: Grate (Star f a b) (Star g s t) (a -> f b) (s -> g t)
-starred = grate $ \o -> Star $ o runStar
-
--- | Translate between different 'Costar's.
+-- @
+-- 'liftIO' ≡ 'constOf' 'unlifted'
+-- @
 --
-costarred :: Grate (Costar f a b) (Costar g s t) (f a -> b) (g s -> t)
-costarred = grate $ \o -> Costar $ o runCostar
+-- >>> zipWithOf unlifted (flip Ex.catch . const) (Ex.assert False (print "uncaught")) (print "caught") 
+-- "caught" 
+--
+unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
+unlifted = grate withRunInIO

@@ -12,7 +12,6 @@ import Data.Prd.Nan (Nan)
 import Data.Profunctor.Optic.Grate
 import Data.Profunctor.Optic.Import
 import Data.Word
-import Numeric.Natural
 import qualified Data.Connection.Float as F
 
 -- >>> constOf f32u32 (Ulp32 0)

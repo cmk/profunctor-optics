@@ -246,13 +246,11 @@ type Cotraversal s t a b = forall p. CotraversalLike p s t a b
 
 type Cotraversal' s a = Cotraversal s s a a
 
-type CotraversalLike p s t a b = Closed p => Choice p => CorepnLike p s t a b
+type CotraversalLike p s t a b = Closed p => Choice p => ComonadApply (Corep p) => CorepnLike p s t a b
 
 type CotraversalLike' p s a = CotraversalLike p s s a a
 
-type Cotraversal1Like p s t a b = Closed p => Choice p => Comonad (Corep p) => CorepnLike p s t a b
-
-type ACotraversal f s t a b = Functor f => Optic (Costar f) s t a b
+type ACotraversal f s t a b = ComonadApply f => Optic (Costar f) s t a b
 
 type ACotraversal' f s a = ACotraversal f s s a a
 
