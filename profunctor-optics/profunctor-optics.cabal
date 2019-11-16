@@ -22,6 +22,8 @@ source-repository head
 library
   exposed-modules:
       Control.Exception.Optic
+      --Data.Semiring.Optic
+      --Data.Connection.Optic
       Numeric.Optic
       Numeric.Optic.Int
       Numeric.Optic.Word
@@ -88,11 +90,12 @@ test-suite doctests
   x-doctest-options: --fast
 
   build-depends:
-    base,
-    doctest >= 0.8,
-    doctest-discover,
-    mtl,
-    profunctor-optics
+      base
+    , containers
+    , doctest >= 0.8
+    , doctest-discover
+    , mtl
+    , profunctor-optics
 
   default-extensions: 
       ConstraintKinds

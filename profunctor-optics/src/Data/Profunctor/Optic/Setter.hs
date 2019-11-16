@@ -75,6 +75,19 @@ import Data.Profunctor.Optic.Type
 import Data.Semiring
 import qualified Control.Exception as Ex
 
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> import Control.Category ((>>>))
+-- >>> import Control.Arrow (Kleisli(..))
+-- >>> import Control.Exception
+-- >>> import Control.Monad.State
+-- >>> import Control.Monad.Writer
+-- >>> import Data.Functor.Identity
+-- >>> import Data.Functor.Contravariant
+-- >>> :load Data.Profunctor.Optic
+
 ---------------------------------------------------------------------
 -- Setter
 ---------------------------------------------------------------------
@@ -181,17 +194,14 @@ fromSemiring a = setter $ \f y -> a >< f mempty <> y
 -- 'over' '.' 'setter' ≡ 'id'
 -- @
 --
--- >>> over mapped f (over mapped g [a,b,c]) == over mapped (f . g) [a,b,c]
--- True
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
 --
--- >>> over mapped f (Just a)
--- Just (f a)
---
--- >>> over mapped (*10) [1,2,3]
+-- >>> over fmapped (*10) [1,2,3]
 -- [10,20,30]
 --
--- >>> over first f (a,b)
--- (f a,b)
+-- >>> over first (+1) (1,2)
+-- (2,2)
 --
 -- >>> over first show (10,20)
 -- ("10",20)
@@ -263,7 +273,6 @@ one = setter id
 --
 -- >>> (cod %~ show) length [1,2,3]
 -- "3"
--- @
 --
 cod :: Profunctor p => Setter (p r a) (p r b) a b
 cod = setter rmap
@@ -308,9 +317,6 @@ fmapped = setter fmap
 -- >>> getOp (over contramapped (*5) (Op show)) 100
 -- "500"
 --
--- >>> Prelude.map ($ 1) $ over (mapped . _Unwrapping' Op . contramapped) (*12) [(*2),(+1),(^3)]
--- [24,13,1728]
---
 contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
@@ -327,11 +333,11 @@ foldMapped = setter foldMap
 -- 'liftA' ≡ 'setter' 'liftedA'
 -- @
 --
--- >>> setter liftedA f [a,b,c]
--- [f a,f b,f c]
+-- >>> setter liftedA Identity [1,2,3]
+-- [Identity 1,Identity 2,Identity 3]
 --
--- >>> set liftedA b (Just a)
--- Just b
+-- >>> set liftedA 2 (Just 1)
+-- Just 2
 --
 liftedA :: Applicative f => Setter (f a) (f b) a b
 liftedA = setter liftA
@@ -383,7 +389,7 @@ composed = setter between
 
 -- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
 --
--- >>> handles overflow (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
+-- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped %~ \ (AssertionFailed _) -> Overflow)
 -- "caught"
 --
 -- @
@@ -462,15 +468,12 @@ infixr 4 ?~
 -- l '?~' t ≡ 'set' l ('Just' t)
 -- @
 --
--- >>> Nothing & id ?~ a
--- Just a
---
--- >>> Map.empty & at 3 ?~ x
--- fromList [(3,x)]
+-- >>> Nothing & id ?~ 1
+-- Just 1
 --
 -- '?~' can be used type-changily:
 --
--- >>> ('a', ('b', 'c')) & _2.both ?~ 'x'
+-- >>> ('a', ('b', 'c')) & second . both ?~ 'x'
 -- ('a',(Just 'x',Just 'x'))
 --
 -- @
@@ -484,6 +487,8 @@ infixr 4 ?~
 (?~) :: ASetter s t a (Maybe b) -> b -> s -> t
 o ?~ b = set o (Just b)
 {-# INLINE (?~) #-}
+
+infixl 6 <>~
 
 -- | Modify the target by adding another value.
 --
@@ -504,6 +509,8 @@ o ?~ b = set o (Just b)
 (<>~) :: Semigroup a => ASetter s t a a -> a -> s -> t
 l <>~ n = over l (<> n)
 {-# INLINE (<>~) #-}
+
+infixl 7 ><~
 
 -- | Modify the target by multiplying by another value.
 --
@@ -526,11 +533,11 @@ l ><~ n = over l (>< n)
 --
 -- This is an infix version of 'assigns'.
 --
--- >>> execState (do _1 .= c; _2 .= d) (a,b)
--- (c,d)
+-- >>> execState (do first .= 1; second .= 2) (3,4)
+-- (1,2)
 --
--- >>> execState (both .= c) (a,b)
--- (c,c)
+-- >>> execState (both .= 3) (1,2)
+-- (3,3)
 --
 -- @
 -- ('.=') :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
@@ -543,16 +550,7 @@ l ><~ n = over l (>< n)
 l .= b = State.modify (l .~ b)
 {-# INLINE (.=) #-}
 
--- | Replace the target of a 'Lens' or all of the targets of a 'Setter' or 'Traversal' in our monadic
--- state with a new value, irrespective of the old.
---
--- This is an alias for ('.=').
---
--- >>> execState (do assigns _1 c; assigns _2 d) (a,b)
--- (c,d)
---
--- >>> execState (both .= c) (a,b)
--- (c,c)
+-- | Replace the target(s) of a settable in a monadic state.
 --
 -- @
 -- 'assigns' :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
@@ -566,15 +564,15 @@ assigns :: MonadState s m => ASetter s s a b -> b -> m ()
 assigns l b = State.modify (set l b)
 {-# INLINE assigns #-}
 
--- | Map over the target(s) of a settable in a monadic state.
+-- | Map over the target(s) of a 'Setter' in a monadic state.
 --
 -- This is an infix version of 'modifies'.
 --
--- >>> execState (do _1 %= f;_2 %= g) (a,b)
--- (f a,g b)
+-- >>> execState (do first %= (+1) ;second %= (+2)) (1,2)
+-- (2,4)
 --
--- >>> execState (do both %= f) (a,b)
--- (f a,f b)
+-- >>> execState (do both %= (+1)) (1,2)
+-- (2,3)
 --
 -- @
 -- ('%=') :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
@@ -588,7 +586,7 @@ assigns l b = State.modify (set l b)
 l %= f = State.modify (l %~ f)
 {-# INLINE (%=) #-}
 
--- | Map over the target(s) of a settable in a monadic state.
+-- | Map over the target(s) of a 'Setter' in a monadic state.
 --
 -- @
 -- 'modifies' :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
@@ -604,11 +602,8 @@ modifies l f = State.modify (over l f)
 
 -- | Replace the target(s) of a settable optic with 'Just' a new value.
 --
--- >>> execState (do at 1 ?= a; at 2 ?= b) Map.empty
--- fromList [(1,a),(2,b)]
---
--- >>> execState (do _1 ?= b; _2 ?= c) (Just a, Nothing)
--- (Just b,Just c)
+-- >>> execState (do first ?= 1; second ?= 2) (Just 1, Nothing)
+-- (Just 1,Just 2)
 --
 -- @
 -- ('?=') :: 'MonadState' s m => 'Iso'' s ('Maybe' a)       -> a -> m ()
@@ -617,6 +612,7 @@ modifies l f = State.modify (over l f)
 -- ('?=') :: 'MonadState' s m => 'Setter'' s ('Maybe' a)    -> a -> m ()
 -- ('?=') :: 'MonadState' s m => 'Traversal'' s ('Maybe' a) -> a -> m ()
 -- @
+--
 (?=) :: MonadState s m => ASetter s s a (Maybe b) -> b -> m ()
 l ?= b = State.modify (l ?~ b)
 {-# INLINE (?=) #-}

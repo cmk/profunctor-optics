@@ -52,6 +52,15 @@ import Data.Profunctor.Optic.Import
 import GHC.Conc (ThreadId)
 import qualified Control.Exception as Ex
 
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> import Data.Either
+-- >>> import Control.Monad.State
+-- >>> import Control.Monad.Writer
+-- >>> :load Data.Profunctor.Optic
+
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
 ---------------------------------------------------------------------

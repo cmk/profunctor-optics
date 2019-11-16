@@ -51,6 +51,12 @@ import Data.Void (Void, absurd)
 import qualified Data.Bifunctor as B
 import qualified Control.Foldl as F
 
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> :load Data.Profunctor.Optic
+
 ---------------------------------------------------------------------
 -- 'Lens' 
 ---------------------------------------------------------------------
@@ -220,10 +226,20 @@ resecond = unsecond
 
 -- | There is a `Unit` in everything.
 --
+-- >>> "hello" ^. unit
+-- ()
+-- >>> "hello" & unit .~ ()
+-- "hello"
+--
 unit :: Lens' a ()
 unit = lens (const ()) const
 
 -- | There is everything in a `Void`.
+--
+-- >>> [] & fmapped . void <>~ "Void" 
+-- []
+-- >>> Nothing & fmapped . void %~ abs
+-- Nothing
 --
 void :: Lens' Void a
 void = lens absurd const

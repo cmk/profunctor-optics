@@ -2,7 +2,8 @@
 {-# LANGUAGE ViewPatterns #-}
 module Control.Exception.Optic (
     -- * Common optics
-    unlifted
+    non'
+  , unlifted
   , exmapped
   , exception
   , pattern Exception
@@ -80,8 +81,9 @@ module Control.Exception.Optic (
   , allocationLimitExceeded 
 ) where
 
-import Control.Exception (Exception(..), SomeException(..), SomeAsyncException(..), 
-  AsyncException(..), IOException(..), ArithException(..), ArrayException(..)) 
+import Control.Exception (Exception(..), SomeException, 
+  AsyncException(..), IOException, ArithException(..), ArrayException(..))
+import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
 import Foreign.C.Types
@@ -95,6 +97,17 @@ pattern Exception e <- (preview exception -> Just e) where Exception e = review 
 
 pattern AsyncException :: forall a. Exception a => a -> SomeException
 pattern AsyncException e <- (preview asyncException -> Just e) where AsyncException e = review asyncException e
+
+-- | Generate an isomorphism between @'Maybe' (a | 'isnt' p a)@ and @a@.
+--
+-- @'non'' p@ generalizes @'non' (p # ())@ to take any unit 'Prism'
+--
+non' :: Prism' a () -> Iso' (Maybe a) a
+non' p = iso (fromMaybe def) go where
+  def               = review p ()
+  go b | p `isnt` b = Just b
+       | otherwise  = Nothing
+{-# INLINE non' #-}
 
 ----------------------------------------------------------------------------------------------------
 -- IO Exceptions

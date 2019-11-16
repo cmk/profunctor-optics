@@ -21,17 +21,17 @@ module Data.Profunctor.Optic.Fold (
   , vlunfold 
   , folding0 
   , folding 
-  , afolding
   , folding1
-  , afolding1
-  , unfolding 
-  , aunfolding
+  , unfolding
   , folding_
   , folding1_
-  , failing 
+  , afolding
+  , afolding1
+  , aunfolding
+  , failing
   , recursing
   , recursing1 
-  , corecursing 
+  , corecursing
   , toFold0
   , toFold 
   , toFold1
@@ -63,7 +63,7 @@ module Data.Profunctor.Optic.Fold (
   , folded_ 
   , folded1_
   , unital
-  , unital1
+  , nonunital
   , presemiring
   , summed
   , summed1
@@ -139,7 +139,16 @@ import qualified Data.Semiring as Rng
 import qualified Prelude as Pre 
 
 -- $setup
--- >>> :set -XRankNTypes
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> import Control.Exception hiding (catches)
+-- >>> import Data.Maybe
+-- >>> import Data.Monoid
+-- >>> import Data.Semiring hiding (unital,nonunital, presemiring)
+-- >>> import Data.List.NonEmpty (NonEmpty(..))
+-- >>> import qualified Data.List.NonEmpty as NE
+-- >>> import Data.Functor.Identity
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold' & 'Unfold'
@@ -193,12 +202,6 @@ folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = vlfold traverse . to f
 {-# INLINE folding #-}
 
--- | TODO: Document
---
-afolding :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
-afolding o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolding #-}
-
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
 -- @
@@ -210,12 +213,6 @@ folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
 folding1 f = vlfold1 traverse1 . to f
 {-# INLINE folding1 #-}
 
--- | TODO: Document
---
-afolding1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-afolding1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolding1 #-}
-
 -- | Obtain an 'Unfold' from a 'Distributive' functor. 
 --
 -- @
@@ -226,12 +223,6 @@ afolding1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
 unfolding :: Distributive f => (b -> t) -> Unfold (f t) b
 unfolding f = vlunfold cotraverse . from f
 {-# INLINE unfolding #-}
-
--- | TODO: Document
---
-aunfolding :: ((r -> b) -> r -> t) -> AUnfold r t b
-aunfolding o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE aunfolding #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
@@ -256,20 +247,36 @@ folding_ f = to f . vlfold traverse_
 --
 -- @ 
 -- 'folding1_' ('toNelOf' o) ≡ o
--- 'folding1_' f ≡ 'to' f . 'vlfold1' 'traverse_'
--- 'folding1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
+-- 'folding1_' f ≡ 'to' f . 'vlfold1' 'traverse1_'
+-- 'folding1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse1_'
 -- @
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
 --
--- >>> 1 :| [2,3,4] ^.. folding1_ tail
--- [2,3,4]
---
 folding1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
 folding1_ f = to f . vlfold1 traverse1_
 {-# INLINE folding1_ #-}
+
+-- | TODO: Document
+--
+afolding :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
+afolding o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afolding #-}
+
+-- | TODO: Document
+--
+afolding1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
+afolding1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afolding1 #-}
+
+-- | TODO: Document
+--
+aunfolding :: ((r -> b) -> r -> t) -> AUnfold r t b
+aunfolding o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE aunfolding #-}
+
 
 infixl 3 `failing` -- Same as (<|>)
 
@@ -279,18 +286,17 @@ failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
 failing a b = folding0 $ \s -> maybe (preview b s) Just (preview a s)
 {-# INLINE failing #-}
 
-{-
-import Data.Functor.Foldable (ListF(..))
-
-fromListF :: Num a => ListF a (Sum a) -> Sum a
-fromListF Nil = mempty
-fromListF (Cons a r) = Sum a <> r
-
-foldMapOf (recursing) fromListF $ [1..5]
-Sum {getSum = 15}
--}
-
 -- | TODO: Document
+--
+-- >>> import Data.Functor.Foldable (ListF(..))
+-- >>> :{
+--  let
+--    fromListF :: Num a => ListF a (Sum a) -> Sum a
+--    fromListF Nil = mempty
+--    fromListF (Cons a r) = Sum a <> r
+--  in foldMapOf (recursing) fromListF $ [1..5]
+-- :}
+-- Sum {getSum = 15}
 --
 recursing :: Recursive s => AFold a s (Base s a)
 recursing = afolding F.fold
@@ -472,10 +478,13 @@ toListOf :: AFold (Endo [a]) s a -> s -> [a]
 toListOf o = foldsr o (:) []
 {-# INLINE toListOf #-}
 
+{-
+>>> toNelOf bitraversed1 ('h' :| "ello", 'w' :| "orld")
+ "hello" :| ["world"]
+-}
+
 -- | Extract a 'NonEmpty' of the targets of 'Fold1'.
 --
--- >>> toNelOf bitraversed1 ('h' :| "ello", 'w' :| "orld")
--- "hello" :| ["world"]
 --
 -- @
 -- 'toNelOf' :: 'View' s a        -> s -> NonEmpty a
@@ -505,7 +514,7 @@ toPureOf o = foldMapOf o pure
 --
 -- For semirings without a multiplicative unit this is equivalent to @const mempty@:
 --
--- >>> prod (folding id) Just [1..(5 :: Int)]
+-- >>> productOf folded Just [1..(5 :: Int)]
 -- Just 0
 --
 -- In this situation you most likely want to use 'product1Of'.
@@ -578,7 +587,7 @@ folded1_ = folding1_ id
 -- >>> foldOf unital $ (fmap . fmap) Just [[1,2], [3,4 :: Int]]
 -- Just 0
 --
--- In this situation you most likely want to use 'unital1'.
+-- In this situation you most likely want to use 'nonunital'.
 --
 unital :: Foldable f => Foldable g => Monoid r => Semiring r => AFold r (f (g a)) a
 unital = summed . multiplied
@@ -586,14 +595,14 @@ unital = summed . multiplied
 -- | Semiring fold with no multiplicative unit.
 --
 -- @ 
--- 'unital1' ≡ 'summed' . 'multiplied1'
+-- 'nonunital' ≡ 'summed' . 'multiplied1'
 -- @
 --
--- >>> foldOf unital1 $ (fmap . fmap) Just [1 :| [2], 3 :| [4 :: Int]]
+-- >>> foldOf nonunital $ (fmap . fmap) Just [1 :| [2], 3 :| [4 :: Int]]
 -- Just 14
 --
-unital1 :: Foldable f => Foldable1 g => Monoid r => Semiring r => AFold r (f (g a)) a
-unital1 = summed . multiplied1
+nonunital :: Foldable f => Foldable1 g => Monoid r => Semiring r => AFold r (f (g a)) a
+nonunital = summed . multiplied1
 
 -- | Semiring fold with no additive or multiplicative unit.
 --
@@ -617,7 +626,7 @@ presemiring = summed1 . multiplied1
 -- 14
 -- >>> foldOf (summed . multiplied) [[1,2], [3,4 :: Int]]
 -- 14
--- >>> 1 <> 2 >< 3 <> 4 :: Int
+-- >>> (1 <> 2) >< (3 <> 4) :: Int
 -- 21
 -- >>> foldOf (multiplied . summed) [[1,2], [3,4 :: Int]]
 -- 21
@@ -660,6 +669,12 @@ multiplied = afolding Rng.product
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
 multiplied1 = afolding1 Rng.product1
+
+-- | Any lens, traversal, or prism will type-check as a `Cayley`
+--
+type Cayley s a = forall r. AFold (Endo (Endo r)) s a
+
+type CayleyM m s a = forall r. AFold (Endo (EndoM m r)) s a 
 
 -- | Precompose with a Moore machine.
 --
@@ -738,9 +753,9 @@ infixl 8 ^..
 -- @
 --
 -- >>> [[1,2], [3 :: Int]] ^.. id
--- [[[1,2], [3]]]
+-- [[[1,2],[3]]]
 -- >>> [[1,2], [3 :: Int]] ^.. traversed
--- [[1,2], [3]]
+-- [[1,2],[3]]
 -- >>> [[1,2], [3 :: Int]] ^.. traversed . traversed
 -- [1,2,3]
 --
@@ -763,7 +778,7 @@ infixl 8 ^..
 
 -- | Right fold over a 'Fold'.
 --
--- >>> foldsr'' folding (<>) (zero :: Int) [1..5]
+-- >>> foldsr folded (<>) 0 [1..5::Int]
 -- 15
 --
 foldsr :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
@@ -891,8 +906,9 @@ pelem o a = foldMapOf o (Prd.=~ a)
 
 -- | Test for synchronous exceptions that match a given optic.
 --
--- Rethrows async exceptions synchronously in order to preserve async behavior.
---
+-- In the style of 'safe-exceptions' this function rethrows async exceptions 
+-- synchronously in order to preserve async behavior,
+-- 
 -- @
 -- 'tries' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> m ('Either' e a)
 -- 'tries' 'exception' :: 'MonadUnliftIO' m => 'Exception' e => m a -> m ('Either' e a)
@@ -917,13 +933,16 @@ tries_ o a = preview right `liftM` tries o a
 -- 'catches' 'exception' :: 'MonadUnliftIO' m => Exception e => m a -> (e -> m a) -> m a
 -- @
 --
+-- >>> catches (only Overflow) (throwIO Overflow) (\_ -> return "caught")
+-- "caught"
+--
 catches :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> (e -> m a) -> m a
 catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
   if matches async e then throwM e else run $ maybe (throwM e) ea (preview o e)
 
 -- | Catch synchronous exceptions that match a given optic, discarding the match.
 --
--- >>> catches_ assertionFailed (Ex.assert False (return "uncaught")) (return "caught")
+-- >>> catches_ (only Overflow) (throwIO Overflow) (return "caught")
 -- "caught"
 --
 catches_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
@@ -932,12 +951,15 @@ catches_ o x y = catches o x $ const y
 
 -- | Flipped variant of 'catches'.
 --
+-- >>> handles (only Overflow) (\_ -> return "caught") $ throwIO Overflow
+-- "caught"
+--
 handles :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> (e -> m a) -> m a -> m a
 handles o = flip $ catches o
 
 -- | Flipped variant of 'catches_'.
 --
--- >>> handles overflow (return "caught") $ Ex.throwIO Overflow
+-- >>> handles_ (only Overflow) (return "caught") $ throwIO Overflow
 -- "caught"
 --
 handles_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a

@@ -22,9 +22,9 @@ module Data.Profunctor.Optic.Grate (
   , withGrate 
   , constOf
   , zipWithOf
-  , zip3WithOf
-  , zip4WithOf 
-  , zipFWithOf 
+  , zipWith3Of
+  , zipWith4Of 
+  , zipWithFOf 
     -- * Common optics
   , distributed
   , connected
@@ -43,8 +43,15 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
-import Data.Semiring
-import qualified Control.Exception as Ex
+
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> import Control.Exception
+-- >>> import Control.Monad.Reader
+-- >>> import Data.Connection.Int
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -153,20 +160,20 @@ zipWithOf o comb s1 s2 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (ge
 
 -- | Zip over a 'Grate'.
 --
-zip3WithOf :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
-zip3WithOf o comb s1 s2 s3 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3)
+zipWith3Of :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
+zipWith3Of o comb s1 s2 s3 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3)
 
 -- | Zip over a 'Grate'.
 --
-zip4WithOf :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
-zip4WithOf o comb s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3) (get s4)
+zipWith4Of :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
+zipWith4Of o comb s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3) (get s4)
 
 -- | Transform a profunctor grate into a Van Laarhoven grate.
 --
 -- This is a more restricted version of 'cotraverseOf'
 --
-zipFWithOf :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
-zipFWithOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
+zipWithFOf :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
+zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 
 ---------------------------------------------------------------------
 -- Common grates
@@ -184,9 +191,9 @@ distributed = grate (`cotraverse` id)
 -- This is an example of a 'Grate' that would not be a legal 'Iso',
 -- as Galois connections are not in general inverses.
 --
--- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 1
+-- >>> zipWithOf (connected i08i16) (+) 126 1
 -- 127
--- >>> zipWithOf (connected Data.Connection.Int.i08i16) (+) 126 2
+-- >>> zipWithOf (connected i08i16) (+) 126 2
 -- 127
 --
 connected :: Conn s a -> Grate' s a
@@ -216,7 +223,8 @@ continued = grate cont
 -- 'liftIO' ≡ 'constOf' 'unlifted'
 -- @
 --
--- >>> zipWithOf unlifted (flip Ex.catch . const) (Ex.assert False (print "uncaught")) (print "caught") 
+-- >>> let catchA = catch @ArithException
+-- >>> zipWithOf unlifted (flip catchA . const) (throwIO Overflow) (print "caught") 
 -- "caught" 
 --
 unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)

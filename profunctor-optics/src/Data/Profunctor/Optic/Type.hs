@@ -32,7 +32,7 @@ module Data.Profunctor.Optic.Type (
   , Cotraversal, Cotraversal', CotraversalLike, CotraversalLike', ACotraversal, ACotraversal'
     -- * Affine folds, general & non-empty folds, & unfolds
   , Fold0, Fold0Like
-  , Fold, FoldLike, FoldRep, AFold, Cayley, CayleyM
+  , Fold, FoldLike, FoldRep, AFold
   , Unfold, UnfoldRep, AUnfold
     -- * Non-empty folds
   , Fold1, Fold1Like, AFold1
@@ -45,10 +45,8 @@ module Data.Profunctor.Optic.Type (
   , module Export
 ) where
 
-import Control.Foldl (EndoM)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
-import Data.Monoid (Endo)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Types as Export
 import Data.Profunctor.Orphan as Export ()
@@ -57,6 +55,10 @@ import Data.Profunctor.Choice as Export (Choice(..), Cochoice(..))
 import Data.Profunctor.Closed as Export (Closed(..))
 import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
 import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
+
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Optic'
@@ -257,7 +259,7 @@ type ACotraversal f s t a b = ComonadApply f => Optic (Costar f) s t a b
 type ACotraversal' f s a = ACotraversal f s s a a
 
 ---------------------------------------------------------------------
--- 'Fold0', 'Fold' & 'Unfold'
+-- 'Fold0', 'Fold', 'Fold1' & 'Unfold'
 ---------------------------------------------------------------------
 
 -- | A 'Fold0' combines at most one element, with no interactions.
@@ -276,11 +278,13 @@ type FoldRep r = Star (Const r)
 
 type AFold r s a = Monoid r => Optic' (FoldRep r) s a
 
--- | Any lens, traversal, or prism will type-check as a `Cayley`
+-- | A 'Fold1' combines 1 or more elements, with 'Semigroup' interactions.
 --
-type Cayley s a = forall r. AFold (Endo (Endo r)) s a
+type Fold1 s a = forall p. Fold1Like p s a
 
-type CayleyM m s a = forall r. AFold (Endo (EndoM m r)) s a 
+type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
+
+type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
 type Unfold t b = forall p. UnfoldLike p t b
 
@@ -290,17 +294,7 @@ type UnfoldRep r = Costar (Const r)
 
 type AUnfold r t b = Optic' (UnfoldRep r) t b
 
----------------------------------------------------------------------
--- 'Fold1'
----------------------------------------------------------------------
 
--- | A 'Fold1' combines 1 or more elements, with 'Semigroup' interactions.
---
-type Fold1 s a = forall p. Fold1Like p s a
-
-type Fold1Like p s a = (forall x. Contravariant (p x)) => Traversal1Like p s s a a
-
-type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'

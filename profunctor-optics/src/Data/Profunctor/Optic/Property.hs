@@ -1,3 +1,10 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Property where
 
 import Control.Applicative
@@ -168,12 +175,13 @@ traversal0_idempotent' o = withTraversal0 o $ const traversal0_idempotent
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-traverse_pure :: forall f s a. (Applicative f, Eq (f s)) => ((a -> f a) -> s -> f s) -> s -> Bool
+{-
+traverse_pure :: forall f s a. Applicative f => Eq (f s) => ((a -> f a) -> s -> f s) -> s -> Bool
 traverse_pure o s = o pure s == (pure s :: f s)
 
---traverse_compose :: (Applicative f, Applicative g, Eq (f (g s))) => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
---traverse_compose t f g s = (fmap (t f) . t g) s == (getCompose . t (Compose . fmap f . g)) s
-
+traverse_compose :: (Applicative f, Applicative g, Eq (f (g s))) => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
+traverse_compose t f g s = (fmap (t f) . t g) s == (getCompose . t (Compose . fmap f . g)) s
+-}
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------

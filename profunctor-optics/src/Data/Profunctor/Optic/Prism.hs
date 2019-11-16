@@ -68,6 +68,12 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Type
 
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> :load Data.Profunctor.Optic
+
 ---------------------------------------------------------------------
 -- 'Prism'
 ---------------------------------------------------------------------
@@ -163,9 +169,9 @@ without k =
           Right u -> bimap Right Right (uevc u)
 {-# INLINE without #-}
 
--- | 'lift' a 'Prism' through a 'Traversable' functor, 
--- giving a 'Prism' that matches only if all the elements of the container
--- match the 'Prism'.
+-- | Lift a 'Prism' through a 'Traversable' functor.
+-- 
+-- Returns a 'Prism' that matches only if each element matches the original 'Prism'.
 --
 -- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right
 -- []
@@ -329,7 +335,7 @@ keyed x = flip prism ((,) x) $ \kv@(k,v) -> branch (==x) kv v k
 
 -- | Filter another optic.
 --
--- >>> [1..10] ^.. folded id . filtered even
+-- >>> [1..10] ^.. folded . filtered even
 -- [2,4,6,8,10]
 --
 filtered :: (a -> Bool) -> Prism' a a

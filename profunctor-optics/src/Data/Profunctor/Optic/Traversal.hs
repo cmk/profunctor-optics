@@ -69,7 +69,13 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 
 -- $setup
--- >>> :set -XRankNTypes
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> import Data.Maybe
+-- >>> import Data.List.NonEmpty (NonEmpty(..))
+-- >>> import qualified Data.List.NonEmpty as NE
+-- >>> import Data.Functor.Identity
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Traversal0', 'Traversal', 'Traversal1', & 'Cotraversal'
@@ -415,7 +421,7 @@ selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k t
 -- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
 -- @
 --
--- >>> [1..10] ^.. fold id . predicated even
+-- >>> [1..10] ^.. folded . predicated even
 -- [2,4,6,8,10]
 --
 -- See also 'Data.Profunctor.Optic.Prism.filtered'.

@@ -5,7 +5,7 @@ module Data.Profunctor.Optic.Operator (
 
 import Data.Function                          as Ops ((&))
 import Data.Profunctor.Optic.Type             as Ops (re)
-import Data.Profunctor.Optic.Iso              as Ops (cycleOf)
+import Data.Profunctor.Optic.Iso              as Ops (invert)
 import Data.Profunctor.Optic.View             as Ops ((#), (^.), view, review)
 import Data.Profunctor.Optic.Setter           as Ops ((%), (.~), (%~), set, sets, over, under)
 import Data.Profunctor.Optic.Grate            as Ops (constOf, zipWithOf)
