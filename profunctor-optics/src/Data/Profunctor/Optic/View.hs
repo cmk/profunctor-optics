@@ -1,3 +1,6 @@
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.View (
     -- * Types
     View

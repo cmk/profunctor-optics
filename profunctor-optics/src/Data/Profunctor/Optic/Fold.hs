@@ -1,3 +1,10 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Fold (
     -- * Types
     Fold0
@@ -130,6 +137,9 @@ import qualified Data.List.NonEmpty as NEL
 import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
 import qualified Prelude as Pre 
+
+-- $setup
+-- >>> :set -XRankNTypes
 
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold' & 'Unfold'

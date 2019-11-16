@@ -1,4 +1,10 @@
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Types
     Traversal0
@@ -61,6 +67,9 @@ import Data.Bitraversable
 import Data.Semigroup.Bitraversable
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
+
+-- $setup
+-- >>> :set -XRankNTypes
 
 ---------------------------------------------------------------------
 -- 'Traversal0', 'Traversal', 'Traversal1', & 'Cotraversal'

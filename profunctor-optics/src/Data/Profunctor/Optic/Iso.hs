@@ -1,3 +1,10 @@
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Iso (
     -- * Types
     Equality
@@ -51,13 +58,13 @@ module Data.Profunctor.Optic.Iso (
 import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
-import Data.Profunctor.Choice (TambaraSum(..))
-import Data.Profunctor.Strong (Tambara(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 import qualified Control.Monad as M (join)
 
+-- $setup
+-- >>> :load Data.Profunctor.Optic.Operator
 ---------------------------------------------------------------------
 -- 'Equality' 
 ---------------------------------------------------------------------

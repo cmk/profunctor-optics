@@ -1,3 +1,5 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Orphan where
 
 import Control.Applicative
@@ -7,13 +9,11 @@ import Data.Distributive
 import Data.Bifunctor
 import Data.Functor.Apply
 import Data.Functor.Contravariant
---import Data.Functor.Rep as Functor
 import Data.Profunctor
 import Data.Profunctor.Rep as Profunctor
 import Data.Profunctor.Sieve
 
 import Prelude
-
 
 instance Contravariant f => Contravariant (Star f a) where
   contramap f (Star g) = Star $ contramap f . g
@@ -35,18 +35,10 @@ instance Comonad f => Strong (Costar f) where
 
 run1 t (Fold h z k) = k (h z t)
 prefix1 a = run1 a . duplicate
+
 instance Distributive (Fold a) where
-  --distribute = distributeRep
---  distribute x = Fold (\fm a -> fmap (\a -> run1 a . duplicate) fm) x (fmap extract)
   distribute x = Fold (\fm a -> fmap (prefix1 a) fm) x (fmap extract)
   {-# INLINE distribute #-}
-
-{-
-instance Functor.Representable (Fold a) where
-  type Rep (Fold a) = [a]
-  index = cosieve
-  tabulate = cotabulate
--}
 
 instance Costrong Fold where
   unfirst = unfirstCorep

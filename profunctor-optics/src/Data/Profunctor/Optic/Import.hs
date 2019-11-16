@@ -37,8 +37,6 @@ import Data.Tagged           as Export
 import Data.Void as Export
 import Prelude as Export hiding (Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)
 
---lower = colift
-
 pliftW :: Corepresentable p => Monoid (Corep p a) => (b -> c -> d) -> p a b -> p a c -> p a d
 pliftW f x y = cotabulate $ liftW2 f (cosieve x) (cosieve y)
 

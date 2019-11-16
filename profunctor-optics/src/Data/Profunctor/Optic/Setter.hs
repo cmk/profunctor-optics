@@ -1,4 +1,10 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeOperators         #-}
+{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Setter (
     -- * Types
     Setter
@@ -59,7 +65,6 @@ module Data.Profunctor.Optic.Setter (
 
 import Control.Applicative (liftA)
 import Control.Exception (Exception(..))
-import Control.Monad.IO.Unlift
 import Control.Monad.State as State hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Data.Foldable (Foldable, foldMap)
