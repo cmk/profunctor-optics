@@ -134,13 +134,13 @@ instance Closed (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (WithIndex a b) where
-  cosieve (GrateRep f) (WithIndex g) = f g
+instance Cosieve (GrateRep a b) (Indexed a b) where
+  cosieve (GrateRep f) (Indexed g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = WithIndex a b
+  type Corep (GrateRep a b) = Indexed a b
 
-  cotabulate f = GrateRep $ f . WithIndex
+  cotabulate f = GrateRep $ f . Indexed
 
 ---------------------------------------------------------------------
 -- Primitive operators

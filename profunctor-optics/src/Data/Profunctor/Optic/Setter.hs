@@ -19,7 +19,6 @@ module Data.Profunctor.Optic.Setter (
   , setter
   , resetter
   , closing
-  , closingf
   , (<%>)
   , toSemiring
   , fromSemiring
@@ -69,7 +68,7 @@ import Control.Monad.State as State hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
-import Data.Profunctor.Optic.Iso (WithStore(..), WithIndex(..), withTrivial)
+import Data.Profunctor.Optic.Iso (Context(..), Indexed(..), trivial)
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Type
 import Data.Semiring
@@ -117,7 +116,7 @@ import qualified Control.Exception as Ex
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = dimap (flip WithStore id) (\(WithStore s ab) -> abst ab s) . lift collect
+setter abst = dimap (flip Context id) (\(Context s ab) -> abst ab s) . lift collect
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
@@ -139,17 +138,12 @@ setter abst = dimap (flip WithStore id) (\(WithStore s ab) -> abst ab s) . lift 
 -- See 'Data.Profunctor.Optic.Property'.
 --
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> WithIndex $ \ab -> abst ab s) withTrivial . colift (\f -> fmap f . sequence1)
+resetter abst = dimap (\s -> Indexed $ \ab -> abst ab s) trivial . colift (\f -> fmap f . sequence1)
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
-
--- | TODO: Document
---
-closingf :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
-closingf f = dimap pureTaskF (f . runTask) . lift collect
 
 infixl 6 <%>
 
@@ -653,17 +647,3 @@ l <>= a = State.modify (l <>~ a)
 (><=) :: MonadState s m => Semiring a => ASetter' s a -> a -> m ()
 l ><= a = State.modify (l ><~ a)
 {-# INLINE (><=) #-}
-
----------------------------------------------------------------------
--- Internal
----------------------------------------------------------------------
-
-newtype Task i k v = Task { runTask :: forall f. Functor f => (i -> f k) -> f v }
-
-instance Functor (Task i k) where
-  fmap f (Task fps) = Task $ (fmap f) . fps
-  {-# INLINE fmap #-}
-
-pureTaskF :: a -> Task a b b
-pureTaskF a = Task $ \aft -> fmap id (aft a)
-{-# INLINE pureTaskF #-}

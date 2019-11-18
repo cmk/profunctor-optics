@@ -209,24 +209,24 @@ instance Choice (Traversal0Rep u v) where
       (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
-instance Sieve (Traversal0Rep a b) (WithStore0 a b) where
-  sieve (Traversal0Rep sta sbt) s = WithStore0 (sbt s) (sta s)
+instance Sieve (Traversal0Rep a b) (Context0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Context0 (sbt s) (sta s)
 
 instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = WithStore0 a b
+  type Rep (Traversal0Rep a b) = Context0 a b
 
   tabulate f = Traversal0Rep (\s -> info0 (f s)) (\s -> values0 (f s))
 
-data WithStore0 a b t = WithStore0 (b -> t) (t + a)
+data Context0 a b t = Context0 (b -> t) (t + a)
 
-values0 :: WithStore0 a b t -> b -> t
-values0 (WithStore0 bt _) = bt
+values0 :: Context0 a b t -> b -> t
+values0 (Context0 bt _) = bt
 
-info0 :: WithStore0 a b t -> t + a
-info0 (WithStore0 _ a) = a
+info0 :: Context0 a b t -> t + a
+info0 (Context0 _ a) = a
 
-instance Functor (WithStore0 a b) where
-  fmap f (WithStore0 bt ta) = WithStore0 (f . bt) (first f ta)
+instance Functor (Context0 a b) where
+  fmap f (Context0 bt ta) = Context0 (f . bt) (first f ta)
   {-# INLINE fmap #-}
 
 ---------------------------------------------------------------------

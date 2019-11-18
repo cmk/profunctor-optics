@@ -105,7 +105,7 @@ relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
 vllens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-vllens o = dimap ((info &&& values) . o (flip WithStore id)) (uncurry id . swp) . first'
+vllens o = dimap ((info &&& values) . o (flip Context id)) (uncurry id . swp) . first'
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --
@@ -164,11 +164,11 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
 
-instance Sieve (LensRep a b) (WithStore a b) where
-  sieve (LensRep sa sbt) s = WithStore (sa s) (sbt s)
+instance Sieve (LensRep a b) (Context a b) where
+  sieve (LensRep sa sbt) s = Context (sa s) (sbt s)
 
 instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = WithStore a b
+  type Rep (LensRep a b) = Context a b
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
