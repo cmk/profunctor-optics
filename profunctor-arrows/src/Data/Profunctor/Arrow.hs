@@ -65,11 +65,11 @@ inr = arr Right
 {-# INLINE inr #-}
 
 braid :: Category p => Profunctor p => p (a , b) (b , a)
-braid = arr swp
+braid = arr swap
 {-# INLINE braid #-}
 
 ebraid :: Category p => Profunctor p => p (a + b) (b + a)
-ebraid = arr eswp
+ebraid = arr eswap
 {-# INLINE ebraid #-}
 
 loop :: Costrong p => p (a, d) (b, d) -> p a b
@@ -104,13 +104,13 @@ returnA = C.id
 infixr 3 ***
 
 (***) :: Category p => Strong p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-x *** y = first x >>> arr swp >>> first y >>> arr swp
+x *** y = first x >>> arr swap >>> first y >>> arr swap
 {-# INLINE (***) #-}
 
 infixr 2 +++
 
 (+++) :: Category p => Choice p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-x +++ y = left x >>> arr eswp >>> left y >>> arr eswp
+x +++ y = left x >>> arr eswap >>> left y >>> arr eswap
 {-# INLINE (+++) #-}
 
 infixr 3 &&&

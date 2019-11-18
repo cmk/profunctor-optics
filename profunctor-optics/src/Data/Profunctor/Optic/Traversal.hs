@@ -6,47 +6,70 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal (
-    -- * Types
-    Traversal0
-  , Traversal0'
-  , ATraversal0 
-  , ATraversal0'
+    -- * Traversal & Ixtraversal
+    Representable(..)
   , Traversal
   , Traversal'
+  , Ixtraversal
+  , Ixtraversal'
   , ATraversal
   , ATraversal'
+  , traversal
+  , ixtraversal
+  , traversing
+  , traversalVl
+  , ixtraversalVl
+  , ixtraversalVl'
+  , indexing
+    -- * Cotraversal & Cxtraversal
+  , Corepresentable(..)
+  , Cotraversal
+  , Cotraversal'
+  , Cxtraversal
+  , Cxtraversal'
+  , ACotraversal
+  , ACotraversal'
+  , cotraversal
+  , cotraversing
+  , retraversing
+  , cotraversalVl
+  , cxtraversalVl
+    -- * Traversal0 & Ixtraversal0
+  , Traversal0
+  , Traversal0'
+  , Ixtraversal0
+  , Ixtraversal0'
+  , ATraversal0 
+  , ATraversal0'
+  , traversal0
+  , traversal0'
+  , ixtraversal0
+  , ixtraversal0'
+  , traversal0Vl
+  , ixtraversal0Vl
+    -- * Traversal1
   , Traversal1
   , Traversal1'
   , ATraversal1
   , ATraversal1'
-  , Cotraversal
-  , Cotraversal'
-  , ACotraversal
-  , ACotraversal'
-    -- * Constructors
-  , traversal0
-  , traversal0'
-  , traversal
   , traversal1
-  , traversing0
-  , traversing
-  , traversing1
-  , cotraversing
+  , traversal1Vl
     -- * Representatives
+  , Star(..)
+  , Costar(..)
   , Traversal0Rep(..)
     -- * Primitive operators
   , withTraversal0
-  , matchOf
   , traverseOf
-  , traverse1Of
-  , cotraverseOf
   , sequenceOf
-  , sequence1Of
+  , cotraverseOf
   , distributeOf
-    -- * Common optics
-  , traversed 
-  , traversed1
+  , traverse1Of
+  , sequence1Of
+    -- * Optics
+  , traversed
   , cotraversed
+  , traversed1
   , nulled
   , both
   , both1
@@ -58,62 +81,59 @@ module Data.Profunctor.Optic.Traversal (
   , repeated 
   , iterated
   , cycled 
-    -- * Derived operators
+  , ixat
+    -- * Operators
+  , is
+  , isnt
   , matches
 ) where
 
 import Data.Bifunctor (first, second)
 import Data.Bitraversable
+import Data.List.Index
 import Data.Semigroup.Bitraversable
-import Data.Profunctor.Optic.Lens (lens)
+import Data.Profunctor.Optic.Lens hiding (first, second, unit)
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Prism (prism)
+import Data.Profunctor.Optic.Grate
 import Data.Profunctor.Optic.Type
+import Data.Semiring
+import Control.Monad.Trans.State
+
+import qualified Data.Bifunctor as B
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
+-- >>> :set -XFlexibleContexts
 -- >>> :set -XTypeApplications
+-- >>> :set -XTupleSections
+-- >>> :set -XRankNTypes
 -- >>> import Data.Maybe
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
+-- >>> import Data.List.Index
 -- >>> :load Data.Profunctor.Optic
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
 
 ---------------------------------------------------------------------
--- 'Traversal0', 'Traversal', 'Traversal1', & 'Cotraversal'
+-- 'Traversal' & 'Ixtraversal'
 ---------------------------------------------------------------------
 
--- | Create a 'Traversal0' from a constructor and a matcher.
+-- | Obtain a 'Traversal' directly. 
 --
--- /Caution/: In order for the 'Traversal0' to be well-defined,
--- you must ensure that the input functions satisfy the following
--- properties:
---
--- * @sta (sbt (a, s)) ≡ either (Left . const a) Right (sta s)@
---
--- * @either (\a -> sbt (a, s)) id (sta s) ≡ s@
---
--- * @sbt (a2, (sbt (a1, s))) ≡ sbt (a2, s)@
---
--- More generally, a profunctor optic must be monoidal as a natural 
--- transformation:
--- 
--- * @o id ≡ id@
---
--- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
---
--- See 'Data.Profunctor.Optic.Property'.
---
-traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-traversal0 sta sbt = dimap f g . right' . first'
-  where f s = (,s) <$> sta s
-        g = id ||| (uncurry . flip $ sbt)
+traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
+traversal sa sbt = lens sa sbt . repn traverse
 
--- | Obtain a 'Traversal0'' from a constructor and a matcher function.
+-- | Obtain an indexed 'Lens' from an indexed getter and a setter.
 --
-traversal0' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
-traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
+-- Compare 'traversal' and 'Data.Profunctor.Optic.Lens.ixlens'.
+--
+ixtraversal :: Monoid i => Traversable f => (s -> (i , f a)) -> (s -> f b -> t) -> Ixtraversal i s t a b
+ixtraversal sia sbt = ixlens sia sbt . (repn $ \iab -> traverse (curry iab mempty) . snd)
 
--- | Obtain a 'Traversal' from a getter and setter.
+-- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
@@ -134,23 +154,18 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = lens sa sbt . lift traverse
-
--- | Obtain a 'Traversal1' optic from a getter and setter.
+-- @
+--  'withLens' o 'traversing' ≡ 'traversed' . o
+-- @
 --
--- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
+-- The resulting optic can detect copies of the lens stucture inside
+-- any 'Traversable' container. For example:
 --
-traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = lens sa sbt . lift traverse1
-
--- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
+-- >>> lists (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
+-- "foobar"
 --
-traversing0 :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
-  where
-    match s = f Right Left s
-    update s b = runIdentity $ f Identity (\_ -> Identity b) s
+traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
+traversing bsa bt = repn traverse . lens bsa bt
 
 -- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --
@@ -163,8 +178,169 @@ traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id eb
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversing abst = tabulate . abst . sieve
+traversalVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversalVl abst = tabulate . abst . sieve
+
+-- | Lift an indexed VL traversal into an indexed profunctor traversal.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const pure) ≡ pure@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixtraversalVl :: (forall f. Applicative f => (i -> a -> f b) -> s -> f t) -> Ixtraversal i s t a b
+ixtraversalVl f = traversalVl $ \iab -> f (curry iab) . snd
+
+-- | Lift a VL traversal into an indexed profunctor traversal that ignores its input.
+--
+-- Useful as the first optic in a chain when no indexed equivalent is at hand.
+--
+-- >>> ixlists (ixtraversalVl' traverse . ixtraversed) ["foo", "bar"]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+-- >>> ixlists (ixtraversed . ixtraversalVl' traverse) ["foo", "bar"]
+-- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
+--
+ixtraversalVl' :: Monoid i => (forall f. Applicative f => (a -> f b) -> s -> f t) -> Ixtraversal i s t a b
+ixtraversalVl' f = ixtraversalVl $ \iab -> f (iab mempty)
+
+-- | Statefully index a traversal.
+--
+-- >>> ixlists (indexing traversed . ixtraversed) ["foo", "bar"]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+-- >>> ixlists (ixtraversed . indexing traversed) ["foo", "bar"]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+--
+indexing :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
+indexing abst =
+  ixtraversalVl $ \f s ->
+    flip evalState mempty . getCompose . flip runStar s . abst . Star $ \a ->
+      Compose $ (f <$> get <*> pure a) <* modify (<> unit) 
+
+---------------------------------------------------------------------
+-- 'Cotraversal' & 'Cxtraversal'
+---------------------------------------------------------------------
+
+-- | Obtain a 'Cotraversal' directly. 
+--
+cotraversal :: Distributive g => (g b -> s -> g a) -> (g b -> t) -> Cotraversal s t a b
+cotraversal bsa bt = colens bsa bt . corepn cotraverse
+
+-- | Obtain a 'Cotraversal' by lifting a grate continuation into a 'Distributive' functor. 
+--
+-- @
+--  'withGrate' o 'cotraversing' ≡ 'cotraversed' . o
+-- @
+--
+cotraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal (g s) (g t) a b
+cotraversing sabt = corepn cotraverse . grate sabt
+
+-- | Obtain a 'Cotraversal' by lifting a reversed lens getter and setter into a 'Distributive' functor.
+--
+-- @
+--  'withColens' o 'retraversing' ≡ 'cotraversed' . o
+-- @
+--
+retraversing :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal (g s) (g t) a b
+retraversing bsa bt = corepn cotraverse . colens bsa bt 
+
+-- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @abst extract ≡ extract@
+--
+-- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cotraversalVl :: (forall f. Comonad f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversalVl abst = cotabulate . abst . cosieve 
+
+-- | Lift an indexed VL cotraversal into a (co-)indexed profunctor cotraversal.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @kabst (const extract) ≡ extract@
+--
+-- * @kabst (const f) . fmap (kabst $ const g) ≡ kabst ((const f) . fmap (const g) . getCompose) . Compose@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cxtraversalVl :: (forall f. Comonad f => (k -> f a -> b) -> f s -> t) -> Cxtraversal k s t a b
+cxtraversalVl kabst = cotraversalVl $ \kab -> const . kabst (flip kab)
+
+---------------------------------------------------------------------
+-- 'Traversal0' & 'Ixtraversal0'
+---------------------------------------------------------------------
+
+-- | Create a 'Traversal0' from a constructor and a matcher.
+--
+-- /Caution/: In order for the 'Traversal0' to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
+--
+-- * @sta (sbt a s) ≡ either (Left . const a) Right (sta s)@
+--
+-- * @either id (sbt s) (sta s) ≡ s@
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
+traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (id ||| uncurry sbt) . right' . second'
+
+-- | Obtain a 'Traversal0'' from a constructor and a matcher function.
+--
+traversal0' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
+traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
+
+-- | TODO: Document
+--
+ixtraversal0 :: (s -> t + (i , a)) -> (s -> b -> t) -> Ixtraversal0 i s t a b
+ixtraversal0 stia sbt = ixtraversal0Vl $ \pur f s -> either pur (fmap (sbt s) . uncurry f) (stia s)
+
+-- | TODO: Document
+--
+ixtraversal0' :: (s -> Maybe (i , a)) -> (s -> a -> s) -> Ixtraversal0' i s a
+ixtraversal0' sia = ixtraversal0 $ \s -> maybe (Left s) Right (sia s) 
+
+-- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
+--
+traversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversal0Vl f = dimap (\s -> (s,) <$> eswap (sat s)) (id ||| uncurry sbt) . right' . second'
+  where
+    sat s = f Right Left s
+    sbt s b = runIdentity $ f Identity (\_ -> Identity b) s
+
+-- | Transform an indexed Van Laarhoven 'Traversal0' into an indexed profunctor 'Traversal0'.
+--
+ixtraversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (i -> a -> f b) -> s -> f t) -> Ixtraversal0 i s t a b
+ixtraversal0Vl f = traversal0Vl $ \cc iab -> f cc (curry iab) . snd
+
+---------------------------------------------------------------------
+-- 'Traversal1'
+---------------------------------------------------------------------
+
+-- | Obtain a 'Traversal1' optic from a getter and setter.
+--
+-- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
+--
+traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
+traversal1 sa sbt = lens sa sbt . repn traverse1
 
 -- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
@@ -175,13 +351,8 @@ traversing abst = tabulate . abst . sieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
-traversing1 abst = tabulate . abst . sieve 
-
--- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
---
-cotraversing :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversing abst = cotabulate . abst . cosieve 
+traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+traversal1Vl abst = tabulate . abst . sieve 
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'
@@ -209,24 +380,24 @@ instance Choice (Traversal0Rep u v) where
       (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
-instance Sieve (Traversal0Rep a b) (Context0 a b) where
-  sieve (Traversal0Rep sta sbt) s = Context0 (sbt s) (sta s)
+instance Sieve (Traversal0Rep a b) (Index0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Index0 (sta s) (sbt s)
 
 instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = Context0 a b
+  type Rep (Traversal0Rep a b) = Index0 a b
 
-  tabulate f = Traversal0Rep (\s -> info0 (f s)) (\s -> values0 (f s))
+  tabulate f = Traversal0Rep (info0 . f) (values0 . f)
 
-data Context0 a b t = Context0 (b -> t) (t + a)
+data Index0 a b r = Index0 (r + a) (b -> r)
 
-values0 :: Context0 a b t -> b -> t
-values0 (Context0 bt _) = bt
+values0 :: Index0 a b r -> b -> r
+values0 (Index0 _ br) = br
 
-info0 :: Context0 a b t -> t + a
-info0 (Context0 _ a) = a
+info0 :: Index0 a b r -> r + a
+info0 (Index0 a _) = a
 
-instance Functor (Context0 a b) where
-  fmap f (Context0 bt ta) = Context0 (f . bt) (first f ta)
+instance Functor (Index0 a b) where
+  fmap f (Index0 ra br) = Index0 (first f ra) (f . br)
   {-# INLINE fmap #-}
 
 ---------------------------------------------------------------------
@@ -236,19 +407,7 @@ instance Functor (Context0 a b) where
 -- | TODO: Document
 --
 withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
-withTraversal0 o f = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> f x y
-
--- | Retrieve the value targeted by a 'Traversal0' or return the original.
---
---
--- Allows the type to change if the optic does not match.
---
--- @
--- 'preview' o ≡ 'either' ('const' 'Nothing') 'id' . 'matchOf' o
--- @
---
-matchOf :: ATraversal0 s t a b -> s -> t + a
-matchOf o = withTraversal0 o $ \match _ -> match
+withTraversal0 o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
 
 -- | 
 --
@@ -274,7 +433,26 @@ matchOf o = withTraversal0 o $ \match _ -> match
 traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
 traverseOf o = runStar #. o .# Star
 
--- | 
+-- | TODO: Document
+--
+sequenceOf :: Applicative f => ATraversal f s t (f a) a -> s -> f t
+sequenceOf t = traverseOf t id
+
+-- | TODO: Document
+--
+-- @
+-- 'cotraverseOf' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
+-- @
+--
+cotraverseOf :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
+cotraverseOf o = runCostar #. o .# Costar
+
+-- | TODO: Document
+--
+distributeOf :: Comonad f => ACotraversal f s t a (f a) -> f s -> t
+distributeOf t = cotraverseOf t id
+
+-- |
 --
 -- The traversal laws can be stated in terms or 'traverse1Of':
 -- 
@@ -300,27 +478,8 @@ traverse1Of o = runStar #. o .# Star
 
 -- | TODO: Document
 --
--- @
--- 'cotraverseOf' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
--- @
---
-cotraverseOf :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf o = runCostar #. o .# Costar
-
--- | TODO: Document
---
-sequenceOf :: Applicative f => ATraversal f s t (f a) a -> s -> f t
-sequenceOf t = traverseOf t id
-
--- | TODO: Document
---
 sequence1Of :: Apply f => ATraversal1 f s t (f a) a -> s -> f t
 sequence1Of t = traverse1Of t id
-
--- | TODO: Document
---
-distributeOf :: ComonadApply f => ACotraversal f s t a (f a) -> f s -> t
-distributeOf t = cotraverseOf t id
 
 ---------------------------------------------------------------------
 -- Common 'Traversal0's, 'Traversal's, 'Traversal1's, & 'Cotraversal's
@@ -329,17 +488,17 @@ distributeOf t = cotraverseOf t id
 -- | TODO: Document
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = traversing traverse
+traversed = traversalVl traverse
 
 -- | Obtain a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = traversing1 traverse1
+traversed1 = traversal1Vl traverse1
 
 -- | TODO: Document
 --
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cotraversing cotraverse
+cotraversed = cotraversalVl cotraverse
 
 -- | TODO: Document
 --
@@ -365,7 +524,7 @@ both1 p = dimap fst (,) p <<.>> lmap snd p
 
 -- | Duplicate the results of any 'Fold'. 
 --
--- >>> toListOf (both . duplicated) ("hello","world")
+-- >>> lists (both . duplicated) ("hello","world")
 -- ["hello","hello","world","world"]
 --
 duplicated :: Traversal a b a b
@@ -388,7 +547,7 @@ duplicated p = pappend p p
 -- @
 --
 bitraversed :: Bitraversable f => Traversal (f a a) (f b b) a b
-bitraversed = lift $ \f -> bitraverse f f
+bitraversed = repn $ \f -> bitraverse f f
 {-# INLINE bitraversed #-}
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
@@ -401,12 +560,17 @@ bitraversed = lift $ \f -> bitraverse f f
 -- @
 --
 bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
-bitraversed1 = lift $ \f -> bitraverse1 f f
+bitraversed1 = repn $ \f -> bitraverse1 f f
 {-# INLINE bitraversed1 #-}
 
 -- | TODO: Document
 --
 -- See also 'Data.Profunctor.Optic.Prism.keyed'.
+--
+-- >>>  preview (selected even) (2, "hi")
+-- Just "hi"
+-- >>>  preview (selected even) (3, "hi")
+-- Nothing
 --
 selected :: (a -> Bool) -> Traversal0' (a, b) b
 selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
@@ -418,7 +582,7 @@ selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k t
 -- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
 --
 -- @
--- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
+-- 'predicated' p ≡ 'traversal0Vl' $ \point f a -> if p a then f a else point a
 -- @
 --
 -- >>> [1..10] ^.. folded . predicated even
@@ -430,10 +594,10 @@ predicated :: (a -> Bool) -> Traversal0' a a
 predicated p = traversal0 (branch' p) (flip const)
 {-# INLINE predicated #-}
 
--- | Form a 'Traversal1'' by repeating the input forever.
+-- | Obtain a 'Traversal1'' by repeating the input forever.
 --
 -- @
--- 'repeat' ≡ 'toListOf' 'repeated'
+-- 'repeat' ≡ 'lists' 'repeated'
 -- @
 --
 -- >>> take 5 $ 5 ^.. repeated
@@ -444,13 +608,13 @@ predicated p = traversal0 (branch' p) (flip const)
 -- @
 --
 repeated :: Traversal1' a a
-repeated = lift $ \g a -> go g a where go g a = g a .> go g a
+repeated = repn $ \g a -> go g a where go g a = g a .> go g a
 {-# INLINE repeated #-}
 
 -- | @x '^.' 'iterated' f@ returns an infinite 'Traversal1'' of repeated applications of @f@ to @x@.
 --
 -- @
--- 'toListOf' ('iterated' f) a ≡ 'iterate' f a
+-- 'lists' ('iterated' f) a ≡ 'iterate' f a
 -- @
 --
 -- >>> take 3 $ (1 :: Int) ^.. iterated (+1)
@@ -460,10 +624,10 @@ repeated = lift $ \g a -> go g a where go g a = g a .> go g a
 -- iterated :: (a -> a) -> 'Fold1' a a
 -- @
 iterated :: (a -> a) -> Traversal1' a a
-iterated f = lift $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
+iterated f = repn $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 {-# INLINE iterated #-}
 
--- | Transform a 'Traversal1'' into a 'Traversal1'' that loops lift its elements repeatedly.
+-- | Transform a 'Traversal1'' into a 'Traversal1'' that loops repn its elements repeatedly.
 --
 -- >>> take 7 $ (1 :| [2,3]) ^.. cycled traversed1
 -- [1,2,3,1,2,3,1]
@@ -471,19 +635,49 @@ iterated f = lift $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 -- @
 -- cycled :: 'Fold1' s a -> 'Fold1' s a
 -- @
+--
 cycled :: Apply f => ATraversal1' f s a -> ATraversal1' f s a
-cycled o = lift $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
+cycled o = repn $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 {-# INLINE cycled #-}
 
+-- | A 'Traversal0' focused on a given index of a list.
+--
+-- >>> ixset (ixat 2) (const 0) [1,2,3 :: Int]
+-- [1,2,0]
+--
+ixat :: Int -> Ixtraversal0' Int [a] a
+ixat i = ixtraversal0' (ifind $ \n _ -> n == i) $ \s a -> modifyAt i (const a) s
+
 ---------------------------------------------------------------------
--- Derived operators
+-- Operators
 ---------------------------------------------------------------------
+
+-- | Check whether the optic is matched.
+--
+-- >>> is just Nothing
+-- False
+--
+is :: ATraversal0 s t a b -> s -> Bool
+is o = either (const False) (const True) . matches o
+{-# INLINE is #-}
+
+-- | Check whether the optic isn't matched.
+--
+-- >>> isnt just Nothing
+-- True
+--
+isnt :: ATraversal0 s t a b -> s -> Bool
+isnt o = either (const True) (const False) . matches o
+{-# INLINE isnt #-}
 
 -- | Test whether the optic matches or not.
 --
--- >>> matches just Nothing
--- False
+-- >>> matches just (Just 2)
+-- Right 2
 --
-matches :: ATraversal0 s t a b -> s -> Bool
-matches o = either (const False) (const True) . matchOf o
+-- >>> matches just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
+-- Left Nothing
+--
+matches :: ATraversal0 s t a b -> s -> t + a
+matches o = withTraversal0 o $ \sta _ -> sta
 {-# INLINE matches #-}

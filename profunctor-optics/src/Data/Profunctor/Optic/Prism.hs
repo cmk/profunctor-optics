@@ -6,28 +6,32 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Prism (
-    -- * Types
-    Prism
+    -- * Prism & Cxprism
+    Choice(..)
+  , Prism
   , Prism'
+  , Cxprism
+  , Cxprism'
   , APrism
   , APrism'
+  , prism
+  , prism'
+  , cxprism
+  , handling
+  , clonePrism
+    -- * Coprism & Ixprism
+  , Cochoice(..)
   , Coprism
   , Coprism'
+  , Ixprism
+  , Ixprism'
   , ACoprism
   , ACoprism'
-    -- * Constructors
-  , prism
-  , prism' 
   , coprism
   , coprism'
-  , handling
+  , ixprism
+  , ixprism'
   , rehandling
-  , aside
-  , without
-  , below
-  , toPastroSum
-  , toTambaraSum
-  , clonePrism
   , cloneCoprism
     -- * Representatives
   , PrismRep(..)
@@ -35,12 +39,15 @@ module Data.Profunctor.Optic.Prism (
     -- * Primitive operators
   , withPrism
   , withCoprism
-    -- * Common optics
+    -- * Optics
   , left
   , right
-  , rleft
-  , rright
+  , coleft
+  , coright
+  , ixleft
+  , ixright
   , just
+  , cxjust
   , nothing
   , keyed
   , filtered
@@ -53,15 +60,21 @@ module Data.Profunctor.Optic.Prism (
   , async
   , exception
   , asyncException
+    -- * Operators
+  , aside
+  , without
+  , below
+  , toPastroSum
+  , toTambaraSum
 ) where
 
 import Control.Exception
 import Control.Monad (guard)
-import Data.Bifunctor
+import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix)
 import Data.Prd
-import Data.Profunctor.Choice (PastroSum(..), TambaraSum(..))
+import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Type
@@ -70,10 +83,12 @@ import Data.Profunctor.Optic.Type
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XRankNTypes
 -- >>> :load Data.Profunctor.Optic
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
 
 ---------------------------------------------------------------------
--- 'Prism'
+-- 'Prism' & 'Cxprism'
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Prism' from a constructor and a matcher function.
@@ -100,10 +115,31 @@ import Data.Profunctor.Optic.Type
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
 prism sta bt = dimap sta (id ||| bt) . right'
 
--- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
+-- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
+
+-- | Obtain a 'Cxprism'' from a reviewer and a matcher function that returns either a match or a failure handler.
+--
+cxprism :: (s -> (k -> t) + a) -> (b -> t) -> Cxprism k s t a b
+cxprism skta bt = prism skta (bt .)
+
+-- | Obtain a 'Prism' from its free tensor representation.
+--
+-- Useful for constructing prisms from try and handle functions.
+--
+handling :: (s -> c + a) -> (c + b -> t) -> Prism s t a b
+handling sca cbt = dimap sca cbt . right'
+
+-- | TODO: Document
+--
+clonePrism :: APrism s t a b -> Prism s t a b
+clonePrism o = withPrism o prism
+
+---------------------------------------------------------------------
+-- 'Coprism' & 'Ixprism'
+---------------------------------------------------------------------
 
 -- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
 --
@@ -130,76 +166,23 @@ coprism sa bat = unright . dimap (id ||| sa) bat
 
 -- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
 --
-coprism' :: (t -> b) -> (b -> Maybe t) -> Coprism' t b
+coprism' :: (s -> a) -> (a -> Maybe s) -> Coprism' s a
 coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
 
--- | Obtain a 'Prism' from its free tensor representation.
+-- | Obtain an 'Ixprism' from an indexed reviewer and a matcher function.
 --
--- Useful for constructing prisms from try and handle functions.
+ixprism :: Monoid r => (r -> s -> a) -> (b -> a + t) -> Ixprism r s t a b
+ixprism rsa bat = coprism (const mempty &&& uncurry rsa) (B.first (mempty,) . bat)
+
+-- | Obtain an 'Ixprism'' from an indexed reviewer and a matcher function that produces a 'Maybe'.
 --
-handling :: (s -> c + a) -> (c + b -> t) -> Prism s t a b
-handling sca cbt = dimap sca cbt . right'
+ixprism' :: Monoid r => (r -> s -> a) -> (a -> Maybe s) -> Ixprism' r s a
+ixprism' rsa = coprism' (rsa mempty)
 
 -- | Obtain a 'Coprism' from its free tensor representation.
 --
 rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
 rehandling csa bct = unright . dimap csa bct
-
--- | Use a 'Prism' to lift part of a structure.
---
-aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
-aside k =
-  withPrism k $ \sta bt ->
-    flip prism (fmap bt) $ \(e,s) ->
-      case sta s of
-        Left t  -> Left  (e,t)
-        Right a -> Right (e,a)
-{-# INLINE aside #-}
-
--- | Given a pair of prisms, project sums.
-without :: APrism s t a b -> APrism u v c d -> Prism (s + u) (t + v) (a + c) (b + d)
-without k =
-  withPrism k $ \sta bt k' ->
-    withPrism k' $ \uevc dv ->
-      flip prism (bimap bt dv) $ \su ->
-        case su of
-          Left s  -> bimap Left Left (sta s)
-          Right u -> bimap Right Right (uevc u)
-{-# INLINE without #-}
-
--- | Lift a 'Prism' through a 'Traversable' functor.
--- 
--- Returns a 'Prism' that matches only if each element matches the original 'Prism'.
---
--- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right
--- []
---
--- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right
--- [["hail hydra!","foo","blah","woot"]]
---
-below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
-below k =
-  withPrism k $ \sta bt ->
-    flip prism (fmap bt) $ \s ->
-      case traverse sta s of
-        Left _  -> Left s
-        Right t -> Right t
-{-# INLINE below #-}
-
--- | Use a 'Prism' to construct a 'PastroSum'.
---
-toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
-toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (eswp . sta)
-
--- | Use a 'Prism' to construct a 'TambaraSum'.
---
-toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
-toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left . prism sta bt $ p)
-
--- | TODO: Document
---
-clonePrism :: APrism s t a b -> Prism s t a b
-clonePrism o = withPrism o prism
 
 -- | TODO: Document
 --
@@ -290,18 +273,39 @@ right = right'
 
 -- | 'Coprism' out of the `Left` constructor of `Either`.
 --
-rleft :: Coprism a b (a + c) (b + c)
-rleft = unleft
+coleft :: Coprism a b (a + c) (b + c)
+coleft = unleft
 
 -- | 'Coprism' out of the `Right` constructor of `Either`.
 --
-rright :: Coprism a b (c + a) (c + b)
-rright = unright
+coright :: Coprism a b (c + a) (c + b)
+coright = unright
+
+-- | Indexed 'Ixprism' out of the `Left` constructor of `Either`.
+--
+-- >>> ixview ixleft 7
+-- (Just (),Left 7)
+--
+ixleft :: Monoid r => Ixprism r a b (a + c) (b + c)
+ixleft = unleft . lmap (either (fmap Left) ((mempty,) . Right))
+
+-- | Indexed 'Ixprism' out of the `Right` constructor of `Either`.
+--
+ixright :: Monoid r => Ixprism r a b (c + a) (c + b)
+ixright = unright . lmap (either ((mempty,) . Left) (fmap Right))
 
 -- | 'Prism' into the `Just` constructor of `Maybe`.
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
+
+-- | 'Cxprism' into the `Just` constructor of `Maybe`.
+--
+-- cxmatches (catchOn 0) Nothing 0
+-- Left (Just "caught")
+--
+cxjust :: (k -> Maybe b) -> Cxprism k (Maybe a) (Maybe b) a b
+cxjust kb = flip cxprism Just $ maybe (Left $ kb) Right
 
 -- | 'Prism' into the `Nothing` constructor of `Maybe`.
 --
@@ -369,3 +373,58 @@ exception = prism' fromException toException
 --
 asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- | Use a 'Prism' to lift part of a structure.
+--
+aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
+aside k =
+  withPrism k $ \sta bt ->
+    flip prism (fmap bt) $ \(e,s) ->
+      case sta s of
+        Left t  -> Left  (e,t)
+        Right a -> Right (e,a)
+{-# INLINE aside #-}
+
+-- | Given a pair of prisms, project sums.
+without :: APrism s t a b -> APrism u v c d -> Prism (s + u) (t + v) (a + c) (b + d)
+without k =
+  withPrism k $ \sta bt k' ->
+    withPrism k' $ \uevc dv ->
+      flip prism (bimap bt dv) $ \su ->
+        case su of
+          Left s  -> bimap Left Left (sta s)
+          Right u -> bimap Right Right (uevc u)
+{-# INLINE without #-}
+
+-- | Lift a 'Prism' through a 'Traversable' functor.
+-- 
+-- Returns a 'Prism' that matches only if each element matches the original 'Prism'.
+--
+-- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right
+-- []
+--
+-- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right
+-- [["hail hydra!","foo","blah","woot"]]
+--
+below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
+below k =
+  withPrism k $ \sta bt ->
+    flip prism (fmap bt) $ \s ->
+      case traverse sta s of
+        Left _  -> Left s
+        Right t -> Right t
+{-# INLINE below #-}
+
+-- | Use a 'Prism' to construct a 'PastroSum'.
+--
+toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
+toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswap . sta)
+
+-- | Use a 'Prism' to construct a 'TambaraSum'.
+--
+toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
+toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left . prism sta bt $ p)

@@ -4,8 +4,8 @@ module Data.Profunctor.Extra (
   , rgt'
   , lft
   , lft'
-  , swp
-  , eswp
+  , swap
+  , eswap
   , fork
   , join
   , eval
@@ -13,12 +13,13 @@ module Data.Profunctor.Extra (
   , coeval 
   , branch
   , branch'
-  , distl 
-  , distr
   , assocl
   , assocr
+  , assocl' 
+  , assocr'
   , eassocl
   , eassocr
+  , eassocr'
   , forget1
   , forget2
   , forgetl
@@ -38,8 +39,8 @@ module Data.Profunctor.Extra (
   , choice
   , cochoice
   , pull
-  , lift
-  , colift
+  , repn
+  , corepn
   , star
   , toStar
   , fromStar 
@@ -66,6 +67,7 @@ import Data.Functor.Contravariant
 import Data.Profunctor
 import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
+import Data.Tuple (swap)
 import Data.Void
 import Prelude
 import qualified Control.Category as C (id)
@@ -91,13 +93,9 @@ lft' :: a + Void -> a
 lft' = lft absurd
 {-# INLINE lft' #-}
 
-swp :: (a1 , a2) -> (a2 , a1)
-swp = snd &&& fst
-{-# INLINE swp #-}
-
-eswp :: (a1 + a2) -> (a2 + a1)
-eswp = Right ||| Left
-{-# INLINE eswp #-}
+eswap :: (a1 + a2) -> (a2 + a1)
+eswap = Right ||| Left
+{-# INLINE eswap #-}
 
 fork :: a -> (a , a)
 fork = M.join (,)
@@ -127,14 +125,6 @@ branch' :: (a -> Bool) -> a -> a + a
 branch' f x = branch f x x x
 {-# INLINE branch' #-}
 
-distl :: (a , b + c) -> (a , b) + c
-distl = eswp . traverse eswp
-{-# INLINE distl #-}
-
-distr :: (a + b , c) -> a + (b , c)
-distr (f, b) = fmap (,b) f
-{-# INLINE distr #-}
-
 assocl :: (a , (b , c)) -> ((a , b) , c)
 assocl (a, (b, c)) = ((a, b), c)
 {-# INLINE assocl #-}
@@ -143,17 +133,29 @@ assocr :: ((a , b) , c) -> (a , (b , c))
 assocr ((a, b), c) = (a, (b, c))
 {-# INLINE assocr #-}
 
-eassocl :: (a + (b + c)) -> ((a + b) + c)
+assocl' :: (a , b + c) -> (a , b) + c
+assocl' = eswap . traverse eswap
+{-# INLINE assocl' #-}
+
+assocr' :: (a + b , c) -> a + (b , c)
+assocr' (f, b) = fmap (,b) f
+{-# INLINE assocr' #-}
+
+eassocl :: a + (b + c) -> (a + b) + c
 eassocl (Left a)          = Left (Left a)
 eassocl (Right (Left b))  = Left (Right b)
 eassocl (Right (Right c)) = Right c
 {-# INLINE eassocl #-}
 
-eassocr :: ((a + b) + c) -> (a + (b + c))
+eassocr :: (a + b) + c -> a + (b + c)
 eassocr (Left (Left a))  = Left a
 eassocr (Left (Right b)) = Right (Left b)
 eassocr (Right c)        = Right (Right c)
 {-# INLINE eassocr #-}
+
+eassocr' :: (a -> b) + c -> a -> b + c
+eassocr' abc a = either (\ab -> Left $ ab a) Right abc
+{-# INLINE eassocr' #-}
 
 forget1 :: ((c, a) -> (c, b)) -> a -> b
 forget1 f a = b where (c, b) = f (c, a)
@@ -204,11 +206,11 @@ coercer = rmap absurd . contramap absurd
 {-# INLINE coercer #-}
 
 coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
-coercel' = colift (. phantom)
+coercel' = corepn (. phantom)
 {-# INLINE coercel' #-}
 
 coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
-coercer' = lift (phantom .)
+coercer' = repn (phantom .)
 {-# INLINE coercer' #-}
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
@@ -231,13 +233,13 @@ pull :: Strong p => p a b -> p a (a , b)
 pull = lmap fork . second'
 {-# INLINE pull #-}
 
-lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
-lift f = tabulate . f . sieve
-{-# INLINE lift #-}
+repn :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
+repn f = tabulate . f . sieve
+{-# INLINE repn #-}
 
-colift :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
-colift f = cotabulate . f . cosieve
-{-# INLINE colift #-}
+corepn :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
+corepn f = cotabulate . f . cosieve
+{-# INLINE corepn #-}
 
 star :: Applicative f => Star f a a
 star = Star pure

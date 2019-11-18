@@ -6,24 +6,32 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Lens (
-    -- * Types
-    Lens
+    -- * Lens & Ixlens
+    Strong(..)
+  , Lens
+  , Ixlens
   , Lens'
+  , Ixlens'
   , ALens
   , ALens'
+  , lens
+  , ixlens
+  , lensVl
+  , ixlensVl
+  , matching
+  , cloneLens
+    -- * Colens & Cxlens
+  , Costrong(..)
   , Colens
+  , Cxlens
   , Colens'
+  , Cxlens'
   , AColens
   , AColens'
-    -- * Constructors
-  , lens
-  , vlens
   , colens
-  , matching
-  , rematching
-  , toPastro
-  , toTambara
-  , cloneLens
+  , cxlens
+  , colensVl
+  , comatching
   , cloneColens
     -- * Representatives
   , LensRep(..)
@@ -31,20 +39,24 @@ module Data.Profunctor.Optic.Lens (
     -- * Primitive operators
   , withLens
   , withColens
-    -- * Common optics
+    -- * Optics
   , first
+  , ixfirst
+  , cofirst
   , second
-  , rfirst
-  , rsecond
-    -- * Derived operators
-  , unit
-  , void 
-  , ix
+  , ixsecond
+  , cosecond
+  , united
+  , devoid
+    -- * Operators
+  , toPastro
+  , toTambara
 ) where
 
-import Data.Profunctor.Strong (Pastro(..), Tambara(..))
+import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Indexed
 import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
 import qualified Data.Bifunctor as B
@@ -56,7 +68,7 @@ import qualified Data.Bifunctor as B
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
--- 'Lens' 
+-- 'Lens' & 'Ixlens'
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Lens' from a getter and setter.
@@ -82,21 +94,65 @@ import qualified Data.Bifunctor as B
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
+{-# INLINE lens #-}
+
+-- | Obtain an indexed 'Lens' from an indexed getter and a setter.
+--
+-- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.ixtraversal'.
+--
+ixlens :: (s -> (i , a)) -> (s -> b -> t) -> Ixlens i s t a b
+ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
+{-# INLINE ixlens #-}
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
--- Compare 'Data.Profunctor.Optic.Grate.vlgrate'.
+-- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
-vlens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-vlens o = dimap ((info &&& values) . o (flip Context id)) (uncurry id . swp) . first'
+lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . first'
+{-# INLINE lensVl #-}
+
+-- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
+--
+-- An 'Ixlens' is a valid 'Lens' and a valid 'IxTraversal'. 
+--
+-- Compare 'lensVl' & 'Data.Profunctor.Optic.Traversal.ixtraversalVl'.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const pure) ≡ pure@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixlensVl :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixlens i s t a b
+ixlensVl f = lensVl $ \iab -> f (curry iab) . snd
+{-# INLINE ixlensVl #-}
+
+-- | Obtain a 'Lens' from its free tensor representation.
+--
+matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
+matching sca cbt = dimap sca cbt . second'
+
+-- | TODO: Document
+--
+cloneLens :: ALens s t a b -> Lens s t a b
+cloneLens o = withLens o lens 
+
+---------------------------------------------------------------------
+-- 'Colens' & 'Cxlens'
+---------------------------------------------------------------------
 
 -- | Obtain a 'Colens' from a getter and setter. 
 --
--- * @colens f g ≡ \f g -> re (lens f g)@
---
--- * @review $ colens f g ≡ f@
---
--- * @set . re $ re (lens f g) ≡ g@
+-- @
+-- 'colens' f g ≡ \\f g -> 're' ('lens' f g)
+-- 'colens' bsia bt ≡ 'colensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
+-- 'review' $ 'colens' f g ≡ f
+-- 'set' . 're' $ 're' ('lens' f g) ≡ g
+-- @
 --
 -- A 'Colens' is a 'Review', so you can specialise types to obtain:
 --
@@ -107,30 +163,22 @@ vlens o = dimap ((info &&& values) . o (flip Context id)) (uncurry id . swp) . f
 colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
 colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 
--- | Obtain a 'Lens' from its free tensor representation.
+-- | TODO: Document
 --
-matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
-matching sca cbt = dimap sca cbt . second'
+cxlens :: ((k -> b) -> s -> a) -> (b -> t) -> Cxlens k s t a b
+cxlens bsa bt = colens bsa (bt .)
+
+-- | Transform a Van Laarhoven colens into a profunctor colens.
+--
+-- Compare 'Data.Profunctor.Optic.Grate.grateVl'.
+--
+colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b 
+colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& values) . o (flip Index id))
 
 -- | Obtain a 'Colens' from its free tensor representation.
 --
-rematching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
-rematching csa bct = unsecond . dimap csa bct
-
--- | Use a 'Lens' to construct a 'Pastro'.
---
-toPastro :: ALens s t a b -> p a b -> Pastro p s t
-toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swp) p (\s -> (sa s, s))
-
--- | Use a 'Lens' to construct a 'Tambara'.
---
-toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
-toTambara o p = withLens o $ \sa sbt -> Tambara (first . lens sa sbt $ p)
-
--- | TODO: Document
---
-cloneLens :: ALens s t a b -> Lens s t a b
-cloneLens o = withLens o lens 
+comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
+comatching csa bct = unsecond . dimap csa bct
 
 -- | TODO: Document
 --
@@ -159,11 +207,11 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
 
-instance Sieve (LensRep a b) (Context a b) where
-  sieve (LensRep sa sbt) s = Context (sa s) (sbt s)
+instance Sieve (LensRep a b) (Index a b) where
+  sieve (LensRep sa sbt) s = Index (sa s) (sbt s)
 
 instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = Context a b
+  type Rep (LensRep a b) = Index a b
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
@@ -178,7 +226,7 @@ instance Profunctor (ColensRep a b) where
 
 instance Costrong (ColensRep a b) where
   unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
-    where foo = uncurry baca . shuffle . B.second undefined . swp --TODO: B.second bbc
+    where foo = uncurry baca . shuffle . B.second undefined . swap --TODO: B.second bbc
           shuffle (x,(y,z)) = (y,(x,z))
 
 ---------------------------------------------------------------------
@@ -196,7 +244,7 @@ withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
 withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
 
 ---------------------------------------------------------------------
--- Common lenses 
+-- Optics 
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -206,40 +254,59 @@ first = first'
 
 -- | TODO: Document
 --
+ixfirst :: Ixlens i (a , c) (b , c) a b
+ixfirst = lmap assocl . first'
+
+-- | TODO: Document
+--
+cofirst :: Colens a b (a , c) (b , c)
+cofirst = unfirst
+
+-- | TODO: Document
+--
 second :: Lens (c , a) (c , b) a b
 second = second'
 
 -- | TODO: Document
 --
-rfirst :: Colens a b (a , c) (b , c)
-rfirst = unfirst
+ixsecond :: Ixlens i (c , a) (c , b) a b
+ixsecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
 -- | TODO: Document
 --
-rsecond :: Colens a b (c , a) (c , b)
-rsecond = unsecond
+cosecond :: Colens a b (c , a) (c , b)
+cosecond = unsecond
 
 -- | There is a `Unit` in everything.
 --
--- >>> "hello" ^. unit
+-- >>> "hello" ^. united
 -- ()
--- >>> "hello" & unit .~ ()
+-- >>> "hello" & united .~ ()
 -- "hello"
 --
-unit :: Lens' a ()
-unit = lens (const ()) const
+united :: Lens' a ()
+united = lens (const ()) const
 
 -- | There is everything in a `Void`.
 --
--- >>> [] & fmapped . void <>~ "Void" 
+-- >>> [] & fmapped . devoid <>~ "Void" 
 -- []
--- >>> Nothing & fmapped . void %~ abs
+-- >>> Nothing & fmapped . devoid ..~ abs
 -- Nothing
 --
-void :: Lens' Void a
-void = lens absurd const
+devoid :: Lens' Void a
+devoid = lens absurd const
 
--- | TODO: Document
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- | Use a 'Lens' to construct a 'Pastro'.
 --
-ix :: Eq k => k -> Lens' (k -> v) v
-ix k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
+toPastro :: ALens s t a b -> p a b -> Pastro p s t
+toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
+
+-- | Use a 'Lens' to construct a 'Tambara'.
+--
+toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
+toTambara o p = withLens o $ \sa sbt -> Tambara (first . lens sa sbt $ p)
