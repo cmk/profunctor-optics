@@ -13,8 +13,10 @@ module Data.Profunctor.Optic.Grate  (
   , AGrate'
     -- * Constructors
   , grate
+  , grating
   , inverting
   , toEnvironment
+  , toClosure
   , cloneGrate
     -- * Representatives
   , GrateRep(..)
@@ -26,6 +28,7 @@ module Data.Profunctor.Optic.Grate  (
   , zipWith4Of 
   , zipWithFOf 
     -- * Common optics
+  , closed
   , distributed
   , connected
   , forwarded
@@ -38,16 +41,11 @@ import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
 import Data.Connection (Conn(..))
-import Data.Profunctor.Closed (Environment(..))
+import Data.Profunctor.Closed (Closure(..), Environment(..))
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
-
-import Data.Group
-import Data.Semiring
-import Data.Ring
-import Data.Foldable as Foldable
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -98,15 +96,27 @@ import Data.Foldable as Foldable
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
 
+-- | Transform a Van Laarhoven grate into a profunctor grate.
+--
+-- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversing'.
+--
+grating :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
+grating o = dimap (curry eval) ((o trivial) . Indexed) . closed
+
 -- | Construct a 'Grate' from a pair of inverses.
 --
 inverting :: (s -> a) -> (b -> t) -> Grate s t a b
 inverting sa bt = grate $ \sab -> bt (sab sa)
 
--- | Lift a 'Grate' into an 'Environment'.
+-- | Use a 'Grate' to construct an 'Environment'.
 --
-toEnvironment :: Grate s t a b -> p a b -> Environment p s t
+toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
 toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
+
+-- | Use a 'Grate' to construct a 'Closure'.
+--
+toClosure :: Closed p => AGrate s t a b -> p a b -> Closure p s t
+toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
 
 -- | TODO: Document
 --
@@ -134,13 +144,13 @@ instance Closed (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (WithIndex a b) where
-  cosieve (GrateRep f) (WithIndex g) = f g
+instance Cosieve (GrateRep a b) (Indexed a b) where
+  cosieve (GrateRep f) (Indexed g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = WithIndex a b
+  type Corep (GrateRep a b) = Indexed a b
 
-  cotabulate f = GrateRep $ f . WithIndex
+  cotabulate f = GrateRep $ f . Indexed
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -158,24 +168,24 @@ constOf o b = withGrate o $ \sabt -> sabt (const b)
 
 -- | Zip over a 'Grate'. 
 --
--- @\f -> zipWithOf closed (zipWithOf closed f) === zipWithOf (closed . closed)@
+-- @\f -> 'zipWithOf' 'closed' ('zipWithOf' 'closed' f) ≡ 'zipWithOf' ('closed' . 'closed')@
 --
 zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipWithOf o comb s1 s2 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2)
 
--- | Zip over a 'Grate'.
+-- | Zip over a 'Grate' with 3 arguments.
 --
 zipWith3Of :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
 zipWith3Of o comb s1 s2 s3 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3)
 
--- | Zip over a 'Grate'.
+-- | Zip over a 'Grate' with 4 arguments.
 --
 zipWith4Of :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
 zipWith4Of o comb s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3) (get s4)
 
 -- | Transform a profunctor grate into a Van Laarhoven grate.
 --
--- This is a more restricted version of 'cotraverseOf'
+-- This is a more restricted version of 'Data.Profunctor.Optic.Repn.corepnOf'
 --
 zipWithFOf :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
 zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
@@ -207,10 +217,6 @@ connected :: Conn s a -> Grate' s a
 connected (Conn f g) = inverting f g
 
 -- | Lift an action into a 'MonadReader'.
---
--- @
--- 'zipWithOf' 'forwarded' :: 'Distributive' m => 'MonadReader' r m => (a -> a -> b) -> m a -> m a -> m b
--- @
 --
 forwarded :: Distributive m => MonadReader r m => Grate (m a) (m b) a b
 forwarded = distributed

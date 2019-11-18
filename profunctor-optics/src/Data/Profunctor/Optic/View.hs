@@ -46,7 +46,7 @@ import Control.Exception (Exception)
 import Control.Monad.IO.Class
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
-import Control.Monad.State as State hiding (StateT(..))
+import Control.Monad.State as State
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import GHC.Conc (ThreadId)
@@ -161,7 +161,7 @@ cloneReview = from . review
 -- 'views' ::                'AView' s a       -> (a -> r) -> s -> r
 -- 'views' ::                'Iso'' s a        -> (a -> r) -> s -> r
 -- 'views' ::                'Lens'' s a       -> (a -> r) -> s -> r
--- 'views' ::                'Reprism'' s a    -> (a -> r) -> s -> r
+-- 'views' ::                'Coprism'' s a    -> (a -> r) -> s -> r
 -- 'views' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
 -- 'views' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
 -- 'views' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
@@ -188,7 +188,7 @@ views o f = asks ((getConst #.) #. runStar #. o .# Star .# (Const #.) $ f)
 -- @
 -- 'reviews' :: 'Iso'' s a   -> (s -> r) -> a -> r
 -- 'reviews' :: 'Prism'' s a -> (s -> r) -> a -> r
--- 'reviews' :: 'Relens'' s a -> (s -> r) -> a -> r
+-- 'reviews' :: 'Colens'' s a -> (s -> r) -> a -> r
 -- @
 --
 reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
@@ -265,7 +265,7 @@ view o = views o id
 -- @
 -- 'review' :: 'Iso'' s a   -> a -> s
 -- 'review' :: 'Prism'' s a -> a -> s
--- 'review' :: 'Relens'' s a -> a -> s
+-- 'review' :: 'Colens'' s a -> a -> s
 -- @
 --
 review :: MonadReader b m => AReview t b -> m t
@@ -291,7 +291,7 @@ infixl 8 ^.
 -- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Fold.Fold' s m       -> m
 -- ('^.') ::             s -> 'Data.Profunctor.Optic.Iso.Iso'' s a       -> a
 -- ('^.') ::             s -> 'Data.Profunctor.Optic.Lens.Lens'' s a      -> a
--- ('^.') ::             s -> 'Data.Profunctor.Optic.Prism.Reprism'' s a      -> a
+-- ('^.') ::             s -> 'Data.Profunctor.Optic.Prism.Coprism'' s a      -> a
 -- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Traversal.Traversal'' s m -> m
 -- @
 --
@@ -316,7 +316,7 @@ infixr 8 #
 -- @
 -- (#) :: 'Iso''      s a -> a -> s
 -- (#) :: 'Prism''    s a -> a -> s
--- (#) :: 'Relens''   s a -> a -> s
+-- (#) :: 'Colens''   s a -> a -> s
 -- (#) :: 'Review'    s a -> a -> s
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
@@ -379,7 +379,7 @@ use o = gets (view o)
 -- @
 -- 'reuse' :: 'MonadState' a m => 'Iso'' s a   -> m s
 -- 'reuse' :: 'MonadState' a m => 'Prism'' s a -> m s
--- 'reuse' :: 'MonadState' a m => 'Relens'' s a -> m s
+-- 'reuse' :: 'MonadState' a m => 'Colens'' s a -> m s
 -- @
 --
 reuse :: MonadState b m => AReview t b -> m t
@@ -398,7 +398,7 @@ reuse p = gets (unTagged #. p .# Tagged)
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Iso.Iso'' s a       -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.View.View' s a     -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Lens.Lens'' s a      -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Prism.Reprism'' s a      -> (a -> r) -> m r
+-- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Prism.Coprism'' s a      -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Traversal.Traversal'' s a -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Fold.Fold' s a       -> (a -> r) -> m r
 -- @
@@ -446,15 +446,15 @@ reuses p tr = gets (tr . unTagged #. p .# Tagged)
 -- @
 --
 listening :: MonadWriter w m => AView w u -> m a -> m (a, u)
-listening l m = do
+listening o m = do
   (a, w) <- Writer.listen m
-  return (a, view l w)
+  return (a, view o w)
 {-# INLINE listening #-}
 
 -- | TODO: Document
 --
 listenings :: MonadWriter w m => Optic' (FoldRep v) w u -> (u -> v) -> m a -> m (a, v)
-listenings l uv m = do
+listenings o uv m = do
   (a, w) <- listen m
-  return (a, views l uv w)
+  return (a, views o uv w)
 {-# INLINE listenings #-}

@@ -65,6 +65,7 @@ module Data.Profunctor.Optic.Traversal (
 import Data.Bifunctor (first, second)
 import Data.Bitraversable
 import Data.Semigroup.Bitraversable
+import Data.Profunctor.Optic.Lens (lens)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 
@@ -134,15 +135,14 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse
+traversal sa sbt = lens sa sbt . lift traverse
 
 -- | Obtain a 'Traversal1' optic from a getter and setter.
 --
 -- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
---
 traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse1
+traversal1 sa sbt = lens sa sbt . lift traverse1
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
@@ -209,24 +209,24 @@ instance Choice (Traversal0Rep u v) where
       (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
-instance Sieve (Traversal0Rep a b) (WithStore0 a b) where
-  sieve (Traversal0Rep sta sbt) s = WithStore0 (sbt s) (sta s)
+instance Sieve (Traversal0Rep a b) (Context0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Context0 (sbt s) (sta s)
 
 instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = WithStore0 a b
+  type Rep (Traversal0Rep a b) = Context0 a b
 
   tabulate f = Traversal0Rep (\s -> info0 (f s)) (\s -> values0 (f s))
 
-data WithStore0 a b t = WithStore0 (b -> t) (t + a)
+data Context0 a b t = Context0 (b -> t) (t + a)
 
-values0 :: WithStore0 a b t -> b -> t
-values0 (WithStore0 bt _) = bt
+values0 :: Context0 a b t -> b -> t
+values0 (Context0 bt _) = bt
 
-info0 :: WithStore0 a b t -> t + a
-info0 (WithStore0 _ a) = a
+info0 :: Context0 a b t -> t + a
+info0 (Context0 _ a) = a
 
-instance Functor (WithStore0 a b) where
-  fmap f (WithStore0 bt ta) = WithStore0 (f . bt) (first f ta)
+instance Functor (Context0 a b) where
+  fmap f (Context0 bt ta) = Context0 (f . bt) (first f ta)
   {-# INLINE fmap #-}
 
 ---------------------------------------------------------------------

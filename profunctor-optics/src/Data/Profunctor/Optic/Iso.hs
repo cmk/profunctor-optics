@@ -17,7 +17,7 @@ module Data.Profunctor.Optic.Iso (
   , AIso'
     -- * Constructors
   , iso
-  , vliso
+  , viso
   , invert
   , mapping
   , contramapping
@@ -27,11 +27,11 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , WithStore(..)
+  , Context(..)
   , values
   , info 
-  , WithIndex(..)
-  , withTrivial
+  , Indexed(..)
+  , trivial
     -- * Primitive operators
   , withIso 
   , reover
@@ -79,8 +79,11 @@ import qualified Control.Monad as M (join)
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
+-- >>> :set -XAllowAmbiguousTypes
+-- >>> import Data.Monoid
 -- >>> import Data.Semiring
 -- >>> import Data.Functor.Identity
+-- >>> import Data.Functor.Const
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -112,11 +115,11 @@ iso = dimap
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
 --
-vliso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
-vliso abst = iso f g
+viso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
+viso abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
-{-# INLINE vliso #-}
+{-# INLINE viso #-}
 
 -- | TODO: Document
 --
@@ -192,60 +195,56 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-instance Sieve (IsoRep a b) (WithStore a b) where
-  sieve (IsoRep sa bt) s = WithStore (sa s) bt
+instance Sieve (IsoRep a b) (Context a b) where
+  sieve (IsoRep sa bt) s = Context (sa s) bt
 
-instance Cosieve (IsoRep a b) (WithIndex a b) where
-  cosieve (IsoRep sa bt) (WithIndex sab) = bt (sab sa)
+instance Cosieve (IsoRep a b) (Indexed a b) where
+  cosieve (IsoRep sa bt) (Indexed sab) = bt (sab sa)
 
-data WithStore a b r = WithStore a (b -> r)
+-- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
+--
+-- @'Context' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
+--
+data Context a b r = Context a (b -> r)
 
-values :: WithStore a b r -> b -> r
-values (WithStore _ br) = br
+values :: Context a b r -> b -> r
+values (Context _ br) = br
 {-# INLINE values #-}
 
-info :: WithStore a b r -> a
-info (WithStore a _) = a
+info :: Context a b r -> a
+info (Context a _) = a
 {-# INLINE info #-}
 
-instance Functor (WithStore a b) where
-  fmap f (WithStore a br) = WithStore a (f . br)
+instance Functor (Context a b) where
+  fmap f (Context a br) = Context a (f . br)
   {-# INLINE fmap #-}
 
-instance Profunctor (WithStore a) where
-  dimap f g (WithStore a br) = WithStore a (g . br . f)
+instance Profunctor (Context a) where
+  dimap f g (Context a br) = Context a (g . br . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (WithStore a b) where
-  foldMap f (WithStore b br) = f . br $ b
+instance a ~ b => Foldable (Context a b) where
+  foldMap f (Context b br) = f . br $ b
 
-newtype WithIndex a b i = WithIndex { withIndex :: (i -> a) -> b } deriving Generic
+-- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
+--
+-- @'Indexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
+--
+-- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
+--
+newtype Indexed a b i = Indexed { runIndexed :: (i -> a) -> b } deriving Generic
 
 -- | Change the @Monoid@ used to combine indices.
 --
--- For example, to keep track of only the first index seen, use @Data.Monoid.First@:
---
--- @
---  fmap (First . pure)
---    :: WithIndex a b i -> WithIndex a b (First i)
--- @
---
--- or keep track of all indices using a list
---
--- @
---  fmap (: [])
---    :: WithIndex a b i -> WithIndex a b [i]
--- @
---
-instance Functor (WithIndex a b) where
-  fmap ij (WithIndex abi) = WithIndex $ \ja -> abi (ja . ij)
+instance Functor (Indexed a b) where
+  fmap ij (Indexed abi) = Indexed $ \ja -> abi (ja . ij)
 
-instance a ~ b => Apply (WithIndex a b) where
-  (WithIndex idab) <.> (WithIndex abi) = WithIndex $ \da -> idab $ \id -> abi (da . id) 
+instance a ~ b => Apply (Indexed a b) where
+  (Indexed idab) <.> (Indexed abi) = Indexed $ \da -> idab $ \id -> abi (da . id) 
 
-withTrivial :: WithIndex a b a -> b
-withTrivial (WithIndex f) = f id
-{-# INLINE withTrivial #-}
+trivial :: Indexed a b a -> b
+trivial (Indexed f) = f id
+{-# INLINE trivial #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators

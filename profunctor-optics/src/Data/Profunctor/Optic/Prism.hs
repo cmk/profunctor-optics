@@ -11,37 +11,35 @@ module Data.Profunctor.Optic.Prism (
   , Prism'
   , APrism
   , APrism'
-  , Reprism
-  , Reprism'
-  , AReprism
-  , AReprism'
+  , Coprism
+  , Coprism'
+  , ACoprism
+  , ACoprism'
     -- * Constructors
   , prism
   , prism' 
-  , reprism
-  , reprism'
+  , coprism
+  , coprism'
   , handling
   , rehandling
   , aside
   , without
   , below
   , toPastroSum
-  , rePastroSum
   , toTambaraSum
-  , reTambaraSum
   , clonePrism
-  , cloneReprism
+  , cloneCoprism
     -- * Representatives
   , PrismRep(..)
-  , ReprismRep(..)
+  , CoprismRep(..)
     -- * Primitive operators
   , withPrism
-  , withReprism
+  , withCoprism
     -- * Common optics
   , left
   , right
-  , releft
-  , reright
+  , rleft
+  , rright
   , just
   , nothing
   , keyed
@@ -110,7 +108,7 @@ prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 -- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
 --
 -- @
--- reprism f g ≡ \f g -> re (prism f g)
+-- coprism f g ≡ \f g -> re (prism f g)
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -123,17 +121,17 @@ prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 --
 -- * @left bat (bat b) ≡ left Left (bat b)@
 --
--- A 'Reprism' is a 'View', so you can specialise types to obtain:
+-- A 'Coprism' is a 'View', so you can specialise types to obtain:
 --
--- @ view :: 'Reprism'' s a -> s -> a @
+-- @ view :: 'Coprism'' s a -> s -> a @
 --
-reprism :: (s -> a) -> (b -> a + t) -> Reprism s t a b
-reprism sa bat = unright . dimap (id ||| sa) bat
+coprism :: (s -> a) -> (b -> a + t) -> Coprism s t a b
+coprism sa bat = unright . dimap (id ||| sa) bat
 
--- | Create a 'Reprism' from a reviewer and a matcher function that produces a 'Maybe'.
+-- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
 --
-reprism' :: (t -> b) -> (b -> Maybe t) -> Reprism' t b
-reprism' tb bt = reprism tb $ \b -> maybe (Left b) Right (bt b)
+coprism' :: (t -> b) -> (b -> Maybe t) -> Coprism' t b
+coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
 
 -- | Obtain a 'Prism' from its free tensor representation.
 --
@@ -142,9 +140,9 @@ reprism' tb bt = reprism tb $ \b -> maybe (Left b) Right (bt b)
 handling :: (s -> c + a) -> (c + b -> t) -> Prism s t a b
 handling sca cbt = dimap sca cbt . right'
 
--- | Obtain a 'Reprism' from its free tensor representation.
+-- | Obtain a 'Coprism' from its free tensor representation.
 --
-rehandling :: (c + s -> a) -> (b -> c + t) -> Reprism s t a b
+rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
 rehandling csa bct = unright . dimap csa bct
 
 -- | Use a 'Prism' to lift part of a structure.
@@ -188,33 +186,15 @@ below k =
         Right t -> Right t
 {-# INLINE below #-}
 
--- | Lift a 'Prism' into a 'PastroSum'.
+-- | Use a 'Prism' to construct a 'PastroSum'.
 --
 toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
 toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (eswp . sta)
 
--- | Lift a 'Reprism' into a 'PastroSum'.
---
--- @
--- rePastroSum (re o) ≡ toPastroSum o
--- @
---
-rePastroSum :: AReprism t s b a -> p s t -> PastroSum p a b
-rePastroSum o p = withReprism o $ \sa bat -> PastroSum (join . first sa) p (eswp . bat)
-
--- | Lift a 'Prism' into a 'TambaraSum'.
+-- | Use a 'Prism' to construct a 'TambaraSum'.
 --
 toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left . prism sta bt $ p)
-
--- | Lift a 'Reprism' into a 'TambaraSum'.
---
--- @
--- reTambaraSum (re o) ≡ toTambaraSum o
--- @
---
-reTambaraSum :: Choice p => AReprism t s b a -> p s t -> TambaraSum p a b
-reTambaraSum o p = withReprism o $ \sa bat -> TambaraSum (left . prism bat sa $ p)
 
 -- | TODO: Document
 --
@@ -223,11 +203,11 @@ clonePrism o = withPrism o prism
 
 -- | TODO: Document
 --
-cloneReprism :: AReprism s t a b -> Reprism s t a b
-cloneReprism o = withReprism o reprism
+cloneCoprism :: ACoprism s t a b -> Coprism s t a b
+cloneCoprism o = withCoprism o coprism
 
 ---------------------------------------------------------------------
--- 'PrismRep' & 'ReprismRep'
+-- 'PrismRep' & 'CoprismRep'
 ---------------------------------------------------------------------
 
 type APrism s t a b = Optic (PrismRep a b) s t a b
@@ -259,25 +239,25 @@ instance Choice (PrismRep a b) where
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
 
-type AReprism s t a b = Optic (ReprismRep a b) s t a b
+type ACoprism s t a b = Optic (CoprismRep a b) s t a b
 
-type AReprism' s a = AReprism s s a a
+type ACoprism' s a = ACoprism s s a a
 
-data ReprismRep a b s t = ReprismRep (s -> a) (b -> a + t) 
+data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
 
-instance Functor (ReprismRep a b s) where
-  fmap f (ReprismRep sa bat) = ReprismRep sa (second f . bat)
+instance Functor (CoprismRep a b s) where
+  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
   {-# INLINE fmap #-}
 
-instance Profunctor (ReprismRep a b) where
-  lmap f (ReprismRep sa bat) = ReprismRep (sa . f) bat
+instance Profunctor (CoprismRep a b) where
+  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
   {-# INLINE lmap #-}
 
   rmap = fmap
   {-# INLINE rmap #-}
 
-instance Cochoice (ReprismRep a b) where
-  unleft (ReprismRep sca batc) = ReprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+instance Cochoice (CoprismRep a b) where
+  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
   {-# INLINE unleft #-}
 
 ---------------------------------------------------------------------
@@ -289,13 +269,13 @@ instance Cochoice (ReprismRep a b) where
 withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 
--- | Extract the two functions that characterize a 'Reprism'.
+-- | Extract the two functions that characterize a 'Coprism'.
 --
-withReprism :: AReprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
-withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
+withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
+withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
 
 ---------------------------------------------------------------------
--- Common 'Prism's and 'Reprism's
+-- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
 
 -- | 'Prism' into the `Left` constructor of `Either`.
@@ -308,15 +288,15 @@ left = left'
 right :: Prism (c + a) (c + b) a b
 right = right'
 
--- | 'Reprism' out of the `Left` constructor of `Either`.
+-- | 'Coprism' out of the `Left` constructor of `Either`.
 --
-releft :: Reprism a b (a + c) (b + c)
-releft = unleft
+rleft :: Coprism a b (a + c) (b + c)
+rleft = unleft
 
--- | 'Reprism' out of the `Right` constructor of `Either`.
+-- | 'Coprism' out of the `Right` constructor of `Either`.
 --
-reright :: Reprism a b (c + a) (c + b)
-reright = unright
+rright :: Coprism a b (c + a) (c + b)
+rright = unright
 
 -- | 'Prism' into the `Just` constructor of `Maybe`.
 --

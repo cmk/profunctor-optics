@@ -22,10 +22,12 @@ source-repository head
 library
   exposed-modules:
       Control.Exception.Optic
+
       Data.Connection.Optic
       Data.Connection.Optic.Int
       Data.Connection.Optic.Word
       Data.Connection.Optic.Float
+
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Operator
@@ -36,9 +38,9 @@ library
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Fold
+      Data.Profunctor.Optic.Repn
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Property
-      Data.Profunctor.Orphan
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -67,15 +69,12 @@ library
       base >=4.9 && <5.0
     , comonad
     , connections
-    , containers
     , contravariant
     , distributive
-    , foldl
     , mtl
     , newtype-generics
     , profunctor-arrows
     , profunctors
-    , recursion-schemes
     , rings
     , semigroupoids
     , tagged
