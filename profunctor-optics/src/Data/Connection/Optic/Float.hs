@@ -1,4 +1,4 @@
-module Numeric.Optic.Float (
+module Data.Connection.Optic.Float (
     f32u32
   , u32f32
   , u32w64

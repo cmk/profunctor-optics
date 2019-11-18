@@ -22,12 +22,10 @@ source-repository head
 library
   exposed-modules:
       Control.Exception.Optic
-      --Data.Semiring.Optic
-      --Data.Connection.Optic
-      Numeric.Optic
-      Numeric.Optic.Int
-      Numeric.Optic.Word
-      Numeric.Optic.Float
+      Data.Connection.Optic
+      Data.Connection.Optic.Int
+      Data.Connection.Optic.Word
+      Data.Connection.Optic.Float
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Operator
@@ -69,10 +67,12 @@ library
       base >=4.9 && <5.0
     , comonad
     , connections
+    , containers
     , contravariant
     , distributive
     , foldl
     , mtl
+    , newtype-generics
     , profunctor-arrows
     , profunctors
     , recursion-schemes
@@ -93,7 +93,6 @@ test-suite doctests
       base
     , containers
     , doctest >= 0.8
-    , doctest-discover
     , mtl
     , profunctor-optics
 

@@ -1,4 +1,4 @@
-module Numeric.Optic.Word (
+module Data.Connection.Optic.Word (
   -- * Word8
     w08i08
   , w08w16

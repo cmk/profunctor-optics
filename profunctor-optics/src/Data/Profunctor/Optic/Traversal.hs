@@ -209,24 +209,24 @@ instance Choice (Traversal0Rep u v) where
       (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
-instance Sieve (Traversal0Rep a b) (PStore0 a b) where
-  sieve (Traversal0Rep sta sbt) s = PStore0 (sbt s) (sta s)
+instance Sieve (Traversal0Rep a b) (WithStore0 a b) where
+  sieve (Traversal0Rep sta sbt) s = WithStore0 (sbt s) (sta s)
 
 instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = PStore0 a b
+  type Rep (Traversal0Rep a b) = WithStore0 a b
 
   tabulate f = Traversal0Rep (\s -> info0 (f s)) (\s -> values0 (f s))
 
-data PStore0 a b t = PStore0 (b -> t) (t + a)
+data WithStore0 a b t = WithStore0 (b -> t) (t + a)
 
-values0 :: PStore0 a b t -> b -> t
-values0 (PStore0 bt _) = bt
+values0 :: WithStore0 a b t -> b -> t
+values0 (WithStore0 bt _) = bt
 
-info0 :: PStore0 a b t -> t + a
-info0 (PStore0 _ a) = a
+info0 :: WithStore0 a b t -> t + a
+info0 (WithStore0 _ a) = a
 
-instance Functor (PStore0 a b) where
-  fmap f (PStore0 bt ta) = PStore0 (f . bt) (first f ta)
+instance Functor (WithStore0 a b) where
+  fmap f (WithStore0 bt ta) = WithStore0 (f . bt) (first f ta)
   {-# INLINE fmap #-}
 
 ---------------------------------------------------------------------
@@ -272,7 +272,7 @@ matchOf o = withTraversal0 o $ \match _ -> match
 -- @
 --
 traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-traverseOf p = runStar #. p .# Star
+traverseOf o = runStar #. o .# Star
 
 -- | 
 --
@@ -296,7 +296,7 @@ traverseOf p = runStar #. p .# Star
 -- @
 --
 traverse1Of :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
-traverse1Of p = runStar #. p .# Star
+traverse1Of o = runStar #. o .# Star
 
 -- | TODO: Document
 --
@@ -305,7 +305,7 @@ traverse1Of p = runStar #. p .# Star
 -- @
 --
 cotraverseOf :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverseOf p = runCostar #. p .# Costar
+cotraverseOf o = runCostar #. o .# Costar
 
 -- | TODO: Document
 --

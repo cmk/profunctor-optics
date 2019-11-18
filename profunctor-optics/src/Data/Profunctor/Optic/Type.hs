@@ -226,7 +226,7 @@ type TraversalLike p s t a b = Choice p => Applicative (Rep p) => RepnLike p s t
 
 type TraversalLike' p s a = TraversalLike p s s a a
 
-type ATraversal f s t a b = Applicative f => Optic (Star f) s t a b
+type ATraversal f s t a b = Applicative f => ARepn f s t a b
 
 type ATraversal' f s a = ATraversal f s s a a
 
@@ -242,7 +242,7 @@ type Traversal1Like p s t a b = Choice p => Apply (Rep p) => RepnLike p s t a b
 
 type Traversal1Like' p s a = Traversal1Like p s s a a
 
-type ATraversal1 f s t a b = Apply f => Optic (Star f) s t a b
+type ATraversal1 f s t a b = Apply f => ARepn f s t a b
 
 type ATraversal1' f s a = ATraversal1 f s s a a
 
@@ -254,7 +254,7 @@ type CotraversalLike p s t a b = Closed p => Choice p => ComonadApply (Corep p) 
 
 type CotraversalLike' p s a = CotraversalLike p s s a a
 
-type ACotraversal f s t a b = ComonadApply f => Optic (Costar f) s t a b
+type ACotraversal f s t a b = ComonadApply f => ACorepn f s t a b
 
 type ACotraversal' f s a = ACotraversal f s s a a
 
@@ -293,8 +293,6 @@ type UnfoldLike p t b = Bifunctor p => CotraversalLike p t t b b
 type UnfoldRep r = Costar (Const r)
 
 type AUnfold r t b = Optic' (UnfoldRep r) t b
-
-
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'

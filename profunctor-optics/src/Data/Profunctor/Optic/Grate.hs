@@ -5,7 +5,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Data.Profunctor.Optic.Grate (
+module Data.Profunctor.Optic.Grate  (
     -- * Types
     Grate
   , Grate'
@@ -43,6 +43,11 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
+
+import Data.Group
+import Data.Semiring
+import Data.Ring
+import Data.Foldable as Foldable
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -129,13 +134,13 @@ instance Closed (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (PCont a b) where
-  cosieve (GrateRep f) (PCont g) = f g
+instance Cosieve (GrateRep a b) (WithIndex a b) where
+  cosieve (GrateRep f) (WithIndex g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = PCont a b
+  type Corep (GrateRep a b) = WithIndex a b
 
-  cotabulate f = GrateRep $ f . PCont
+  cotabulate f = GrateRep $ f . WithIndex
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -178,6 +183,8 @@ zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 ---------------------------------------------------------------------
 -- Common grates
 ---------------------------------------------------------------------
+
+-- | the counter-clockwise perp
 
 -- | Access the contents of a distributive functor.
 --

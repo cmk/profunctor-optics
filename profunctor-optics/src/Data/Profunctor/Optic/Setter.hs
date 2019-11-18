@@ -20,7 +20,7 @@ module Data.Profunctor.Optic.Setter (
   , resetter
   , closing
   , closingf
-  , (%)
+  , (<%>)
   , toSemiring
   , fromSemiring
     -- * Primitive operators
@@ -69,7 +69,7 @@ import Control.Monad.State as State hiding (lift)
 import Control.Monad.Writer as Writer hiding (lift)
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
-import Data.Profunctor.Optic.Iso (PStore(..), PCont(..), runPCont')
+import Data.Profunctor.Optic.Iso (WithStore(..), WithIndex(..), withTrivial)
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Type
 import Data.Semiring
@@ -117,7 +117,7 @@ import qualified Control.Exception as Ex
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = dimap (flip PStore id) (\(PStore s ab) -> abst ab s) . lift collect
+setter abst = dimap (flip WithStore id) (\(WithStore s ab) -> abst ab s) . lift collect
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
@@ -139,7 +139,7 @@ setter abst = dimap (flip PStore id) (\(PStore s ab) -> abst ab s) . lift collec
 -- See 'Data.Profunctor.Optic.Property'.
 --
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> PCont $ \ab -> abst ab s) runPCont' . colift (\f -> fmap f . sequence1)
+resetter abst = dimap (\s -> WithIndex $ \ab -> abst ab s) withTrivial . colift (\f -> fmap f . sequence1)
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
@@ -151,12 +151,12 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 closingf :: Functor f => (((s -> f a) -> f b) -> t) -> Setter s t a b
 closingf f = dimap pureTaskF (f . runTask) . lift collect
 
-infixl 6 %
+infixl 6 <%>
 
 -- | Sum two 'Setter's
 --
-(%) :: Setter' a a -> Setter' a a -> Setter' a a
-(%) f g = setter $ \h -> (f %~ h) . (g %~ h)
+(<%>) :: Setter' a a -> Setter' a a -> Setter' a a
+(<%>) f g = setter $ \h -> (f %~ h) . (g %~ h)
 
 -- | Lower a semiring value to its concrete analog.
 --
@@ -233,13 +233,13 @@ under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 -- | The zero 'Setter'.
 --
 -- @
--- 'zero' . 'one' ≡ 'zero'
--- 'zero' % 'one' ≡ 'one'
+-- 'zero'  .  'one' ≡ 'zero'
+-- 'zero' <%> 'one' ≡ 'one'
 -- @
 --
--- >>> toSemiring $ zero % one :: Int
+-- >>> toSemiring $ zero <%> one :: Int
 -- 1
--- >>> toSemiring $ zero . one :: Int
+-- >>> toSemiring $ zero  .  one :: Int
 -- 0
 --
 zero :: Setter' a a
@@ -249,13 +249,13 @@ zero = setter $ const id
 -- | The unit 'Setter'.
 --
 -- @
--- 'zero' . 'one' ≡ 'zero'
--- 'zero' % 'one' ≡ 'one'
+-- 'zero'  .  'one' ≡ 'zero'
+-- 'zero' <%> 'one' ≡ 'one'
 -- @
 --
--- >>> toSemiring $ zero % one :: Int
+-- >>> toSemiring $ zero <%> one :: Int
 -- 1
--- >>> toSemiring $ zero . one :: Int
+-- >>> toSemiring $ zero  .  one :: Int
 -- 0
 --
 one :: Setter' a a 

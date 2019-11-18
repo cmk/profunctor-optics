@@ -21,6 +21,7 @@ cabal.config
 cabal.project.local
 .ghc.environment.*
 .HTF/
+misc/
 
 # Stack
 .stack-work/

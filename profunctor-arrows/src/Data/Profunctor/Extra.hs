@@ -13,12 +13,12 @@ module Data.Profunctor.Extra (
   , coeval 
   , branch
   , branch'
+  , distl 
+  , distr
   , assocl
   , assocr
   , eassocl
   , eassocr
-  , fstrong 
-  , fchoice
   , forget1
   , forget2
   , forgetl
@@ -38,7 +38,6 @@ module Data.Profunctor.Extra (
   , choice
   , cochoice
   , pull
-  , pull'
   , lift
   , colift
   , star
@@ -128,6 +127,14 @@ branch' :: (a -> Bool) -> a -> a + a
 branch' f x = branch f x x x
 {-# INLINE branch' #-}
 
+distl :: (a , b + c) -> (a , b) + c
+distl = eswp . traverse eswp
+{-# INLINE distl #-}
+
+distr :: (a + b , c) -> a + (b , c)
+distr (f, b) = fmap (,b) f
+{-# INLINE distr #-}
+
 assocl :: (a , (b , c)) -> ((a , b) , c)
 assocl (a, (b, c)) = ((a, b), c)
 {-# INLINE assocl #-}
@@ -147,14 +154,6 @@ eassocr (Left (Left a))  = Left a
 eassocr (Left (Right b)) = Right (Left b)
 eassocr (Right c)        = Right (Right c)
 {-# INLINE eassocr #-}
-
-fstrong :: Functor f => f a -> b -> f (a , b)
-fstrong f b = fmap (,b) f
-{-# INLINE fstrong #-}
-
-fchoice :: Traversable f => f (a + b) -> (f a) + b
-fchoice = eswp . traverse eswp
-{-# INLINE fchoice #-}
 
 forget1 :: ((c, a) -> (c, b)) -> a -> b
 forget1 f a = b where (c, b) = f (c, a)
@@ -231,10 +230,6 @@ cochoice f = unright . dimap join f
 pull :: Strong p => p a b -> p a (a , b)
 pull = lmap fork . second'
 {-# INLINE pull #-}
-
-pull' :: Strong p => p b c -> p (a , b) b
-pull' = shiftr . pull
-{-# INLINE pull' #-}
 
 lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
 lift f = tabulate . f . sieve

@@ -1,10 +1,11 @@
+{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.Iso (
     -- * Types
     Equality
@@ -26,20 +27,25 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , PStore(..)
+  , WithStore(..)
   , values
   , info 
-  , PCont(..)
-  , runPCont'
+  , WithIndex(..)
+  , withTrivial
     -- * Primitive operators
   , withIso 
   , reover
+  , op
   , au 
-  , aup 
+  , aup
+  , ala
     -- * Common optics
   , as
   , equaled
   , coerced
+  , wrapped
+  , rewrapped
+  , rewrapping
   , flipped 
   , curried
   , swapped 
@@ -58,13 +64,16 @@ module Data.Profunctor.Optic.Iso (
   , Re(..) 
 ) where
 
+import Control.Newtype.Generics (Newtype(..), op)
 import Data.Coerce
 import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
+import GHC.Generics hiding (from, to)
 import qualified Control.Monad as M (join)
 
 -- $setup
@@ -183,44 +192,60 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-instance Sieve (IsoRep a b) (PStore a b) where
-  sieve (IsoRep sa bt) s = PStore (sa s) bt
+instance Sieve (IsoRep a b) (WithStore a b) where
+  sieve (IsoRep sa bt) s = WithStore (sa s) bt
 
-instance Cosieve (IsoRep a b) (PCont a b) where
-  cosieve (IsoRep sa bt) (PCont sab) = bt (sab sa)
+instance Cosieve (IsoRep a b) (WithIndex a b) where
+  cosieve (IsoRep sa bt) (WithIndex sab) = bt (sab sa)
 
-data PStore a b t = PStore a (b -> t)
+data WithStore a b r = WithStore a (b -> r)
 
-values :: PStore a b t -> b -> t
-values (PStore _ bt) = bt
+values :: WithStore a b r -> b -> r
+values (WithStore _ br) = br
 {-# INLINE values #-}
 
-info :: PStore a b t -> a
-info (PStore a _) = a
+info :: WithStore a b r -> a
+info (WithStore a _) = a
 {-# INLINE info #-}
 
-instance Functor (PStore a b) where
-  fmap f (PStore a bt) = PStore a (f . bt)
+instance Functor (WithStore a b) where
+  fmap f (WithStore a br) = WithStore a (f . br)
   {-# INLINE fmap #-}
 
-instance Profunctor (PStore a) where
-  dimap f g (PStore a bt) = PStore a (g . bt . f)
+instance Profunctor (WithStore a) where
+  dimap f g (WithStore a br) = WithStore a (g . br . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (PStore a b) where
-  foldMap f (PStore b bt) = f . bt $ b
+instance a ~ b => Foldable (WithStore a b) where
+  foldMap f (WithStore b br) = f . br $ b
 
-newtype PCont a b s = PCont { runPCont :: (s -> a) -> b }
+newtype WithIndex a b i = WithIndex { withIndex :: (i -> a) -> b } deriving Generic
 
-instance Functor (PCont a b) where
-  fmap st (PCont sab) = PCont $ \ta -> sab (ta . st)
+-- | Change the @Monoid@ used to combine indices.
+--
+-- For example, to keep track of only the first index seen, use @Data.Monoid.First@:
+--
+-- @
+--  fmap (First . pure)
+--    :: WithIndex a b i -> WithIndex a b (First i)
+-- @
+--
+-- or keep track of all indices using a list
+--
+-- @
+--  fmap (: [])
+--    :: WithIndex a b i -> WithIndex a b [i]
+-- @
+--
+instance Functor (WithIndex a b) where
+  fmap ij (WithIndex abi) = WithIndex $ \ja -> abi (ja . ij)
 
-instance a ~ b => Apply (PCont a b) where
-  (PCont stab) <.> (PCont sab) = PCont $ \ta -> stab $ \st -> sab (ta . st) 
+instance a ~ b => Apply (WithIndex a b) where
+  (WithIndex idab) <.> (WithIndex abi) = WithIndex $ \da -> idab $ \id -> abi (da . id) 
 
-runPCont' :: PCont a b a -> b
-runPCont' (PCont f) = f id
-{-# INLINE runPCont' #-}
+withTrivial :: WithIndex a b a -> b
+withTrivial (WithIndex f) = f id
+{-# INLINE withTrivial #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -252,24 +277,64 @@ invert :: AIso s t a b -> Iso b a t s
 invert o = withIso o $ \sa bt -> iso bt sa
 {-# INLINE invert #-}
 
--- | TODO: Document
+-- | Based on /ala/ from Conor McBride's work on Epigram.
 --
--- >>> au (dimap getProd Prod) Prelude.foldMap [1, 2, 3, 4 :: Int]
--- 24
+-- This version is generalized to accept any 'Iso', not just a @newtype@.
 --
-au :: AIso s t a b -> ((b -> t) -> e -> s) -> e -> a
-au l = withIso l $ \sa bt f e -> sa (f bt e)
+-- >>> au (rewrapping Sum) foldMap [1,2,3,4]
+-- 10
+--
+-- You may want to think of this combinator as having the following, simpler type:
+--
+-- @
+-- au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+-- @
+--
+au :: Functor f => AIso s t a b -> ((b -> t) -> f s) -> f a
+au k = withIso k $ \ sa bt f -> fmap sa (f bt)
 {-# INLINE au #-}
 
--- | TODO: Document
+-- | Variant of 'au' for profunctors. 
 --
 -- >>> :t flip aup runStar
 -- flip aup runStar
---   :: Functor f => AIso s t a (f a) -> Star f d s -> d -> t
+--   :: Functor f => AIso s t a (f a) -> Star f c s -> c -> t
 --
-aup :: Profunctor p => AIso s t a b -> (p c a -> d -> b) -> p c s -> d -> t
-aup l = withIso l $ \sa bt f g e -> bt (f (rmap sa g) e)
+aup :: Profunctor p => Functor f => AIso s t a b -> (p c a -> f b) -> p c s -> f t
+aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 {-# INLINE aup #-}
+
+-- | This combinator is based on @ala@ from Conor McBride's work on Epigram.
+--
+-- As with '_Wrapping', the user supplied function for the newtype is /ignored/.
+--
+-- >>> ala Sum foldMap [1,2,3,4]
+-- 10
+--
+-- >>> ala All foldMap [True,True]
+-- True
+--
+-- >>> ala All foldMap [True,False]
+-- False
+--
+-- >>> ala Any foldMap [False,False]
+-- False
+--
+-- >>> ala Any foldMap [True,False]
+-- True
+--
+-- >>> ala Product foldMap [1,2,3,4]
+-- 24
+--
+-- You may want to think of this combinator as having the following, simpler, type.
+--
+-- @
+-- ala :: Newtype s => Newtype t => (O s -> s) -> ((O t -> t) -> e -> s) -> e -> O s
+-- @
+--
+ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
+ala = au . rewrapping
+{-# INLINE ala #-}
 
 ---------------------------------------------------------------------
 -- Common 'Iso's
@@ -303,6 +368,38 @@ equaled = id
 coerced :: Coercible s a => Coercible t b => Iso s t a b
 coerced = dimap coerce coerce
 {-# INLINE coerced #-}
+
+-- | Work under a newtype wrapper.
+--
+-- @
+-- 'view wrapped' f '.' f ≡ 'id'
+-- f '.' 'view wrapped' f ≡ 'id'
+-- @
+--
+-- >>> view wrapped $ Identity 'x'
+-- 'x'
+--
+-- >>> view wrapped (Const "hello")
+-- "hello"
+--
+wrapped :: Newtype s => Iso' s (O s)
+wrapped = dimap unpack pack
+{-# INLINE wrapped #-}
+
+-- | Work between newtype wrappers.
+--
+-- >>> Const "hello" & rewrapped %~ Prelude.length & getConst
+-- 5
+--
+rewrapped :: Newtype s => Newtype t => Iso s t (O s) (O t)
+rewrapped = withIso wrapped $ \ sa _ -> withIso wrapped $ \ _ bt -> iso sa bt
+{-# INLINE rewrapped #-}
+
+-- | Variant of 'rewrapped' that ignores its argument.
+--
+rewrapping :: Newtype s => Newtype t => (O s -> s) -> Iso s t (O s) (O t)
+rewrapping _ = rewrapped
+{-# INLINE rewrapping #-}
 
 -- | Flip two arguments of a function.
 --

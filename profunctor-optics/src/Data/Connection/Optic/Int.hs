@@ -1,4 +1,4 @@
-module Numeric.Optic.Int (
+module Data.Connection.Optic.Int (
   -- * Int8
     i08w08
   , i08w08'

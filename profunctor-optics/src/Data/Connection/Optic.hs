@@ -1,4 +1,4 @@
-module Numeric.Optic (
+module Data.Connection.Optic (
     dual
   , just
   , binord

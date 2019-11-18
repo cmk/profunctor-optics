@@ -35,7 +35,7 @@ import Data.Profunctor.Types as Export
 import Data.Profunctor.Unsafe as Export
 import Data.Tagged           as Export
 import Data.Void as Export
-import Prelude as Export hiding (Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)
+import Prelude as Export hiding (Num(..), Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)
 
 pliftW :: Corepresentable p => Monoid (Corep p a) => (b -> c -> d) -> p a b -> p a c -> p a d
 pliftW f x y = cotabulate $ liftW2 f (cosieve x) (cosieve y)
