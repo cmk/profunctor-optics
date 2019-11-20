@@ -17,7 +17,7 @@ module Data.Profunctor.Optic.Iso (
   , AIso'
     -- * Constructors
   , iso
-  , vliso
+  , viso
   , invert
   , mapping
   , contramapping
@@ -79,8 +79,11 @@ import qualified Control.Monad as M (join)
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
+-- >>> :set -XAllowAmbiguousTypes
+-- >>> import Data.Monoid
 -- >>> import Data.Semiring
 -- >>> import Data.Functor.Identity
+-- >>> import Data.Functor.Const
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -112,11 +115,11 @@ iso = dimap
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
 --
-vliso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
-vliso abst = iso f g
+viso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
+viso abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
-{-# INLINE vliso #-}
+{-# INLINE viso #-}
 
 -- | TODO: Document
 --
@@ -200,7 +203,7 @@ instance Cosieve (IsoRep a b) (Indexed a b) where
 
 -- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
 --
--- @'Context' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f t@,
+-- @'Context' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
 --
 data Context a b r = Context a (b -> r)
 
@@ -224,6 +227,10 @@ instance a ~ b => Foldable (Context a b) where
   foldMap f (Context b br) = f . br $ b
 
 -- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
+--
+-- @'Indexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
+--
+-- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
 --
 newtype Indexed a b i = Indexed { runIndexed :: (i -> a) -> b } deriving Generic
 

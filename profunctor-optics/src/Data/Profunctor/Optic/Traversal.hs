@@ -65,6 +65,7 @@ module Data.Profunctor.Optic.Traversal (
 import Data.Bifunctor (first, second)
 import Data.Bitraversable
 import Data.Semigroup.Bitraversable
+import Data.Profunctor.Optic.Lens (lens)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 
@@ -134,15 +135,14 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse
+traversal sa sbt = lens sa sbt . lift traverse
 
 -- | Obtain a 'Traversal1' optic from a getter and setter.
 --
 -- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
---
 traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = dimap fork (uncurry sbt) . second' . lmap sa . lift traverse1
+traversal1 sa sbt = lens sa sbt . lift traverse1
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --

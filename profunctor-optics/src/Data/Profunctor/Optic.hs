@@ -10,7 +10,6 @@ module Data.Profunctor.Optic (
   , module Fold
   , module View
   , module Setter
-  , module Indexed
 ) where
 
 import Data.Profunctor.Optic.Type             as Type
@@ -24,5 +23,3 @@ import Data.Profunctor.Optic.Traversal        as Traversal
 import Data.Profunctor.Optic.Fold             as Fold
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
-
-import Data.Profunctor.Optic.Indexed           as Indexed

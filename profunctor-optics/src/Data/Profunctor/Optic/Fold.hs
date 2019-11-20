@@ -16,22 +16,19 @@ module Data.Profunctor.Optic.Fold (
   , Unfold
   , AUnfold
     -- * Constructors
-  , vlfold
-  , vlfold1
-  , vlunfold 
-  , folding0 
+  , fold0 
+  , vfold
+  , vfold1
+  , vunfold 
   , folding 
   , folding1
   , unfolding
   , folding_
   , folding1_
-  , afolding
-  , afolding1
-  , aunfolding
+  , afold
+  , afold1
+  , aunfold
   , failing
-  , recursing
-  , recursing1 
-  , corecursing
   , toFold0
   , toFold 
   , toFold1
@@ -69,8 +66,6 @@ module Data.Profunctor.Optic.Fold (
   , summed1
   , multiplied 
   , multiplied1 
-  , premapped 
-  , premappedM
     -- * Derived operators
   , (^?)
   , is
@@ -112,13 +107,11 @@ module Data.Profunctor.Optic.Fold (
 ) where
 
 import Control.Exception (Exception)
-import Control.Foldl (EndoM(..))
 import Control.Monad ((<=<))
 import Control.Monad.IO.Unlift
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
 import Data.Foldable (Foldable, foldMap, traverse_)
-import Data.Functor.Foldable (Corecursive, Recursive, Base)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
@@ -131,8 +124,6 @@ import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (to, from, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Control.Exception as Ex
-import qualified Control.Foldl as L
-import qualified Data.Functor.Foldable as F
 import qualified Data.List.NonEmpty as NEL
 import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
@@ -150,85 +141,86 @@ import qualified Prelude as Pre
 -- >>> import Data.Functor.Identity
 -- >>> :load Data.Profunctor.Optic
 
+
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold' & 'Unfold'
 ---------------------------------------------------------------------
 
--- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
---
-vlfold :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
-vlfold f = coercer . lift f . coercer
-{-# INLINE vlfold #-}
-
--- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
---
--- See 'Data.Profunctor.Optic.Property'.
---
-vlfold1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-vlfold1 f = coercer . lift f . coercer
-{-# INLINE vlfold1 #-}
-
--- | Obtain a 'Unfold' from a Van Laarhoven 'Unfold'.
---
-vlunfold :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Unfold t b
-vlunfold f = coercel . colift f . coercel
-{-# INLINE vlunfold #-}
-
 -- | Obtain a 'Fold0' from a partial function.
 --
 -- @
--- 'folding0' ('maybeOf' o) ≡ o
--- 'folding0' ('view' o) ≡ o . 'just'
+-- 'fold0' ('maybeOf' o) ≡ o
+-- 'fold0' ('view' o) ≡ o . 'just'
 -- @
 --
--- >>> preview (folding0 listToMaybe) "foo"
+-- >>> preview (fold0 listToMaybe) "foo"
 -- Just 'f'
 --
 -- >>> [Just 1, Nothing] ^.. folded . folded0
 -- [1]
 --
-folding0 :: (s -> Maybe a) -> Fold0 s a
-folding0 f = to (\s -> maybe (Left s) Right (f s)) . right'
-{-# INLINE folding0 #-}
+fold0 :: (s -> Maybe a) -> Fold0 s a
+fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
+{-# INLINE fold0 #-}
+
+-- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
+--
+vfold :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
+vfold f = coercer . lift f . coercer
+{-# INLINE vfold #-}
+
+-- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+vfold1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
+vfold1 f = coercer . lift f . coercer
+{-# INLINE vfold1 #-}
+
+-- | Obtain a 'Unfold' from a Van Laarhoven 'Unfold'.
+--
+vunfold :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Unfold t b
+vunfold f = coercel . colift f . coercel
+{-# INLINE vunfold #-}
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
 --
 -- @
 -- 'folding' f ≡ 'traversed' . 'to' f
--- 'folding' f ≡ 'vlfold' 'traverse' . 'to' f
+-- 'folding' f ≡ 'vfold' 'traverse' . 'to' f
 -- @
 --
 folding :: Traversable f => (s -> a) -> Fold (f s) a
-folding f = vlfold traverse . to f
+folding f = vfold traverse . to f
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
 -- @
 -- 'folding1' f ≡ 'traversed1' . 'to' f
--- 'folding1' f ≡ 'vlfold1' 'traverse1' . 'to' f
+-- 'folding1' f ≡ 'vfold1' 'traverse1' . 'to' f
 -- @
 --
 folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folding1 f = vlfold1 traverse1 . to f
+folding1 f = vfold1 traverse1 . to f
 {-# INLINE folding1 #-}
 
 -- | Obtain an 'Unfold' from a 'Distributive' functor. 
 --
 -- @
 -- 'unfolding' f ≡ 'cotraversed' . 'from' f
--- 'unfolding' f ≡ 'vlunfold' 'cotraverse' . 'from' f
+-- 'unfolding' f ≡ 'vunfold' 'cotraverse' . 'from' f
 -- @
 --
 unfolding :: Distributive f => (b -> t) -> Unfold (f t) b
-unfolding f = vlunfold cotraverse . from f
+unfolding f = vunfold cotraverse . from f
 {-# INLINE unfolding #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
 -- @ 
 -- 'folding_' ('toListOf' o) ≡ o
--- 'folding_' f ≡ 'to' f . 'vlfold' 'traverse_'
+-- 'folding_' f ≡ 'to' f . 'vfold' 'traverse_'
 -- 'folding_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
 -- @
 --
@@ -240,14 +232,14 @@ unfolding f = vlunfold cotraverse . from f
 -- [2,3,4]
 --
 folding_ :: Foldable f => (s -> f a) -> Fold s a
-folding_ f = to f . vlfold traverse_
+folding_ f = to f . vfold traverse_
 {-# INLINE folding_ #-}
 
 -- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
 --
 -- @ 
 -- 'folding1_' ('toNelOf' o) ≡ o
--- 'folding1_' f ≡ 'to' f . 'vlfold1' 'traverse1_'
+-- 'folding1_' f ≡ 'to' f . 'vfold1' 'traverse1_'
 -- 'folding1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse1_'
 -- @
 --
@@ -256,69 +248,40 @@ folding_ f = to f . vlfold traverse_
 -- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
 --
 folding1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1_ f = to f . vlfold1 traverse1_
+folding1_ f = to f . vfold1 traverse1_
 {-# INLINE folding1_ #-}
 
 -- | TODO: Document
 --
-afolding :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
-afolding o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolding #-}
+afold :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
+afold o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afold #-}
 
 -- | TODO: Document
 --
-afolding1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-afolding1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afolding1 #-}
+afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
+afold1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afold1 #-}
 
 -- | TODO: Document
 --
-aunfolding :: ((r -> b) -> r -> t) -> AUnfold r t b
-aunfolding o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE aunfolding #-}
-
+aunfold :: ((r -> b) -> r -> t) -> AUnfold r t b
+aunfold o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE aunfold #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
 -- | Try the first 'Fold0'. If it returns no entry, try the second one.
 --
 failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
-failing a b = folding0 $ \s -> maybe (preview b s) Just (preview a s)
+failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
 {-# INLINE failing #-}
-
--- | TODO: Document
---
--- >>> import Data.Functor.Foldable (ListF(..))
--- >>> :{
---  let
---    fromListF :: Num a => ListF a (Sum a) -> Sum a
---    fromListF Nil = mempty
---    fromListF (Cons a r) = Sum a <> r
---  in foldMapOf (recursing) fromListF $ [1..5]
--- :}
--- Sum {getSum = 15}
---
-recursing :: Recursive s => AFold a s (Base s a)
-recursing = afolding F.fold
-{-# INLINE recursing #-}
-
--- | TODO: Document
---
-recursing1 :: Recursive s => AFold1 a s (Base s a)
-recursing1 = afolding1 F.fold
-{-# INLINE recursing1 #-}
-
--- | TODO: Document
---
-corecursing :: Corecursive t => AUnfold b t (Base t b)
-corecursing = aunfolding F.unfold
-{-# INLINE corecursing #-}
 
 -- | Obtain a 'Fold0' from a 'View'.
 --
 -- @
 -- 'toFold0' o ≡ o . 'just'
--- 'toFold0' o ≡ 'folding0' ('view' o)
+-- 'toFold0' o ≡ 'fold0' ('view' o)
 -- @
 --
 toFold0 :: View s (Maybe a) -> Fold0 s a
@@ -417,7 +380,7 @@ previewOf o = runFold0Rep #. o .# Fold0Rep
 -- | Map parts of a structure to a monoid and combine the results.
 --
 -- @
--- 'Data.Foldable.foldMap' = 'foldMapOf' 'vlfold''
+-- 'Data.Foldable.foldMap' = 'foldMapOf' 'vfold''
 -- @
 --
 -- >>> foldMapOf both id (["foo"], ["bar", "baz"])
@@ -539,7 +502,7 @@ product1Of o p = getProd . foldMap1Of o (Prod . p)
 -- [1]
 --
 folded0 :: Fold0 (Maybe a) a
-folded0 = folding0 id
+folded0 = fold0 id
 {-# INLINE folded0 #-}
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
@@ -632,7 +595,7 @@ presemiring = summed1 . multiplied1
 -- 21
 --
 summed :: Foldable f => Monoid r => AFold r (f a) a
-summed = afolding foldMap
+summed = afold foldMap
 
 -- | Compute the semigroup sum of a 'Fold1'.
 --
@@ -642,7 +605,7 @@ summed = afolding foldMap
 -- 10
 --
 summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
-summed1 = afolding1 foldMap1
+summed1 = afold1 foldMap1
 
 -- | Compute the semiring product of a 'Fold'.
 --
@@ -660,7 +623,7 @@ summed1 = afolding1 foldMap1
 -- In this situation you most likely want to use 'multiplied1'.
 --
 multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
-multiplied = afolding Rng.product
+multiplied = afold Rng.product
 
 -- | Compute the semiring product of a 'Fold1'.
 --
@@ -668,23 +631,7 @@ multiplied = afolding Rng.product
 -- Just 120 
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
-multiplied1 = afolding1 Rng.product1
-
--- | Any lens, traversal, or prism will type-check as a `Cayley`
---
-type Cayley s a = forall r. AFold (Endo (Endo r)) s a
-
-type CayleyM m s a = forall r. AFold (Endo (EndoM m r)) s a 
-
--- | Precompose with a Moore machine.
---
-premapped :: Cayley b a -> L.Fold a c -> L.Fold b c
-premapped o (L.Fold h z k) = L.Fold (foldsl' o h) z k
-
--- | Precompose with an effectful Moore machine.
---
-premappedM :: Monad m => CayleyM m b a -> L.FoldM m a c -> L.FoldM m b c
-premappedM o (L.FoldM h z k) = L.FoldM (foldsM' o h) z k
+multiplied1 = afold1 Rng.product1
 
 ---------------------------------------------------------------------
 -- Derived operators
@@ -981,3 +928,21 @@ newtype NonEmptyDList a
 
 instance Semigroup (NonEmptyDList a) where
   NonEmptyDList f <> NonEmptyDList g = NonEmptyDList (f . NEL.toList . g)
+
+{-|
+> instance Monad m => Monoid (EndoM m a) where
+>     mempty = EndoM return
+>     mappend (EndoM f) (EndoM g) = EndoM (f <=< g)
+-}
+newtype EndoM m a = EndoM { appEndoM :: a -> m a }
+
+instance Monad m => Semigroup (EndoM m a) where
+    (EndoM f) <> (EndoM g) = EndoM (f <=< g)
+    {-# INLINE (<>) #-}
+
+instance Monad m => Monoid (EndoM m a) where
+    mempty = EndoM return
+    {-# INLINE mempty #-}
+
+    mappend = (<>)
+    {-# INLINE mappend #-}
