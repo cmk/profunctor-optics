@@ -2,8 +2,28 @@ cabal-version: >= 1.10
 
 name:           profunctor-optics
 version:        0.0.0.1
-synopsis:       Profunctor optics
-description:    A profunctor optics library compatible with the typeclasses in 'profunctors'.
+synopsis:       A profunctor optics library compatible with the typeclasses in 'profunctors'.
+description:  
+  This package provides some utilities for manipulating profunctor-based optics. It has a few design goals:
+  .
+  Be interoperable. All that is required to create optics is the `profunctors` package, which is heavily used and likely to end up in `base` at some point. Optics compose with `(.)` from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, then you can do so without incurring a dependency on this package. Names of things are kept fairly close to the `lens` versions for compatibility and comprehension. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  .
+  .
+  Be simple. Optics are complex enough without adding implementation noise. There are no inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery. The language extensions doing the majority of the work are `RankNTypes` and `QuantifiedConstraints`. 
+  . 
+  .
+  Be correct. Optics have clear laws that should be tested in cases when they are written by hand. Operators should obey the <https://en.wikipedia.org/wiki/Principle_of_least_astonishment principle of least astonishment> and generate type errors when presented with an incompatible optic rather than do something sneaky  
+  .
+  .
+  Be flexible. Profunctor optics are an area of active exploration, and new optics and use cases are still being discovered. Corepresentable optics for example have use cases in rounding and resource handling that remain largely unexplored. Therefore it's useful not to over-prescribe a hierarchy.
+  .
+  .
+  Be performant. Pure data access and mutation shouldn't be the bottleneck in your application.
+  .
+  .
+  .
+  If you're new to profunctors, <https://www.youtube.com/watch?v=OJtGECfksds this talk> by Phil Freeman and the < https://github.com/hablapps/DontFearTheProfunctorOptics/blob/master/Optics.md Don't Fear the Profunctor Optics > series are good general introductions.
+
 category:       Data, Lenses
 homepage:       https://github.com/cmk/profunctor-extras
 bug-reports:    https://github.com/cmk/profunctor-extras/issues
