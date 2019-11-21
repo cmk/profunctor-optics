@@ -17,7 +17,7 @@ module Data.Profunctor.Optic.Lens (
   , AColens'
     -- * Constructors
   , lens
-  , vlens
+  , lensVl
   , colens
   , matching
   , rematching
@@ -87,8 +87,8 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 --
 -- Compare 'Data.Profunctor.Optic.Grate.vlgrate'.
 --
-vlens :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-vlens o = dimap ((info &&& values) . o (flip Context id)) (uncurry id . swp) . first'
+lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
+lensVl o = dimap ((info &&& values) . o (flip Indexed id)) (uncurry id . swap) . first'
 
 -- | Obtain a 'Colens' from a getter and setter. 
 --
@@ -120,7 +120,7 @@ rematching csa bct = unsecond . dimap csa bct
 -- | Use a 'Lens' to construct a 'Pastro'.
 --
 toPastro :: ALens s t a b -> p a b -> Pastro p s t
-toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swp) p (\s -> (sa s, s))
+toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
 
 -- | Use a 'Lens' to construct a 'Tambara'.
 --
@@ -159,11 +159,11 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
 
-instance Sieve (LensRep a b) (Context a b) where
-  sieve (LensRep sa sbt) s = Context (sa s) (sbt s)
+instance Sieve (LensRep a b) (Indexed a b) where
+  sieve (LensRep sa sbt) s = Indexed (sa s) (sbt s)
 
 instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = Context a b
+  type Rep (LensRep a b) = Indexed a b
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
@@ -178,7 +178,7 @@ instance Profunctor (ColensRep a b) where
 
 instance Costrong (ColensRep a b) where
   unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
-    where foo = uncurry baca . shuffle . B.second undefined . swp --TODO: B.second bbc
+    where foo = uncurry baca . shuffle . B.second undefined . swap --TODO: B.second bbc
           shuffle (x,(y,z)) = (y,(x,z))
 
 ---------------------------------------------------------------------

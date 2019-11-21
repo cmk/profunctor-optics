@@ -28,10 +28,10 @@ module Data.Profunctor.Optic.Traversal (
   , traversal0'
   , traversal
   , traversal1
-  , traversing0
-  , traversing
-  , traversing1
-  , cotraversing
+  , traversal0Vl
+  , traversalVl
+  , traversal1Vl
+  , cotraversalVl
     -- * Representatives
   , Traversal0Rep(..)
     -- * Primitive operators
@@ -135,19 +135,19 @@ traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = lens sa sbt . lift traverse
+traversal sa sbt = lens sa sbt . repn traverse
 
 -- | Obtain a 'Traversal1' optic from a getter and setter.
 --
 -- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
 traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = lens sa sbt . lift traverse1
+traversal1 sa sbt = lens sa sbt . repn traverse1
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
-traversing0 :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
+traversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversal0Vl f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
   where
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
@@ -163,8 +163,8 @@ traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id eb
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversing abst = tabulate . abst . sieve
+traversalVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversalVl abst = tabulate . abst . sieve
 
 -- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
@@ -175,13 +175,13 @@ traversing abst = tabulate . abst . sieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
-traversing1 abst = tabulate . abst . sieve 
+traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+traversal1Vl abst = tabulate . abst . sieve 
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
-cotraversing :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversing abst = cotabulate . abst . cosieve 
+cotraversalVl :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversalVl abst = cotabulate . abst . cosieve 
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'
@@ -209,24 +209,24 @@ instance Choice (Traversal0Rep u v) where
       (\eca -> eassocl (second getter eca))
       (\eca v -> second (`setter` v) eca)
 
-instance Sieve (Traversal0Rep a b) (Context0 a b) where
-  sieve (Traversal0Rep sta sbt) s = Context0 (sbt s) (sta s)
+instance Sieve (Traversal0Rep a b) (Indexed0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Indexed0 (sbt s) (sta s)
 
 instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = Context0 a b
+  type Rep (Traversal0Rep a b) = Indexed0 a b
 
   tabulate f = Traversal0Rep (\s -> info0 (f s)) (\s -> values0 (f s))
 
-data Context0 a b t = Context0 (b -> t) (t + a)
+data Indexed0 a b t = Indexed0 (b -> t) (t + a)
 
-values0 :: Context0 a b t -> b -> t
-values0 (Context0 bt _) = bt
+values0 :: Indexed0 a b t -> b -> t
+values0 (Indexed0 bt _) = bt
 
-info0 :: Context0 a b t -> t + a
-info0 (Context0 _ a) = a
+info0 :: Indexed0 a b t -> t + a
+info0 (Indexed0 _ a) = a
 
-instance Functor (Context0 a b) where
-  fmap f (Context0 bt ta) = Context0 (f . bt) (first f ta)
+instance Functor (Indexed0 a b) where
+  fmap f (Indexed0 bt ta) = Indexed0 (f . bt) (first f ta)
   {-# INLINE fmap #-}
 
 ---------------------------------------------------------------------
@@ -329,17 +329,17 @@ distributeOf t = cotraverseOf t id
 -- | TODO: Document
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = traversing traverse
+traversed = traversalVl traverse
 
 -- | Obtain a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = traversing1 traverse1
+traversed1 = traversal1Vl traverse1
 
 -- | TODO: Document
 --
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cotraversing cotraverse
+cotraversed = cotraversalVl cotraverse
 
 -- | TODO: Document
 --
@@ -388,7 +388,7 @@ duplicated p = pappend p p
 -- @
 --
 bitraversed :: Bitraversable f => Traversal (f a a) (f b b) a b
-bitraversed = lift $ \f -> bitraverse f f
+bitraversed = repn $ \f -> bitraverse f f
 {-# INLINE bitraversed #-}
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
@@ -401,7 +401,7 @@ bitraversed = lift $ \f -> bitraverse f f
 -- @
 --
 bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
-bitraversed1 = lift $ \f -> bitraverse1 f f
+bitraversed1 = repn $ \f -> bitraverse1 f f
 {-# INLINE bitraversed1 #-}
 
 -- | TODO: Document
@@ -418,7 +418,7 @@ selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k t
 -- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
 --
 -- @
--- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
+-- 'predicated' p ≡ 'traversal0Vl' $ \point f a -> if p a then f a else point a
 -- @
 --
 -- >>> [1..10] ^.. folded . predicated even
@@ -444,7 +444,7 @@ predicated p = traversal0 (branch' p) (flip const)
 -- @
 --
 repeated :: Traversal1' a a
-repeated = lift $ \g a -> go g a where go g a = g a .> go g a
+repeated = repn $ \g a -> go g a where go g a = g a .> go g a
 {-# INLINE repeated #-}
 
 -- | @x '^.' 'iterated' f@ returns an infinite 'Traversal1'' of repeated applications of @f@ to @x@.
@@ -460,10 +460,10 @@ repeated = lift $ \g a -> go g a where go g a = g a .> go g a
 -- iterated :: (a -> a) -> 'Fold1' a a
 -- @
 iterated :: (a -> a) -> Traversal1' a a
-iterated f = lift $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
+iterated f = repn $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 {-# INLINE iterated #-}
 
--- | Transform a 'Traversal1'' into a 'Traversal1'' that loops lift its elements repeatedly.
+-- | Transform a 'Traversal1'' into a 'Traversal1'' that loops repn its elements repeatedly.
 --
 -- >>> take 7 $ (1 :| [2,3]) ^.. cycled traversed1
 -- [1,2,3,1,2,3,1]
@@ -472,7 +472,7 @@ iterated f = lift $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 -- cycled :: 'Fold1' s a -> 'Fold1' s a
 -- @
 cycled :: Apply f => ATraversal1' f s a -> ATraversal1' f s a
-cycled o = lift $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
+cycled o = repn $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 {-# INLINE cycled #-}
 
 ---------------------------------------------------------------------

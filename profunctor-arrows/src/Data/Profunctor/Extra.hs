@@ -4,8 +4,8 @@ module Data.Profunctor.Extra (
   , rgt'
   , lft
   , lft'
-  , swp
-  , eswp
+  , swap
+  , eswap
   , fork
   , join
   , eval
@@ -38,8 +38,8 @@ module Data.Profunctor.Extra (
   , choice
   , cochoice
   , pull
-  , lift
-  , colift
+  , repn
+  , corepn
   , star
   , toStar
   , fromStar 
@@ -66,6 +66,7 @@ import Data.Functor.Contravariant
 import Data.Profunctor
 import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
+import Data.Tuple (swap)
 import Data.Void
 import Prelude
 import qualified Control.Category as C (id)
@@ -91,13 +92,9 @@ lft' :: a + Void -> a
 lft' = lft absurd
 {-# INLINE lft' #-}
 
-swp :: (a1 , a2) -> (a2 , a1)
-swp = snd &&& fst
-{-# INLINE swp #-}
-
-eswp :: (a1 + a2) -> (a2 + a1)
-eswp = Right ||| Left
-{-# INLINE eswp #-}
+eswap :: (a1 + a2) -> (a2 + a1)
+eswap = Right ||| Left
+{-# INLINE eswap #-}
 
 fork :: a -> (a , a)
 fork = M.join (,)
@@ -128,7 +125,7 @@ branch' f x = branch f x x x
 {-# INLINE branch' #-}
 
 distl :: (a , b + c) -> (a , b) + c
-distl = eswp . traverse eswp
+distl = eswap . traverse eswap
 {-# INLINE distl #-}
 
 distr :: (a + b , c) -> a + (b , c)
@@ -204,11 +201,11 @@ coercer = rmap absurd . contramap absurd
 {-# INLINE coercer #-}
 
 coercel' :: Corepresentable p => Contravariant (Corep p) => p a b -> p c b
-coercel' = colift (. phantom)
+coercel' = corepn (. phantom)
 {-# INLINE coercel' #-}
 
 coercer' :: Representable p => Contravariant (Rep p) => p a b -> p a c
-coercer' = lift (phantom .)
+coercer' = repn (phantom .)
 {-# INLINE coercer' #-}
 
 strong :: Strong p => ((a , b) -> c) -> p a b -> p a c
@@ -231,13 +228,13 @@ pull :: Strong p => p a b -> p a (a , b)
 pull = lmap fork . second'
 {-# INLINE pull #-}
 
-lift :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
-lift f = tabulate . f . sieve
-{-# INLINE lift #-}
+repn :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
+repn f = tabulate . f . sieve
+{-# INLINE repn #-}
 
-colift :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
-colift f = cotabulate . f . cosieve
-{-# INLINE colift #-}
+corepn :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
+corepn f = cotabulate . f . cosieve
+{-# INLINE corepn #-}
 
 star :: Applicative f => Star f a a
 star = Star pure

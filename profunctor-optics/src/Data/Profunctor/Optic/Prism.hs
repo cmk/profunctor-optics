@@ -189,7 +189,7 @@ below k =
 -- | Use a 'Prism' to construct a 'PastroSum'.
 --
 toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
-toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (eswp . sta)
+toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (eswap . sta)
 
 -- | Use a 'Prism' to construct a 'TambaraSum'.
 --

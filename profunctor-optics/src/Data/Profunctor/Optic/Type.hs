@@ -33,7 +33,7 @@ module Data.Profunctor.Optic.Type (
     -- * Affine folds, general & non-empty folds, & unfolds
   , Fold0, Fold0like
   , Fold, Foldlike, FoldRep, AFold
-  , Unfold, UnfoldRep, AUnfold
+  , Cofold, CofoldRep, ACofold
     -- * Non-empty folds
   , Fold1, Fold1like, AFold1
     -- * Views & Reviews
@@ -262,7 +262,7 @@ type ACotraversal f s t a b = ComonadApply f => ACorepn f s t a b
 type ACotraversal' f s a = ACotraversal f s s a a
 
 ---------------------------------------------------------------------
--- 'Fold0', 'Fold', 'Fold1' & 'Unfold'
+-- 'Fold0', 'Fold', 'Fold1' & 'Cofold'
 ---------------------------------------------------------------------
 
 -- | A 'Fold0' combines at most one element, with no interactions.
@@ -289,13 +289,13 @@ type Fold1like p s a = (forall x. Contravariant (p x)) => Traversal1like p s s a
 
 type AFold1 r s a = Semigroup r => Optic' (FoldRep r) s a
 
-type Unfold t b = forall p. Unfoldlike p t b
+type Cofold t b = forall p. Cofoldlike p t b
 
-type Unfoldlike p t b = Bifunctor p => Cotraversallike p t t b b
+type Cofoldlike p t b = Bifunctor p => Cotraversallike p t t b b
 
-type UnfoldRep r = Costar (Const r)
+type CofoldRep r = Costar (Const r)
 
-type AUnfold r t b = Optic' (UnfoldRep r) t b
+type ACofold r t b = Optic' (CofoldRep r) t b
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'

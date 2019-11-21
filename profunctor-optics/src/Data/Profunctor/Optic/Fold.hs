@@ -13,21 +13,21 @@ module Data.Profunctor.Optic.Fold (
   , AFold
   , Fold1
   , AFold1
-  , Unfold
-  , AUnfold
+  , Cofold
+  , ACofold
     -- * Constructors
   , fold0 
-  , vfold
-  , vfold1
-  , vunfold 
+  , foldVl
+  , fold1Vl
+  , cofoldVl 
   , folding 
   , folding1
-  , unfolding
+  , cofolding
   , folding_
   , folding1_
   , afold
   , afold1
-  , aunfold
+  , acofold
   , failing
   , toFold0
   , toFold 
@@ -43,10 +43,10 @@ module Data.Profunctor.Optic.Fold (
   , previewOf
   , foldMapOf
   , foldMap1Of 
-  , unfoldMapOf
+  , cofoldMapOf
   , foldOf 
   , fold1Of 
-  , unfoldOf 
+  , cofoldOf 
   , toListOf
   , toNelOf
   , toPureOf
@@ -56,7 +56,7 @@ module Data.Profunctor.Optic.Fold (
   , folded0
   , folded
   , folded1 
-  , unfolded 
+  , cofolded 
   , folded_ 
   , folded1_
   , unital
@@ -143,7 +143,7 @@ import qualified Prelude as Pre
 
 
 ---------------------------------------------------------------------
--- 'Fold0', 'Fold' & 'Unfold'
+-- 'Fold0', 'Fold' & 'Cofold'
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Fold0' from a partial function.
@@ -165,90 +165,90 @@ fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
 
 -- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
 --
-vfold :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
-vfold f = coercer . lift f . coercer
-{-# INLINE vfold #-}
+foldVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
+foldVl f = coercer . repn f . coercer
+{-# INLINE foldVl #-}
 
 -- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-vfold1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-vfold1 f = coercer . lift f . coercer
-{-# INLINE vfold1 #-}
+fold1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
+fold1Vl f = coercer . repn f . coercer
+{-# INLINE fold1Vl #-}
 
--- | Obtain a 'Unfold' from a Van Laarhoven 'Unfold'.
+-- | Obtain a 'Cofold' from a Van Laarhoven 'Cofold'.
 --
-vunfold :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Unfold t b
-vunfold f = coercel . colift f . coercel
-{-# INLINE vunfold #-}
+cofoldVl :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cofold t b
+cofoldVl f = coercel . corepn f . coercel
+{-# INLINE cofoldVl #-}
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
 --
 -- @
 -- 'folding' f ≡ 'traversed' . 'to' f
--- 'folding' f ≡ 'vfold' 'traverse' . 'to' f
+-- 'folding' f ≡ 'foldVl' 'traverse' . 'to' f
 -- @
 --
 folding :: Traversable f => (s -> a) -> Fold (f s) a
-folding f = vfold traverse . to f
+folding f = foldVl traverse . to f
 {-# INLINE folding #-}
 
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
 -- @
 -- 'folding1' f ≡ 'traversed1' . 'to' f
--- 'folding1' f ≡ 'vfold1' 'traverse1' . 'to' f
+-- 'folding1' f ≡ 'fold1Vl' 'traverse1' . 'to' f
 -- @
 --
 folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-folding1 f = vfold1 traverse1 . to f
+folding1 f = fold1Vl traverse1 . to f
 {-# INLINE folding1 #-}
 
--- | Obtain an 'Unfold' from a 'Distributive' functor. 
+-- | Obtain an 'Cofold' from a 'Distributive' functor. 
 --
 -- @
--- 'unfolding' f ≡ 'cotraversed' . 'from' f
--- 'unfolding' f ≡ 'vunfold' 'cotraverse' . 'from' f
+-- 'cofolding' f ≡ 'cotraversed' . 'from' f
+-- 'cofolding' f ≡ 'cofoldVl' 'cotraverse' . 'from' f
 -- @
 --
-unfolding :: Distributive f => (b -> t) -> Unfold (f t) b
-unfolding f = vunfold cotraverse . from f
-{-# INLINE unfolding #-}
+cofolding :: Distributive f => (b -> t) -> Cofold (f t) b
+cofolding f = cofoldVl cotraverse . from f
+{-# INLINE cofolding #-}
 
 -- | Obtain a 'Fold' by lifting an operation that returns a 'Foldable' result.
 --
 -- @ 
 -- 'folding_' ('toListOf' o) ≡ o
--- 'folding_' f ≡ 'to' f . 'vfold' 'traverse_'
+-- 'folding_' f ≡ 'to' f . 'foldVl' 'traverse_'
 -- 'folding_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse_'
 -- @
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
--- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
+-- This can be useful to repn operations from @Data.List@ and elsewhere into a 'Fold'.
 --
 -- >>> [1,2,3,4] ^.. folding_ tail
 -- [2,3,4]
 --
 folding_ :: Foldable f => (s -> f a) -> Fold s a
-folding_ f = to f . vfold traverse_
+folding_ f = to f . foldVl traverse_
 {-# INLINE folding_ #-}
 
 -- | Obtain a 'Fold1' by lifting an operation that returns a 'Foldable1' result.
 --
 -- @ 
 -- 'folding1_' ('toNelOf' o) ≡ o
--- 'folding1_' f ≡ 'to' f . 'vfold1' 'traverse1_'
+-- 'folding1_' f ≡ 'to' f . 'fold1Vl' 'traverse1_'
 -- 'folding1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse1_'
 -- @
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
--- This can be useful to lift operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
+-- This can be useful to repn operations from @Data.List.NonEmpty@ and elsewhere into a 'Fold1'.
 --
 folding1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
-folding1_ f = to f . vfold1 traverse1_
+folding1_ f = to f . fold1Vl traverse1_
 {-# INLINE folding1_ #-}
 
 -- | TODO: Document
@@ -265,9 +265,9 @@ afold1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
 
 -- | TODO: Document
 --
-aunfold :: ((r -> b) -> r -> t) -> AUnfold r t b
-aunfold o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE aunfold #-}
+acofold :: ((r -> b) -> r -> t) -> ACofold r t b
+acofold o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE acofold #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
@@ -380,7 +380,7 @@ previewOf o = runFold0Rep #. o .# Fold0Rep
 -- | Map parts of a structure to a monoid and combine the results.
 --
 -- @
--- 'Data.Foldable.foldMap' = 'foldMapOf' 'vfold''
+-- 'Data.Foldable.foldMap' = 'foldMapOf' 'foldVl''
 -- @
 --
 -- >>> foldMapOf both id (["foo"], ["bar", "baz"])
@@ -408,14 +408,14 @@ foldMap1Of o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
 
 -- | TODO: Document
 --
--- >>> unfoldMapOf (from succ) (*2) 3
+-- >>> cofoldMapOf (from succ) (*2) 3
 -- 7
 --
 -- Compare 'Data.Profunctor.Optic.View.reviews'.
 --
-unfoldMapOf :: AUnfold r t b -> (r -> b) -> r -> t
-unfoldMapOf o = (.# Const) #. runCostar #. o .# Costar .# (.# getConst)
-{-# INLINE unfoldMapOf #-}
+cofoldMapOf :: ACofold r t b -> (r -> b) -> r -> t
+cofoldMapOf o = (.# Const) #. runCostar #. o .# Costar .# (.# getConst)
+{-# INLINE cofoldMapOf #-}
 
 -- | TODO: Document
 --
@@ -431,9 +431,9 @@ fold1Of = flip foldMap1Of id
 
 -- | TODO: Document
 --
-unfoldOf :: AUnfold b t b -> b -> t
-unfoldOf = flip unfoldMapOf id
-{-# INLINE unfoldOf #-}
+cofoldOf :: ACofold b t b -> b -> t
+cofoldOf = flip cofoldMapOf id
+{-# INLINE cofoldOf #-}
 
 -- | Collect the foci of a `Fold` into a list.
 --
@@ -517,11 +517,11 @@ folded1 :: Traversable1 f => Fold1 (f a) a
 folded1 = folding1 id
 {-# INLINE folded1 #-}
 
--- | Obtain an 'Unfold' from a 'Distributive' functor. 
+-- | Obtain an 'Cofold' from a 'Distributive' functor. 
 --
-unfolded :: Distributive f => Unfold (f b) b
-unfolded = unfolding id
-{-# INLINE unfolded #-}
+cofolded :: Distributive f => Cofold (f b) b
+cofolded = cofolding id
+{-# INLINE cofolded #-}
 
 -- | The canonical 'Fold'.
 --
@@ -736,7 +736,7 @@ foldsr p f r = (`appEndo` r) . foldMapOf p (Endo . f)
 foldsl :: AFold (Dual (Endo c)) s a -> (c -> a -> c) -> c -> s -> c
 foldsl p f r = (`appEndo` r) . getDual . foldMapOf p (Dual . Endo . flip f)
 
--- | Fold lift the elements of a structure, associating to the left, but strictly.
+-- | Fold repn the elements of a structure, associating to the left, but strictly.
 --
 -- @
 -- 'Data.Foldable.foldl'' ≡ 'foldsl'' 'folding'

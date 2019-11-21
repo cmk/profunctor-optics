@@ -88,12 +88,12 @@ corepnOf o = runCostar #. o .# Costar
 
 -- | A more permissive variant of 'Data.Profunctor.Optic.Grate.closed'. 
 --
-closed :: Corepn (c -> a) (c -> b) a b
-closed = corepresenting cotraverse
-{-# INLINE closed #-}
+closed' :: Corepn (c -> a) (c -> b) a b
+closed' = corepresenting cotraverse
+{-# INLINE closed' #-}
 
 -- | A more permissive variant of 'Data.Profunctor.Optic.Grate.distributed'. 
 --
-distributed :: Distributive f => Corepn (f a) (f b) a b
-distributed = corepresenting $ \fab fs -> fmap fab $ distribute fs
-{-# INLINE distributed #-}
+distributed' :: Distributive f => Corepn (f a) (f b) a b
+distributed' = corepresenting $ \fab fs -> fmap fab $ distribute fs
+{-# INLINE distributed' #-}

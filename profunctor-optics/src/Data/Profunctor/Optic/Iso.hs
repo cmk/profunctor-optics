@@ -27,10 +27,10 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , Context(..)
+  , Indexed(..)
   , values
   , info 
-  , Indexed(..)
+  , Coindexed(..)
   , trivial
     -- * Primitive operators
   , withIso 
@@ -195,55 +195,55 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-instance Sieve (IsoRep a b) (Context a b) where
-  sieve (IsoRep sa bt) s = Context (sa s) bt
+instance Sieve (IsoRep a b) (Indexed a b) where
+  sieve (IsoRep sa bt) s = Indexed (sa s) bt
 
-instance Cosieve (IsoRep a b) (Indexed a b) where
-  cosieve (IsoRep sa bt) (Indexed sab) = bt (sab sa)
+instance Cosieve (IsoRep a b) (Coindexed a b) where
+  cosieve (IsoRep sa bt) (Coindexed sab) = bt (sab sa)
 
 -- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
 --
--- @'Context' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
+-- @'Indexed' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
 --
-data Context a b r = Context a (b -> r)
+data Indexed a b r = Indexed a (b -> r)
 
-values :: Context a b r -> b -> r
-values (Context _ br) = br
+values :: Indexed a b r -> b -> r
+values (Indexed _ br) = br
 {-# INLINE values #-}
 
-info :: Context a b r -> a
-info (Context a _) = a
+info :: Indexed a b r -> a
+info (Indexed a _) = a
 {-# INLINE info #-}
 
-instance Functor (Context a b) where
-  fmap f (Context a br) = Context a (f . br)
+instance Functor (Indexed a b) where
+  fmap f (Indexed a br) = Indexed a (f . br)
   {-# INLINE fmap #-}
 
-instance Profunctor (Context a) where
-  dimap f g (Context a br) = Context a (g . br . f)
+instance Profunctor (Indexed a) where
+  dimap f g (Indexed a br) = Indexed a (g . br . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (Context a b) where
-  foldMap f (Context b br) = f . br $ b
+instance a ~ b => Foldable (Indexed a b) where
+  foldMap f (Indexed b br) = f . br $ b
 
 -- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
 --
--- @'Indexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
+-- @'Coindexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
 --
 -- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
 --
-newtype Indexed a b i = Indexed { runIndexed :: (i -> a) -> b } deriving Generic
+newtype Coindexed a b i = Coindexed { runCoindexed :: (i -> a) -> b } deriving Generic
 
 -- | Change the @Monoid@ used to combine indices.
 --
-instance Functor (Indexed a b) where
-  fmap ij (Indexed abi) = Indexed $ \ja -> abi (ja . ij)
+instance Functor (Coindexed a b) where
+  fmap ij (Coindexed abi) = Coindexed $ \ja -> abi (ja . ij)
 
-instance a ~ b => Apply (Indexed a b) where
-  (Indexed idab) <.> (Indexed abi) = Indexed $ \da -> idab $ \id -> abi (da . id) 
+instance a ~ b => Apply (Coindexed a b) where
+  (Coindexed idab) <.> (Coindexed abi) = Coindexed $ \da -> idab $ \id -> abi (da . id) 
 
-trivial :: Indexed a b a -> b
-trivial (Indexed f) = f id
+trivial :: Coindexed a b a -> b
+trivial (Coindexed f) = f id
 {-# INLINE trivial #-}
 
 ---------------------------------------------------------------------
@@ -424,13 +424,13 @@ curried = iso curry uncurry
 -- | TODO: Document
 --
 swapped :: Iso (a , b) (c , d) (b , a) (d , c)
-swapped = iso swp swp
+swapped = iso swap swap
 {-# INLINE swapped #-}
 
 -- | TODO: Document
 --
 eswapped :: Iso (a + b) (c + d) (b + a) (d + c)
-eswapped = iso eswp eswp
+eswapped = iso eswap eswap
 {-# INLINE eswapped #-}
 
 -- | 'Iso' defined by left-association of nested tuples.

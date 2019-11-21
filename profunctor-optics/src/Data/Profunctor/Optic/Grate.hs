@@ -13,7 +13,7 @@ module Data.Profunctor.Optic.Grate  (
   , AGrate'
     -- * Constructors
   , grate
-  , grating
+  , grateVl
   , inverting
   , toEnvironment
   , toClosure
@@ -98,10 +98,10 @@ grate sabt = dimap (flip ($)) sabt . closed
 
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
--- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversing'.
+-- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
-grating :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
-grating o = dimap (curry eval) ((o trivial) . Indexed) . closed
+grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
+grateVl o = dimap (curry eval) ((o trivial) . Coindexed) . closed
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -144,13 +144,13 @@ instance Closed (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (Indexed a b) where
-  cosieve (GrateRep f) (Indexed g) = f g
+instance Cosieve (GrateRep a b) (Coindexed a b) where
+  cosieve (GrateRep f) (Coindexed g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Indexed a b
+  type Corep (GrateRep a b) = Coindexed a b
 
-  cotabulate f = GrateRep $ f . Indexed
+  cotabulate f = GrateRep $ f . Coindexed
 
 ---------------------------------------------------------------------
 -- Primitive operators
