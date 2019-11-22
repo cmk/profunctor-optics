@@ -28,10 +28,12 @@ module Data.Profunctor.Optic.Traversal (
   , traversal0'
   , traversal
   , traversal1
-  , traversal0Vl
-  , traversalVl
-  , traversal1Vl
-  , cotraversalVl
+  , traversing0
+  , traversing
+  , itraversing
+  , itraversing'
+  , traversing1
+  , cotraversing
     -- * Representatives
   , Traversal0Rep(..)
     -- * Primitive operators
@@ -44,7 +46,8 @@ module Data.Profunctor.Optic.Traversal (
   , sequence1Of
   , distributeOf
     -- * Common optics
-  , traversed 
+  , traversed
+  , itraversed
   , traversed1
   , cotraversed
   , nulled
@@ -146,8 +149,8 @@ traversal1 sa sbt = lens sa sbt . repn traverse1
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
-traversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversal0Vl f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
+traversing0 :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
+traversing0 f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id ebt) . first' . left'
   where
     match s = f Right Left s
     update s b = runIdentity $ f Identity (\_ -> Identity b) s
@@ -163,8 +166,18 @@ traversal0Vl f = dimap (\s -> (match s, s)) (\(ebt, s) -> either (update s) id e
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversalVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversalVl abst = tabulate . abst . sieve
+traversing :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
+traversing abst = tabulate . abst . sieve
+
+-- | Lift an indexed VL traversal into an indexed profunctor traversal.
+--
+itraversing :: (forall f. Applicative f => (i -> a -> f b) -> s -> f t) -> Ixtraversal i s t a b
+itraversing f = traversing $ \iab -> f (curry iab) . snd
+
+-- | Lift a VL traversal into an indexed profunctor traversal.
+--
+itraversing' :: Monoid i => (forall f. Applicative f => (a -> f b) -> s -> f t) -> Ixtraversal i s t a b
+itraversing' f = itraversing $ \iab -> f (iab mempty)
 
 -- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
@@ -175,13 +188,13 @@ traversalVl abst = tabulate . abst . sieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
-traversal1Vl abst = tabulate . abst . sieve 
+traversing1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+traversing1 abst = tabulate . abst . sieve 
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
-cotraversalVl :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversalVl abst = cotabulate . abst . cosieve 
+cotraversing :: (forall f. ComonadApply f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversing abst = cotabulate . abst . cosieve 
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'
@@ -329,17 +342,22 @@ distributeOf t = cotraverseOf t id
 -- | TODO: Document
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
-traversed = traversalVl traverse
+traversed = traversing traverse
+
+-- | TODO: Document
+--
+itraversed :: Monoid i => Traversable f => Ixtraversal i (f a) (f b) a b
+itraversed = itraversing' traverse
 
 -- | Obtain a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
-traversed1 = traversal1Vl traverse1
+traversed1 = traversing1 traverse1
 
 -- | TODO: Document
 --
 cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cotraversalVl cotraverse
+cotraversed = cotraversing cotraverse
 
 -- | TODO: Document
 --
@@ -418,7 +436,7 @@ selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k t
 -- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
 --
 -- @
--- 'predicated' p ≡ 'traversal0Vl' $ \point f a -> if p a then f a else point a
+-- 'predicated' p ≡ 'traversing0' $ \point f a -> if p a then f a else point a
 -- @
 --
 -- >>> [1..10] ^.. folded . predicated even

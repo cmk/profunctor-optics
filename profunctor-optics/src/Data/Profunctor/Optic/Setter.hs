@@ -67,7 +67,7 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
-import Data.Profunctor.Optic.Iso (Indexed(..), Coindexed(..), trivial)
+import Data.Profunctor.Optic.Iso (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Repn
 import Data.Profunctor.Optic.Type
@@ -118,7 +118,7 @@ import qualified Control.Exception as Ex
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = dimap (flip Indexed id) (\(Indexed s ab) -> abst ab s) . repn collect
+setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
@@ -140,7 +140,7 @@ setter abst = dimap (flip Indexed id) (\(Indexed s ab) -> abst ab s) . repn coll
 -- See 'Data.Profunctor.Optic.Property'.
 --
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> Coindexed $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequence1)
+resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequence1)
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
@@ -463,7 +463,7 @@ reset o b = under o (const b)
 -- 'assignA' :: 'Category' p => 'Traversal' s t a b -> 'Lenslike' p s t s b
 -- @
 --
-assignA :: Category p => ASetter s t a b -> Lenslike p s t s b 
+assignA :: Category p => Strong p => ASetter s t a b -> Optic p s t s b 
 assignA o p = arr (flip $ set o) &&& p >>> arr (uncurry id)
 {-# INLINE assignA #-}
 

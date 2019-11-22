@@ -13,12 +13,13 @@ module Data.Profunctor.Extra (
   , coeval 
   , branch
   , branch'
-  , distl 
-  , distr
   , assocl
   , assocr
+  , assocl' 
+  , assocr'
   , eassocl
   , eassocr
+  , eassocr'
   , forget1
   , forget2
   , forgetl
@@ -124,14 +125,6 @@ branch' :: (a -> Bool) -> a -> a + a
 branch' f x = branch f x x x
 {-# INLINE branch' #-}
 
-distl :: (a , b + c) -> (a , b) + c
-distl = eswap . traverse eswap
-{-# INLINE distl #-}
-
-distr :: (a + b , c) -> a + (b , c)
-distr (f, b) = fmap (,b) f
-{-# INLINE distr #-}
-
 assocl :: (a , (b , c)) -> ((a , b) , c)
 assocl (a, (b, c)) = ((a, b), c)
 {-# INLINE assocl #-}
@@ -140,17 +133,29 @@ assocr :: ((a , b) , c) -> (a , (b , c))
 assocr ((a, b), c) = (a, (b, c))
 {-# INLINE assocr #-}
 
-eassocl :: (a + (b + c)) -> ((a + b) + c)
+assocl' :: (a , b + c) -> (a , b) + c
+assocl' = eswap . traverse eswap
+{-# INLINE assocl' #-}
+
+assocr' :: (a + b , c) -> a + (b , c)
+assocr' (f, b) = fmap (,b) f
+{-# INLINE assocr' #-}
+
+eassocl :: a + (b + c) -> (a + b) + c
 eassocl (Left a)          = Left (Left a)
 eassocl (Right (Left b))  = Left (Right b)
 eassocl (Right (Right c)) = Right c
 {-# INLINE eassocl #-}
 
-eassocr :: ((a + b) + c) -> (a + (b + c))
+eassocr :: (a + b) + c -> a + (b + c)
 eassocr (Left (Left a))  = Left a
 eassocr (Left (Right b)) = Right (Left b)
 eassocr (Right c)        = Right (Right c)
 {-# INLINE eassocr #-}
+
+eassocr' :: (a -> b) + c -> a -> b + c
+eassocr' abc a = either (\ab -> Left $ ab a) Right abc
+{-# INLINE eassocr' #-}
 
 forget1 :: ((c, a) -> (c, b)) -> a -> b
 forget1 f a = b where (c, b) = f (c, a)

@@ -1,8 +1,6 @@
 [Hackage link](http://hackage.haskell.org/package/profunctor-optics)
 
-This package provides some utilities for manipulating profunctor-based optics. It has a few design goals:
-
-  * Be interoperable. All that is required to create optics is the `profunctors` package, which is heavily used and likely to end up in `base` at some point. Optics compose with `(.)` from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, then you can do so without incurring a dependency on this package. Names of things are kept fairly close to the `lens` versions for compatibility and comprehension. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+This package provides some utilities for manipulating profunctor-based optics. It has a few goals:
 
   * Be simple. Optics are complex enough without adding implementation noise. There are no inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery. The language extensions doing the majority of the work are `RankNTypes` and `QuantifiedConstraints`.
 
@@ -12,6 +10,7 @@ This package provides some utilities for manipulating profunctor-based optics. I
 
   * Be performant. Pure data access and mutation shouldn't be the bottleneck in your application.
 
+  * Be interoperable. The only requirement to creat an optic is the `profunctors` package, which is heavily used and likely to end up in `base` at some point. Optics compose with `(.)` from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, then you can do so without incurring a dependency on this package. The same goes for indexed and coindexed optics. Conversions to & from the Van Laarhoven representations are provided for each optic type.
 
 If you're new to profunctors, [this talk](https://www.youtube.com/watch?v=OJtGECfksds) by Phil Freeman and the following series are good general introductions:
 

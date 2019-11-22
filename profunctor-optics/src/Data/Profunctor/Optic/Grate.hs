@@ -11,6 +11,8 @@ module Data.Profunctor.Optic.Grate  (
   , Grate'
   , AGrate
   , AGrate'
+  , Jxgrate
+  , Jxgrate'
     -- * Constructors
   , grate
   , grateVl
@@ -29,11 +31,16 @@ module Data.Profunctor.Optic.Grate  (
   , zipWithFOf 
     -- * Common optics
   , closed
+  , jclosed
+  , jfirst
+  , jsecond
   , distributed
   , connected
   , forwarded
   , continued
   , unlifted
+    -- * Classes
+  , Closed(..)
 ) where
 
 import Control.Monad.Reader
@@ -41,7 +48,7 @@ import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
 import Data.Connection (Conn(..))
-import Data.Profunctor.Closed (Closure(..), Environment(..))
+import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
@@ -101,7 +108,7 @@ grate sabt = dimap (flip ($)) sabt . closed
 -- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
 grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
-grateVl o = dimap (curry eval) ((o trivial) . Coindexed) . closed
+grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -144,19 +151,19 @@ instance Closed (GrateRep a b) where
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (Coindexed a b) where
-  cosieve (GrateRep f) (Coindexed g) = f g
+instance Cosieve (GrateRep a b) (Coindex a b) where
+  cosieve (GrateRep f) (Coindex g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Coindexed a b
+  type Corep (GrateRep a b) = Coindex a b
 
-  cotabulate f = GrateRep $ f . Coindexed
+  cotabulate f = GrateRep $ f . Coindex
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | TODO: Document, replace with GrateLike
+-- | Extract the function that characterizes a 'Lens'.
 --
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o k = case o (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
@@ -194,9 +201,19 @@ zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 -- Common grates
 ---------------------------------------------------------------------
 
--- | the counter-clockwise perp
+jclosed :: Jxgrate j (c -> a) (c -> b) a b
+jclosed = rmap flip . closed
+{-# INLINE jclosed #-}
 
--- | Access the contents of a distributive functor.
+jfirst :: Jxgrate j a b (a , c) (b , c)
+jfirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE jfirst #-}
+
+jsecond :: Jxgrate j a b (c , a) (c , b)
+jsecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE jsecond #-}
+
+-- | Access the contents of a assocr'ibutive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate (`cotraverse` id)

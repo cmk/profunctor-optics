@@ -27,10 +27,10 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , Indexed(..)
+  , Index(..)
   , values
   , info 
-  , Coindexed(..)
+  , Coindex(..)
   , trivial
     -- * Primitive operators
   , withIso 
@@ -61,7 +61,9 @@ module Data.Profunctor.Optic.Iso (
   , non 
   , anon
     -- * Auxilliary Types
-  , Re(..) 
+  , Re(..)
+    -- * Classes
+  , Profunctor(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -195,55 +197,55 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-instance Sieve (IsoRep a b) (Indexed a b) where
-  sieve (IsoRep sa bt) s = Indexed (sa s) bt
+instance Sieve (IsoRep a b) (Index a b) where
+  sieve (IsoRep sa bt) s = Index (sa s) bt
 
-instance Cosieve (IsoRep a b) (Coindexed a b) where
-  cosieve (IsoRep sa bt) (Coindexed sab) = bt (sab sa)
+instance Cosieve (IsoRep a b) (Coindex a b) where
+  cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
 
 -- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
 --
--- @'Indexed' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
+-- @'Index' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
 --
-data Indexed a b r = Indexed a (b -> r)
+data Index a b r = Index a (b -> r)
 
-values :: Indexed a b r -> b -> r
-values (Indexed _ br) = br
+values :: Index a b r -> b -> r
+values (Index _ br) = br
 {-# INLINE values #-}
 
-info :: Indexed a b r -> a
-info (Indexed a _) = a
+info :: Index a b r -> a
+info (Index a _) = a
 {-# INLINE info #-}
 
-instance Functor (Indexed a b) where
-  fmap f (Indexed a br) = Indexed a (f . br)
+instance Functor (Index a b) where
+  fmap f (Index a br) = Index a (f . br)
   {-# INLINE fmap #-}
 
-instance Profunctor (Indexed a) where
-  dimap f g (Indexed a br) = Indexed a (g . br . f)
+instance Profunctor (Index a) where
+  dimap f g (Index a br) = Index a (g . br . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (Indexed a b) where
-  foldMap f (Indexed b br) = f . br $ b
+instance a ~ b => Foldable (Index a b) where
+  foldMap f (Index b br) = f . br $ b
 
 -- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
 --
--- @'Coindexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
+-- @'Coindex' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
 --
 -- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
 --
-newtype Coindexed a b i = Coindexed { runCoindexed :: (i -> a) -> b } deriving Generic
+newtype Coindex a b i = Coindex { runCoindex :: (i -> a) -> b } deriving Generic
 
 -- | Change the @Monoid@ used to combine indices.
 --
-instance Functor (Coindexed a b) where
-  fmap ij (Coindexed abi) = Coindexed $ \ja -> abi (ja . ij)
+instance Functor (Coindex a b) where
+  fmap ij (Coindex abi) = Coindex $ \ja -> abi (ja . ij)
 
-instance a ~ b => Apply (Coindexed a b) where
-  (Coindexed idab) <.> (Coindexed abi) = Coindexed $ \da -> idab $ \id -> abi (da . id) 
+instance a ~ b => Apply (Coindex a b) where
+  (Coindex idab) <.> (Coindex abi) = Coindex $ \da -> idab $ \id -> abi (da . id) 
 
-trivial :: Coindexed a b a -> b
-trivial (Coindexed f) = f id
+trivial :: Coindex a b a -> b
+trivial (Coindex f) = f id
 {-# INLINE trivial #-}
 
 ---------------------------------------------------------------------

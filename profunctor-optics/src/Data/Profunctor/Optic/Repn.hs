@@ -14,7 +14,7 @@ import Data.Profunctor.Optic.Type
 -- 'Repn' & 'Corepn'
 ---------------------------------------------------------------------
 
--- | Obtain a representable profunctor optic from a Van Laarhoven 'Lenslike'.
+-- | Obtain a representable profunctor optic from a Van Laarhoven 'LensLike'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -28,19 +28,29 @@ import Data.Profunctor.Optic.Type
 representing :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Repn s t a b
 representing abst = tabulate . abst . sieve
 
--- | Obtain a corepresentable profunctor optic from a Van Laarhoven 'Gratelike'.
+-- | TODO: Document
+--
+irepresenting :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixrepn i s t a b
+irepresenting f = representing $ \iab -> f (curry iab) . snd
+
+-- | Obtain a corepresentable profunctor optic from a Van Laarhoven 'GrateLike'.
 --
 corepresenting :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Corepn s t a b
 corepresenting abst = cotabulate . abst . cosieve
 
 -- | TODO: Document
 --
-cloneRepn :: Optic (Star (Rep p)) s t a b -> Repnlike p s t a b
+jcorepresenting :: (forall f. Functor f => (j -> f a -> b) -> f s -> t) -> Jxrepn j s t a b
+jcorepresenting f = corepresenting (\iab -> const . f (flip iab))
+
+-- | TODO: Document
+--
+cloneRepn :: Optic (Star (Rep p)) s t a b -> RepnLike p s t a b
 cloneRepn o = fromStar . o . toStar
 
 -- | TODO: Document
 --
-cloneCorepn :: Optic (Costar (Corep p)) s t a b -> Corepnlike p s t a b
+cloneCorepn :: Optic (Costar (Corep p)) s t a b -> CorepnLike p s t a b
 cloneCorepn o = fromCostar . o . toCostar 
 
 ---------------------------------------------------------------------

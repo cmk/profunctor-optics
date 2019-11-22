@@ -11,6 +11,8 @@ module Data.Profunctor.Optic.Lens (
   , Lens'
   , ALens
   , ALens'
+  , Ixlens
+  , Ixlens'
   , Colens
   , Colens'
   , AColens
@@ -34,15 +36,20 @@ module Data.Profunctor.Optic.Lens (
     -- * Common optics
   , first
   , second
-  , rfirst
-  , rsecond
+  , ifirst
+  , isecond
+  , cofirst
+  , cosecond
     -- * Derived operators
   , unit
   , void 
   , ix
+    -- * Classes
+  , Strong(..)
+  , Costrong(..)
 ) where
 
-import Data.Profunctor.Strong (Pastro(..), Tambara(..))
+import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
@@ -88,7 +95,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 -- Compare 'Data.Profunctor.Optic.Grate.vlgrate'.
 --
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVl o = dimap ((info &&& values) . o (flip Indexed id)) (uncurry id . swap) . first'
+lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . first'
 
 -- | Obtain a 'Colens' from a getter and setter. 
 --
@@ -159,11 +166,11 @@ instance Strong (LensRep a b) where
   second' (LensRep sa sbt) =
     LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
 
-instance Sieve (LensRep a b) (Indexed a b) where
-  sieve (LensRep sa sbt) s = Indexed (sa s) (sbt s)
+instance Sieve (LensRep a b) (Index a b) where
+  sieve (LensRep sa sbt) s = Index (sa s) (sbt s)
 
 instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = Indexed a b
+  type Rep (LensRep a b) = Index a b
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
 
@@ -211,13 +218,23 @@ second = second'
 
 -- | TODO: Document
 --
-rfirst :: Colens a b (a , c) (b , c)
-rfirst = unfirst
+ifirst :: Ixlens i (a , c) (b , c) a b
+ifirst p = lmap assocl (first' p)
 
 -- | TODO: Document
 --
-rsecond :: Colens a b (c , a) (c , b)
-rsecond = unsecond
+isecond :: Ixlens i (c , a) (c , b) a b
+isecond p = lmap (\(i, (c, a)) -> (c, (i, a))) (second' p)
+
+-- | TODO: Document
+--
+cofirst :: Colens a b (a , c) (b , c)
+cofirst = unfirst
+
+-- | TODO: Document
+--
+cosecond :: Colens a b (c , a) (c , b)
+cosecond = unsecond
 
 -- | There is a `Unit` in everything.
 --

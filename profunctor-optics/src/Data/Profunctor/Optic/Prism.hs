@@ -11,13 +11,17 @@ module Data.Profunctor.Optic.Prism (
   , Prism'
   , APrism
   , APrism'
+  , Ixprism
+  , Ixprism'
   , Coprism
   , Coprism'
   , ACoprism
   , ACoprism'
     -- * Constructors
   , prism
-  , prism' 
+  , prism'
+  , iprism
+  , iprism'
   , coprism
   , coprism'
   , handling
@@ -38,8 +42,10 @@ module Data.Profunctor.Optic.Prism (
     -- * Common optics
   , left
   , right
-  , rleft
-  , rright
+  , ileft
+  , iright
+  , coleft
+  , coright
   , just
   , nothing
   , keyed
@@ -53,6 +59,9 @@ module Data.Profunctor.Optic.Prism (
   , async
   , exception
   , asyncException
+    -- * Classes
+  , Choice(..)
+  , Cochoice(..)
 ) where
 
 import Control.Exception
@@ -61,7 +70,7 @@ import Data.Bifunctor
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix)
 import Data.Prd
-import Data.Profunctor.Choice (PastroSum(..), TambaraSum(..))
+import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Type
@@ -100,10 +109,20 @@ import Data.Profunctor.Optic.Type
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
 prism sta bt = dimap sta (id ||| bt) . right'
 
--- | Create a 'Prism' from a reviewer and a matcher function that produces a 'Maybe'.
+-- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
+
+-- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function.
+--
+iprism :: (i -> s -> t + a) -> (b -> t) -> Ixprism i s t a b
+iprism ista = prism $ \(i,s) -> fmap (i,) (ista i s)
+
+-- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function that produces a 'Maybe'.
+--
+iprism' :: (i -> s -> Maybe a) -> (a -> s) -> Ixprism' i s a
+iprism' isa = prism $ \(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)
 
 -- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
 --
@@ -288,15 +307,25 @@ left = left'
 right :: Prism (c + a) (c + b) a b
 right = right'
 
+-- | Indexed 'Prism' into the `Left` constructor of `Either`.
+--
+ileft :: Ixprism i (a + c) (b + c) a b
+ileft p = lmap assocl' (left' p)
+
+-- | Indexed 'Prism' into the `Right` constructor of `Either`.
+--
+iright :: Ixprism i (c + a) (c + b) a b
+iright p = lmap (traverse eswap . fmap eswap) (right' p)
+
 -- | 'Coprism' out of the `Left` constructor of `Either`.
 --
-rleft :: Coprism a b (a + c) (b + c)
-rleft = unleft
+coleft :: Coprism a b (a + c) (b + c)
+coleft = unleft
 
 -- | 'Coprism' out of the `Right` constructor of `Either`.
 --
-rright :: Coprism a b (c + a) (c + b)
-rright = unright
+coright :: Coprism a b (c + a) (c + b)
+coright = unright
 
 -- | 'Prism' into the `Just` constructor of `Maybe`.
 --
