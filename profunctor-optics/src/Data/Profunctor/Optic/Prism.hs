@@ -11,19 +11,20 @@ module Data.Profunctor.Optic.Prism (
   , Prism'
   , APrism
   , APrism'
+  , Reprism
+  , Reprism'
+  , AReprism
+  , AReprism'
+    -- * Indexed Types
   , Ixprism
   , Ixprism'
-  , Coprism
-  , Coprism'
-  , ACoprism
-  , ACoprism'
+  , Rxprism
+  , Rxprism'
     -- * Constructors
   , prism
   , prism'
-  , iprism
-  , iprism'
-  , coprism
-  , coprism'
+  , reprism
+  , reprism'
   , handling
   , rehandling
   , aside
@@ -32,20 +33,23 @@ module Data.Profunctor.Optic.Prism (
   , toPastroSum
   , toTambaraSum
   , clonePrism
-  , cloneCoprism
+  , cloneReprism
+    -- * Indexed Constructors
+  , iprism
+  , iprism'
+  , rprism
+  , rprism'
     -- * Representatives
   , PrismRep(..)
-  , CoprismRep(..)
+  , ReprismRep(..)
     -- * Primitive operators
   , withPrism
-  , withCoprism
-    -- * Common optics
+  , withReprism
+    -- * Optics
   , left
   , right
-  , ileft
-  , iright
-  , coleft
-  , coright
+  , releft
+  , reright
   , just
   , nothing
   , keyed
@@ -59,6 +63,11 @@ module Data.Profunctor.Optic.Prism (
   , async
   , exception
   , asyncException
+    -- * Indexed optics
+  , ileft
+  , iright
+  , rleft
+  , rright
     -- * Classes
   , Choice(..)
   , Cochoice(..)
@@ -66,7 +75,7 @@ module Data.Profunctor.Optic.Prism (
 
 import Control.Exception
 import Control.Monad (guard)
-import Data.Bifunctor
+import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix)
 import Data.Prd
@@ -114,20 +123,10 @@ prism sta bt = dimap sta (id ||| bt) . right'
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 
--- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function.
---
-iprism :: (i -> s -> t + a) -> (b -> t) -> Ixprism i s t a b
-iprism ista = prism $ \(i,s) -> fmap (i,) (ista i s)
-
--- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function that produces a 'Maybe'.
---
-iprism' :: (i -> s -> Maybe a) -> (a -> s) -> Ixprism' i s a
-iprism' isa = prism $ \(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)
-
 -- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
 --
 -- @
--- coprism f g ≡ \f g -> re (prism f g)
+-- reprism f g ≡ \f g -> re (prism f g)
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -140,17 +139,17 @@ iprism' isa = prism $ \(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)
 --
 -- * @left bat (bat b) ≡ left Left (bat b)@
 --
--- A 'Coprism' is a 'View', so you can specialise types to obtain:
+-- A 'Reprism' is a 'View', so you can specialise types to obtain:
 --
--- @ view :: 'Coprism'' s a -> s -> a @
+-- @ view :: 'Reprism'' s a -> s -> a @
 --
-coprism :: (s -> a) -> (b -> a + t) -> Coprism s t a b
-coprism sa bat = unright . dimap (id ||| sa) bat
+reprism :: (s -> a) -> (b -> a + t) -> Reprism s t a b
+reprism sa bat = unright . dimap (id ||| sa) bat
 
--- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
+-- | Create a 'Reprism' from a reviewer and a matcher function that produces a 'Maybe'.
 --
-coprism' :: (t -> b) -> (b -> Maybe t) -> Coprism' t b
-coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
+reprism' :: (s -> a) -> (a -> Maybe s) -> Reprism' s a
+reprism' tb bt = reprism tb $ \b -> maybe (Left b) Right (bt b)
 
 -- | Obtain a 'Prism' from its free tensor representation.
 --
@@ -159,9 +158,9 @@ coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
 handling :: (s -> c + a) -> (c + b -> t) -> Prism s t a b
 handling sca cbt = dimap sca cbt . right'
 
--- | Obtain a 'Coprism' from its free tensor representation.
+-- | Obtain a 'Reprism' from its free tensor representation.
 --
-rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
+rehandling :: (c + s -> a) -> (b -> c + t) -> Reprism s t a b
 rehandling csa bct = unright . dimap csa bct
 
 -- | Use a 'Prism' to lift part of a structure.
@@ -208,7 +207,7 @@ below k =
 -- | Use a 'Prism' to construct a 'PastroSum'.
 --
 toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
-toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . first bt) p (eswap . sta)
+toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswap . sta)
 
 -- | Use a 'Prism' to construct a 'TambaraSum'.
 --
@@ -222,11 +221,41 @@ clonePrism o = withPrism o prism
 
 -- | TODO: Document
 --
-cloneCoprism :: ACoprism s t a b -> Coprism s t a b
-cloneCoprism o = withCoprism o coprism
+cloneReprism :: AReprism s t a b -> Reprism s t a b
+cloneReprism o = withReprism o reprism
 
 ---------------------------------------------------------------------
--- 'PrismRep' & 'CoprismRep'
+-- 'Ixprism' & 'Rxprism'
+---------------------------------------------------------------------
+
+-- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function.
+--
+jprism :: (i -> s -> t + a) -> (b -> t) -> Ixprism i s t a b
+jprism ista = prism $ \(i,s) -> fmap (i,) (ista i s)
+
+iprism :: (s -> t + (i , a)) -> (b -> t) -> Ixprism i s t a b
+iprism stia = prism $ stia . snd
+
+iprism' :: (s -> Maybe (i , a)) -> (a -> s) -> Ixprism' i s a
+iprism' sia = iprism $ \s -> maybe (Left s) Right (sia s)
+
+-- | Obtain an 'Ixprism'' from a reviewer and an indexed matcher function that produces a 'Maybe'.
+--
+jprism' :: (i -> s -> Maybe a) -> (a -> s) -> Ixprism' i s a
+jprism' isa = prism $ \(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)
+
+-- | Obtain an 'Rxprism' from an indexed reviewer and a matcher function.
+--
+rprism :: Monoid r => (r -> s -> a) -> (b -> a + t) -> Rxprism r s t a b
+rprism rsa bat = reprism (const mempty &&& uncurry rsa) (B.first (mempty,) . bat)
+
+-- | Obtain an 'Rxprism'' from an indexed reviewer and a matcher function that produces a 'Maybe'.
+--
+rprism' :: Monoid r => (r -> s -> a) -> (a -> Maybe s) -> Rxprism' r s a
+rprism' rsa = reprism' (rsa mempty)
+
+---------------------------------------------------------------------
+-- 'PrismRep' & 'ReprismRep'
 ---------------------------------------------------------------------
 
 type APrism s t a b = Optic (PrismRep a b) s t a b
@@ -258,25 +287,25 @@ instance Choice (PrismRep a b) where
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
 
-type ACoprism s t a b = Optic (CoprismRep a b) s t a b
+type AReprism s t a b = Optic (ReprismRep a b) s t a b
 
-type ACoprism' s a = ACoprism s s a a
+type AReprism' s a = AReprism s s a a
 
-data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
+data ReprismRep a b s t = ReprismRep (s -> a) (b -> a + t) 
 
-instance Functor (CoprismRep a b s) where
-  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
+instance Functor (ReprismRep a b s) where
+  fmap f (ReprismRep sa bat) = ReprismRep sa (second f . bat)
   {-# INLINE fmap #-}
 
-instance Profunctor (CoprismRep a b) where
-  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
+instance Profunctor (ReprismRep a b) where
+  lmap f (ReprismRep sa bat) = ReprismRep (sa . f) bat
   {-# INLINE lmap #-}
 
   rmap = fmap
   {-# INLINE rmap #-}
 
-instance Cochoice (CoprismRep a b) where
-  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+instance Cochoice (ReprismRep a b) where
+  unleft (ReprismRep sca batc) = ReprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
   {-# INLINE unleft #-}
 
 ---------------------------------------------------------------------
@@ -288,13 +317,13 @@ instance Cochoice (CoprismRep a b) where
 withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 
--- | Extract the two functions that characterize a 'Coprism'.
+-- | Extract the two functions that characterize a 'Reprism'.
 --
-withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
-withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
+withReprism :: AReprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
+withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
 
 ---------------------------------------------------------------------
--- Common 'Prism's and 'Coprism's
+-- Common 'Prism's and 'Reprism's
 ---------------------------------------------------------------------
 
 -- | 'Prism' into the `Left` constructor of `Either`.
@@ -307,25 +336,15 @@ left = left'
 right :: Prism (c + a) (c + b) a b
 right = right'
 
--- | Indexed 'Prism' into the `Left` constructor of `Either`.
+-- | 'Reprism' out of the `Left` constructor of `Either`.
 --
-ileft :: Ixprism i (a + c) (b + c) a b
-ileft p = lmap assocl' (left' p)
+releft :: Reprism a b (a + c) (b + c)
+releft = unleft
 
--- | Indexed 'Prism' into the `Right` constructor of `Either`.
+-- | 'Reprism' out of the `Right` constructor of `Either`.
 --
-iright :: Ixprism i (c + a) (c + b) a b
-iright p = lmap (traverse eswap . fmap eswap) (right' p)
-
--- | 'Coprism' out of the `Left` constructor of `Either`.
---
-coleft :: Coprism a b (a + c) (b + c)
-coleft = unleft
-
--- | 'Coprism' out of the `Right` constructor of `Either`.
---
-coright :: Coprism a b (c + a) (c + b)
-coright = unright
+reright :: Reprism a b (c + a) (c + b)
+reright = unright
 
 -- | 'Prism' into the `Just` constructor of `Maybe`.
 --
@@ -398,3 +417,27 @@ exception = prism' fromException toException
 --
 asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
+
+---------------------------------------------------------------------
+-- Indexed 'Prism's and 'Reprism's
+---------------------------------------------------------------------
+
+-- | Indexed 'Prism' into the `Left` constructor of `Either`.
+--
+ileft :: Ixprism i (a + c) (b + c) a b
+ileft = lmap assocl' . left'
+
+-- | Indexed 'Prism' into the `Right` constructor of `Either`.
+--
+iright :: Ixprism i (c + a) (c + b) a b
+iright = lmap (traverse eswap . fmap eswap) . right'
+
+-- | Indexed 'Rxprism' out of the `Left` constructor of `Either`.
+--
+rleft :: Monoid r => Rxprism r a b (a + c) (b + c)
+rleft = unleft . lmap (either (fmap Left) ((mempty,) . Right))
+
+-- | Indexed 'Rxprism' out of the `Right` constructor of `Either`.
+--
+rright :: Monoid r => Rxprism r a b (c + a) (c + b)
+rright = unright . lmap (either ((mempty,) . Left) (fmap Right))

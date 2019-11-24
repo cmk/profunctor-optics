@@ -67,8 +67,8 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
-import Data.Profunctor.Optic.Iso (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Import hiding ((&&&))
+import Data.Profunctor.Optic.Indexed (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Repn
 import Data.Profunctor.Optic.Type
 import Data.Semiring
@@ -122,25 +122,8 @@ setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input function satisfies the following
--- properties:
---
--- * @abst id ≡ id@
---
--- * @abst f . abst g ≡ abst (f . g)@
---
--- More generally, a profunctor optic must be monoidal as a natural 
--- transformation:
--- 
--- * @o id ≡ id@
---
--- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
---
--- See 'Data.Profunctor.Optic.Property'.
---
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequence1)
+resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequenceA)
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
@@ -218,6 +201,23 @@ over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. )
 -- 'resetter' '.' 'under' ≡ 'id'
 -- 'under' '.' 'resetter' ≡ 'id'
 -- @
+--
+-- Note that 'under' (more properly co-/over/) is distinct from /reover/:
+--
+-- >>> :t under $ wrapped @(Identity Int)
+-- under $ wrapped @(Identity Int)
+--   :: (Int -> Int) -> Identity Int -> Identity Int
+-- >>> :t over $ wrapped @(Identity Int)
+-- over $ wrapped @(Identity Int)
+--   :: (Int -> Int) -> Identity Int -> Identity Int
+-- >>> :t over . re $ wrapped @(Identity Int)
+-- over . re $ wrapped @(Identity Int)
+--   :: (Identity Int -> Identity Int) -> Int -> Int
+-- >>> :t reover $ wrapped @(Identity Int)
+-- reover $ wrapped @(Identity Int)
+--   :: (Identity Int -> Identity Int) -> Int -> Int
+--
+-- Compare to the /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#v:under version>.
 --
 under :: AResetter s t a b -> (a -> b) -> s -> t
 under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
@@ -438,7 +438,7 @@ set o b = over o (const b)
 -- | Set all referenced fields to the given value.
 --
 -- @
--- reset :: Resetter s t a b -> b -> s -> t
+-- 'reset' ≡ 'set' '.' 're'
 -- @
 -- 
 reset :: AResetter s t a b -> b -> s -> t

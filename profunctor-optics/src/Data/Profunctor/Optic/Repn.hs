@@ -40,8 +40,8 @@ corepresenting abst = cotabulate . abst . cosieve
 
 -- | TODO: Document
 --
-jcorepresenting :: (forall f. Functor f => (j -> f a -> b) -> f s -> t) -> Jxrepn j s t a b
-jcorepresenting f = corepresenting (\iab -> const . f (flip iab))
+krepresenting :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxrepn k s t a b
+krepresenting f = corepresenting $ \kab -> const . f (flip kab)
 
 -- | TODO: Document
 --

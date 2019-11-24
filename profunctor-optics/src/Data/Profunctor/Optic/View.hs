@@ -19,14 +19,16 @@ module Data.Profunctor.Optic.View (
     -- * Representatives
   , Tagged(..)
     -- * Primitive operators
-  , views
-  , reviews
+  , primViewOf
+  , primReviewOf
     -- * Common optics
   , like
   , relike
     -- * Derived operators
-  , view 
+  , view
+  , views
   , review
+  , reviews
   , (^.)
   , (#)
     -- * MonadIO
@@ -147,53 +149,17 @@ cloneReview = from . review
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Map each part of a structure viewed to a semantic editor combinator.
+-- | TODO: Document
 --
--- @
--- 'views o f ≡ foldMapOf o f'
--- 'Data.Foldable.foldMap' = 'views' 'folding''
--- @
---
--- >>> views both id (["foo"], ["bar", "baz"])
--- ["foo","bar","baz"]
---
--- @
--- 'views' ::                'AView' s a       -> (a -> r) -> s -> r
--- 'views' ::                'Iso'' s a        -> (a -> r) -> s -> r
--- 'views' ::                'Lens'' s a       -> (a -> r) -> s -> r
--- 'views' ::                'Coprism'' s a    -> (a -> r) -> s -> r
--- 'views' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
--- 'views' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
--- 'views' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
--- 'views' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
--- @
---
-views :: MonadReader s m => Optic' (FoldRep r) s a -> (a -> r) -> m r
-views o f = asks ((getConst #.) #. runStar #. o .# Star .# (Const #.) $ f)
-{-# INLINE views #-}
+primViewOf :: APrimView r s t a b -> (a -> r) -> s -> r
+primViewOf o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
+{-# INLINE primViewOf #-}
 
--- | Turn an optic around and look through the other end, applying a function.
+-- | TODO: Document
 --
--- @
--- 'reviews' ≡ 'views' '.' 're'
--- 'reviews' ('from' f) g ≡ g '.' f
--- @
---
--- >>> reviews left isRight "mustard"
--- False
---
--- >>> reviews (from succ) (*2) 3
--- 8
---
--- @
--- 'reviews' :: 'Iso'' s a   -> (s -> r) -> a -> r
--- 'reviews' :: 'Prism'' s a -> (s -> r) -> a -> r
--- 'reviews' :: 'Colens'' s a -> (s -> r) -> a -> r
--- @
---
-reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews p f = asks (f . unTagged #. p .# Tagged)
-{-# INLINE reviews #-}
+primReviewOf :: APrimReview s t a b -> (t -> r) -> b -> r
+primReviewOf o f = f . unTagged #. o .# Tagged
+{-# INLINE primReviewOf #-}
 
 ---------------------------------------------------------------------
 -- Common 'View's and 'Review's
@@ -252,6 +218,31 @@ view :: MonadReader s m => AView s a -> m a
 view o = views o id
 {-# INLINE view #-}
 
+-- | Map each part of a structure viewed to a semantic editor combinator.
+--
+-- @
+-- 'views o f ≡ foldMapOf o f'
+-- 'Data.Foldable.foldMap' = 'views' 'folding''
+-- @
+--
+-- >>> views both id (["foo"], ["bar", "baz"])
+-- ["foo","bar","baz"]
+--
+-- @
+-- 'views' ::                'AView' s a       -> (a -> r) -> s -> r
+-- 'views' ::                'Iso'' s a        -> (a -> r) -> s -> r
+-- 'views' ::                'Lens'' s a       -> (a -> r) -> s -> r
+-- 'views' ::                'Reprism'' s a    -> (a -> r) -> s -> r
+-- 'views' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
+-- 'views' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
+-- 'views' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
+-- 'views' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
+-- @
+--
+views :: MonadReader s m => Optic' (FoldRep r) s a -> (a -> r) -> m r
+views o f = asks $ primViewOf o f
+{-# INLINE views #-}
+
 -- | Turn an optic around and look through the other end.
 --
 -- @
@@ -265,12 +256,35 @@ view o = views o id
 -- @
 -- 'review' :: 'Iso'' s a   -> a -> s
 -- 'review' :: 'Prism'' s a -> a -> s
--- 'review' :: 'Colens'' s a -> a -> s
+-- 'review' :: 'Relens'' s a -> a -> s
 -- @
 --
 review :: MonadReader b m => AReview t b -> m t
-review p = asks (unTagged #. p .# Tagged)
+review o = reviews o id
 {-# INLINE review #-}
+
+-- | Turn an optic around and look through the other end, applying a function.
+--
+-- @
+-- 'reviews' ≡ 'views' '.' 're'
+-- 'reviews' ('from' f) g ≡ g '.' f
+-- @
+--
+-- >>> reviews left isRight "mustard"
+-- False
+--
+-- >>> reviews (from succ) (*2) 3
+-- 8
+--
+-- @
+-- 'reviews' :: 'Iso'' t b -> (t -> r) -> b -> r
+-- 'reviews' :: 'Prism'' t b -> (t -> r) -> b -> r
+-- 'reviews' :: 'Relens'' t b -> (t -> r) -> b -> r
+-- @
+--
+reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
+reviews o f = asks $ primReviewOf o f
+{-# INLINE reviews #-}
 
 infixl 8 ^.
 
@@ -291,7 +305,7 @@ infixl 8 ^.
 -- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Fold.Fold' s m       -> m
 -- ('^.') ::             s -> 'Data.Profunctor.Optic.Iso.Iso'' s a       -> a
 -- ('^.') ::             s -> 'Data.Profunctor.Optic.Lens.Lens'' s a      -> a
--- ('^.') ::             s -> 'Data.Profunctor.Optic.Prism.Coprism'' s a      -> a
+-- ('^.') ::             s -> 'Data.Profunctor.Optic.Prism.Reprism'' s a      -> a
 -- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Traversal.Traversal'' s m -> m
 -- @
 --
@@ -316,7 +330,7 @@ infixr 8 #
 -- @
 -- (#) :: 'Iso''      s a -> a -> s
 -- (#) :: 'Prism''    s a -> a -> s
--- (#) :: 'Colens''   s a -> a -> s
+-- (#) :: 'Relens''   s a -> a -> s
 -- (#) :: 'Review'    s a -> a -> s
 -- (#) :: 'Equality'' s a -> a -> s
 -- @
@@ -379,7 +393,7 @@ use o = gets (view o)
 -- @
 -- 'reuse' :: 'MonadState' a m => 'Iso'' s a   -> m s
 -- 'reuse' :: 'MonadState' a m => 'Prism'' s a -> m s
--- 'reuse' :: 'MonadState' a m => 'Colens'' s a -> m s
+-- 'reuse' :: 'MonadState' a m => 'Relens'' s a -> m s
 -- @
 --
 reuse :: MonadState b m => AReview t b -> m t
@@ -398,7 +412,7 @@ reuse p = gets (unTagged #. p .# Tagged)
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Iso.Iso'' s a       -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.View.View' s a     -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Lens.Lens'' s a      -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Prism.Coprism'' s a      -> (a -> r) -> m r
+-- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Prism.Reprism'' s a      -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Traversal.Traversal'' s a -> (a -> r) -> m r
 -- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Fold.Fold' s a       -> (a -> r) -> m r
 -- @

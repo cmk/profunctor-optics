@@ -17,8 +17,7 @@ module Data.Profunctor.Optic.Iso (
   , AIso'
     -- * Constructors
   , iso
-  , viso
-  , invert
+  , isoVl
   , mapping
   , contramapping
   , dimapping
@@ -27,19 +26,15 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , Index(..)
-  , values
-  , info 
-  , Coindex(..)
-  , trivial
     -- * Primitive operators
-  , withIso 
+  , withIso
+  , invert
   , reover
   , op
   , au 
   , aup
   , ala
-    -- * Common optics
+    -- * Optics
   , as
   , equaled
   , coerced
@@ -72,6 +67,7 @@ import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Indexed
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
@@ -117,11 +113,11 @@ iso = dimap
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
 --
-viso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
-viso abst = iso f g
+isoVl :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
+isoVl abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
-{-# INLINE viso #-}
+{-# INLINE isoVl #-}
 
 -- | TODO: Document
 --
@@ -139,7 +135,7 @@ mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 -- contramapping :: 'Contravariant' f => 'Iso' s t a b -> 'Iso' (f a) (f b) (f s) (f t)
 -- @
 --
-contramapping :: Contravariant f => AIso s t a b -> Iso (f a) (f b) (f s) (f t)
+contramapping :: Contravariant f => Contravariant g => AIso s t a b -> Iso (f a) (g b) (f s) (g t)
 contramapping f = withIso f $ \ sa bt -> iso (contramap sa) (contramap bt)
 {-# INLINE contramapping #-}
 
@@ -203,51 +199,6 @@ instance Sieve (IsoRep a b) (Index a b) where
 instance Cosieve (IsoRep a b) (Coindex a b) where
   cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
 
--- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
---
--- @'Index' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
---
-data Index a b r = Index a (b -> r)
-
-values :: Index a b r -> b -> r
-values (Index _ br) = br
-{-# INLINE values #-}
-
-info :: Index a b r -> a
-info (Index a _) = a
-{-# INLINE info #-}
-
-instance Functor (Index a b) where
-  fmap f (Index a br) = Index a (f . br)
-  {-# INLINE fmap #-}
-
-instance Profunctor (Index a) where
-  dimap f g (Index a br) = Index a (g . br . f)
-  {-# INLINE dimap #-}
-
-instance a ~ b => Foldable (Index a b) where
-  foldMap f (Index b br) = f . br $ b
-
--- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
---
--- @'Coindex' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
---
--- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
---
-newtype Coindex a b i = Coindex { runCoindex :: (i -> a) -> b } deriving Generic
-
--- | Change the @Monoid@ used to combine indices.
---
-instance Functor (Coindex a b) where
-  fmap ij (Coindex abi) = Coindex $ \ja -> abi (ja . ij)
-
-instance a ~ b => Apply (Coindex a b) where
-  (Coindex idab) <.> (Coindex abi) = Coindex $ \da -> idab $ \id -> abi (da . id) 
-
-trivial :: Coindex a b a -> b
-trivial (Coindex f) = f id
-{-# INLINE trivial #-}
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -258,16 +209,6 @@ withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
--- | TODO: Document
---
--- @
--- 'reover' ≡ 'over' '.' 're'
--- @
---
-reover :: AIso s t a b -> (t -> s) -> b -> a
-reover x = withIso x $ \sa bt ts -> sa . ts . bt
-{-# INLINE reover #-}
-
 -- | Invert an isomorphism.
 --
 -- @
@@ -277,6 +218,18 @@ reover x = withIso x $ \sa bt ts -> sa . ts . bt
 invert :: AIso s t a b -> Iso b a t s
 invert o = withIso o $ \sa bt -> iso bt sa
 {-# INLINE invert #-}
+
+-- | Given a conversion on one side of an 'Iso', reover the other.
+--
+-- @
+-- 'reover' ≡ 'over' '.' 're'
+-- @
+--
+-- Compare 'Data.Profunctor.Optic.Setter.reover'.
+--
+reover :: AIso s t a b -> (t -> s) -> b -> a
+reover x = withIso x $ \sa bt ts -> sa . ts . bt
+{-# INLINE reover #-}
 
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --

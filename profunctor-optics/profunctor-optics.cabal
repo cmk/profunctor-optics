@@ -2,9 +2,19 @@ cabal-version: >= 1.10
 
 name:           profunctor-optics
 version:        0.0.0.1
-synopsis:       A profunctor optics library compatible with the typeclasses in 'profunctors'.
+synopsis:       An optics library compatible with the typeclasses in 'profunctors'.
 description:  
-  This package provides some utilities for manipulating profunctor-based optics.
+  This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
+  .
+  Full complement of isos, re/prisms, re/lenses, grates, co/traversals (affine, regular, and non-empty), co/folds (affine, regular, and non-empty), re/views, and re/setters.
+  .
+  Composable indexed and co-indexed variants of all of the above.
+  .
+  Fully interoperable. All that is required to create optics (standard, idexable, or co-indexable) is the `profunctors` package, which is heavily used and likely to end up in `base` at some point. Optics compose with `(.)` from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  .
+  Clean & simple implementation. No inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery. The language extensions doing the majority of the work are `RankNTypes` and `QuantifiedConstraints`.
+  .
+  Well-documented properties and exportable predicates for testing your own optics.
   .
   See the <https://github.com/cmk/profunctor-extras/blob/master/profunctor-optics/README.md Readme> file for more information. 
 
@@ -34,7 +44,6 @@ library
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Type
-      Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Setter
@@ -44,7 +53,9 @@ library
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Repn
       Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Property
+      Data.Profunctor.Optic.Indexed
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -73,8 +84,8 @@ library
       base >=4.9 && <5.0
     , comonad
     , connections
-    , contravariant
     , distributive
+    , ilist
     , mtl
     , newtype-generics
     , profunctor-arrows
@@ -83,6 +94,7 @@ library
     , semigroupoids
     , tagged
     , unliftio-core
+    , transformers
 
 test-suite doctests
   type:              exitcode-stdio-1.0

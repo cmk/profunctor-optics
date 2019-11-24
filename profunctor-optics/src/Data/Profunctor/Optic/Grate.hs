@@ -11,8 +11,9 @@ module Data.Profunctor.Optic.Grate  (
   , Grate'
   , AGrate
   , AGrate'
-  , Jxgrate
-  , Jxgrate'
+    -- * Indexed Types
+  , Cxgrate
+  , Cxgrate'
     -- * Constructors
   , grate
   , grateVl
@@ -29,16 +30,17 @@ module Data.Profunctor.Optic.Grate  (
   , zipWith3Of
   , zipWith4Of 
   , zipWithFOf 
-    -- * Common optics
+    -- * Optics
   , closed
-  , jclosed
-  , jfirst
-  , jsecond
   , distributed
   , connected
   , forwarded
   , continued
   , unlifted
+    -- * Coindexed optics
+  , kclosed
+  , kfirst
+  , ksecond
     -- * Classes
   , Closed(..)
 ) where
@@ -52,6 +54,7 @@ import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Indexed
 import Data.Profunctor.Rep (unfirstCorep)
 
 -- $setup
@@ -81,7 +84,8 @@ import Data.Profunctor.Rep (unfirstCorep)
 -- are closed under composition.
 --
 -- See <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf>
--- section 4.6 for more background on 'Grate's.
+-- section 4.6 for more background on 'Grate's, and compare to the 
+-- /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#t:Grate version>.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input function satisfies the following
@@ -198,22 +202,10 @@ zipWithFOf :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
 zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 
 ---------------------------------------------------------------------
--- Common grates
+-- Optics 
 ---------------------------------------------------------------------
 
-jclosed :: Jxgrate j (c -> a) (c -> b) a b
-jclosed = rmap flip . closed
-{-# INLINE jclosed #-}
-
-jfirst :: Jxgrate j a b (a , c) (b , c)
-jfirst = rmap (unfirst . uncurry . flip) . curry'
-{-# INLINE jfirst #-}
-
-jsecond :: Jxgrate j a b (c , a) (c , b)
-jsecond = rmap (unsecond . uncurry) . curry' . lmap swap
-{-# INLINE jsecond #-}
-
--- | Access the contents of a assocr'ibutive functor.
+-- | Access the contents of a distributive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate (`cotraverse` id)
@@ -259,3 +251,23 @@ continued = grate cont
 --
 unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
 unlifted = grate withRunInIO
+
+---------------------------------------------------------------------
+-- Coindexed Optics 
+---------------------------------------------------------------------
+
+-- >>> kover kclosed (,) (*2) 5
+-- ((),10)
+--
+kclosed :: Cxgrate k (c -> a) (c -> b) a b
+kclosed = rmap flip . closed
+{-# INLINE kclosed #-}
+
+kfirst :: Cxgrate k a b (a , c) (b , c)
+kfirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE kfirst #-}
+
+ksecond :: Cxgrate k a b (c , a) (c , b)
+ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE ksecond #-}
+
