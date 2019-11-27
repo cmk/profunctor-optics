@@ -47,7 +47,7 @@ module Data.Profunctor.Optic.Setter (
   , reviewed
   , composed
   , exmapped
-    -- * Derived operators
+    -- * Operators
   , assignA
   , set
   , ixset
@@ -64,11 +64,20 @@ module Data.Profunctor.Optic.Setter (
   , (?~)
   , (<>~)
   , (><~)
-  , (+~)
-  , (*~)
-  , (-~)
-  , (||~)
-  , (&&~)
+    -- * MonadState
+  , assigns
+  , modifies
+  , (.=)
+  , (..=)
+  , (@=)
+  , (@@=)
+  , (//=)
+  , (#=)
+  , (##=)
+  , (?=)
+  , (<>=)
+  , (><=)
+  , zoom
 ) where
 
 import Control.Applicative (liftA)
@@ -234,7 +243,7 @@ over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. )
 -- >>> ixover (ixat 5) (+) [1,2,3 :: Int]
 -- [1,2,3]
 --
-ixover :: Monoid i => Ixsetter i s t a b -> (i -> a -> b) -> s -> t
+ixover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 ixover o f = curry (over o (uncurry f)) mempty
 {-# INLINE ixover #-}
 
@@ -277,7 +286,7 @@ under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 -- >>> cxover (catchOn 0) (\k msg -> show k ++ ": " ++ msg) Nothing
 -- Just "caught"
 --
-cxover :: Monoid k => Cxsetter k s t a b -> (k -> a -> b) -> s -> t 
+cxover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 cxover o f = flip (under o (flip f)) mempty
 {-# INLINE cxover #-}
 
@@ -472,6 +481,7 @@ exmapped = setter Ex.mapException
 -- Operators
 ---------------------------------------------------------------------
 
+infixr 4 .~, ..~, @~, @@~, /~, //~, #~, ##~, ?~, <>~, ><~
 
 -- | Run a profunctor arrow command and set the optic targets to the result.
 --
@@ -517,7 +527,7 @@ set o b = over o (const b)
 -- >>> ixset (ixat 5) (const 0) [1,2,3 :: Int]
 -- [1,2,3]
 --
-ixset :: Monoid i => Ixsetter i s t a b -> (i -> b) -> s -> t
+ixset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 ixset o = ixover o . (const .)
 {-# INLINE ixset #-}
 
@@ -542,11 +552,9 @@ reset o b = under o (const b)
 -- >>> cxset (catchOn 0) show Nothing
 -- Just "caught"
 --
-cxset :: Monoid k => Cxsetter k s t a b -> (k -> b) -> s -> t 
+cxset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 cxset o kb = cxover o $ flip (const kb)
 {-# INLINE cxset #-}
-
-infixr 4 .~, ..~
 
 -- | TODO: Document
 --
@@ -563,21 +571,17 @@ infixr 4 .~, ..~
 (..~) = over
 {-# INLINE (..~) #-}
 
-infixr 4 @~, @@~ 
-
 -- | An infix variant of 'ixset'. Dual to '#~'.
 --
-(@~) :: Monoid i => Ixsetter i s t a b -> (i -> b) -> s -> t
+(@~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 (@~) = ixset
 {-# INLINE (@~) #-}
 
 -- | An infix variant of 'ixover'. Dual to '##~'.
 --
-(@@~) :: Monoid i => Ixsetter i s t a b -> (i -> a -> b) -> s -> t
+(@@~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 (@@~) = ixover
 {-# INLINE (@@~) #-}
-
-infixr 4 /~, //~
 
 -- | An infix variant of 'reset'. Dual to '.~'.
 --
@@ -591,11 +595,9 @@ infixr 4 /~, //~
 (//~) = under
 {-# INLINE (//~) #-}
 
-infixr 4 #~, ##~
-
 -- | An infix variant of 'cxset'. Dual to '@~'.
 --
-(#~) :: Monoid k => Cxsetter k s t a b -> (k -> b) -> s -> t 
+(#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 (#~) = cxset
 {-# INLINE (#~) #-}
 
@@ -607,11 +609,9 @@ infixr 4 #~, ##~
 -- >>> Nothing & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
 -- Just "caught"
 --
-(##~) :: Monoid k => Cxsetter k s t a b -> (k -> a -> b) -> s -> t 
+(##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 (##~) = cxover
 {-# INLINE (##~) #-}
-
-infixr 4 ?~
 
 -- | Set the target of a settable optic to 'Just' a value.
 --
@@ -639,8 +639,6 @@ infixr 4 ?~
 o ?~ b = set o (Just b)
 {-# INLINE (?~) #-}
 
-infixr 4 <>~
-
 -- | Modify the target by adding another value.
 --
 -- >>> both <>~ False $ (False,True)
@@ -661,8 +659,6 @@ infixr 4 <>~
 l <>~ n = over l (<> n)
 {-# INLINE (<>~) #-}
 
-infixr 4 ><~
-
 -- | Modify the target by multiplying by another value.
 --
 -- >>> both ><~ False $ (False,True)
@@ -680,108 +676,183 @@ infixr 4 ><~
 l ><~ n = over l (>< n)
 {-# INLINE (><~) #-}
 
-infixr 4 +~
+---------------------------------------------------------------------
+-- MonadState
+---------------------------------------------------------------------
 
--- | Increment the target(s) of a numerically valued 'Lens', 'Setter' or 'Traversal'.
---
--- >>> (1,2) & second +~ 1
--- (1,3)
---
--- >>> [(1,2),(3,4)] & traversed . both +~ 5
--- [(6,7),(8,9)]
+infix 4 .=, ..=, @=, @@=, //=, #=, ##=, ?=, <>=, ><=
+
+-- | Replace the target(s) of a settable in a monadic state.
 --
 -- @
--- ('+~') :: 'Num' a => 'Iso'' s a       -> a -> s -> s
--- ('+~') :: 'Num' a => 'Lens'' s a      -> a -> s -> s
--- ('+~') :: 'Num' a => 'Grate'' s a     -> a -> s -> s
--- ('+~') :: 'Num' a => 'Setter'' s a    -> a -> s -> s
--- ('+~') :: 'Num' a => 'Traversal'' s a -> a -> s -> s
+-- 'assigns' :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
+-- 'assigns' :: 'MonadState' s m => 'Lens'' s a      -> a -> m ()
+-- 'assigns' :: 'MonadState' s m => 'Grate'' s a     -> a -> m ()
+-- 'assigns' :: 'MonadState' s m => 'Prism'' s a     -> a -> m ()
+-- 'assigns' :: 'MonadState' s m => 'Setter'' s a    -> a -> m ()
+-- 'assigns' :: 'MonadState' s m => 'Traversal'' s a -> a -> m ()
 -- @
 --
-(+~) :: Num a => ASetter s t a a -> a -> s -> t
-l +~ n = over l (+ n)
-{-# INLINE (+~) #-}
+assigns :: MonadState s m => ASetter s s a b -> b -> m ()
+assigns o b = State.modify (set o b)
+{-# INLINE assigns #-}
 
-infixr 4 *~
-
--- | Multiply the target(s) of a numerically valued 'Lens', 'Iso', 'Setter' or 'Traversal'.
---
--- >>> (1,2) & second *~ 4
--- (1,8)
---
--- >>> Just 24 & fmapped *~ 2
--- Just 48
+-- | Map over the target(s) of a 'Setter' in a monadic state.
 --
 -- @
--- ('*~') :: 'Num' a => 'Iso'' s a       -> a -> s -> s
--- ('*~') :: 'Num' a => 'Lens'' s a      -> a -> s -> s
--- ('*~') :: 'Num' a => 'Grate'' s a     -> a -> s -> s
--- ('*~') :: 'Num' a => 'Setter'' s a    -> a -> s -> s
--- ('*~') :: 'Num' a => 'Traversal'' s a -> a -> s -> s
+-- 'modifies' :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
+-- 'modifies' :: 'MonadState' s m => 'Lens'' s a      -> (a -> a) -> m ()
+-- 'modifies' :: 'MonadState' s m => 'Grate'' s a     -> (a -> a) -> m ()
+-- 'modifies' :: 'MonadState' s m => 'Prism'' s a     -> (a -> a) -> m ()
+-- 'modifies' :: 'MonadState' s m => 'Setter'' s a    -> (a -> a) -> m ()
+-- 'modifies' :: 'MonadState' s m => 'Traversal'' s a -> (a -> a) -> m ()
 -- @
-(*~) :: Num a => ASetter s t a a -> a -> s -> t
-l *~ n = over l (* n)
-{-# INLINE (*~) #-}
-
-infixr 4 -~
-
--- | Decrement the target(s) of a numerically valued 'Lens', 'Iso', 'Setter' or 'Traversal'.
 --
--- >>> first -~ 2 $ (1,2)
--- (-1,2)
+modifies :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
+modifies o f = State.modify (over o f)
+{-# INLINE modifies #-}
+
+-- | Replace the target(s) of a settable in a monadic state.
 --
--- >>> fmapped . fmapped -~ 1 $ [[4,5],[6,7]]
--- [[3,4],[5,6]]
+-- This is an infix version of 'assigns'.
+--
+-- >>> execState (do first .= 1; second .= 2) (3,4)
+-- (1,2)
+--
+-- >>> execState (both .= 3) (1,2)
+-- (3,3)
 --
 -- @
--- ('-~') :: 'Num' a => 'Iso'' s a       -> a -> s -> s
--- ('-~') :: 'Num' a => 'Lens'' s a      -> a -> s -> s
--- ('-~') :: 'Num' a => 'Grate'' s a     -> a -> s -> s
--- ('-~') :: 'Num' a => 'Setter'' s a    -> a -> s -> s
--- ('-~') :: 'Num' a => 'Traversal'' s a -> a -> s -> s
+-- ('.=') :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
+-- ('.=') :: 'MonadState' s m => 'Lens'' s a      -> a -> m ()
+-- ('.=') :: 'MonadState' s m => 'Grate'' s a    -> a -> m ()
+-- ('.=') :: 'MonadState' s m => 'Prism'' s a    -> a -> m ()
+-- ('.=') :: 'MonadState' s m => 'Setter'' s a    -> a -> m ()
+-- ('.=') :: 'MonadState' s m => 'Traversal'' s a -> a -> m ()
 -- @
-(-~) :: Num a => ASetter s t a a -> a -> s -> t
-l -~ n = over l (subtract n)
-{-# INLINE (-~) #-}
-
-infixr 4 ||~
-
--- | Logically '||' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
 --
--- >>> both ||~ True $ (False,True)
--- (True,True)
+(.=) :: MonadState s m => ASetter s s a b -> b -> m ()
+o .= b = State.modify (o .~ b)
+{-# INLINE (.=) #-}
+
+-- | Map over the target(s) of a 'Setter' in a monadic state.
 --
--- >>> both ||~ False $ (False,True)
+-- This is an infix version of 'modifies'.
+--
+-- >>> execState (do just ..= (+1) ) Nothing
+-- Nothing
+--
+-- >>> execState (do first ..= (+1) ;second ..= (+2)) (1,2)
+-- (2,4)
+--
+-- >>> execState (do both ..= (+1)) (1,2)
+-- (2,3)
+--
+-- @
+-- ('..=') :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
+-- ('..=') :: 'MonadState' s m => 'Lens'' s a      -> (a -> a) -> m ()
+-- ('..=') :: 'MonadState' s m => 'Grate'' s a     -> (a -> a) -> m ()
+-- ('..=') :: 'MonadState' s m => 'Prism'' s a     -> (a -> a) -> m ()
+-- ('..=') :: 'MonadState' s m => 'Setter'' s a    -> (a -> a) -> m ()
+-- ('..=') :: 'MonadState' s m => 'Traversal'' s a -> (a -> a) -> m ()
+-- @
+--
+(..=) :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
+o ..= f = State.modify (o ..~ f)
+{-# INLINE (..=) #-}
+
+-- | TODO: Document 
+--
+(@=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
+o @= b = State.modify (o @~ b)
+
+-- | TODO: Document 
+--
+(@@=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
+o @@= f = State.modify (o @@~ f)
+{-# INLINE (@@=) #-}
+
+-- | TODO: Document 
+--
+(//=) :: MonadState s m => AResetter s s a b -> (a -> b) -> m ()
+o //= f = State.modify (o //~ f)
+{-# INLINE (//=) #-}
+
+-- | TODO: Document 
+--
+(#=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> b) -> m ()
+o #= f = State.modify (o #~ f)
+{-# INLINE (#=) #-}
+
+-- | TODO: Document 
+--
+(##=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> a -> b) -> m () 
+o ##= f = State.modify (o ##~ f)
+{-# INLINE (##=) #-}
+
+-- | Replace the target(s) of a settable optic with 'Just' a new value.
+--
+-- >>> execState (do first ?= 1; second ?= 2) (Just 1, Nothing)
+-- (Just 1,Just 2)
+--
+-- @
+-- ('?=') :: 'MonadState' s m => 'Iso'' s ('Maybe' a)       -> a -> m ()
+-- ('?=') :: 'MonadState' s m => 'Lens'' s ('Maybe' a)      -> a -> m ()
+-- ('?=') :: 'MonadState' s m => 'Grate'' s ('Maybe' a)     -> a -> m ()
+-- ('?=') :: 'MonadState' s m => 'Prism'' s ('Maybe' a)     -> a -> m ()
+-- ('?=') :: 'MonadState' s m => 'Setter'' s ('Maybe' a)    -> a -> m ()
+-- ('?=') :: 'MonadState' s m => 'Traversal'' s ('Maybe' a) -> a -> m ()
+-- @
+--
+(?=) :: MonadState s m => ASetter s s a (Maybe b) -> b -> m ()
+o ?= b = State.modify (o ?~ b)
+{-# INLINE (?=) #-}
+
+-- | Modify the target(s) of a settable optic by adding a value.
+--
+-- >>> execState (both <>= False) (False,True)
 -- (False,True)
 --
--- @
--- ('||~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
--- ('||~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
--- ('||~') :: 'Grate'' s 'Bool'     -> 'Bool' -> s -> s
--- ('||~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
--- ('||~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
--- @
-(||~):: ASetter s t Bool Bool -> Bool -> s -> t
-l ||~ n = over l (|| n)
-{-# INLINE (||~) #-}
-
-infixr 4 &&~
-
--- | Logically '&&' the target(s) of a 'Bool'-valued 'Lens' or 'Setter'.
+-- >>> execState (both <>= "!!!") ("hello","world")
+-- ("hello!!!","world!!!")
 --
--- >>> both &&~ True $ (False, True)
--- (False,True)
+-- @
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Iso'' s a -> a -> m ()
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Lens'' s a -> a -> m ()
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Grate'' s a -> a -> m ()
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Prism'' s a -> a -> m ()
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Setter'' s a -> a -> m ()
+-- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Traversal'' s a -> a -> m ()
+-- @
 --
--- >>> both &&~ False $ (False, True)
+(<>=) :: MonadState s m => Semigroup a => ASetter' s a -> a -> m ()
+o <>= a = State.modify (o <>~ a)
+{-# INLINE (<>=) #-}
+
+-- | Modify the target(s) of a settable optic by mulitiplying by a value.
+--
+-- >>> execState (both ><= False) (False,True)
 -- (False,False)
 --
 -- @
--- ('&&~') :: 'Iso'' s 'Bool'       -> 'Bool' -> s -> s
--- ('&&~') :: 'Lens'' s 'Bool'      -> 'Bool' -> s -> s
--- ('&&~') :: 'Grate'' s 'Bool'     -> 'Bool' -> s -> s
--- ('&&~') :: 'Setter'' s 'Bool'    -> 'Bool' -> s -> s
--- ('&&~') :: 'Traversal'' s 'Bool' -> 'Bool' -> s -> s
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Iso'' s a -> a -> m ()
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Lens'' s a -> a -> m ()
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Grate'' s a -> a -> m ()
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Prism'' s a -> a -> m ()
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Setter'' s a -> a -> m ()
+-- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Traversal'' s a -> a -> m ()
 -- @
-(&&~) :: ASetter s t Bool Bool -> Bool -> s -> t
-l &&~ n = over l (&& n)
-{-# INLINE (&&~) #-}
+--
+(><=) :: MonadState s m => Semiring a => ASetter' s a -> a -> m ()
+o ><= a = State.modify (o ><~ a)
+{-# INLINE (><=) #-}
+
+-- @
+-- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c
+-- zoom :: (Monoid c, Applicative m) => Traversal' ta a -> StateT a m c -> StateT ta m c
+-- @
+zoom :: Functor m => Optic' (Star (Compose m ((,) c))) ta a -> StateT a m c -> StateT ta m c
+zoom o (StateT m) = StateT . out . o . into $ m
+ where
+  into f = Star (Compose . f)
+  out (Star f) = getCompose . f

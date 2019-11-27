@@ -19,7 +19,6 @@ module Data.Profunctor.Optic (
   , module View
   , module Setter
   , module Indexed
-  , module Data.Profunctor.Optic
 ) where
 
 import Data.Profunctor.Optic.Type             as Type

@@ -36,7 +36,6 @@ source-repository head
 library
   exposed-modules:
       Control.Exception.Optic
-      Control.Monad.State.Optic
 
       Data.Connection.Optic
       Data.Connection.Optic.Int
