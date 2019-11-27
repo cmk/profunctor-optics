@@ -14,7 +14,7 @@ import Data.Profunctor.Optic.Type
 -- 'Repn' & 'Corepn'
 ---------------------------------------------------------------------
 
--- | Obtain a representable profunctor optic from a Van Laarhoven 'Lenslike'.
+-- | Obtain a representable profunctor optic from a Van Laarhoven 'LensLike'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -28,19 +28,29 @@ import Data.Profunctor.Optic.Type
 representing :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Repn s t a b
 representing abst = tabulate . abst . sieve
 
--- | Obtain a corepresentable profunctor optic from a Van Laarhoven 'Gratelike'.
+-- | TODO: Document
+--
+ixrepresenting :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixrepn i s t a b
+ixrepresenting f = representing $ \iab -> f (curry iab) . snd
+
+-- | Obtain a corepresentable profunctor optic from a Van Laarhoven 'GrateLike'.
 --
 corepresenting :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Corepn s t a b
 corepresenting abst = cotabulate . abst . cosieve
 
 -- | TODO: Document
 --
-cloneRepn :: Optic (Star (Rep p)) s t a b -> Repnlike p s t a b
+cxrepresenting :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxrepn k s t a b
+cxrepresenting f = corepresenting $ \kab -> const . f (flip kab)
+
+-- | TODO: Document
+--
+cloneRepn :: Optic (Star (Rep p)) s t a b -> RepnLike p s t a b
 cloneRepn o = fromStar . o . toStar
 
 -- | TODO: Document
 --
-cloneCorepn :: Optic (Costar (Corep p)) s t a b -> Corepnlike p s t a b
+cloneCorepn :: Optic (Costar (Corep p)) s t a b -> CorepnLike p s t a b
 cloneCorepn o = fromCostar . o . toCostar 
 
 ---------------------------------------------------------------------
@@ -88,12 +98,12 @@ corepnOf o = runCostar #. o .# Costar
 
 -- | A more permissive variant of 'Data.Profunctor.Optic.Grate.closed'. 
 --
-closed :: Corepn (c -> a) (c -> b) a b
-closed = corepresenting cotraverse
-{-# INLINE closed #-}
+closed' :: Corepn (c -> a) (c -> b) a b
+closed' = corepresenting cotraverse
+{-# INLINE closed' #-}
 
 -- | A more permissive variant of 'Data.Profunctor.Optic.Grate.distributed'. 
 --
-distributed :: Distributive f => Corepn (f a) (f b) a b
-distributed = corepresenting $ \fab fs -> fmap fab $ distribute fs
-{-# INLINE distributed #-}
+distributed' :: Distributive f => Corepn (f a) (f b) a b
+distributed' = corepresenting $ \fab fs -> fmap fab $ distribute fs
+{-# INLINE distributed' #-}

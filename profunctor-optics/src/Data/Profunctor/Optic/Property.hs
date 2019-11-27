@@ -5,7 +5,44 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Data.Profunctor.Optic.Property where
+module Data.Profunctor.Optic.Property (
+    -- * Iso
+    Iso
+  , fromto_iso
+  , tofrom_iso
+    -- * Prism
+  , Prism
+  , tofrom_prism
+  , fromto_prism 
+  , idempotent_prism 
+    -- * Lens
+  , Lens
+  , tofrom_lens
+  , fromto_lens
+  , idempotent_lens
+    -- * Grate
+  , Grate
+  , pure_grate
+  , compose_grate
+    -- * Traversal0
+  , Traversal0
+  , tofrom_traversal0
+  , fromto_traversal0
+  , idempotent_traversal0
+    -- * Traversal
+  , Traversal
+  , pure_traversal
+  , compose_traversal
+    -- * Cotraversal
+  , Cotraversal 
+  , pure_cotraversal
+  , compose_cotraversal
+    -- * Setter
+  , Setter
+  , pure_setter
+  , compose_setter
+  , idempotent_setter
+) where 
 
 import Control.Applicative
 import Data.Profunctor.Optic.Import
@@ -23,186 +60,203 @@ import Data.Profunctor.Optic.Traversal
 -- 'Iso'
 ---------------------------------------------------------------------
 
--- | TODO: Document
+-- | Going back and forth doesn't change anything.
 --
-iso_fromto' :: Eq s => Iso' s a -> s -> Bool
-iso_fromto' o = withIso o iso_fromto
+fromto_iso :: Eq s => Iso' s a -> s -> Bool
+fromto_iso o s = withIso o $ \sa as -> as (sa s) == s
 
--- | TODO: Document
+-- | Going back and forth doesn't change anything.
 --
-iso_tofrom' :: Eq a => Iso' s a -> a -> Bool
-iso_tofrom' o = withIso o iso_tofrom
-
--- | TODO: Document
---
-iso_fromto :: Eq s => (s -> a) -> (a -> s) -> s -> Bool
-iso_fromto sa as s = as (sa s) == s
-
--- | TODO: Document
---
-iso_tofrom :: Eq a => (s -> a) -> (a -> s) -> a -> Bool
-iso_tofrom sa as a = sa (as a) == a
+tofrom_iso :: Eq a => Iso' s a -> a -> Bool
+tofrom_iso o a = withIso o $ \sa as -> sa (as a) == a
 
 ---------------------------------------------------------------------
 -- 'Prism'
 ---------------------------------------------------------------------
 
--- If we are able to view an existing focus, then building it will return the original structure.
-prism_tofrom :: Eq s => (s -> s + a) -> (a -> s) -> s -> Bool
-prism_tofrom seta bt s = either id bt (seta s) == s
-
--- If we build a whole from any focus, that whole must contain a focus.
-prism_fromto :: Eq s => Eq a => (s -> s + a) -> (a -> s) -> a -> Bool
-prism_fromto seta bt a = seta (bt a) == Right a
-
--- | TODO: Document
+-- | If we are able to view an existing focus, then building it will return the original structure.
 --
-prism_tofrom' :: Eq s => Prism' s a -> s -> Bool
-prism_tofrom' o = withPrism o prism_tofrom
+-- * @(id ||| bt) (sta s) ≡ s@
+--
+tofrom_prism :: Eq s => Prism' s a -> s -> Bool
+tofrom_prism o s = withPrism o $ \sta bt -> either id bt (sta s) == s
 
--- Reviewing a value with a 'Prism' and then previewing returns the value.
-prism_fromto' :: Eq s => Eq a => Prism' s a -> a -> Bool
-prism_fromto' o = withPrism o prism_fromto
+
+-- | If we build a whole from a focus, that whole must contain the focus.
+--
+-- * @sta (bt b) ≡ Right b@
+--
+fromto_prism :: Eq s => Eq a => Prism' s a -> a -> Bool
+fromto_prism o a = withPrism o $ \sta bt -> sta (bt a) == Right a
+
+-- |
+--
+-- * @left sta (sta s) ≡ left Left (sta s)@
+--
+idempotent_prism :: Eq s => Eq a => Prism' s a -> s -> Bool
+idempotent_prism o s = withPrism o $ \sta _ -> left sta (sta s) == left Left (sta s)
 
 ---------------------------------------------------------------------
 -- 'Lens'
 ---------------------------------------------------------------------
 
-
--- | A 'Lens' is a valid 'Traversal' with the following additional laws:
---
--- * @view o (set o b a)  ≡ b@
---
--- * @set o (view o a) a  ≡ a@
---
--- * @set o c (set o b a) ≡ set o c a@
---
-lens_tofrom :: Eq s => (s -> a) -> (s -> a -> s) -> s -> Bool
-lens_tofrom sa sas s = sas s (sa s) == s
-
--- | TODO: Document
---
-lens_fromto :: Eq a => (s -> a) -> (s -> a -> s) -> s -> a -> Bool
-lens_fromto sa sas s a = sa (sas s a) == a
-
--- | TODO: Document
---
-lens_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
-lens_idempotent sas s a1 a2 = sas (sas s a1) a2 == sas s a2
-
--- | Putting back what you got doesn't change anything.
---
-lens_tofrom' :: Eq s => Lens' s a -> s -> Bool
-lens_tofrom' o = withLens o lens_tofrom
+-- A 'Lens' is a valid 'Traversal' with the following additional laws:
 
 -- | You get back what you put in.
 --
-lens_fromto' :: Eq a => Lens' s a -> s -> a -> Bool
-lens_fromto' o = withLens o lens_fromto
+-- * @view o (set o b a) ≡ b@
+--
+tofrom_lens :: Eq s => Lens' s a -> s -> Bool
+tofrom_lens o s = withLens o $ \sa sas -> sas s (sa s) == s
+
+-- | Putting back what you got doesn't change anything.
+--
+-- * @set o (view o a) a  ≡ a@
+--
+fromto_lens :: Eq a => Lens' s a -> s -> a -> Bool
+fromto_lens o s a = withLens o $ \sa sas -> sa (sas s a) == a
 
 -- | Setting twice is the same as setting once.
 --
-lens_idempotent' :: Eq s => Lens' s a -> s -> a -> a -> Bool
-lens_idempotent' o = withLens o $ const lens_idempotent
+-- * @set o c (set o b a) ≡ set o c a@
+--
+idempotent_lens :: Eq s => Lens' s a -> s -> a -> a -> Bool
+idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
 
--- | The 'Grate' laws are that of an algebra for a parameterised continuation monad.
+-- The 'Grate' laws are that of an algebra for a parameterised continuation monad.
+
+-- |
 --
 -- * @sabt ($ s) ≡ s@
 --
-grate_pure :: Eq s => Grate' s a -> s -> Bool
-grate_pure o s = withGrate o $ \sabt -> sabt ($ s) == s
+pure_grate :: Eq s => Grate' s a -> s -> Bool
+pure_grate o s = withGrate o $ \sabt -> sabt ($ s) == s
 
--- | The 'Grate' laws are that of an algebra for a parameterised continuation monad.
+-- |
 --
 -- * @sabt (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
 --
-grate_compose :: Eq s => Grate' s a -> ((((s -> a) -> a) -> a) -> a) -> Bool
-grate_compose o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k -> f ($ k))
+compose_grate :: Eq s => Grate' s a -> ((((s -> a) -> a) -> a) -> a) -> Bool
+compose_grate o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k -> f ($ k))
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
 ---------------------------------------------------------------------
 
--- | TODO: Document
+-- | You get back what you put in.
 --
-traversal0_tofrom :: Eq a => Eq s => (s -> s + a) -> (s -> a -> s) -> s -> a -> Bool
-traversal0_tofrom seta sbt s a = seta (sbt s a) == either (Left . flip const a) Right (seta s)
+-- * @sta (sbt a s) ≡ either (Left . const a) Right (sta s)@
+--
+tofrom_traversal0 :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
+tofrom_traversal0 o s a = withTraversal0 o $ \sta sbt -> sta (sbt s a) == either (Left . flip const a) Right (sta s)
 
--- | TODO: Document
+-- | Putting back what you got doesn't change anything.
 --
-traversal0_fromto :: Eq s => (s -> s + a) -> (s -> a -> s) -> s -> Bool
-traversal0_fromto seta sbt s = either id (sbt s) (seta s) == s
+-- * @either id (sbt s) (sta s) ≡ s@
+--
+fromto_traversal0 :: Eq s => Traversal0' s a -> s -> Bool
+fromto_traversal0 o s = withTraversal0 o $ \sta sbt -> either id (sbt s) (sta s) == s
 
--- | TODO: Document
+-- | Setting twice is the same as setting once.
 --
-traversal0_idempotent :: Eq s => (s -> a -> s) -> s -> a -> a -> Bool
-traversal0_idempotent sbt s a1 a2 = sbt (sbt s a1) a2 == sbt s a2
-
--- | TODO: Document
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
-traversal0_tofrom' :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
-traversal0_tofrom' o = withTraversal0 o traversal0_tofrom
-
--- | TODO: Document
---
-traversal0_fromto' :: Eq s => Traversal0' s a -> s -> Bool
-traversal0_fromto' o = withTraversal0 o traversal0_fromto
-
--- | TODO: Document
---
-traversal0_idempotent' :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
-traversal0_idempotent' o = withTraversal0 o $ const traversal0_idempotent
+idempotent_traversal0 :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
+idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
 
 ---------------------------------------------------------------------
 -- 'Traversal'
 ---------------------------------------------------------------------
 
--- | 'Traversal' is a valid 'Setter' with the following additional laws:
+-- | A 'Traversal' is a valid 'Setter' with the following additional laws:
 --
--- * @t pure ≡ pure@
+-- * @abst pure ≡ pure@
 --
--- * @fmap (t f) . t g ≡ getCompose . t (Compose . fmap f . g)@
+-- * @fmap (abst f) . abst g ≡ getCompose . abst (Compose . fmap f . g)@
 --
 -- These can be restated in terms of 'traverseOf':
 --
--- * @traverseOf t (Identity . f) ≡  Identity (fmap f)@
+-- * @traverseOf abst (Identity . f) ≡  Identity . fmap f@
 --
--- * @Compose . fmap (traverseOf t f) . traverseOf t g == traverseOf t (Compose . fmap f . g)@
+-- * @Compose . fmap (traverseOf abst f) . traverseOf abst g == traverseOf abst (Compose . fmap f . g)@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-{-
-traverse_pure :: forall f s a. Applicative f => Eq (f s) => ((a -> f a) -> s -> f s) -> s -> Bool
-traverse_pure o s = o pure s == (pure s :: f s)
+pure_traversal
+  :: Eq (f s) 
+  => Applicative f
+  => ((a -> f a) -> s -> f s)
+  -> s -> Bool
+pure_traversal abst = liftA2 (==) (abst pure) pure
 
-traverse_compose :: (Applicative f, Applicative g, Eq (f (g s))) => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
-traverse_compose t f g s = (fmap (t f) . t g) s == (getCompose . t (Compose . fmap f . g)) s
--}
+compose_traversal
+  :: Eq (f (g s))
+  => Functor f
+  => Functor g 
+  => (forall f. Functor f => (a -> f a) -> s -> f s) 
+  -> (a -> g a) -> (a -> f a) -> s -> Bool
+compose_traversal abst f g = liftA2 (==) (fmap (abst f) . abst g)
+                                        (getCompose . abst (Compose . fmap f . g))
+
+---------------------------------------------------------------------
+-- 'Cotraversal'
+---------------------------------------------------------------------
+
+-- | A 'Cotraversal' is a valid 'Resetter' with the following additional laws:
+--
+-- * @abst extract ≡ extract@
+--
+-- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
+--
+-- These can be restated in terms of 'cotraverseOf':
+--
+-- * @cotraverseOf abst (f . runIdentity) ≡  fmap f . runIdentity @
+--
+-- * @cotraverseOf abst f . fmap (cotraverseOf abst g) . getCompose == cotraverseOf abst (f . fmap g . getCompose)@
+--
+-- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
+--
+pure_cotraversal
+  :: Eq s 
+  => Comonad f
+  => ((f a -> a) -> f s -> s)
+  -> f s -> Bool
+pure_cotraversal abst = liftA2 (==) (abst extract) extract
+
+compose_cotraversal
+  :: Eq s
+  => Functor f 
+  => Functor g 
+  => (forall f. Functor f => (f a -> a) -> f s -> s) 
+  -> (g a -> a) -> (f a -> a) -> g (f s) -> Bool
+compose_cotraversal abst f g = liftA2 (==) (abst f . fmap (abst g))
+                                          (abst (f . fmap g . getCompose) . Compose)
+
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------
 
--- | A 'Setter' is only legal if the following 3 laws hold:
+-- |
 --
--- 1. @set o y (set o x a) ≡ set o y a@
+-- * @over o id ≡ id@
 --
--- 2. @over o id ≡ id@
---
--- 3. @over o f . over o g ≡ over o (f . g)@
---
-setter_pure :: Eq s => Setter' s a -> s -> Bool
-setter_pure o s = over o id s == s
+pure_setter :: Eq s => Setter' s a -> s -> Bool
+pure_setter o s = over o id s == s
 
--- | TODO: Document
+-- |
 --
-setter_compose :: Eq s => Setter' s a -> (a -> a) -> (a -> a) -> s -> Bool
-setter_compose o f g s = (over o f . over o g) s == over o (f . g) s
+-- * @over o f . over o g ≡ over o (f . g)@
+--
+compose_setter :: Eq s => Setter' s a -> (a -> a) -> (a -> a) -> s -> Bool
+compose_setter o f g s = (over o f . over o g) s == over o (f . g) s
 
--- | TODO: Document
+-- |
 --
-setter_idempotent :: Eq s => Setter' s a -> s -> a -> a -> Bool
-setter_idempotent o s a b = set o b (set o a s) == set o b s
+-- * @set o y (set o x a) ≡ set o y a@
+--
+idempotent_setter :: Eq s => Setter' s a -> s -> a -> a -> Bool
+idempotent_setter o s a b = set o b (set o a s) == set o b s

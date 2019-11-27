@@ -17,8 +17,7 @@ module Data.Profunctor.Optic.Iso (
   , AIso'
     -- * Constructors
   , iso
-  , viso
-  , invert
+  , isoVl
   , mapping
   , contramapping
   , dimapping
@@ -27,19 +26,15 @@ module Data.Profunctor.Optic.Iso (
   , cloneIso
     -- * Representatives
   , IsoRep(..)
-  , Context(..)
-  , values
-  , info 
-  , Indexed(..)
-  , trivial
     -- * Primitive operators
-  , withIso 
+  , withIso
+  , invert
   , reover
   , op
   , au 
   , aup
   , ala
-    -- * Common optics
+    -- * Optics
   , as
   , equaled
   , coerced
@@ -61,7 +56,9 @@ module Data.Profunctor.Optic.Iso (
   , non 
   , anon
     -- * Auxilliary Types
-  , Re(..) 
+  , Re(..)
+    -- * Classes
+  , Profunctor(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -70,6 +67,7 @@ import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Indexed
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
@@ -115,11 +113,11 @@ iso = dimap
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
 --
-viso :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
-viso abst = iso f g
+isoVl :: (forall f g. Functor f => Functor g => (g a -> f b) -> g s -> f t) -> Iso s t a b
+isoVl abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
-{-# INLINE viso #-}
+{-# INLINE isoVl #-}
 
 -- | TODO: Document
 --
@@ -137,7 +135,7 @@ mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 -- contramapping :: 'Contravariant' f => 'Iso' s t a b -> 'Iso' (f a) (f b) (f s) (f t)
 -- @
 --
-contramapping :: Contravariant f => AIso s t a b -> Iso (f a) (f b) (f s) (f t)
+contramapping :: Contravariant f => Contravariant g => AIso s t a b -> Iso (f a) (g b) (f s) (g t)
 contramapping f = withIso f $ \ sa bt -> iso (contramap sa) (contramap bt)
 {-# INLINE contramapping #-}
 
@@ -195,56 +193,11 @@ instance Profunctor (IsoRep a b) where
   rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
   {-# INLINE rmap #-}
 
-instance Sieve (IsoRep a b) (Context a b) where
-  sieve (IsoRep sa bt) s = Context (sa s) bt
+instance Sieve (IsoRep a b) (Index a b) where
+  sieve (IsoRep sa bt) s = Index (sa s) bt
 
-instance Cosieve (IsoRep a b) (Indexed a b) where
-  cosieve (IsoRep sa bt) (Indexed sab) = bt (sab sa)
-
--- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
---
--- @'Context' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
---
-data Context a b r = Context a (b -> r)
-
-values :: Context a b r -> b -> r
-values (Context _ br) = br
-{-# INLINE values #-}
-
-info :: Context a b r -> a
-info (Context a _) = a
-{-# INLINE info #-}
-
-instance Functor (Context a b) where
-  fmap f (Context a br) = Context a (f . br)
-  {-# INLINE fmap #-}
-
-instance Profunctor (Context a) where
-  dimap f g (Context a br) = Context a (g . br . f)
-  {-# INLINE dimap #-}
-
-instance a ~ b => Foldable (Context a b) where
-  foldMap f (Context b br) = f . br $ b
-
--- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
---
--- @'Indexed' a b i ≡ forall f. 'Functor' f => (f a -> b) -> f i@,
---
--- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
---
-newtype Indexed a b i = Indexed { runIndexed :: (i -> a) -> b } deriving Generic
-
--- | Change the @Monoid@ used to combine indices.
---
-instance Functor (Indexed a b) where
-  fmap ij (Indexed abi) = Indexed $ \ja -> abi (ja . ij)
-
-instance a ~ b => Apply (Indexed a b) where
-  (Indexed idab) <.> (Indexed abi) = Indexed $ \da -> idab $ \id -> abi (da . id) 
-
-trivial :: Indexed a b a -> b
-trivial (Indexed f) = f id
-{-# INLINE trivial #-}
+instance Cosieve (IsoRep a b) (Coindex a b) where
+  cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -256,16 +209,6 @@ withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
--- | TODO: Document
---
--- @
--- 'reover' ≡ 'over' '.' 're'
--- @
---
-reover :: AIso s t a b -> (t -> s) -> b -> a
-reover x = withIso x $ \sa bt ts -> sa . ts . bt
-{-# INLINE reover #-}
-
 -- | Invert an isomorphism.
 --
 -- @
@@ -275,6 +218,18 @@ reover x = withIso x $ \sa bt ts -> sa . ts . bt
 invert :: AIso s t a b -> Iso b a t s
 invert o = withIso o $ \sa bt -> iso bt sa
 {-# INLINE invert #-}
+
+-- | Given a conversion on one side of an 'Iso', reover the other.
+--
+-- @
+-- 'reover' ≡ 'over' '.' 're'
+-- @
+--
+-- Compare 'Data.Profunctor.Optic.Setter.reover'.
+--
+reover :: AIso s t a b -> (t -> s) -> b -> a
+reover x = withIso x $ \sa bt ts -> sa . ts . bt
+{-# INLINE reover #-}
 
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --
@@ -387,7 +342,7 @@ wrapped = dimap unpack pack
 
 -- | Work between newtype wrappers.
 --
--- >>> Const "hello" & rewrapped %~ Prelude.length & getConst
+-- >>> Const "hello" & rewrapped ..~ Prelude.length & getConst
 -- 5
 --
 rewrapped :: Newtype s => Newtype t => Iso s t (O s) (O t)
@@ -424,13 +379,13 @@ curried = iso curry uncurry
 -- | TODO: Document
 --
 swapped :: Iso (a , b) (c , d) (b , a) (d , c)
-swapped = iso swp swp
+swapped = iso swap swap
 {-# INLINE swapped #-}
 
 -- | TODO: Document
 --
 eswapped :: Iso (a + b) (c + d) (b + a) (d + c)
-eswapped = iso eswp eswp
+eswapped = iso eswap eswap
 {-# INLINE eswapped #-}
 
 -- | 'Iso' defined by left-association of nested tuples.
@@ -454,7 +409,7 @@ eassociated = iso eassocl eassocr
 -- >>> "live" ^. involuted reverse
 -- "evil"
 --
--- >>> involuted reverse %~ ('d':) $ "live"
+-- >>> involuted reverse ..~ ('d':) $ "live"
 -- "lived"
 --
 involuted :: (s -> a) -> Iso s a a s

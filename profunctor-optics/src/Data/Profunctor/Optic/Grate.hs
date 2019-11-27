@@ -7,16 +7,19 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Grate  (
     -- * Types
-    Grate
+    Closed(..)
+  , Grate
   , Grate'
+  , Cxgrate
+  , Cxgrate'
   , AGrate
   , AGrate'
     -- * Constructors
   , grate
-  , grating
+  , cxgrate
+  , grateVl
+  , cxgrateVl
   , inverting
-  , toEnvironment
-  , toClosure
   , cloneGrate
     -- * Representatives
   , GrateRep(..)
@@ -27,13 +30,19 @@ module Data.Profunctor.Optic.Grate  (
   , zipWith3Of
   , zipWith4Of 
   , zipWithFOf 
-    -- * Common optics
-  , closed
+    -- * Optics
+  --, closed
+  , cxclosed
+  , cxfirst
+  , cxsecond
   , distributed
   , connected
   , forwarded
   , continued
   , unlifted
+    -- * Operators
+  , toEnvironment
+  , toClosure
 ) where
 
 import Control.Monad.Reader
@@ -41,16 +50,18 @@ import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
 import Data.Connection (Conn(..))
-import Data.Profunctor.Closed (Closure(..), Environment(..))
+import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Indexed
 import Data.Profunctor.Rep (unfirstCorep)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XTupleSections
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Connection.Int
@@ -74,7 +85,8 @@ import Data.Profunctor.Rep (unfirstCorep)
 -- are closed under composition.
 --
 -- See <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf>
--- section 4.6 for more background on 'Grate's.
+-- section 4.6 for more background on 'Grate's, and compare to the 
+-- /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#t:Grate version>.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input function satisfies the following
@@ -96,27 +108,27 @@ import Data.Profunctor.Rep (unfirstCorep)
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
 
+-- | TODO: Document
+--
+cxgrate :: (((s -> a) -> k -> b) -> t) -> Cxgrate k s t a b
+cxgrate f = grate $ \sakb _ -> f sakb
+
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
--- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversing'.
+-- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
-grating :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
-grating o = dimap (curry eval) ((o trivial) . Indexed) . closed
+grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
+grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
+
+-- | TODO: Document
+--
+cxgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
+cxgrateVl f = grateVl $ \kab -> const . f (flip kab) 
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
 inverting :: (s -> a) -> (b -> t) -> Grate s t a b
 inverting sa bt = grate $ \sab -> bt (sab sa)
-
--- | Use a 'Grate' to construct an 'Environment'.
---
-toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
-toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
-
--- | Use a 'Grate' to construct a 'Closure'.
---
-toClosure :: Closed p => AGrate s t a b -> p a b -> Closure p s t
-toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
 
 -- | TODO: Document
 --
@@ -139,24 +151,24 @@ instance Profunctor (GrateRep a b) where
   dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
 
 instance Closed (GrateRep a b) where
-  closed (GrateRep z) = GrateRep $ \f x -> z $ \k -> f $ \g -> k (g x)
+  closed (GrateRep sabt) = GrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
 
 instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (Indexed a b) where
-  cosieve (GrateRep f) (Indexed g) = f g
+instance Cosieve (GrateRep a b) (Coindex a b) where
+  cosieve (GrateRep f) (Coindex g) = f g
 
 instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Indexed a b
+  type Corep (GrateRep a b) = Coindex a b
 
-  cotabulate f = GrateRep $ f . Indexed
+  cotabulate f = GrateRep $ f . Coindex
 
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | TODO: Document, replace with GrateLike
+-- | Extract the function that characterizes a 'Lens'.
 --
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o k = case o (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
@@ -191,15 +203,14 @@ zipWithFOf :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
 zipWithFOf o comb fs = withGrate o $ \sabt -> sabt $ \get -> comb (fmap get fs)
 
 ---------------------------------------------------------------------
--- Common grates
+-- Optics 
 ---------------------------------------------------------------------
-
--- | the counter-clockwise perp
 
 -- | Access the contents of a distributive functor.
 --
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate (`cotraverse` id)
+{-# INLINE distributed #-}
 
 -- | Lift a Galois connection into a 'Grate'. 
 --
@@ -215,11 +226,13 @@ distributed = grate (`cotraverse` id)
 --
 connected :: Conn s a -> Grate' s a
 connected (Conn f g) = inverting f g
+{-# INLINE connected #-}
 
 -- | Lift an action into a 'MonadReader'.
 --
 forwarded :: Distributive m => MonadReader r m => Grate (m a) (m b) a b
 forwarded = distributed
+{-# INLINE forwarded #-}
 
 -- | Lift an action into a continuation.
 --
@@ -229,6 +242,7 @@ forwarded = distributed
 --
 continued :: Grate a (Cont r a) r r
 continued = grate cont
+{-# INLINE continued #-}
 
 -- | Unlift an action into an 'IO' context.
 --
@@ -242,3 +256,39 @@ continued = grate cont
 --
 unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
 unlifted = grate withRunInIO
+{-# INLINE unlifted #-}
+
+-- >>> cxover cxclosed (,) (*2) 5
+-- ((),10)
+--
+cxclosed :: Cxgrate k (c -> a) (c -> b) a b
+cxclosed = rmap flip . closed
+{-# INLINE cxclosed #-}
+
+-- | TODO: Document
+--
+cxfirst :: Cxgrate k a b (a , c) (b , c)
+cxfirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE cxfirst #-}
+
+-- | TODO: Document
+--
+cxsecond :: Cxgrate k a b (c , a) (c , b)
+cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE cxsecond #-}
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- | Use a 'Grate' to construct an 'Environment'.
+--
+toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
+toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
+{-# INLINE toEnvironment #-}
+
+-- | Use a 'Grate' to construct a 'Closure'.
+--
+toClosure :: Closed p => AGrate s t a b -> p a b -> Closure p s t
+toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
+{-# INLINE toClosure #-}
