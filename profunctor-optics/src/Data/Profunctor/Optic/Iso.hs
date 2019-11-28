@@ -30,6 +30,8 @@ module Data.Profunctor.Optic.Iso (
   , withIso
   , invert
   , reover
+  , reixed
+  , recxed
   , op
   , au 
   , aup
@@ -67,7 +69,7 @@ import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Indexed
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
@@ -228,8 +230,20 @@ invert o = withIso o $ \sa bt -> iso bt sa
 -- Compare 'Data.Profunctor.Optic.Setter.reover'.
 --
 reover :: AIso s t a b -> (t -> s) -> b -> a
-reover x = withIso x $ \sa bt ts -> sa . ts . bt
+reover o = withIso o $ \sa bt ts -> sa . ts . bt
 {-# INLINE reover #-}
+
+-- | Remap the indices of an indexed optic.
+--
+reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+reixed o = withIso o reix
+{-# INLINE reixed #-}
+
+-- | Remap the indices of a coindexed optic.
+--
+recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+recxed o = withIso o recx
+{-# INLINE recxed #-}
 
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --
@@ -463,10 +477,10 @@ eduped = iso f ((,) False ||| (,) True)
 -- 'non' ≡ 'non'' '.' 'only'
 -- @
 --
--- >>> non 0 # rem 10 4
+-- >>> non 0 #^ rem 10 4
 -- Just 2
 --
--- >>> non 0 # rem 10 5
+-- >>> non 0 #^ rem 10 5
 -- Nothing
 --
 non :: Eq a => a -> Iso' (Maybe a) a

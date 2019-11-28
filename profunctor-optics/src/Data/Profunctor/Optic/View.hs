@@ -36,7 +36,7 @@ module Data.Profunctor.Optic.View (
     -- * Operators
   , coindexes
   , (^.)
-  , (^@)
+  , (^%)
   , view
   , ixview
   , views
@@ -45,7 +45,7 @@ module Data.Profunctor.Optic.View (
   , ixuse
   , uses
   , ixuses
-  , (#)
+  , (#^)
   , review
   , cxview
   , reviews
@@ -67,7 +67,7 @@ import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Indexed
+import Data.Profunctor.Optic.Index
 import GHC.Conc (ThreadId)
 import qualified Control.Exception as Ex
 import qualified Data.Bifunctor as B
@@ -125,7 +125,7 @@ ixto f = to $ f . snd
 -- 'from' ≡ 're' . 'to'
 -- @
 --
--- >>> (from Prelude.length) # [1,2,3]
+-- >>> (from Prelude.length) #^ [1,2,3]
 -- 3
 --
 -- @
@@ -285,7 +285,7 @@ infixl 8 ^.
 (^.) = flip view
 {-# INLINE ( ^. ) #-}
 
-infixl 8 ^@
+infixl 8 ^%
 
 -- | Bring the index and value of a indexed optic into the current environment as a pair.
 --
@@ -296,9 +296,9 @@ infixl 8 ^@
 --
 -- The result probably doesn't have much meaning when applied to an 'Ixfold'.
 --
-(^@) ::  Monoid i => s -> AIxview i s a -> (Maybe i , a)
-(^@) = flip ixview 
-{-# INLINE (^@) #-}
+(^%) ::  Monoid i => s -> AIxview i s a -> (Maybe i , a)
+(^%) = flip ixview 
+{-# INLINE (^%) #-}
 
 -- | View the value pointed to by a 'View', 'Data.Profunctor.Optic.Iso.Iso' or
 -- 'Lens' or the result of folding over all the results of a
@@ -432,31 +432,31 @@ uses l f = gets (views l f)
 ixuses :: MonadState s m => Monoid i => AIxfold r i s a -> (i -> a -> r) -> m r
 ixuses o f = gets $ primViewOf o (uncurry f) . (mempty,)
 
-infixr 8 #
+infixr 8 #^
 
 -- | An infix variant of 'review'. Dual to '^.'.
 --
 -- @
--- 'from' f # x ≡ f x
--- o # x ≡ x '^.' 're' o
+-- 'from' f #^ x ≡ f x
+-- o #^ x ≡ x '^.' 're' o
 -- @
 --
 -- This is commonly used when using a 'Prism' as a smart constructor.
 --
--- >>> left # 4
+-- >>> left #^ 4
 -- Left 4
 --
 -- @
--- (#) :: 'Iso''      s a -> a -> s
--- (#) :: 'Prism''    s a -> a -> s
--- (#) :: 'Colens''   s a -> a -> s
--- (#) :: 'Review'    s a -> a -> s
--- (#) :: 'Equality'' s a -> a -> s
+-- (#^) :: 'Iso''      s a -> a -> s
+-- (#^) :: 'Prism''    s a -> a -> s
+-- (#^) :: 'Colens''   s a -> a -> s
+-- (#^) :: 'Review'    s a -> a -> s
+-- (#^) :: 'Equality'' s a -> a -> s
 -- @
 --
-(#) :: AReview t b -> b -> t
-o # b = review o b
-{-# INLINE ( # ) #-}
+(#^) :: AReview t b -> b -> t
+o #^ b = review o b
+{-# INLINE (#^) #-}
 
 -- | Turn an optic around and look through the other end.
 --

@@ -56,7 +56,7 @@ module Data.Profunctor.Optic.Lens (
 import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Indexed
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type
 import Data.Void (Void, absurd)
 import qualified Data.Bifunctor as B

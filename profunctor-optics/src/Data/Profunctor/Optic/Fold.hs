@@ -74,7 +74,7 @@ module Data.Profunctor.Optic.Fold (
   , foldsr
   , foldsl
   , foldsl'
-  , foldsM'
+  --, foldsM'
   , lists
   , nelists
   , traverses_
@@ -90,10 +90,17 @@ module Data.Profunctor.Optic.Fold (
   , meets'
   , pelem
     -- * Indexed operators
-  , (^@@)
+  , (^%%)
   , ixfoldsr
+  , ixfoldsrFrom
   , ixfoldsl
+  , ixfoldslFrom
+  , ixfoldsrM
+  , ixfoldsrMFrom
+  , ixfoldslM
+  , ixfoldslMFrom
   , ixlists
+  , ixlistsFrom
   , ixtraverses_
   , ixconcats
   , ixfinds
@@ -410,8 +417,8 @@ foldMapOf = primViewOf
 
 -- | TODO: Document
 --
-ifoldMapOf :: Monoid i => AIxfold r i s a -> (i -> a -> r) -> s -> r
-ifoldMapOf o f = primViewOf o (uncurry f) . (mempty,) 
+ifoldMapOf :: AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
+ifoldMapOf o f = curry $ primViewOf o (uncurry f)
 {-# INLINE ifoldMapOf #-}
 
 -- | Map parts of a structure to a semigroup and combine the results.
@@ -541,6 +548,7 @@ folded1_ = folding1_ id
 --
 unital :: Foldable f => Foldable g => Monoid r => Semiring r => AFold r (f (g a)) a
 unital = summed . multiplied
+{-# INLINE unital #-}
 
 -- | Semiring fold with no multiplicative unit.
 --
@@ -553,6 +561,7 @@ unital = summed . multiplied
 --
 nonunital :: Foldable f => Foldable1 g => Monoid r => Semiring r => AFold r (f (g a)) a
 nonunital = summed . multiplied1
+{-# INLINE nonunital #-}
 
 -- | Semiring fold with no additive or multiplicative unit.
 --
@@ -562,6 +571,7 @@ nonunital = summed . multiplied1
 --
 presemiring :: Foldable1 f => Foldable1 g => Semiring r => AFold1 r (f (g a)) a
 presemiring = summed1 . multiplied1
+{-# INLINE presemiring #-}
 
 -- | Compute the monoidal sum of a 'Fold'.
 --
@@ -583,6 +593,7 @@ presemiring = summed1 . multiplied1
 --
 summed :: Foldable f => Monoid r => AFold r (f a) a
 summed = afold foldMap
+{-# INLINE summed #-}
 
 -- | Compute the semigroup sum of a 'Fold1'.
 --
@@ -593,6 +604,7 @@ summed = afold foldMap
 --
 summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
 summed1 = afold1 foldMap1
+{-# INLINE summed1 #-}
 
 -- | Compute the semiring product of a 'Fold'.
 --
@@ -611,6 +623,7 @@ summed1 = afold1 foldMap1
 --
 multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
 multiplied = afold Rng.product
+{-# INLINE multiplied #-}
 
 -- | Compute the semiring product of a 'Fold1'.
 --
@@ -619,6 +632,7 @@ multiplied = afold Rng.product
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
 multiplied1 = afold1 Rng.product1
+{-# INLINE multiplied1 #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -646,6 +660,7 @@ infixl 8 ^?
 --
 (^?) :: s -> AFold0 a s a -> Maybe a
 (^?) = flip preview
+{-# INLINE (^?) #-}
 
 -- | TODO: Document
 --
@@ -699,11 +714,13 @@ infixl 8 ^..
 --
 foldsr :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
 foldsr o f r = (`appEndo` r) . foldMapOf o (Endo . f)
+{-# INLINE foldsr #-}
 
 -- | Left fold over a 'Fold'.
 --
 foldsl :: AFold (Dual (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
 foldsl o f r = (`appEndo` r) . getDual . foldMapOf o (Dual . Endo . flip f)
+{-# INLINE foldsl #-}
 
 -- | Fold repn the elements of a structure, associating to the left, but strictly.
 --
@@ -725,12 +742,6 @@ foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r
   where f' x (Endo k) = Endo $ \z -> k $! f z x
 {-# INLINE foldsl' #-}
 
--- | A strict monadic left fold.
---
-foldsM' :: Monad m => AFold (Endo (EndoM m r)) s a -> (r -> a -> m r) -> r -> s -> m r
-foldsM' o f c s = foldsr o f' mempty s `appEndoM` c
-  where f' x (EndoM k) = EndoM $ \z -> (f $! z) x >>= k
-
 -- | Collect an applicative over the targets of a fold.
 --
 -- >>> traverses_ both putStrLn ("hello","world")
@@ -743,6 +754,7 @@ foldsM' o f c s = foldsr o f' mempty s `appEndoM` c
 --
 traverses_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f ()
 traverses_ p f = foldsr p (\a fu -> void (f a) *> fu) (pure ())
+{-# INLINE traverses_ #-}
 
 -- | Collect the foci of a `Fold` into a list.
 --
@@ -804,16 +816,19 @@ finds o f = foldsr o (\a y -> if f a then Just a else y) Nothing
 --
 has :: AFold Any s a -> s -> Bool
 has o = foldMapOf o (const True)
+{-# INLINE has #-}
 
 -- | Determine whether a `Fold` does not have a focus.
 --
 hasnt :: AFold All s a -> s -> Bool
 hasnt o = productOf o (const False)
+{-# INLINE hasnt #-}
 
 -- | TODO: Document
 --
 nulls :: AFold All s a -> s -> Bool
 nulls o = productOf o (const False)
+{-# INLINE nulls #-}
 
 -- | The sum of a collection of actions, generalizing 'concatOf'.
 --
@@ -835,38 +850,43 @@ asums o = foldsl' o (<|>) empty
 --
 joins :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
 joins o = foldsl' o (\/)
+{-# INLINE joins #-}
 
 -- | Compute the join of the targets of a fold including a least element.
 --
 joins' :: Lattice a => Min a => AFold (Endo (Endo a)) s a -> s -> a
 joins' o = joins o minimal
+{-# INLINE joins' #-}
 
 -- | Compute the meet of the targets of a fold.
 --
 meets :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
 meets o = foldsl' o (/\)
+{-# INLINE meets #-}
 
 -- | Compute the meet of the targets of a fold including a greatest element.
 --
 meets' :: Lattice a => Max a => AFold (Endo (Endo a)) s a -> s -> a
 meets' o = meets o maximal
+{-# INLINE meets' #-}
 
 -- | Determine whether the targets of a `Fold` contain an element equivalent to a given element.
 --
 pelem :: Prd a => AFold Any s a -> a -> s -> Bool
 pelem o a = foldMapOf o (Prd.=~ a)
+{-# INLINE pelem #-}
 
 ------------------------------------------------------------------------------
 -- Indexed operators
 ------------------------------------------------------------------------------
 
-infixl 8 ^@@
+infixl 8 ^%%
 
--- | Infix version of 'ilists'.
+-- | Infix version of 'ixlists'.
 --
-(^@@) :: Monoid i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
-(^@@) = flip ixlists
-{-# INLINE (^@@) #-}
+(^%%) :: Monoid i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
+(^%%) = flip ixlists
+{-# INLINE (^%%) #-}
 
 -- | Indexed right fold over an 'Ixfold'.
 --
@@ -878,16 +898,68 @@ infixl 8 ^@@
 -- "0:1, 1:3, 2:5, 3:7, 4:9, "
 --
 ixfoldsr :: Monoid i => AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> r -> s -> r
-ixfoldsr o f r = (`appEndo` r) . ifoldMapOf o (\i -> Endo . f i)
+ixfoldsr o f = ixfoldsrFrom o f mempty
+{-# INLINE ixfoldsr #-}
+
+-- | Indexed right fold over an 'Ixfold', using an initial index value.
+--
+ixfoldsrFrom :: AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> i -> r -> s -> r
+ixfoldsrFrom o f i r = (`appEndo` r) . ifoldMapOf o (\i -> Endo . f i) i
+{-# INLINE ixfoldsrFrom #-}
 
 -- | Indexed left fold over an 'Ixfold'.
 --
-ixfoldsl :: Monoid i => AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
-ixfoldsl o f r = (`appEndo` r) . getDual . ifoldMapOf o (\i -> Dual . Endo . flip (f i))
-
--- | Extract the key-value pairs from a structure.
+-- @
+-- 'foldsl' ≡ 'ixfoldsl' '.' 'const'
+-- @
 --
--- When you don't need access to the indices in the result, then 'lists' is more flexible in what it accepts.
+ixfoldsl :: Monoid i => AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
+ixfoldsl o f = ixfoldslFrom o f mempty 
+{-# INLINE ixfoldsl #-}
+
+-- | Indexed left fold over an 'Ixfold', using an initial index value.
+--
+ixfoldslFrom :: AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> i -> r -> s -> r
+ixfoldslFrom o f i r = (`appEndo` r) . getDual . ifoldMapOf o (\i -> Dual . Endo . flip (f i)) i
+{-# INLINE ixfoldslFrom #-}
+
+-- | Indexed monadic right fold over an 'Ixfold'.
+--
+-- @
+-- 'foldsrM' ≡ 'ixfoldrM' '.' 'const'
+-- @
+--
+ixfoldsrM :: Monoid i => Monad m => AIxfold (Dual (Endo (r -> m r))) i s a -> (i -> a -> r -> m r) -> r -> s -> m r
+ixfoldsrM o f z0 xs = ixfoldsl o f' return xs z0
+  where f' i k x z = f i x z >>= k
+{-# INLINE ixfoldsrM #-}
+
+-- | Indexed monadic right fold over an 'Ixfold', using an initial index value.
+--
+ixfoldsrMFrom :: Monad m => AIxfold (Dual (Endo (r -> m r))) i s a -> (i -> a -> r -> m r) -> i -> r -> s -> m r
+ixfoldsrMFrom o f i z0 xs = ixfoldslFrom o f' i return xs z0
+  where f' i k x z = f i x z >>= k
+{-# INLINE ixfoldsrMFrom #-}
+
+-- | Indexed monadic left fold over an 'Ixfold'.
+--
+-- @
+-- 'foldslM' ≡ 'ixfoldslM' '.' 'const'
+-- @
+--
+ixfoldslM :: Monoid i => Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> r -> s -> m r
+ixfoldslM o f z0 xs = ixfoldsr o f' return xs z0
+  where f' i x k z = f i z x >>= k
+{-# INLINE ixfoldslM #-}
+
+-- | Indexed monadic left fold over an 'Ixfold', using an initial index value.
+--
+ixfoldslMFrom :: Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> i -> r -> s -> m r
+ixfoldslMFrom o f i z0 xs = ixfoldsrFrom o f' i return xs z0
+  where f' i x k z = f i z x >>= k
+{-# INLINE ixfoldslMFrom #-}
+
+-- | Extract the key-value pairs from an 'Ixfold'.
 --
 -- @
 -- 'lists' l ≡ 'map' 'snd' '.' 'ixlists' l
@@ -895,11 +967,19 @@ ixfoldsl o f r = (`appEndo` r) . getDual . ifoldMapOf o (\i -> Dual . Endo . fli
 --
 ixlists :: Monoid i => AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
 ixlists o = ixfoldsr o (\i a -> ((i,a):)) []
+{-# INLINE ixlists #-}
+
+-- | Extract the key-value pairs from an 'Ixfold', using an initial index value.
+--
+ixlistsFrom :: AIxfold (Endo [(i, a)]) i s a -> i -> s -> [(i, a)]
+ixlistsFrom o i = ixfoldsrFrom o (\i a -> ((i,a):)) i []
+{-# INLINE ixlistsFrom #-}
 
 -- | Collect an applicative over the targets of an indexed fold.
 --
 ixtraverses_ :: Monoid i => Applicative f => AIxfold (Endo (f ())) i s a -> (i -> a -> f r) -> s -> f ()
 ixtraverses_ p f = ixfoldsr p (\i a fu -> void (f i a) *> fu) (pure ())
+{-# INLINE ixtraverses_ #-}
 
 -- | Concatenate the results of a function of the elements of an 'IndexedFold' or 'IndexedTraversal'
 -- with access to the index.
@@ -907,21 +987,21 @@ ixtraverses_ p f = ixfoldsr p (\i a fu -> void (f i a) *> fu) (pure ())
 -- When you don't need access to the index then 'concats'  is more flexible in what it accepts.
 --
 -- @
--- 'concats' l ≡ 'ixconcats' l '.' 'const'
--- 'ixconcats' ≡ 'ifoldMapOf'
+-- 'concats' o ≡ 'ixconcats' o '.' 'const'
 -- @
 --
 -- >>> ixconcats ixtraversed (\i x -> [i + x, i + x + 1]) [1,2,3,4]
 -- [1,2,3,4,5,6,7,8]
 --
 ixconcats :: Monoid i => AIxfold [r] i s a -> (i -> a -> [r]) -> s -> [r]
-ixconcats = ifoldMapOf
+ixconcats o f = ifoldMapOf o f mempty
 {-# INLINE ixconcats #-}
 
 -- | Find the first focus of an indexed optic that satisfies a predicate, if one exists.
 --
 ixfinds :: Monoid i => AIxfold (Endo (Maybe (i, a))) i s a -> (i -> a -> Bool) -> s -> Maybe (i, a)
 ixfinds o f = ixfoldsr o (\i a y -> if f i a then Just (i,a) else y) Nothing
+{-# INLINE ixfinds #-}
 
 ------------------------------------------------------------------------------
 -- 'MonadUnliftIO'
@@ -940,6 +1020,7 @@ ixfinds o f = ixfoldsr o (\i a y -> if f i a then Just (i,a) else y) Nothing
 tries :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Either e a)
 tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
   if is async e then throwM e else run $ maybe (throwM e) (return . Left) (preview o e)
+{-# INLINE tries #-}
 
 -- | A variant of 'tries' that returns synchronous exceptions.
 --
@@ -962,6 +1043,7 @@ tries_ o a = preview right `liftM` tries o a
 catches :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> (e -> m a) -> m a
 catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
   if is async e then throwM e else run $ maybe (throwM e) ea (preview o e)
+{-# INLINE catches #-}
 
 -- | Catch synchronous exceptions that match a given optic, discarding the match.
 --
@@ -979,6 +1061,7 @@ catches_ o x y = catches o x $ const y
 --
 handles :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> (e -> m a) -> m a -> m a
 handles o = flip $ catches o
+{-# INLINE handles #-}
 
 -- | Flipped variant of 'catches_'.
 --
@@ -987,9 +1070,11 @@ handles o = flip $ catches o
 --
 handles_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
 handles_ o = flip $ catches_ o
+{-# INLINE handles_ #-}
 
 throwM :: MonadIO m => Exception e => e -> m a
 throwM = liftIO . Ex.throwIO
+{-# INLINE throwM #-}
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types
@@ -1004,21 +1089,3 @@ newtype Nedl a = Nedl { getNedl :: [a] -> NEL.NonEmpty a }
 
 instance Semigroup (Nedl a) where
   Nedl f <> Nedl g = Nedl (f . NEL.toList . g)
-
-{-|
-> instance Monad m => Monoid (EndoM m a) where
->     mempty = EndoM return
->     mappend (EndoM f) (EndoM g) = EndoM (f <=< g)
--}
-newtype EndoM m a = EndoM { appEndoM :: a -> m a }
-
-instance Monad m => Semigroup (EndoM m a) where
-    (EndoM f) <> (EndoM g) = EndoM (f <=< g)
-    {-# INLINE (<>) #-}
-
-instance Monad m => Monoid (EndoM m a) where
-    mempty = EndoM return
-    {-# INLINE mempty #-}
-
-    mappend = (<>)
-    {-# INLINE mappend #-}
