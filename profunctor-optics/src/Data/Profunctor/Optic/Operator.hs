@@ -1,14 +1,43 @@
 module Data.Profunctor.Optic.Operator (
-    module Ops
+    re
+  , invert
+  , view
+  , review
+  , preview
+  , over
+  , under
+  , set
+  , reset
+  , matches
+  , (&)
+  , (%)
+  , (#)
+  , (^.)
+  , (^%)
+  , (#^)
+  , (^?)
+  , (^..)
+  , (^%%)
+  , (.~)
+  , (%~)
+  , (..~)
+  , (%%~)
+  , (/~)
+  , (#~)
+  , (//~)
+  , (##~)
+  , (?~)
+  , (<>~)
+  , (><~)
   , module Extra
 ) where
 
-import Data.Function                          as Ops ((&))
-import Data.Profunctor.Optic.Type             as Ops (re)
-import Data.Profunctor.Optic.Iso              as Ops (invert)
-import Data.Profunctor.Optic.View             as Ops (view, review, (^.), (^@), (#))
-import Data.Profunctor.Optic.Setter           as Ops (over, under, set, reset, (.~), (..~), (@~), (@@~), (/~), (//~), (#~), (##~), (?~), (<>~), (><~))
-import Data.Profunctor.Optic.Grate            as Ops (constOf, zipWithOf, zipWithFOf)
-import Data.Profunctor.Optic.Fold             as Ops ((^..), (^@@), (^?), preview, foldMapOf, foldMap1Of, cofoldMapOf, productOf, product1Of)
-import Data.Profunctor.Optic.Traversal        as Ops (matches, traverseOf, traverse1Of, cotraverseOf, sequenceOf, sequence1Of, distributeOf)
-import Data.Profunctor.Extra                  as Extra
+import Data.Function
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Iso
+import Data.Profunctor.Optic.View
+import Data.Profunctor.Optic.Index
+import Data.Profunctor.Optic.Setter
+import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Extra as Extra

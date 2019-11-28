@@ -19,7 +19,7 @@ module Data.Profunctor.Optic.Traversal (
   , traversing
   , traversalVl
   , ixtraversalVl
-  , ixtraversalVl'
+  , ignoring
   , indexing
     -- * Cotraversal & Cxtraversal
   , Corepresentable(..)
@@ -199,13 +199,13 @@ ixtraversalVl f = traversalVl $ \iab -> f (curry iab) . snd
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
--- >>> ixlists (ixtraversalVl' traverse . ixtraversed) ["foo", "bar"]
+-- >>> ixlists (ignoring traversed . ixtraversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> ixlists (ixtraversed . ixtraversalVl' traverse) ["foo", "bar"]
+-- >>> ixlists (ixtraversed . ignoring traversed) ["foo", "bar"]
 -- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
 --
-ixtraversalVl' :: Monoid i => (forall f. Applicative f => (a -> f b) -> s -> f t) -> Ixtraversal i s t a b
-ixtraversalVl' f = ixtraversalVl $ \iab -> f (iab mempty)
+ignoring :: Monoid i => Traversal s t a b -> Ixtraversal i s t a b
+ignoring o = ixtraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
 
 -- | Statefully index a traversal.
 --
@@ -215,9 +215,9 @@ ixtraversalVl' f = ixtraversalVl $ \iab -> f (iab mempty)
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
 indexing :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
-indexing abst =
+indexing o =
   ixtraversalVl $ \f s ->
-    flip evalState mempty . getCompose . flip runStar s . abst . Star $ \a ->
+    flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
       Compose $ (f <$> get <*> pure a) <* modify (<> unit) 
 
 ---------------------------------------------------------------------

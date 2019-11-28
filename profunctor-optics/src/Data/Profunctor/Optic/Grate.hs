@@ -54,7 +54,7 @@ import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Indexed
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Rep (unfirstCorep)
 
 -- $setup

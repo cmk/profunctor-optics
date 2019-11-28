@@ -55,7 +55,7 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Property
-      Data.Profunctor.Optic.Indexed
+      Data.Profunctor.Optic.Index
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -84,6 +84,7 @@ library
       base >=4.9 && <5.0
     , comonad
     , connections
+    , containers
     , distributive
     , ilist
     , mtl
@@ -93,8 +94,8 @@ library
     , rings
     , semigroupoids
     , tagged
-    , unliftio-core
     , transformers
+    , unliftio-core
 
 test-suite doctests
   type:              exitcode-stdio-1.0

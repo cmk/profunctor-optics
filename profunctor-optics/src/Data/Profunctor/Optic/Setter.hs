@@ -55,8 +55,8 @@ module Data.Profunctor.Optic.Setter (
   , cxset
   , (.~)
   , (..~)
-  , (@~)
-  , (@@~)
+  , (%~)
+  , (%%~)
   , (/~)
   , (//~)
   , (#~)
@@ -69,8 +69,8 @@ module Data.Profunctor.Optic.Setter (
   , modifies
   , (.=)
   , (..=)
-  , (@=)
-  , (@@=)
+  , (%=)
+  , (%%=)
   , (//=)
   , (#=)
   , (##=)
@@ -88,7 +88,7 @@ import Control.Monad.Writer as Writer
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Indexed (Index(..), Coindex(..), trivial)
+import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Repn
 import Data.Profunctor.Optic.Type
 import Data.Semiring
@@ -481,7 +481,7 @@ exmapped = setter Ex.mapException
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 .~, ..~, @~, @@~, /~, //~, #~, ##~, ?~, <>~, ><~
+infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, ?~, <>~, ><~
 
 -- | Run a profunctor arrow command and set the optic targets to the result.
 --
@@ -573,15 +573,15 @@ cxset o kb = cxover o $ flip (const kb)
 
 -- | An infix variant of 'ixset'. Dual to '#~'.
 --
-(@~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
-(@~) = ixset
-{-# INLINE (@~) #-}
+(%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+(%~) = ixset
+{-# INLINE (%~) #-}
 
 -- | An infix variant of 'ixover'. Dual to '##~'.
 --
-(@@~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-(@@~) = ixover
-{-# INLINE (@@~) #-}
+(%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+(%%~) = ixover
+{-# INLINE (%%~) #-}
 
 -- | An infix variant of 'reset'. Dual to '.~'.
 --
@@ -595,13 +595,13 @@ cxset o kb = cxover o $ flip (const kb)
 (//~) = under
 {-# INLINE (//~) #-}
 
--- | An infix variant of 'cxset'. Dual to '@~'.
+-- | An infix variant of 'cxset'. Dual to '%~'.
 --
 (#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 (#~) = cxset
 {-# INLINE (#~) #-}
 
--- | An infix variant of 'cxover'. Dual to '@@~'.
+-- | An infix variant of 'cxover'. Dual to '%%~'.
 --
 -- >>> Just "foo" & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
 -- Just "0: foo"
@@ -680,7 +680,7 @@ l ><~ n = over l (>< n)
 -- MonadState
 ---------------------------------------------------------------------
 
-infix 4 .=, ..=, @=, @@=, //=, #=, ##=, ?=, <>=, ><=
+infix 4 .=, ..=, %=, %%=, //=, #=, ##=, ?=, <>=, ><=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
@@ -763,14 +763,14 @@ o ..= f = State.modify (o ..~ f)
 
 -- | TODO: Document 
 --
-(@=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
-o @= b = State.modify (o @~ b)
+(%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
+o %= b = State.modify (o %~ b)
 
 -- | TODO: Document 
 --
-(@@=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
-o @@= f = State.modify (o @@~ f)
-{-# INLINE (@@=) #-}
+(%%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
+o %%= f = State.modify (o %%~ f)
+{-# INLINE (%%=) #-}
 
 -- | TODO: Document 
 --
