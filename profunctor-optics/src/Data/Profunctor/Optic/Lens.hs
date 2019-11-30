@@ -33,7 +33,7 @@ module Data.Profunctor.Optic.Lens (
   , colensVl
   , comatching
   , cloneColens
-    -- * Representatives
+    -- * Carriers
   , LensRep(..)
   , ColensRep(..)
     -- * Primitive operators
@@ -47,7 +47,10 @@ module Data.Profunctor.Optic.Lens (
   , ixsecond
   , cosecond
   , united
-  , devoid
+  , voided
+  , valued
+  , root
+  , branches
     -- * Operators
   , toPastro
   , toTambara
@@ -58,13 +61,16 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type
+import Data.Tree
 import Data.Void (Void, absurd)
+import GHC.Generics hiding (from, to)
 import qualified Data.Bifunctor as B
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> import Data.Tree
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -172,7 +178,7 @@ cxlens bsa bt = colens bsa (bt .)
 --
 -- Compare 'Data.Profunctor.Optic.Grate.grateVl'.
 --
-colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b 
+colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
 colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& values) . o (flip Index id))
 
 -- | Obtain a 'Colens' from its free tensor representation.
@@ -289,13 +295,37 @@ united = lens (const ()) const
 
 -- | There is everything in a `Void`.
 --
--- >>> [] & fmapped . devoid <>~ "Void" 
+-- >>> [] & fmapped . voided <>~ "Void" 
 -- []
--- >>> Nothing & fmapped . devoid ..~ abs
+-- >>> Nothing & fmapped . voided ..~ abs
 -- Nothing
 --
-devoid :: Lens' Void a
-devoid = lens absurd const
+voided :: Lens' Void a
+voided = lens absurd const
+
+-- | TODO: Document
+--
+-- Compare 'Data.Profunctor.Optic.Prism.keyed'.
+--
+valued :: Eq k => k -> Lens' (k -> v) v
+valued k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
+
+-- | A 'Lens' that focuses on the root of a 'Tree'.
+--
+-- >>> view root $ Node 42 []
+-- 42
+--
+root :: Lens' (Tree a) a
+root = lensVl $ \f (Node a as) -> (`Node` as) <$> f a
+{-# INLINE root #-}
+
+-- | A 'Lens' returning the direct descendants of the root of a 'Tree'
+--
+-- @'Data.Profunctor.Optic.View.view' 'branches' ≡ 'subForest'@
+--
+branches :: Lens' (Tree a) [Tree a]
+branches = lensVl $ \f (Node a as) -> Node a <$> f as
+{-# INLINE branches #-}
 
 ---------------------------------------------------------------------
 -- Operators

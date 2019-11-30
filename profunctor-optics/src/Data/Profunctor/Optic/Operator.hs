@@ -8,7 +8,8 @@ module Data.Profunctor.Optic.Operator (
   , under
   , set
   , reset
-  , matches
+  , is
+  , match
   , (&)
   , (%)
   , (#)
@@ -39,5 +40,7 @@ import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Fold0
 import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Traversal0
 import Data.Profunctor.Extra as Extra

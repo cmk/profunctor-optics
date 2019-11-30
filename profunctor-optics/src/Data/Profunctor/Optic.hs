@@ -13,9 +13,12 @@ module Data.Profunctor.Optic (
   , module Lens
   , module Prism
   , module Grate
-  , module Repn
   , module Traversal
+  , module Traversal0
+  , module Traversal1
   , module Fold
+  , module Fold0
+  , module Fold1
   , module View
   , module Setter
   , module Indexed
@@ -28,9 +31,12 @@ import Data.Profunctor.Optic.Iso              as Iso
 import Data.Profunctor.Optic.Lens             as Lens
 import Data.Profunctor.Optic.Prism            as Prism
 import Data.Profunctor.Optic.Grate            as Grate
-import Data.Profunctor.Optic.Repn             as Repn
 import Data.Profunctor.Optic.Traversal        as Traversal
+import Data.Profunctor.Optic.Traversal0       as Traversal0
+import Data.Profunctor.Optic.Traversal1       as Traversal1
 import Data.Profunctor.Optic.Fold             as Fold
+import Data.Profunctor.Optic.Fold0            as Fold0
+import Data.Profunctor.Optic.Fold1            as Fold1
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
-import Data.Profunctor.Optic.Index          as Indexed
+import Data.Profunctor.Optic.Index            as Indexed

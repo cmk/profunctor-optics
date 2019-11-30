@@ -51,8 +51,11 @@ library
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Grate
       Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Repn
+      Data.Profunctor.Optic.Fold0
+      Data.Profunctor.Optic.Fold1
       Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Traversal0
+      Data.Profunctor.Optic.Traversal1
       Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Index

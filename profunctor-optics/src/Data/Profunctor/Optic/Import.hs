@@ -5,10 +5,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module Data.Profunctor.Optic.Import (
-    pliftW
-  , pliftF
-  , (<<.>>)
-  , module Export
+  module Export
 ) where
 
 import Control.Applicative as Export (liftA2, Alternative(..))
@@ -28,21 +25,7 @@ import Data.Functor.Contravariant as Export
 import Data.Functor.Identity as Export
 import Data.Profunctor.Arrow as Export ((|||),(&&&),(+++),(***))
 import Data.Profunctor.Extra as Export
-import Data.Profunctor.Rep as Export
-import Data.Profunctor.Sieve as Export
-import Data.Profunctor.Types as Export
 import Data.Profunctor.Unsafe as Export
 import Data.Tagged as Export
 import Data.Void as Export
 import Prelude as Export hiding (Num(..), Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)
-
-pliftW :: Corepresentable p => Monoid (Corep p a) => (b -> c -> d) -> p a b -> p a c -> p a d
-pliftW f x y = cotabulate $ liftW2 f (cosieve x) (cosieve y)
-
-pliftF :: Representable p => Apply (Rep p) => (b -> c -> d) -> p a b -> p a c -> p a d
-pliftF f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
-
-infixl 4 <<.>>
-
-(<<.>>) :: Representable p => Apply (Rep p) => p a (b -> c) -> p a b -> p a c 
-(<<.>>) = pliftF ($)

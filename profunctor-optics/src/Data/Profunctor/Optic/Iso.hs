@@ -18,13 +18,15 @@ module Data.Profunctor.Optic.Iso (
     -- * Constructors
   , iso
   , isoVl
-  , mapping
+  , ixmapping
+  , cxmapping
+  , fmapping
   , contramapping
   , dimapping
   , toYoneda 
   , toCoyoneda
   , cloneIso
-    -- * Representatives
+    -- * Carriers
   , IsoRep(..)
     -- * Primitive operators
   , withIso
@@ -43,6 +45,8 @@ module Data.Profunctor.Optic.Iso (
   , wrapped
   , rewrapped
   , rewrapping
+  , generic
+  , generic1
   , flipped 
   , curried
   , swapped 
@@ -51,16 +55,18 @@ module Data.Profunctor.Optic.Iso (
   , eassociated 
   , involuted 
   , added 
-  , subtracted 
-  , hushed 
-  , duped
-  , eduped
+  , subtracted
+  , viewedl
+  , viewedr
   , non 
   , anon
+  , u1
+  , par1
+  , rec1
+  , k1
+  , m1
     -- * Auxilliary Types
   , Re(..)
-    -- * Classes
-  , Profunctor(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -70,21 +76,26 @@ import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Type hiding (Rep)
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
+import Data.Sequence as Seq
 import GHC.Generics hiding (from, to)
 import qualified Control.Monad as M (join)
+import qualified GHC.Generics as GHC (to, from, to1, from1)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> import Data.Monoid
+-- >>> import Data.List.Index
 -- >>> import Data.Semiring
+-- >>> import Data.Sequence as Seq hiding (reverse)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> :load Data.Profunctor.Optic
+-- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Iso' 
@@ -121,15 +132,30 @@ isoVl abst = iso f g
         g = runIdentity . (abst (Identity . getConst)) . Const
 {-# INLINE isoVl #-}
 
+-- | Lift an 'Iso' into an indexed version. 
+--
+-- >>> ixlists (ixtraversed . ixmapping swapped) [(40,'f'),(41,'o'),(42,'o')]
+-- [(0,('f',40)),(1,('o',41)),(2,('o',42))]
+--
+ixmapping :: Profunctor p => AIso s t a b -> IndexedOptic p i s t a b
+ixmapping o = withIso o ixmap
+{-# INLINE ixmapping #-}
+
+-- | Lift an 'Iso' into a coindexed version. 
+--
+cxmapping :: Profunctor p => AIso s t a b -> CoindexedOptic p k s t a b
+cxmapping o = withIso o cxmap
+{-# INLINE cxmapping #-}
+
 -- | TODO: Document
 --
-mapping
+fmapping
   :: Functor f
   => Functor g
   => AIso s t a b
   -> Iso (f s) (g t) (f a) (g b)
-mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
-{-# INLINE mapping #-}
+fmapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
+{-# INLINE fmapping #-}
 
 -- | Lift an 'Iso' into a 'Contravariant' functor.
 --
@@ -138,7 +164,7 @@ mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 -- @
 --
 contramapping :: Contravariant f => Contravariant g => AIso s t a b -> Iso (f a) (g b) (f s) (g t)
-contramapping f = withIso f $ \ sa bt -> iso (contramap sa) (contramap bt)
+contramapping f = withIso f $ \sa bt -> iso (contramap sa) (contramap bt)
 {-# INLINE contramapping #-}
 
 -- | TODO: Document
@@ -294,8 +320,6 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 -- >>> ala Product foldMap [1,2,3,4]
 -- 24
 --
--- You may want to think of this combinator as having the following, simpler, type.
---
 -- @
 -- ala :: Newtype s => Newtype t => (O s -> s) -> ((O t -> t) -> e -> s) -> e -> O s
 -- @
@@ -368,6 +392,21 @@ rewrapped = withIso wrapped $ \ sa _ -> withIso wrapped $ \ _ bt -> iso sa bt
 rewrapping :: Newtype s => Newtype t => (O s -> s) -> Iso s t (O s) (O t)
 rewrapping _ = rewrapped
 {-# INLINE rewrapping #-}
+
+-- | Convert between a data type and its 'Generic' representation.
+--
+-- >>> view (generic . re generic) "hello" :: String
+-- "hello"
+--
+generic :: Generic a => Generic b => Iso a b (Rep a c) (Rep b c)
+generic = iso GHC.from GHC.to
+{-# INLINE generic #-}
+
+-- | Convert between a data type and its 'Generic1' representation.
+--
+generic1 :: Generic1 f => Generic1 g => Iso (f a) (g b) (Rep1 f a) (Rep1 g b)
+generic1 = iso GHC.from1 GHC.to1
+{-# INLINE generic1 #-}
 
 -- | Flip two arguments of a function.
 --
@@ -446,30 +485,49 @@ subtracted :: Group a => a -> Iso' a a
 subtracted n = iso (<< n) (<> n)
 {-# INLINE subtracted #-}
 
--- | TODO: Document
+-- | A 'Seq' is isomorphic to a 'ViewL'
 --
-hushed :: Iso (Maybe a) (Maybe b) (() + a) (() + b)
-hushed = iso (maybe (Left ()) Right) (const Nothing ||| Just)
-{-# INLINE hushed #-}
+-- @'viewl' m ≡ m 'Data.Profunctor.Optic.Operator.^.' 'viewedl'@
+--
+-- >>> Seq.fromList [1,2,3] ^. viewedl
+-- 1 :< fromList [2,3]
+--
+-- >>> Seq.empty ^. viewedl
+-- EmptyL
+--
+-- >>> EmptyL ^. re viewedl
+-- fromList []
+--
+-- >>> review viewedl $ 1 Seq.:< fromList [2,3]
+-- fromList [1,2,3]
+--
+viewedl :: Iso (Seq a) (Seq b) (ViewL a) (ViewL b)
+viewedl = iso viewl $ \xs -> case xs of
+  EmptyL      -> mempty
+  a Seq.:< as -> a Seq.<| as
+{-# INLINE viewedl #-}
 
--- | TODO: Document
+-- | A 'Seq' is isomorphic to a 'ViewR'
 --
-duped :: Iso (Bool -> a) (Bool -> b) (a , a) (b , b)
-duped = iso to fro
- where
-  to f = (f False, f True)
-  fro p True = fst p
-  fro p False = snd p
-{-# INLINE duped #-}
-
--- | TODO: Document
+-- @'viewr' m ≡ m 'Data.Profunctor.Optic.Operator.^.' 'viewedr'@
 --
-eduped :: Iso (Bool , a) (Bool , b) (a + a) (b + b)
-eduped = iso f ((,) False ||| (,) True)
- where
-  f (False,a) = Left a
-  f (True,a) = Right a
-{-# INLINE eduped #-}
+-- >>> Seq.fromList [1,2,3] ^. viewedr
+-- fromList [1,2] :> 3
+--
+-- >>> Seq.empty ^. viewedr
+-- EmptyR
+--
+-- >>> EmptyR ^. re viewedr
+-- fromList []
+--
+-- >>> review viewedr $ fromList [1,2] Seq.:> 3
+-- fromList [1,2,3]
+--
+viewedr :: Iso (Seq a) (Seq b) (ViewR a) (ViewR b)
+viewedr = iso viewr $ \xs -> case xs of
+  EmptyR      -> mempty
+  as Seq.:> a -> as Seq.|> a
+{-# INLINE viewedr #-}
 
 -- | Remove a single value from a type.
 --
@@ -498,3 +556,23 @@ anon a p = iso (fromMaybe a) go where
   go b | p b       = Nothing
        | otherwise = Just b
 {-# INLINE anon #-}
+
+u1 :: Iso (U1 p) (U1 q) () ()
+u1 = iso (const ()) (const U1)
+{-# INLINE u1 #-}
+
+k1 :: Iso (K1 i c p) (K1 j d q) c d
+k1 = iso unK1 K1
+{-# INLINE k1 #-}
+
+m1 :: Iso (M1 i c f p) (M1 j d g q) (f p) (g q)
+m1 = iso unM1 M1
+{-# INLINE m1 #-}
+
+par1 :: Iso (Par1 p) (Par1 q) p q
+par1 = iso unPar1 Par1
+{-# INLINE par1 #-}
+
+rec1 :: Iso (Rec1 f p) (Rec1 g q) (f p) (g q)
+rec1 = iso unRec1 Rec1
+{-# INLINE rec1 #-}

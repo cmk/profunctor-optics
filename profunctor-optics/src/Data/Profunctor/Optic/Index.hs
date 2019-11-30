@@ -13,14 +13,14 @@ module Data.Profunctor.Optic.Index (
   , ixinit
   , ixlast
   , reix
-  , ixdimap
+  , ixmap
   , withIxrepn
     -- * Coindexing
   , (#)
   , cxinit
   , cxlast
   , recx
-  , cxdimap
+  , cxmap
   , cxed
   , cxjoin
   , cxreturn
@@ -76,6 +76,12 @@ import Data.List.Index
 -- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
 -- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
 
+-- | Generic type for a product-indexed optic.
+type Ix p i a b = p (i , a) b
+
+-- | Generic type for a co-indexed optic.
+type Cx p k a b = p a (k -> b)
+
 ---------------------------------------------------------------------
 -- Indexing
 ---------------------------------------------------------------------
@@ -100,7 +106,7 @@ infixr 8 %
 -- >>> ixlists (ixtraversed % ixtraversed) exercises 
 -- [("Fridaycrunches",25),("Fridayhandstands",5),("Mondaycrunches",20),("Mondaypushups",10),("Wednesdayhandstands",3),("Wednesdaypushups",15)]
 --
-(%) :: Semigroup i => IxrepnLike p i b1 b2 a1 a2 -> IxrepnLike p i c1 c2 b1 b2 -> IxrepnLike p i c1 c2 a1 a2
+(%) :: Semigroup i => Representable p => IndexedOptic p i b1 b2 a1 a2 -> IndexedOptic p i c1 c2 b1 b2 -> IndexedOptic p i c1 c2 a1 a2
 f % g = repn $ \ia1a2 (ic,c1) -> 
           withIxrepn g ic c1 $ \ib b1 -> 
             withIxrepn f ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
@@ -122,10 +128,12 @@ ixlast = reix Last getLast
 reix :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
 reix ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
 
-ixdimap :: Profunctor p => (c -> a) -> (b -> d) -> Ix p i a b -> Ix p i c d
-ixdimap l r = dimap (fmap l) r
+-- >>> ixlists (ixtraversed . ixmap head pure) [[1,2,3],[4,5,6]]
+-- [(0,1),(1,4)]
+ixmap :: Profunctor p => (s -> a) -> (b -> t) -> IndexedOptic p i s t a b
+ixmap sa bt = dimap (fmap sa) bt
 
-withIxrepn :: Representable p => IxrepnLike p i s t a b -> i -> s -> (i -> a -> Rep p b) -> Rep p t
+withIxrepn :: Representable p => IndexedOptic p i s t a b -> i -> s -> (i -> a -> Rep p b) -> Rep p t
 withIxrepn abst i s iab = (sieve . abst . tabulate $ uncurry iab) (i, s)
 
 ---------------------------------------------------------------------
@@ -140,7 +148,7 @@ infixr 8 #
 --
 -- If you only need the final index then use /./
 --
-(#) :: Semigroup k => CxrepnLike p k b1 b2 a1 a2 -> CxrepnLike p k c1 c2 b1 b2 -> CxrepnLike p k c1 c2 a1 a2
+(#) :: Semigroup k => Corepresentable p => CoindexedOptic p k b1 b2 a1 a2 -> CoindexedOptic p k c1 c2 b1 b2 -> CoindexedOptic p k c1 c2 a1 a2
 f # g = corepn $ \a1ka2 c1 kc -> 
           withCxrepn g c1 kc $ \b1 kb -> 
             withCxrepn f b1 kb $ \a1 ka -> a1ka2 a1 (kb <> ka)
@@ -159,8 +167,8 @@ cxlast = recx Last getLast
 recx :: Profunctor p => (k -> l) -> (l -> k) -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
 recx kl lk = (. rmap (. kl)) . (rmap (. lk) .)
 
-cxdimap :: Profunctor p => (c -> a) -> (b -> d) -> Cx p k a b -> Cx p k c d
-cxdimap l r = dimap l (fmap r)
+cxmap :: Profunctor p => (s -> a) -> (b -> t) -> CoindexedOptic p k s t a b 
+cxmap sa bt = dimap sa (fmap bt)
 
 cxed :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
 cxed = dimap cxjoin cxreturn
@@ -186,7 +194,7 @@ cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r)
 cxfirst' :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
 cxfirst' = dimap fst (B.first @(,))
 
-withCxrepn :: Corepresentable p => CxrepnLike p k s t a b -> Corep p s -> k -> (Corep p a -> k -> b) -> t
+withCxrepn :: Corepresentable p => CoindexedOptic p k s t a b -> Corep p s -> k -> (Corep p a -> k -> b) -> t
 withCxrepn abst s k akb = (cosieve . abst $ cotabulate akb) s k
 
 ---------------------------------------------------------------------

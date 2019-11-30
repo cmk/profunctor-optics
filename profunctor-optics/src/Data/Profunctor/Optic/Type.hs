@@ -10,8 +10,8 @@
 module Data.Profunctor.Optic.Type (
     -- * Optics
     Optic, Optic', between
-  , Ix, IndexedOptic, IndexedOptic'
-  , Cx, CoindexedOptic, CoindexedOptic'
+  , IndexedOptic, IndexedOptic'
+  , CoindexedOptic, CoindexedOptic'
     -- * Equality
   , Equality, Equality', As
     -- * Isos
@@ -22,28 +22,22 @@ module Data.Profunctor.Optic.Type (
   , Prism, Prism', Cxprism, Cxprism', Coprism, Coprism', Ixprism, Ixprism' 
     -- * Grates
   , Grate, Grate', Cxgrate, Cxgrate'
-    -- * Repns & Corepns
-  , Repn  , Repn'  , RepnLike  , RepnLike'  , ARepn  , ARepn'
-  , Ixrepn, Ixrepn', IxrepnLike, IxrepnLike', AIxrepn, AIxrepn'
-  , Corepn, Corepn', CorepnLike, CorepnLike', ACorepn, ACorepn'
-  , Cxrepn, Cxrepn', CxrepnLike, CxrepnLike', ACxrepn, ACxrepn'
-    -- * Traversals & cotraversals
-  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal' , ATraversal  , ATraversal'  
-  , Cotraversal  , Cotraversal' , Cxtraversal , Cxtraversal' , ACotraversal, ACotraversal'
+    -- * Traversals
+  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal' 
     -- * Affine traversals & cotraversals
   , Traversal0   , Traversal0'  , Ixtraversal0, Ixtraversal0'
   , Cotraversal0 , Cotraversal0', Cxtraversal0, Cxtraversal0'
-    -- * Non-empty traversals
-  , Traversal1   , Traversal1'  , ATraversal1 , ATraversal1'
+    -- * Non-empty traversals & cotraversals
+  , Traversal1, Traversal1'
+  , Cotraversal1 , Cotraversal1' , Cxtraversal1 , Cxtraversal1'
       -- * Affine folds, general & non-empty folds, & cofolds
-  , Fold0, FoldRep, Fold, AFold, Ixfold, AIxfold, Fold1, AFold1
-  , Cofold, CofoldRep, ACofold
+  , Fold0, Ixfold0, Fold, Ixfold, Fold1, Cofold1
     -- * Views & Reviews
-  , PrimView  , APrimView  , View  , AView  , Ixview, AIxview
-  , PrimReview, APrimReview, Review, AReview, Cxview, ACxview
+  , PrimView, View, Ixview, PrimReview, Review, Cxview
     -- * Setters & Resetters
-  , Setter  , Setter'  , ASetter  , ASetter'  , Ixsetter, AIxsetter
-  , Resetter, Resetter', AResetter, AResetter', Cxsetter, ACxsetter
+  , Setter, Setter', Ixsetter, Resetter, Resetter', Cxsetter
+    -- * Common represenable and corepresentable carriers
+  , ARepn, ARepn', AIxrepn, AIxrepn', ACorepn, ACorepn', ACxrepn, ACxrepn'
     -- * 'Re'
   , Re(..), re
   , module Export
@@ -71,17 +65,11 @@ type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
 
--- | Generic type for a product-indexed optic.
-type Ix p i a b = p (i , a) b
-
--- | Generic type for a co-indexed optic.
-type Cx p k a b = p a (k -> b)
-
-type IndexedOptic p i s t a b = Ix p i a b -> Ix p i s t
+type IndexedOptic p i s t a b = p (i , a) b -> p (i , s) t
 
 type IndexedOptic' p i s a = IndexedOptic p i s s a a
 
-type CoindexedOptic p k s t a b = Cx p k a b -> Cx p k s t
+type CoindexedOptic p k s t a b = p a (k -> b) -> p s (k -> t)
 
 type CoindexedOptic' p k t b = CoindexedOptic p k t t b b
 
@@ -192,88 +180,20 @@ type Cxgrate k s t a b = forall p. Closed p => CoindexedOptic p k s t a b
 type Cxgrate' k s a = Cxgrate k s s a a
 
 ---------------------------------------------------------------------
--- 'Repn' & 'Corepn'
----------------------------------------------------------------------
-
-type Repn s t a b = forall p. RepnLike p s t a b
-
-type Repn' s a = Repn s s a a
-
-type RepnLike p s t a b = Representable p => Optic p s t a b
-
-type RepnLike' p s a = RepnLike p s s a a
-
-type ARepn f s t a b = Optic (Star f) s t a b
-
-type ARepn' f s a = ARepn f s s a a
-
-type Ixrepn i s t a b = forall p. IxrepnLike p i s t a b 
-
-type Ixrepn' i s a = Ixrepn i s s a a
-
-type IxrepnLike p i s t a b = Representable p => IndexedOptic p i s t a b
-
-type IxrepnLike' p i s a = IxrepnLike p i s s a a
-
-type AIxrepn f i s t a b = IndexedOptic (Star f) i s t a b
-
-type AIxrepn' f i s a = AIxrepn f i s s a a 
-
-type Corepn s t a b = forall p. CorepnLike p s t a b
-
-type Corepn' s a = Corepn s s a a
-
-type CorepnLike p s t a b = Corepresentable p => Optic p s t a b
-
-type CorepnLike' p t b = CorepnLike p t t b b 
-
-type ACorepn f s t a b = Optic (Costar f) s t a b
-
-type ACorepn' f t b = ACorepn f t t b b
-
-type Cxrepn k s t a b = forall p. CxrepnLike p k s t a b
-
-type Cxrepn' k t b = Cxrepn k t t b b
-
-type CxrepnLike p k s t a b = Corepresentable p => CoindexedOptic p k s t a b
-
-type CxrepnLike' p k t b = CxrepnLike p k t t b b
-
-type ACxrepn f k s t a b = CoindexedOptic (Costar f) k s t a b
-
-type ACxrepn' f k t b = ACxrepn f k t t b b
-
----------------------------------------------------------------------
--- 'Traversal' & 'Cotraversal'
+-- 'Traversal'
 ---------------------------------------------------------------------
 
 -- | A 'Traversal' processes 0 or more parts of the whole, with 'Applicative' interactions.
 --
 -- \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
 --
-type Traversal s t a b = forall p. Choice p => Applicative (Rep p) => RepnLike p s t a b
+type Traversal s t a b = forall p. Choice p => Representable p => Applicative (Rep p) => Optic p s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type Ixtraversal i s t a b = forall p. Choice p => Applicative (Rep p) => IxrepnLike p i s t a b 
+type Ixtraversal i s t a b = forall p. Choice p => Representable p => Applicative (Rep p) => IndexedOptic p i s t a b 
 
 type Ixtraversal' i s a = Ixtraversal i s s a a
-
-type ATraversal f s t a b = Applicative f => ARepn f s t a b
-
-type ATraversal' f s a = ATraversal f s s a a
-
-type Cotraversal s t a b = forall p. Closed p => Comonad (Corep p) => CorepnLike p s t a b 
-
-type Cotraversal' s a = Cotraversal s s a a
-
-type ACotraversal f s t a b = Comonad f => ACorepn f s t a b
-
-type ACotraversal' f s a = ACotraversal f s s a a
-
-type Cxtraversal k s t a b = forall p. Closed p => Comonad (Corep p) => CxrepnLike p k s t a b 
-
-type Cxtraversal' k t b = Cxtraversal k t t b b 
 
 ---------------------------------------------------------------------
 -- 'Traversal0' & 'Cotraversal0'
@@ -304,52 +224,46 @@ type Cxtraversal0 i s t a b = forall p. Costrong p => Closed p => CoindexedOptic
 type Cxtraversal0' i s a = Cxtraversal0 i s s a a 
 
 ---------------------------------------------------------------------
--- 'Traversal1'
+-- 'Traversal1' & 'Cotraversal1'
 ---------------------------------------------------------------------
 
 -- | A 'Traversal1' processes 1 or more parts of the whole, with 'Apply' interactions.
 --
 -- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
-type Traversal1 s t a b = forall p. Choice p => Apply (Rep p) => RepnLike p s t a b 
+type Traversal1 s t a b = forall p. Choice p => Representable p => Apply (Rep p) => Optic p s t a b 
 
 type Traversal1' s a = Traversal1 s s a a
 
-type ATraversal1 f s t a b = Apply f => ARepn f s t a b
+type Cotraversal1 s t a b = forall p. Closed p => Corepresentable p => Apply (Corep p) => Optic p s t a b 
 
-type ATraversal1' f s a = ATraversal1 f s s a a
+type Cotraversal1' s a = Cotraversal1 s s a a
+
+type Cxtraversal1 k s t a b = forall p. Closed p => Corepresentable p => Apply (Corep p) => CoindexedOptic p k s t a b 
+
+type Cxtraversal1' k t b = Cxtraversal1 k t t b b 
 
 ---------------------------------------------------------------------
--- 'Fold0', 'Fold', 'Fold1' & 'Cofold'
+-- 'Fold0', 'Fold', 'Fold1' & 'Cofold1'
 ---------------------------------------------------------------------
 
 -- | A 'Fold0' combines at most one element, with no interactions.
 --
 type Fold0 s a = forall p. (forall x. Contravariant (p x)) => Strong p => Choice p => Optic' p s a 
 
+type Ixfold0 i s a = forall p. (forall x. Contravariant (p x)) => Strong p => Choice p => IndexedOptic' p i s a 
+
 -- | A 'Fold' combines 0 or more elements, with 'Monoid' interactions.
 --
-type Fold s a = forall p. (forall x. Contravariant (p x)) => Choice p => Applicative (Rep p) => RepnLike' p s a
+type Fold s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Applicative (Rep p) => Optic' p s a
 
-type FoldRep r = Star (Const r)
-
-type AFold r s a = Optic' (FoldRep r) s a
-
-type Ixfold i s a = forall p. (forall x. Contravariant (p x)) => Choice p => Applicative (Rep p) => IxrepnLike' p i s a
-
-type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
+type Ixfold i s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Applicative (Rep p) => IndexedOptic' p i s a
 
 -- | A 'Fold1' combines 1 or more elements, with 'Semigroup' interactions.
 --
-type Fold1 s a = forall p. (forall x. Contravariant (p x)) => Choice p => Apply (Rep p) => RepnLike p s s a a 
+type Fold1 s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Apply (Rep p) => Optic p s s a a 
 
-type AFold1 r s a = Optic' (FoldRep r) s a
-
-type Cofold t b = forall p. Bifunctor p => Closed p => Comonad (Corep p) => CorepnLike p t t b b
-
-type CofoldRep r = Costar (Const r)
-
-type ACofold r t b = Optic' (CofoldRep r) t b
+type Cofold1 t b = forall p. Bifunctor p => Closed p => Corepresentable p => Apply (Corep p) => Optic p t t b b
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -357,27 +271,15 @@ type ACofold r t b = Optic' (CofoldRep r) t b
 
 type PrimView s t a b = forall p. Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
 
-type APrimView r s t a b = Optic (FoldRep r) s t a b
-
 type View s a = forall p. Strong p => (forall x. Contravariant (p x)) => Optic' p s a 
-
-type AView s a = Optic' (FoldRep a) s a
 
 type Ixview i s a = forall p. Strong p => (forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
-type AIxview i s a = IndexedOptic' (FoldRep (Maybe i , a)) i s a
-
 type PrimReview s t a b = forall p. Profunctor p => Bifunctor p => Optic p s t a b
-
-type APrimReview s t a b = Optic Tagged s t a b
 
 type Review t b = forall p. Bifunctor p => Costrong p => Optic' p t b
 
-type AReview t b = Optic' Tagged t b
-
 type Cxview k t b = forall p. Bifunctor p => Costrong p => CoindexedOptic' p k t b
-
-type ACxview k t b = CoindexedOptic' Tagged k t b
 
 ---------------------------------------------------------------------
 -- 'Setter' & 'Resetter'
@@ -387,31 +289,39 @@ type ACxview k t b = CoindexedOptic' Tagged k t b
 --
 -- \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
-type Setter s t a b = forall p. Closed p => Choice p => Applicative (Rep p) => Distributive (Rep p) => RepnLike p s t a b
+type Setter s t a b = forall p. Closed p => Choice p => Representable p => Applicative (Rep p) => Distributive (Rep p) => Optic p s t a b
 
 type Setter' s a = Setter s s a a
 
-type ASetter s t a b = ARepn Identity s t a b
-
-type ASetter' s a = ASetter s s a a 
-
-type Ixsetter i s t a b = forall p. Closed p => Choice p => Applicative (Rep p) => Distributive (Rep p) => IxrepnLike p i s t a b
+type Ixsetter i s t a b = forall p. Closed p => Choice p => Representable p => Applicative (Rep p) => Distributive (Rep p) => IndexedOptic p i s t a b
 
 type Ixsetter' i s a = Ixsetter i s s a a 
 
-type AIxsetter i s t a b = AIxrepn Identity i s t a b
-
-type Resetter s t a b = forall p. Choice p => Closed p => Comonad (Corep p) => Traversable (Corep p) => CorepnLike p s t a b 
+type Resetter s t a b = forall p. Choice p => Closed p => Corepresentable p => Apply (Corep p) => Traversable (Corep p) => Optic p s t a b 
 
 type Resetter' s a = Resetter s s a a
 
-type AResetter s t a b = ACorepn Identity s t a b
+type Cxsetter k s t a b = forall p. Choice p => Closed p => Corepresentable p => Apply (Corep p) => Traversable (Corep p) => CoindexedOptic p k s t a b
 
-type AResetter' s a = AResetter s s a a
+---------------------------------------------------------------------
+-- Common 'Representable' and 'Corepresentable' carriers
+---------------------------------------------------------------------
 
-type Cxsetter k s t a b = forall p. Choice p => Closed p => Comonad (Corep p) => Traversable (Corep p) => CxrepnLike p k s t a b
+type ARepn f s t a b = Optic (Star f) s t a b
 
-type ACxsetter k s t a b = ACxrepn Identity k s t a b
+type ARepn' f s a = ARepn f s s a a
+
+type AIxrepn f i s t a b = IndexedOptic (Star f) i s t a b
+
+type AIxrepn' f i s a = AIxrepn f i s s a a
+
+type ACorepn f s t a b = Optic (Costar f) s t a b
+
+type ACorepn' f t b = ACorepn f t t b b
+
+type ACxrepn f k s t a b = CoindexedOptic (Costar f) k s t a b
+
+type ACxrepn' f k t b = ACxrepn f k t t b b
 
 ---------------------------------------------------------------------
 -- 'Re' 

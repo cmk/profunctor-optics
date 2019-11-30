@@ -21,7 +21,7 @@ module Data.Profunctor.Optic.Grate  (
   , cxgrateVl
   , inverting
   , cloneGrate
-    -- * Representatives
+    -- * Carriers
   , GrateRep(..)
     -- * Primitive operators
   , withGrate 

@@ -37,13 +37,15 @@ module Data.Profunctor.Optic.Setter (
   , bound 
   , fmapped
   , contramapped
-  , foldMapped
+  , setmapped
+  , isetmapped
+  , foldmapped
   , liftedA
   , liftedM
   , locally
   , zipped
+  , cond
   , modded
-  , branched
   , reviewed
   , composed
   , exmapped
@@ -89,9 +91,11 @@ import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
-import Data.Profunctor.Optic.Repn
 import Data.Profunctor.Optic.Type
 import Data.Semiring
+
+import Data.IntSet as IntSet
+import Data.Set as Set
 import Prelude (Num(..))
 import qualified Control.Exception as Ex
 
@@ -108,9 +112,25 @@ import qualified Control.Exception as Ex
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
--- >>> import Data.List.Index
+-- >>> import Data.List.Index as LI
+-- >>> import Data.IntSet as IntSet
+-- >>> import Data.Set as Set
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> let ixat :: Int -> Ixtraversal0' Int [a] a; ixat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
+
+type ASetter s t a b = ARepn Identity s t a b
+
+type ASetter' s a = ASetter s s a a
+
+type AIxsetter i s t a b = AIxrepn Identity i s t a b
+
+type AResetter s t a b = ACorepn Identity s t a b
+
+type AResetter' s a = AResetter s s a a
+
+type ACxsetter k s t a b = ACxrepn Identity k s t a b
 
 ---------------------------------------------------------------------
 -- Setter
@@ -120,7 +140,7 @@ import qualified Control.Exception as Ex
 --
 -- To demote an optic to a semantic edit combinator, use the section @(l ..~)@ or @over l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter map . first ..~ length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter fmap . first ..~ Prelude.length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -393,11 +413,27 @@ contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
 
+-- | 
+--
+-- >>> over setmapped (+1) (Set.fromList [1,2,3,4])
+-- fromList [2,3,4,5]
+setmapped :: Ord b => Setter (Set a) (Set b) a b
+setmapped = setter Set.map
+{-# INLINE setmapped #-}
+
+-- |
+--
+-- >>> over isetmapped (+1) (IntSet.fromList [1,2,3,4])
+-- fromList [2,3,4,5]
+isetmapped :: Setter' IntSet Int
+isetmapped = setter IntSet.map
+{-# INLINE isetmapped #-}
+
 -- | TODO: Document
 --
-foldMapped :: Foldable f => Monoid m => Setter (f a) m a m
-foldMapped = setter foldMap
-{-# INLINE foldMapped #-}
+foldmapped :: Foldable f => Monoid m => Setter (f a) m a m
+foldmapped = setter foldMap
+{-# INLINE foldmapped #-}
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
@@ -438,19 +474,19 @@ zipped :: Setter (u -> v -> a) (u -> v -> b) a b
 zipped = setter ((.)(.)(.))
 {-# INLINE zipped #-}
 
+-- | Apply a function only when the given condition holds.
+--
+-- See also 'Data.Profunctor.Optic.Affine.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
+--
+cond :: (a -> Bool) -> Setter' a a
+cond p = setter $ \f a -> if p a then f a else a
+{-# INLINE cond #-}
+
 -- | TODO: Document
 --
 modded :: (a -> Bool) -> Setter' (a -> b) b
 modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 {-# INLINE modded #-}
-
--- | Apply a function only when the given predicate holds.
---
--- See also 'Data.Profunctor.Optic.Affine.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
---
-branched :: (a -> Bool) -> Setter' a a
-branched p = setter $ \f a -> if p a then f a else a
-{-# INLINE branched #-}
 
 -- | TODO: Document
 --

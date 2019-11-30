@@ -29,14 +29,14 @@ module Data.Profunctor.Optic.Property (
   , tofrom_traversal0
   , fromto_traversal0
   , idempotent_traversal0
-    -- * Traversal
+    -- * Traversal & Traversal1
   , Traversal
   , pure_traversal
   , compose_traversal
-    -- * Cotraversal
-  , Cotraversal 
-  , pure_cotraversal
-  , compose_cotraversal
+  , compose_traversal1
+    -- * Cotraversal1
+  , Cotraversal1 
+  , compose_cotraversal1
     -- * Setter
   , Setter
   , pure_setter
@@ -55,6 +55,7 @@ import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Grate
 --import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Traversal0
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -127,7 +128,7 @@ idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 -- 'Grate'
 ---------------------------------------------------------------------
 
--- The 'Grate' laws are that of an algebra for a parameterised continuation monad.
+-- The 'Grate' laws are that of an algebra for the parameterised continuation 'Coindex'.
 
 -- |
 --
@@ -169,7 +170,7 @@ idempotent_traversal0 :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
 idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
 
 ---------------------------------------------------------------------
--- 'Traversal'
+-- 'Traversal' & 'Traversal1'
 ---------------------------------------------------------------------
 
 -- | A 'Traversal' is a valid 'Setter' with the following additional laws:
@@ -195,46 +196,46 @@ pure_traversal abst = liftA2 (==) (abst pure) pure
 
 compose_traversal
   :: Eq (f (g s))
-  => Functor f
-  => Functor g 
-  => (forall f. Functor f => (a -> f a) -> s -> f s) 
+  => Applicative f
+  => Applicative g 
+  => (forall f. Applicative f => (a -> f a) -> s -> f s) 
   -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal abst f g = liftA2 (==) (fmap (abst f) . abst g)
-                                        (getCompose . abst (Compose . fmap f . g))
+                                         (getCompose . abst (Compose . fmap f . g))
+
+compose_traversal1
+  :: Eq (f (g s))
+  => Apply f
+  => Apply g 
+  => (forall f. Apply f => (a -> f a) -> s -> f s) 
+  -> (a -> g a) -> (a -> f a) -> s -> Bool
+compose_traversal1 abst f g = liftF2 (==) (fmap (abst f) . abst g)
+                                         (getCompose . abst (Compose . fmap f . g))
 
 ---------------------------------------------------------------------
--- 'Cotraversal'
+-- 'Cotraversal1'
 ---------------------------------------------------------------------
 
--- | A 'Cotraversal' is a valid 'Resetter' with the following additional laws:
---
--- * @abst extract ≡ extract@
+-- | A 'Cotraversal1' is a valid 'Resetter' with the following additional law:
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- These can be restated in terms of 'cotraverseOf':
+-- These can be restated in terms of 'cotraverse1Of':
 --
--- * @cotraverseOf abst (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @cotraverse1Of abst (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @cotraverseOf abst f . fmap (cotraverseOf abst g) . getCompose == cotraverseOf abst (f . fmap g . getCompose)@
+-- * @cotraverse1Of abst f . fmap (cotraverse1Of abst g) . getCompose == cotraverse1Of abst (f . fmap g . getCompose)@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-pure_cotraversal
-  :: Eq s 
-  => Comonad f
-  => ((f a -> a) -> f s -> s)
-  -> f s -> Bool
-pure_cotraversal abst = liftA2 (==) (abst extract) extract
-
-compose_cotraversal
+compose_cotraversal1
   :: Eq s
-  => Functor f 
-  => Functor g 
-  => (forall f. Functor f => (f a -> a) -> f s -> s) 
+  => Apply f 
+  => Apply g 
+  => (forall f. Apply f => (f a -> a) -> f s -> s) 
   -> (g a -> a) -> (f a -> a) -> g (f s) -> Bool
-compose_cotraversal abst f g = liftA2 (==) (abst f . fmap (abst g))
-                                          (abst (f . fmap g . getCompose) . Compose)
+compose_cotraversal1 abst f g = liftF2 (==) (abst f . fmap (abst g))
+                                            (abst (f . fmap g . getCompose) . Compose)
 
 ---------------------------------------------------------------------
 -- 'Setter'

@@ -33,7 +33,7 @@ module Data.Profunctor.Optic.Prism (
   , ixprism'
   , rehandling
   , cloneCoprism
-    -- * Representatives
+    -- * Carriers
   , PrismRep(..)
   , CoprismRep(..)
     -- * Primitive operators
@@ -42,6 +42,8 @@ module Data.Profunctor.Optic.Prism (
     -- * Optics
   , left
   , right
+  , l1
+  , r1
   , coleft
   , coright
   , ixleft
@@ -78,6 +80,8 @@ import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Type
+
+import GHC.Generics hiding (from, to)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -270,6 +274,20 @@ left = left'
 --
 right :: Prism (c + a) (c + b) a b
 right = right'
+
+l1 :: Prism ((a :+: c) t) ((b :+: c) t) (a t) (b t)
+l1 = prism sta L1
+  where
+  sta (L1 v) = Right v
+  sta (R1 v) = Left (R1 v)
+{-# INLINE l1 #-}
+
+r1 :: Prism ((c :+: a) t) ((c :+: b) t) (a t) (b t)
+r1 = prism sta R1
+  where
+  sta (R1 v) = Right v
+  sta (L1 v) = Left (L1 v)
+{-# INLINE r1 #-}
 
 -- | 'Coprism' out of the `Left` constructor of `Either`.
 --
