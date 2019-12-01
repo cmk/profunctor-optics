@@ -25,7 +25,7 @@ module Data.Profunctor.Optic.Lens (
   , Colens'
   , Cxlens'
   , colens
-  , cxlens
+  --, cxlens
   , colensVl
   , comatching
   --, cloneColens
@@ -34,10 +34,8 @@ module Data.Profunctor.Optic.Lens (
   , withIxlens
   --, withColens
     -- * Optics
-  , first
   , ixfirst
   , cofirst
-  , second
   , ixsecond
   , cosecond
   , united
@@ -54,6 +52,7 @@ module Data.Profunctor.Optic.Lens (
   , AIxlens
   , AIxlens'
   , LensRep(..)
+  , IxlensRep(..)
  -- , AColens
  -- , AColens'
   --, ColensRep(..)
@@ -92,13 +91,6 @@ import qualified Data.Bifunctor as B
 --
 -- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
--- More generally, a profunctor optic must be monoidal as a natural 
--- transformation:
--- 
--- * @o id ≡ id@
---
--- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
---
 -- See 'Data.Profunctor.Optic.Property'.
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
@@ -129,6 +121,20 @@ ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
 --
 -- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @abst Identity ≡ Identity@
+--
+-- * @fmap (abst f) . (abst g) ≡ getCompose . abst (Compose . fmap f . g)@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
@@ -142,9 +148,16 @@ lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . f
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
 --
--- * @iabst (const pure) ≡ pure@
+-- * @iabst (const Identity) ≡ Identity@
 --
 -- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -175,6 +188,17 @@ cloneLens o = withLens o lens
 -- 'set' . 're' $ 're' ('lens' f g) ≡ g
 -- @
 --
+-- /Caution/: In addition to the normal optic laws, the input functions
+-- must have the correct laziness annotations.
+--
+-- For example, this is a perfectly valid 'Colens':
+--
+-- @ 
+-- co1 = flip colens fst $ \ ~(_,y) b -> (b,y)
+-- @
+--
+-- However removing the annotation will result in a faulty optic.
+-- 
 -- A 'Colens' is a 'Review', so you can specialise types to obtain:
 --
 -- @ 'review' :: 'Colens'' s a -> a -> s @
@@ -182,17 +206,23 @@ cloneLens o = withLens o lens
 -- See 'Data.Profunctor.Optic.Property'.
 --
 colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
-
--- | TODO: Document
---
-cxlens :: ((k -> b) -> s -> a) -> (b -> t) -> Cxlens k s t a b
-cxlens bsa bt = colens bsa (bt .)
+colens bsa bt = unsecond . dimap (\ ~(b,s) -> bsa b s) (id &&& bt)
 
 -- | Transform a Van Laarhoven colens into a profunctor colens.
 --
 -- Compare 'Data.Profunctor.Optic.Grate.grateVl'.
 --
+-- /Caution/: In addition to the normal optic laws, the input functions
+-- must have the correct laziness annotations.
+--
+-- For example, this is a perfectly valid 'Colens':
+--
+-- @ 
+-- co1 = colensVl $ \f ~(a,b) -> (,b) <$> f a
+-- @
+--
+-- However removing the annotation will result in a faulty optic.
+-- 
 colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
 colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& values) . o (flip Index id))
 
@@ -216,11 +246,6 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
 -- | TODO: Document
 --
-first :: Lens (a , c) (b , c) a b
-first = first'
-
--- | TODO: Document
---
 ixfirst :: Ixlens i (a , c) (b , c) a b
 ixfirst = lmap assocl . first'
 
@@ -228,11 +253,6 @@ ixfirst = lmap assocl . first'
 --
 cofirst :: Colens a b (a , c) (b , c)
 cofirst = unfirst
-
--- | TODO: Document
---
-second :: Lens (c , a) (c , b) a b
-second = second'
 
 -- | TODO: Document
 --
@@ -300,7 +320,7 @@ toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa 
 -- | Use a 'Lens' to construct a 'Tambara'.
 --
 toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
-toTambara o p = withLens o $ \sa sbt -> Tambara (first . lens sa sbt $ p)
+toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
 
 ---------------------------------------------------------------------
 -- LensRep
@@ -356,39 +376,3 @@ instance Strong (IxlensRep i a b) where
 --
 withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
 withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
-
---type AIxlens i s t a b = IndexedOptic (LensRep a b) i s t a b
-
---withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
---withIxlens o f = case o (LensRep undefined undefined) of LensRep x y -> f (undefined x) (undefined y) 
-
-{-
----------------------------------------------------------------------
--- ColensRep
----------------------------------------------------------------------
-
-data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
-
-type AColens s t a b = Optic (ColensRep a b) s t a b
-
-type AColens' s a = AColens s s a a 
-
-instance Profunctor (ColensRep a b) where
-  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
-
-instance Costrong (ColensRep a b) where
-  unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
-    where foo = uncurry baca . shuffle . B.second bbc --_ . swap --TODO: B.second bbc
-          shuffle (x,(y,z)) = (y,(x,z))
-
--- | Extract the two functions that characterize a 'Colens'.
---
-withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
-withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
-
-
--- | TODO: Document
---
-cloneColens :: AColens s t a b -> Colens s t a b
-cloneColens o = withColens o colens 
--}

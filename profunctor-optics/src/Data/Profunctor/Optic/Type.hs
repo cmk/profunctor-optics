@@ -23,13 +23,14 @@ module Data.Profunctor.Optic.Type (
     -- * Grates
   , Grate, Grate', Cxgrate, Cxgrate'
     -- * Traversals
-  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal' 
+  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal'
+  , Cotraversal  , Cotraversal' , Cxtraversal , Cxtraversal'
     -- * Affine traversals & cotraversals
   , Traversal0   , Traversal0'  , Ixtraversal0, Ixtraversal0'
   , Cotraversal0 , Cotraversal0', Cxtraversal0, Cxtraversal0'
     -- * Non-empty traversals & cotraversals
-  , Traversal1, Traversal1'
-  , Cotraversal1 , Cotraversal1' , Cxtraversal1 , Cxtraversal1'
+  , Traversal1   , Traversal1'
+  , Cotraversal1 , Cotraversal1', Cxtraversal1, Cxtraversal1'
       -- * Affine folds, general & non-empty folds, & cofolds
   , Fold0, Ixfold0, Fold, Ixfold, Fold1, Cofold1
     -- * Views & Reviews
@@ -180,7 +181,7 @@ type Cxgrate k s t a b = forall p. Closed p => CoindexedOptic p k s t a b
 type Cxgrate' k s a = Cxgrate k s s a a
 
 ---------------------------------------------------------------------
--- 'Traversal'
+-- 'Traversal' & 'Cotraversal'
 ---------------------------------------------------------------------
 
 -- | A 'Traversal' processes 0 or more parts of the whole, with 'Applicative' interactions.
@@ -194,6 +195,14 @@ type Traversal' s a = Traversal s s a a
 type Ixtraversal i s t a b = forall p. Choice p => Representable p => Applicative (Rep p) => IndexedOptic p i s t a b 
 
 type Ixtraversal' i s a = Ixtraversal i s s a a
+
+type Cotraversal s t a b = forall p. Closed p => Corepresentable p => ComonadApply (Corep p) => Optic p s t a b 
+
+type Cotraversal' s a = Cotraversal s s a a
+
+type Cxtraversal k s t a b = forall p. Closed p => Corepresentable p => ComonadApply (Corep p) => CoindexedOptic p k s t a b 
+
+type Cxtraversal' k s a = Cxtraversal k s s a a
 
 ---------------------------------------------------------------------
 -- 'Traversal0' & 'Cotraversal0'
@@ -241,7 +250,7 @@ type Cotraversal1' s a = Cotraversal1 s s a a
 
 type Cxtraversal1 k s t a b = forall p. Closed p => Corepresentable p => Apply (Corep p) => CoindexedOptic p k s t a b 
 
-type Cxtraversal1' k t b = Cxtraversal1 k t t b b 
+type Cxtraversal1' k s a = Cxtraversal1 k s s a a
 
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold', 'Fold1' & 'Cofold1'

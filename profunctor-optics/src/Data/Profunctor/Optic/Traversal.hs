@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Traversal & Ixtraversal
-    Representable(..)
-  , Traversal
+    Traversal
   , Traversal'
   , Ixtraversal
   , Ixtraversal'
@@ -179,7 +178,7 @@ noix o = ixtraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
 ix :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
 ix o = ixtraversalVl $ \f s ->
   flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
-    Compose $ (f <$> get <*> pure a) <* modify (<> unit) 
+    Compose $ (f <$> get <*> pure a) <* modify (<> sunit) 
 
 ---------------------------------------------------------------------
 -- Primitive operators

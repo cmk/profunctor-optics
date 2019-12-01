@@ -73,6 +73,7 @@ import Control.Applicative
 import Control.Monad ((<=<), void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
+import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))

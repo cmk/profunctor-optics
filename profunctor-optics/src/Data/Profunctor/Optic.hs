@@ -22,6 +22,7 @@ module Data.Profunctor.Optic (
   , module View
   , module Setter
   , module Indexed
+  , module Tuple
 ) where
 
 import Data.Profunctor.Optic.Type             as Type
@@ -40,3 +41,5 @@ import Data.Profunctor.Optic.Fold1            as Fold1
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
 import Data.Profunctor.Optic.Index            as Indexed
+
+import Data.Tuple.Optic                       as Tuple

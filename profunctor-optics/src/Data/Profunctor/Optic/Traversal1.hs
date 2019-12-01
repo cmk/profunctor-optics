@@ -7,15 +7,13 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal1 (
     -- * Traversal1
-    Representable(..)
-  , Traversal1
+    Traversal1
   , Traversal1'
   , ATraversal1
   , ATraversal1'
   , traversal1
   , traversal1Vl
     -- * Cotraversal1 & Cxtraversal1
-  , Corepresentable(..)
   , Cotraversal1
   , Cotraversal1'
   , Cxtraversal1

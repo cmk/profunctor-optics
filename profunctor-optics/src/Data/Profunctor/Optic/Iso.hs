@@ -39,7 +39,6 @@ module Data.Profunctor.Optic.Iso (
   , aup
   , ala
     -- * Optics
-  , as
   , equaled
   , coerced
   , wrapped
@@ -331,17 +330,6 @@ ala = au . rewrapping
 ---------------------------------------------------------------------
 -- Common 'Iso's
 ---------------------------------------------------------------------
-
--- | Obtain an 'Optic'' from an 'Optic'.
---
--- Useful for reducing polymorphism.
---
--- >>> :t (^. equaled . as @Int)
--- (^. equaled . as @Int) :: Int -> Int
---
-as :: As a
-as = id
-{-# INLINE as #-}
 
 -- | Capture type constraints as an 'Iso''.
 --
