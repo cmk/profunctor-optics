@@ -14,9 +14,8 @@ module Data.Profunctor.Optic.Traversal (
   , Ixtraversal'
   , ATraversal
   , ATraversal'
-  , traversal
-  , ixtraversal
   , traversing
+  , ixtraversing
   , traversalVl
   , ixtraversalVl
   , noix
@@ -70,25 +69,13 @@ type ATraversal f s t a b = Applicative f => ARepn f s t a b
 
 type ATraversal' f s a = ATraversal f s s a a
 
--- | Obtain a 'Traversal' directly. 
---
--- Compare 'Data.Profunctor.Optic.Fold.fold_'.
---
-traversal :: Traversable f => (s -> f a) -> (s -> f b -> t) -> Traversal s t a b
-traversal sa sbt = lens sa sbt . repn traverse
-
--- | Obtain an indexed 'Lens' from an indexed getter and a setter.
---
--- Compare 'traversal' and 'Data.Profunctor.Optic.Lens.ixlens'.
---
-ixtraversal :: Monoid i => Traversable f => (s -> (i , f a)) -> (s -> f b -> t) -> Ixtraversal i s t a b
-ixtraversal sia sbt = ixlens sia sbt . (repn $ \iab -> traverse (curry iab mempty) . snd)
-
 -- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
 -- @
 --  'withLens' o 'traversing' ≡ 'traversed' . o
 -- @
+--
+-- Compare 'Data.Profunctor.Optic.Fold.folding'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions constitute a legal lens:
@@ -107,10 +94,32 @@ ixtraversal sia sbt = ixlens sia sbt . (repn $ \iab -> traverse (curry iab mempt
 -- >>> lists (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 -- "foobar"
 --
--- Compare 'Data.Profunctor.Optic.Fold.folding'.
---
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
 traversing sa sbt = repn traverse . lens sa sbt
+
+ixtraversed :: Monoid i => Traversable f => AIxlens i s t a b -> Ixtraversal i (f s) (f t) a b
+ixtraversed = flip withIxlens ixtraversing
+
+-- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
+--
+-- @
+--  'withIxlens' o 'ixtraversing' ≡ 'ixtraversed' . o
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions constitute a legal 
+-- indexed lens:
+--
+-- * @snd . sia (sbt s a) ≡ a@
+--
+-- * @sbt s (snd $ sia s) ≡ s@
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixtraversing :: Monoid i => Traversable f => (s -> (i , a)) -> (s -> b -> t) -> Ixtraversal i (f s) (f t) a b
+ixtraversing sia sbt = repn (\iab -> traverse (curry iab mempty) . snd) . ixlens sia sbt 
 
 -- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --

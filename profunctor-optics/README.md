@@ -123,10 +123,10 @@ Constructors named with the present participle of the type itself occur only in 
 ```  
 folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
-cofolding :: Distributive f => (b -> t) -> Cofold1 (f t) b
+cofolding1 :: Distributive f => (b -> t) -> Cofold1 (f t) b
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
-cotraversing :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal1 (g s) (g t) a b
-retraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
+cotraversing1 :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal1 (g s) (g t) a b
+retraversing1 :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
 ```
 
 In some cases there are additional constructors using an alternative present participle (e.g. `retraversing`, `matching`, `handling`, `fmapping`, `contramapping`, `failing`, etc). Other than the consistent use of the present participle these constructors mirror the ones in `lens`.
@@ -139,8 +139,8 @@ foldVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b
 colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-traversalVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-cotraversalVl :: (forall f. Comonad f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
+traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+cotraversal1Vl :: (forall f. Apply f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
 ```
 
 Any optic in `lens-family` can be lifted into its profunctor representation using one of these constructors. The same goes for any `LensLike` optic in `lens` (prisms and isos in `lens` are hybrid representations).
@@ -162,10 +162,10 @@ Optics derived via direct applications of a constructor are named with the past 
 folded :: Traversable f => Fold (f a) a
 folded_ :: Foldable f => Fold (f a) a
 folded1_ :: Foldable1 f => Fold1 (f a) a
-cofolded :: Distributive f => Cofold1 (f b) b
+cofolded1 :: Distributive f => Cofold1 (f b) b
 traversed :: Traversable f => Traversal (f a) (f b) a b
-cotraversed :: Distributive f => Cotraversal1 (f a) (f b) a b 
 bitraversed :: Bitraversable f => Traversal (f a a) (f b b) a b
+cotraversed1 :: Distributive f => Cotraversal1 (f a) (f b) a b 
 ```
 
 Where possible, the verb itself refers to the action of moving from `s` to `a`. For example:
@@ -195,7 +195,7 @@ constOf :: AGrate s t a b -> b -> t
 zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-cofoldMapOf :: ACofold1 r t b -> (r -> b) -> r -> t
+cofoldMap1Of :: ACofold1 r t b -> (r -> b) -> r -> t
 ixfoldMap0Of :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
 ```
 
@@ -228,7 +228,7 @@ cxviews :: MonadReader b m => ACxview k t b -> ((k -> t) -> r) -> m r
 ixlists :: Monoid i => AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
 ixlistsFrom :: AIxfold (Endo [(i, a)]) i s a -> i -> s -> [(i, a)]
 cxgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
-cxtraversalVl :: (forall f. Comonad f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
+cxtraversal1Vl :: (forall f. Apply f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
 ```
 
 Co-indexed [duals](#duality) of optics are prefaced with `Cx` (rather than say `IxCo`) to avoid piling up prefixes.
@@ -299,17 +299,17 @@ lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
 ```
 
-Also the 'Traversal' / 'Cotraversal' relationship:
+Also the 'Traversal1' / 'Cotraversal1' relationship:
 ```
-traversalVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Traversal s t a b
-cotraversalVl :: (forall f. Comonad f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
+traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+cotraversalVl :: (forall f. Apply f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
 ```
 
-... and the `Fold` / `Cofold1` relationship:
+... and the `Fold1` / `Cofold1` relationship:
 
 ```
-folding :: Traversable f => (s -> a) -> Fold (f s) a
-cofolding :: Distributive f => (a -> s) -> Cofold1 (f s) a
+folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
+cofolding1 :: Distributive f => (a -> s) -> Cofold1 (f s) a
 ```
 
 #### Profunctor duality

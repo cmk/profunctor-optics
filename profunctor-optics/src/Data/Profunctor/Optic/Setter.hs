@@ -21,17 +21,12 @@ module Data.Profunctor.Optic.Setter (
   , resetter
   , cxsetter
   , closing
-  , toSemiring
-  , fromSemiring
     -- * Primitive operators
   , over
   , ixover
   , under
   , cxover
     -- * Common optics
-  , zero
-  , one
-  , (<~>)
   , cod
   , dom
   , bound 
@@ -200,26 +195,6 @@ closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 {-# INLINE closing #-}
 
--- | Lower a semiring value to its concrete analog.
---
--- @ 
--- 'toSemiring' . 'fromSemiring' ≡ 'id'
--- 'fromSemiring' . 'toSemiring' ≡ 'id'
--- @
---
-toSemiring :: Monoid a => Semiring a => Setter' a a -> a
-toSemiring a = over a (unit <>) mempty
-
--- | Lift a semiring value to its double Cayley analog.
---
--- @ 
--- 'toSemiring' . 'fromSemiring' ≡ 'id'
--- 'fromSemiring' . 'toSemiring' ≡ 'id'
--- @
---
-fromSemiring :: Monoid a => Semiring a => a -> Setter' a a
-fromSemiring a = setter $ \f y -> a >< f mempty <> y
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -313,46 +288,6 @@ cxover o f = flip (under o (flip f)) mempty
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
-
--- | The zero 'Setter'.
---
--- @
--- 'zero'  .  'one' ≡ 'zero'
--- 'zero' <~> 'one' ≡ 'one'
--- @
---
--- >>> toSemiring $ zero <~> one :: Int
--- 1
--- >>> toSemiring $ zero  .  one :: Int
--- 0
---
-zero :: Setter' a a
-zero = setter $ const id
-{-# INLINE zero #-}
-
--- | The unit 'Setter'.
---
--- @
--- 'zero'  .  'one' ≡ 'zero'
--- 'zero' <~> 'one' ≡ 'one'
--- @
---
--- >>> toSemiring $ zero <~> one :: Int
--- 1
--- >>> toSemiring $ zero  .  one :: Int
--- 0
---
-one :: Setter' a a 
-one = setter id
-{-# INLINE one #-}
-
-infixl 6 <~>
-
--- | Sum two monomorphic 'Setter's.
---
-(<~>) :: Setter' a a -> Setter' a a -> Setter' a a
-(<~>) f g = setter $ \h -> (f ..~ h) . (g ..~ h)
-{-# INLINE (<~>) #-}
 
 -- | Map covariantly over the output of a 'Profunctor'.
 --

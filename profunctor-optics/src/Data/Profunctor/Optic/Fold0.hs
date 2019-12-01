@@ -52,7 +52,7 @@ import Data.Prd (Prd(..), Min(..), Max(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (right, just, async)
-import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, match, is)
+import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, is)
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (AView, to, from, primViewOf, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
@@ -211,6 +211,8 @@ folded0 = fold0 id
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
+
+infixl 8 ^?
 
 -- | An infix variant of 'preview''.
 --

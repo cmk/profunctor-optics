@@ -12,8 +12,6 @@ module Data.Profunctor.Optic.Lens (
   , Ixlens
   , Lens'
   , Ixlens'
-  , ALens
-  , ALens'
   , lens
   , ixlens
   , lensVl
@@ -26,19 +24,15 @@ module Data.Profunctor.Optic.Lens (
   , Cxlens
   , Colens'
   , Cxlens'
-  , AColens
-  , AColens'
   , colens
   , cxlens
   , colensVl
   , comatching
-  , cloneColens
-    -- * Carriers
-  , LensRep(..)
-  , ColensRep(..)
+  --, cloneColens
     -- * Primitive operators
   , withLens
-  , withColens
+  , withIxlens
+  --, withColens
     -- * Optics
   , first
   , ixfirst
@@ -54,6 +48,15 @@ module Data.Profunctor.Optic.Lens (
     -- * Operators
   , toPastro
   , toTambara
+    -- * Carriers
+  , ALens
+  , ALens'
+  , AIxlens
+  , AIxlens'
+  , LensRep(..)
+ -- , AColens
+ -- , AColens'
+  --, ColensRep(..)
 ) where
 
 import Data.Profunctor.Strong
@@ -105,6 +108,18 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 -- | Obtain an indexed 'Lens' from an indexed getter and a setter.
 --
 -- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.ixtraversal'.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions constitute a legal 
+-- indexed lens:
+--
+-- * @snd . sia (sbt s a) ≡ a@
+--
+-- * @sbt s (snd $ sia s) ≡ s@
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- See 'Data.Profunctor.Optic.Property'.
 --
 ixlens :: (s -> (i , a)) -> (s -> b -> t) -> Ixlens i s t a b
 ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
@@ -186,55 +201,6 @@ colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& values) . o (flip In
 comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
 comatching csa bct = unsecond . dimap csa bct
 
--- | TODO: Document
---
-cloneColens :: AColens s t a b -> Colens s t a b
-cloneColens o = withColens o colens 
-
----------------------------------------------------------------------
--- 'LensRep'
----------------------------------------------------------------------
-
--- | The `LensRep` profunctor precisely characterizes a 'Lens'.
---
-data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
-
-type ALens s t a b = Optic (LensRep a b) s t a b
-
-type ALens' s a = ALens s s a a
-
-instance Profunctor (LensRep a b) where
-  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
-
-instance Strong (LensRep a b) where
-  first' (LensRep sa sbt) =
-    LensRep (\(a, _) -> sa a) (\(s, c) b -> (sbt s b, c))
-
-  second' (LensRep sa sbt) =
-    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
-
-instance Sieve (LensRep a b) (Index a b) where
-  sieve (LensRep sa sbt) s = Index (sa s) (sbt s)
-
-instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = Index a b
-
-  tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
-
-data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
-
-type AColens s t a b = Optic (ColensRep a b) s t a b
-
-type AColens' s a = AColens s s a a 
-
-instance Profunctor (ColensRep a b) where
-  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
-
-instance Costrong (ColensRep a b) where
-  unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
-    where foo = uncurry baca . shuffle . B.second undefined . swap --TODO: B.second bbc
-          shuffle (x,(y,z)) = (y,(x,z))
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -243,11 +209,6 @@ instance Costrong (ColensRep a b) where
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
-
--- | Extract the two functions that characterize a 'Colens'.
---
-withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
-withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -340,3 +301,94 @@ toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa 
 --
 toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
 toTambara o p = withLens o $ \sa sbt -> Tambara (first . lens sa sbt $ p)
+
+---------------------------------------------------------------------
+-- LensRep
+---------------------------------------------------------------------
+
+-- | The `LensRep` profunctor precisely characterizes a 'Lens'.
+--
+data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
+
+type ALens s t a b = Optic (LensRep a b) s t a b
+
+type ALens' s a = ALens s s a a
+
+instance Profunctor (LensRep a b) where
+  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
+
+instance Strong (LensRep a b) where
+  first' (LensRep sa sbt) =
+    LensRep (\(a, _) -> sa a) (\(s, c) b -> (sbt s b, c))
+
+  second' (LensRep sa sbt) =
+    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
+
+instance Sieve (LensRep a b) (Index a b) where
+  sieve (LensRep sa sbt) s = Index (sa s) (sbt s)
+
+instance Representable (LensRep a b) where
+  type Rep (LensRep a b) = Index a b
+
+  tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
+
+---------------------------------------------------------------------
+-- IxlensRep
+---------------------------------------------------------------------
+
+data IxlensRep i a b s t = IxlensRep (s -> (i , a)) (s -> b -> t)
+
+type AIxlens i s t a b = IndexedOptic (IxlensRep i a b) i s t a b
+
+type AIxlens' i s a = AIxlens i s s a a
+
+instance Profunctor (IxlensRep i a b) where
+  dimap f g (IxlensRep sia sbt) = IxlensRep (sia . f) (\s -> g . sbt (f s))
+
+instance Strong (IxlensRep i a b) where
+  first' (IxlensRep sia sbt) =
+    IxlensRep (\(a, _) -> sia a) (\(s, c) b -> (sbt s b, c))
+
+  second' (IxlensRep sia sbt) =
+    IxlensRep (\(_, a) -> sia a) (\(c, s) b -> (c, sbt s b))
+
+-- | Extract the two functions that characterize a 'Lens'.
+--
+withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
+withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
+
+--type AIxlens i s t a b = IndexedOptic (LensRep a b) i s t a b
+
+--withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
+--withIxlens o f = case o (LensRep undefined undefined) of LensRep x y -> f (undefined x) (undefined y) 
+
+{-
+---------------------------------------------------------------------
+-- ColensRep
+---------------------------------------------------------------------
+
+data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
+
+type AColens s t a b = Optic (ColensRep a b) s t a b
+
+type AColens' s a = AColens s s a a 
+
+instance Profunctor (ColensRep a b) where
+  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
+
+instance Costrong (ColensRep a b) where
+  unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
+    where foo = uncurry baca . shuffle . B.second bbc --_ . swap --TODO: B.second bbc
+          shuffle (x,(y,z)) = (y,(x,z))
+
+-- | Extract the two functions that characterize a 'Colens'.
+--
+withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
+withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
+
+
+-- | TODO: Document
+--
+cloneColens :: AColens s t a b -> Colens s t a b
+cloneColens o = withColens o colens 
+-}

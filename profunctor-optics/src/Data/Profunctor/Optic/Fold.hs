@@ -32,6 +32,7 @@ module Data.Profunctor.Optic.Fold (
   , multiplied 
     -- * Operators
   , (^..)
+  , (^??)
   , folds
   , foldsr
   , foldsl
@@ -107,6 +108,7 @@ import qualified Data.Semiring as Rng
 type FoldRep r = Star (Const r)
 
 type AFold r s a = Optic' (FoldRep r) s a
+--type AFold s a = forall r. Monoid r => Optic' (FoldRep r) s a
 
 type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
 
@@ -355,6 +357,13 @@ infixl 8 ^..
 (^..) = flip lists
 {-# INLINE (^..) #-}
 
+infixl 8 ^??
+
+-- | Return a semigroup aggregation of the foci, if they exist.
+--
+(^??) :: Semigroup a => s -> AFold (Maybe a) s a -> Maybe a
+s ^?? o = foldMapOf o Just s
+{-# INLINE (^??) #-}
 
 -- | TODO: Document
 --

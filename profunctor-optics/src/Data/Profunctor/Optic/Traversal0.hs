@@ -31,7 +31,7 @@ module Data.Profunctor.Optic.Traversal0 (
     -- * Operators
   , is
   , isnt
-  , match
+  , matches
 ) where
 
 import Data.Bifunctor (first, second)
@@ -72,7 +72,7 @@ type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
 
 type ATraversal0' s a = ATraversal0 s s a a
 
--- | Create a 'Traversal0' from a constructor and a matcher.
+-- | Create a 'Traversal0' from a constructor and a matcheser.
 --
 -- /Caution/: In order for the 'Traversal0' to be well-defined,
 -- you must ensure that the input functions satisfy the following
@@ -96,7 +96,7 @@ type ATraversal0' s a = ATraversal0 s s a a
 traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
 traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (id ||| uncurry sbt) . right' . second'
 
--- | Obtain a 'Traversal0'' from a constructor and a matcher function.
+-- | Obtain a 'Traversal0'' from a constructor and a matcheser function.
 --
 traversal0' :: (s -> Maybe a) -> (s -> a -> s) -> Traversal0' s a
 traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
@@ -193,35 +193,35 @@ predicated p = traversal0 (branch' p) (flip const)
 -- Operators
 ---------------------------------------------------------------------
 
--- | Check whether the optic is matched.
+-- | Check whether the optic is matchesed.
 --
 -- >>> is just Nothing
 -- False
 --
 is :: ATraversal0 s t a b -> s -> Bool
-is o = either (const False) (const True) . match o
+is o = either (const False) (const True) . matches o
 {-# INLINE is #-}
 
--- | Check whether the optic isn't matched.
+-- | Check whether the optic isn't matchesed.
 --
 -- >>> isnt just Nothing
 -- True
 --
 isnt :: ATraversal0 s t a b -> s -> Bool
-isnt o = either (const True) (const False) . match o
+isnt o = either (const True) (const False) . matches o
 {-# INLINE isnt #-}
 
--- | Test whether the optic match or not.
+-- | Test whether the optic matches or not.
 --
--- >>> match just (Just 2)
+-- >>> matches just (Just 2)
 -- Right 2
 --
--- >>> match just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
+-- >>> matches just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
 -- Left Nothing
 --
-match :: ATraversal0 s t a b -> s -> t + a
-match o = withTraversal0 o $ \sta _ -> sta
-{-# INLINE match #-}
+matches :: ATraversal0 s t a b -> s -> t + a
+matches o = withTraversal0 o $ \sta _ -> sta
+{-# INLINE matches #-}
 
 ---------------------------------------------------------------------
 -- 'Traversal0Rep'

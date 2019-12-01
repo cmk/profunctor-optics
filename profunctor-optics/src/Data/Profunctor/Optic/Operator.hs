@@ -9,7 +9,7 @@ module Data.Profunctor.Optic.Operator (
   , set
   , reset
   , is
-  , match
+  , matches
   , (&)
   , (%)
   , (#)
