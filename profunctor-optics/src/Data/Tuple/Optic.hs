@@ -8,6 +8,7 @@
 module Data.Tuple.Optic (
     curried
   , swapped
+  , associated
   , t21
   , t22
   , t31

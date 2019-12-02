@@ -6,13 +6,13 @@ synopsis:       An optics library compatible with the typeclasses in 'profunctor
 description:  
   This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
   .
-  Full complement of isos, re/prisms, re/lenses, grates, co/traversals (affine, regular, and non-empty), co/folds (affine, regular, and non-empty), re/views, and re/setters.
+  Full complement of isos, prisms, lenses, grates, traversals (affine, regular, and non-empty), folds (affine, regular, and non-empty), views, and setters. Many of these have categorical duals.
   .
   Composable indexed and co-indexed variants of all of the above.
   .
-  Compact & straight-forward implementation. No inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery. The language extensions doing the majority of the work are `RankNTypes` and `QuantifiedConstraints`.
+  Compact & straight-forward implementation. No inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery.
   .
-  Fully interoperable. All that is required to create optics (standard, idexable, or co-indexable) is the `profunctors` package, which is heavily used and likely to end up in `base` at some point. Optics compose with `(.)` from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  Fully interoperable. All that is required to create optics (standard, idexable, or co-indexable) is the `profunctors` package, which is heavily used and seems likely to end up in `base` at some point. Optics compose with (.) from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
   .
   Well-documented properties and exportable predicates for testing your own optics.
   .

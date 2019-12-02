@@ -21,11 +21,6 @@ module Data.Profunctor.Optic.View (
   , cxfrom
   , cloneView
   , cloneReview
-    -- * Carriers
-  , Tagged(..)
-    -- * Primitive operators
-  , withPrimView
-  , withPrimReview
     -- * Optics
   , like
   , ixlike
@@ -33,6 +28,9 @@ module Data.Profunctor.Optic.View (
   , cxlike
   , toProduct
   , fromSum
+    -- * Primitive operators
+  , withPrimView
+  , withPrimReview
     -- * Operators
   , (^.)
   , (^%)
@@ -57,6 +55,9 @@ module Data.Profunctor.Optic.View (
   , throws
   , throws_
   , throwsTo
+    -- * Carriers
+  , Star(..)
+  , Tagged(..)
 ) where
 
 import Control.Exception (Exception)

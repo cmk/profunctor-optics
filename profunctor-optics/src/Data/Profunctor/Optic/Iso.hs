@@ -13,8 +13,6 @@ module Data.Profunctor.Optic.Iso (
   , As
   , Iso
   , Iso'
-  , AIso 
-  , AIso'
     -- * Constructors
   , iso
   , isoVl
@@ -26,18 +24,6 @@ module Data.Profunctor.Optic.Iso (
   , toYoneda 
   , toCoyoneda
   , cloneIso
-    -- * Carriers
-  , IsoRep(..)
-    -- * Primitive operators
-  , withIso
-  , invert
-  , reover
-  , reixed
-  , recxed
-  , op
-  , au 
-  , aup
-  , ala
     -- * Optics
   , equaled
   , coerced
@@ -64,8 +50,22 @@ module Data.Profunctor.Optic.Iso (
   , rec1
   , k1
   , m1
+    -- * Primitive operators
+  , withIso
+  , invert
+  , reover
+  , reixed
+  , recxed
+  , op
+  , au 
+  , aup
+  , ala
     -- * Auxilliary Types
   , Re(..)
+    -- * Carriers
+  , AIso 
+  , AIso'
+  , IsoRep(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -196,138 +196,7 @@ cloneIso k = withIso k iso
 {-# INLINE cloneIso #-}
 
 ---------------------------------------------------------------------
--- 'IsoRep'
----------------------------------------------------------------------
-
--- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
-data IsoRep a b s t = IsoRep (s -> a) (b -> t)
-
--- | When you see this as an argument to a function, it expects an 'Iso'.
-type AIso s t a b = Optic (IsoRep a b) s t a b
-
-type AIso' s a = AIso s s a a
-
-instance Functor (IsoRep a b s) where
-  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE fmap #-}
-
-instance Profunctor (IsoRep a b) where
-  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
-  {-# INLINE dimap #-}
-  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
-  {-# INLINE lmap #-}
-  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE rmap #-}
-
-instance Sieve (IsoRep a b) (Index a b) where
-  sieve (IsoRep sa bt) s = Index (sa s) bt
-
-instance Cosieve (IsoRep a b) (Coindex a b) where
-  cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Extract the two functions that characterize an 'Iso'.
---
-withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
-{-# INLINE withIso #-}
-
--- | Invert an isomorphism.
---
--- @
--- 'invert' ('invert' o) ≡ o
--- @
---
-invert :: AIso s t a b -> Iso b a t s
-invert o = withIso o $ \sa bt -> iso bt sa
-{-# INLINE invert #-}
-
--- | Given a conversion on one side of an 'Iso', reover the other.
---
--- @
--- 'reover' ≡ 'over' '.' 're'
--- @
---
--- Compare 'Data.Profunctor.Optic.Setter.reover'.
---
-reover :: AIso s t a b -> (t -> s) -> b -> a
-reover o = withIso o $ \sa bt ts -> sa . ts . bt
-{-# INLINE reover #-}
-
--- | Remap the indices of an indexed optic.
---
-reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-reixed o = withIso o reix
-{-# INLINE reixed #-}
-
--- | Remap the indices of a coindexed optic.
---
-recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-recxed o = withIso o recx
-{-# INLINE recxed #-}
-
--- | Based on /ala/ from Conor McBride's work on Epigram.
---
--- This version is generalized to accept any 'Iso', not just a @newtype@.
---
--- >>> au (rewrapping Sum) foldMap [1,2,3,4]
--- 10
---
--- You may want to think of this combinator as having the following, simpler type:
---
--- @
--- au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
--- @
---
-au :: Functor f => AIso s t a b -> ((b -> t) -> f s) -> f a
-au k = withIso k $ \ sa bt f -> fmap sa (f bt)
-{-# INLINE au #-}
-
--- | Variant of 'au' for profunctors. 
---
--- >>> :t flip aup runStar
--- flip aup runStar
---   :: Functor f => AIso s t a (f a) -> Star f c s -> c -> t
---
-aup :: Profunctor p => Functor f => AIso s t a b -> (p c a -> f b) -> p c s -> f t
-aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
-{-# INLINE aup #-}
-
--- | This combinator is based on @ala@ from Conor McBride's work on Epigram.
---
--- As with '_Wrapping', the user supplied function for the newtype is /ignored/.
---
--- >>> ala Sum foldMap [1,2,3,4]
--- 10
---
--- >>> ala All foldMap [True,True]
--- True
---
--- >>> ala All foldMap [True,False]
--- False
---
--- >>> ala Any foldMap [False,False]
--- False
---
--- >>> ala Any foldMap [True,False]
--- True
---
--- >>> ala Product foldMap [1,2,3,4]
--- 24
---
--- @
--- ala :: Newtype s => Newtype t => (O s -> s) -> ((O t -> t) -> e -> s) -> e -> O s
--- @
---
-ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
-ala = au . rewrapping
-{-# INLINE ala #-}
-
----------------------------------------------------------------------
--- Common 'Iso's
+-- Optics
 ---------------------------------------------------------------------
 
 -- | Capture type constraints as an 'Iso''.
@@ -563,3 +432,135 @@ par1 = iso unPar1 Par1
 rec1 :: Iso (Rec1 f p) (Rec1 g q) (f p) (g q)
 rec1 = iso unRec1 Rec1
 {-# INLINE rec1 #-}
+
+---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | Extract the two functions that characterize an 'Iso'.
+--
+withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
+withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
+{-# INLINE withIso #-}
+
+-- | Invert an isomorphism.
+--
+-- @
+-- 'invert' ('invert' o) ≡ o
+-- @
+--
+invert :: AIso s t a b -> Iso b a t s
+invert o = withIso o $ \sa bt -> iso bt sa
+{-# INLINE invert #-}
+
+-- | Given a conversion on one side of an 'Iso', reover the other.
+--
+-- @
+-- 'reover' ≡ 'over' '.' 're'
+-- @
+--
+-- Compare 'Data.Profunctor.Optic.Setter.reover'.
+--
+reover :: AIso s t a b -> (t -> s) -> b -> a
+reover o = withIso o $ \sa bt ts -> sa . ts . bt
+{-# INLINE reover #-}
+
+-- | Remap the indices of an indexed optic.
+--
+reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+reixed o = withIso o reix
+{-# INLINE reixed #-}
+
+-- | Remap the indices of a coindexed optic.
+--
+recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+recxed o = withIso o recx
+{-# INLINE recxed #-}
+
+-- | Based on /ala/ from Conor McBride's work on Epigram.
+--
+-- This version is generalized to accept any 'Iso', not just a @newtype@.
+--
+-- >>> au (rewrapping Sum) foldMap [1,2,3,4]
+-- 10
+--
+-- You may want to think of this combinator as having the following, simpler type:
+--
+-- @
+-- au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+-- @
+--
+au :: Functor f => AIso s t a b -> ((b -> t) -> f s) -> f a
+au k = withIso k $ \ sa bt f -> fmap sa (f bt)
+{-# INLINE au #-}
+
+-- | Variant of 'au' for profunctors. 
+--
+-- >>> :t flip aup runStar
+-- flip aup runStar
+--   :: Functor f => AIso s t a (f a) -> Star f c s -> c -> t
+--
+aup :: Profunctor p => Functor f => AIso s t a b -> (p c a -> f b) -> p c s -> f t
+aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
+{-# INLINE aup #-}
+
+-- | This combinator is based on @ala@ from Conor McBride's work on Epigram.
+--
+-- As with '_Wrapping', the user supplied function for the newtype is /ignored/.
+--
+-- >>> ala Sum foldMap [1,2,3,4]
+-- 10
+--
+-- >>> ala All foldMap [True,True]
+-- True
+--
+-- >>> ala All foldMap [True,False]
+-- False
+--
+-- >>> ala Any foldMap [False,False]
+-- False
+--
+-- >>> ala Any foldMap [True,False]
+-- True
+--
+-- >>> ala Product foldMap [1,2,3,4]
+-- 24
+--
+-- @
+-- ala :: Newtype s => Newtype t => (O s -> s) -> ((O t -> t) -> e -> s) -> e -> O s
+-- @
+--
+ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
+ala = au . rewrapping
+{-# INLINE ala #-}
+
+---------------------------------------------------------------------
+-- Carriers
+---------------------------------------------------------------------
+
+-- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
+data IsoRep a b s t = IsoRep (s -> a) (b -> t)
+
+-- | When you see this as an argument to a function, it expects an 'Iso'.
+type AIso s t a b = Optic (IsoRep a b) s t a b
+
+type AIso' s a = AIso s s a a
+
+instance Functor (IsoRep a b s) where
+  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE fmap #-}
+
+instance Profunctor (IsoRep a b) where
+  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
+  {-# INLINE dimap #-}
+  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
+  {-# INLINE lmap #-}
+  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
+  {-# INLINE rmap #-}
+
+instance Sieve (IsoRep a b) (Index a b) where
+  sieve (IsoRep sa bt) s = Index (sa s) bt
+
+instance Cosieve (IsoRep a b) (Coindex a b) where
+  cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
+
