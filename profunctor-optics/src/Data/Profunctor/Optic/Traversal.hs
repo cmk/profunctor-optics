@@ -19,8 +19,6 @@ module Data.Profunctor.Optic.Traversal (
   , ixtraversalVl
   , noix
   , ix
-    -- * Carriers
-  , Star(..)
     -- * Primitive operators
   , traverseOf
     -- * Optics
@@ -30,6 +28,12 @@ module Data.Profunctor.Optic.Traversal (
   , bitraversed
     -- * Operators
   , sequences
+    -- * Carriers
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Data.Bifunctor (first, second)
@@ -95,9 +99,6 @@ type ATraversal' f s a = ATraversal f s s a a
 --
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
 traversing sa sbt = repn traverse . lens sa sbt
-
-ixtraversed :: Monoid i => Traversable f => AIxlens i s t a b -> Ixtraversal i (f s) (f t) a b
-ixtraversed = flip withIxlens ixtraversing
 
 -- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
 --

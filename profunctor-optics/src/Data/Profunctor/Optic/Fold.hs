@@ -14,22 +14,17 @@ module Data.Profunctor.Optic.Fold (
   , foldVl
   , toFold
   , cloneFold
-    -- * Carriers
-  , FoldRep
-  , AFold
-  , AIxfold
-  , afold  
-    -- * Primitive operators
-  , foldMapOf
-  , ixfoldMapOf
-  , pureOf
-  , productOf
     -- * Optics
   , folded
   , folded_ 
   , unital
   , summed
-  , multiplied 
+  , multiplied
+    -- * Primitive operators
+  , foldMapOf
+  , ixfoldMapOf
+  , pureOf
+  , productOf
     -- * Operators
   , (^..)
   , (^??)
@@ -67,12 +62,25 @@ module Data.Profunctor.Optic.Fold (
   , ixfinds
     -- * Auxilliary Types
   , All, Any
+    -- * Carriers
+  , FoldRep
+  , AFold
+  , AIxfold
+  , afold
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
+  , Contravariant(..)
+  , Bifunctor(..)
 ) where
 
 import Control.Applicative
 import Control.Monad ((<=<), void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
+import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Maybe
@@ -168,79 +176,7 @@ cloneFold = cloneView
 {-# INLINE cloneFold #-}
 
 ---------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Map an optic to a monoid and combine the results.
---
--- @
--- 'Data.Foldable.foldMap' = 'foldMapOf' 'folded_''
--- @
---
--- >>> foldMapOf both id (["foo"], ["bar", "baz"])
--- ["foo","bar","baz"]
---
--- >>> :t foldMapOf . fold_
--- foldMapOf . fold_
---   :: (Monoid r, Foldable f) => (s -> f a) -> (a -> r) -> s -> r
---
--- >>> :t foldMapOf traversed
--- foldMapOf traversed
---   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
---
--- >>> :t foldMapOf left
--- foldMapOf left :: Monoid r => (a -> r) -> (a + c) -> r
---
--- >>> :t foldMapOf first
--- foldMapOf first :: Monoid r => (a -> r) -> (a, c) -> r
---
--- >>> :t foldMapOf $ selected even
--- foldMapOf $ selected even
---   :: (Monoid r, Integral a) => (b -> r) -> (a, b) -> r
---
--- >>> :t flip foldMapOf Seq.singleton
--- flip foldMapOf Seq.singleton :: AFold (Seq a) s a -> s -> Seq a
---
-foldMapOf :: Monoid r => AFold r s a -> (a -> r) -> s -> r
-foldMapOf = primViewOf
-{-# INLINE foldMapOf #-}
-
--- | TODO: Document
---
--- >>> :t flip ixfoldMapOf Map.singleton
--- flip ixfoldMapOf Map.singleton
---   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
---
-ixfoldMapOf :: AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
-ixfoldMapOf o f = curry $ primViewOf o (uncurry f)
-{-# INLINE ixfoldMapOf #-}
-
--- | TODO: Document
--- 
--- @
--- pureOf :: Fold s a -> s -> [a]
--- pureOf :: Applicative f => Setter s t a b -> s -> f a
--- @
---
-pureOf :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
-pureOf o = foldMapOf o pure
-{-# INLINE pureOf #-}
-
--- | Compute the semiring product of the foci of an optic.
---
--- For semirings without a multiplicative unit this is equivalent to @const mempty@:
---
--- >>> productOf folded Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'product1Of'.
---
-productOf :: Monoid r => Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-productOf o p = getProd . foldMapOf o (Prod . p)
-{-# INLINE productOf #-}
-
----------------------------------------------------------------------
--- Common folds
+-- Optics 
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
@@ -320,6 +256,79 @@ summed = afold foldMap
 multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
 multiplied = afold Rng.product
 {-# INLINE multiplied #-}
+
+
+---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | Map an optic to a monoid and combine the results.
+--
+-- @
+-- 'Data.Foldable.foldMap' = 'foldMapOf' 'folded_''
+-- @
+--
+-- >>> foldMapOf both id (["foo"], ["bar", "baz"])
+-- ["foo","bar","baz"]
+--
+-- >>> :t foldMapOf . fold_
+-- foldMapOf . fold_
+--   :: (Monoid r, Foldable f) => (s -> f a) -> (a -> r) -> s -> r
+--
+-- >>> :t foldMapOf traversed
+-- foldMapOf traversed
+--   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
+--
+-- >>> :t foldMapOf left
+-- foldMapOf left :: Monoid r => (a -> r) -> (a + c) -> r
+--
+-- >>> :t foldMapOf first
+-- foldMapOf first :: Monoid r => (a -> r) -> (a, c) -> r
+--
+-- >>> :t foldMapOf $ selected even
+-- foldMapOf $ selected even
+--   :: (Monoid r, Integral a) => (b -> r) -> (a, b) -> r
+--
+-- >>> :t flip foldMapOf Seq.singleton
+-- flip foldMapOf Seq.singleton :: AFold (Seq a) s a -> s -> Seq a
+--
+foldMapOf :: Monoid r => AFold r s a -> (a -> r) -> s -> r
+foldMapOf = primViewOf
+{-# INLINE foldMapOf #-}
+
+-- | TODO: Document
+--
+-- >>> :t flip ixfoldMapOf Map.singleton
+-- flip ixfoldMapOf Map.singleton
+--   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
+--
+ixfoldMapOf :: AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
+ixfoldMapOf o f = curry $ primViewOf o (uncurry f)
+{-# INLINE ixfoldMapOf #-}
+
+-- | TODO: Document
+-- 
+-- @
+-- pureOf :: Fold s a -> s -> [a]
+-- pureOf :: Applicative f => Setter s t a b -> s -> f a
+-- @
+--
+pureOf :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
+pureOf o = foldMapOf o pure
+{-# INLINE pureOf #-}
+
+-- | Compute the semiring product of the foci of an optic.
+--
+-- For semirings without a multiplicative unit this is equivalent to @const mempty@:
+--
+-- >>> productOf folded Just [1..(5 :: Int)]
+-- Just 0
+--
+-- In this situation you most likely want to use 'product1Of'.
+--
+productOf :: Monoid r => Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
+productOf o p = getProd . foldMapOf o (Prod . p)
+{-# INLINE productOf #-}
 
 ---------------------------------------------------------------------
 -- Operators

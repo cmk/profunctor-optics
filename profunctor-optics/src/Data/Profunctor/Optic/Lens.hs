@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Lens (
     -- * Lens & Ixlens
-    Strong(..)
-  , Lens
+    Lens
   , Ixlens
   , Lens'
   , Ixlens'
@@ -29,10 +28,6 @@ module Data.Profunctor.Optic.Lens (
   , colensVl
   , comatching
   --, cloneColens
-    -- * Primitive operators
-  , withLens
-  , withIxlens
-  --, withColens
     -- * Optics
   , ixfirst
   , cofirst
@@ -43,6 +38,10 @@ module Data.Profunctor.Optic.Lens (
   , valued
   , root
   , branches
+    -- * Primitive operators
+  , withLens
+  , withIxlens
+  --, withColens
     -- * Operators
   , toPastro
   , toTambara
@@ -56,6 +55,8 @@ module Data.Profunctor.Optic.Lens (
  -- , AColens
  -- , AColens'
   --, ColensRep(..)
+    -- * Classes
+  , Strong(..)
 ) where
 
 import Data.Profunctor.Strong
@@ -73,6 +74,7 @@ import qualified Data.Bifunctor as B
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> import Data.Tree
+-- >>> import Data.Int.Instance
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -188,25 +190,26 @@ cloneLens o = withLens o lens
 -- 'set' . 're' $ 're' ('lens' f g) ≡ g
 -- @
 --
+-- A 'Colens' is a 'Review', so you can specialise types to obtain:
+--
+-- @ 'review' :: 'Colens'' s a -> a -> s @
+--
 -- /Caution/: In addition to the normal optic laws, the input functions
--- must have the correct laziness annotations.
+-- must have the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
 --
 -- For example, this is a perfectly valid 'Colens':
 --
--- @ 
+-- @
+-- co1 :: Colens a b (a, c) (b, c)
 -- co1 = flip colens fst $ \ ~(_,y) b -> (b,y)
 -- @
 --
 -- However removing the annotation will result in a faulty optic.
 -- 
--- A 'Colens' is a 'Review', so you can specialise types to obtain:
---
--- @ 'review' :: 'Colens'' s a -> a -> s @
---
 -- See 'Data.Profunctor.Optic.Property'.
 --
 colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = unsecond . dimap (\ ~(b,s) -> bsa b s) (id &&& bt)
+colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 
 -- | Transform a Van Laarhoven colens into a profunctor colens.
 --
@@ -246,23 +249,35 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
 -- | TODO: Document
 --
-ixfirst :: Ixlens i (a , c) (b , c) a b
-ixfirst = lmap assocl . first'
-
--- | TODO: Document
---
 cofirst :: Colens a b (a , c) (b , c)
 cofirst = unfirst
 
 -- | TODO: Document
 --
-ixsecond :: Ixlens i (c , a) (c , b) a b
-ixsecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
+cosecond :: Colens a b (c , a) (c , b)
+cosecond = unsecond
 
 -- | TODO: Document
 --
-cosecond :: Colens a b (c , a) (c , b)
-cosecond = unsecond
+-- >>> ixlists (ix @Int traversed . ix first' . ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+--
+-- >>> ixlists (ix @Int traversed . ixfirst . ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+--
+-- >>> ixlists (ix @Int traversed % ix first' % ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(1,'b'),(2,'a'),(3,'r')]
+--
+-- >>> ixlists (ix @Int traversed % ixfirst % ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
+--
+ixfirst :: Ixlens i (a , c) (b , c) a b
+ixfirst = lmap assocl . first'
+
+-- | TODO: Document
+--
+ixsecond :: Ixlens i (c , a) (c , b) a b
+ixsecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
 -- | There is a `Unit` in everything.
 --

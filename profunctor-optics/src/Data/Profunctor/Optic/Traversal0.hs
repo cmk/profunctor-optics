@@ -116,7 +116,7 @@ ixtraversal0' sia = ixtraversal0 $ \s -> maybe (Left s) Right (sia s)
 traversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
 traversal0Vl f = dimap (\s -> (s,) <$> eswap (sat s)) (id ||| uncurry sbt) . right' . second'
   where
-    sat s = f Right Left s
+    sat = f Right Left
     sbt s b = runIdentity $ f Identity (\_ -> Identity b) s
 
 -- | Transform an indexed Van Laarhoven 'Traversal0' into an indexed profunctor 'Traversal0'.

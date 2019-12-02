@@ -26,12 +26,6 @@ module Data.Profunctor.Optic.Traversal1 (
   , cotraversal1Vl
   , cxtraversal1Vl
   , nocx1
-    -- * Carriers
-  , Star(..)
-  , Costar(..)
-    -- * Primitive operators
-  , traverse1Of
-  , cotraverse1Of
     -- * Optics
   , traversed1
   , cotraversed1
@@ -39,10 +33,19 @@ module Data.Profunctor.Optic.Traversal1 (
   , bitraversed1
   , repeated 
   , iterated
-  , cycled 
+  , cycled
+    -- * Primitive operators
+  , traverse1Of
+  , cotraverse1Of
     -- * Operators
   , sequences1
   , distributes1
+    -- * Carriers
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Data.Bifunctor (first, second)

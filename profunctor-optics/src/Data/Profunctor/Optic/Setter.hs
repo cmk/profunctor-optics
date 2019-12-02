@@ -6,27 +6,18 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Setter (
-    -- * Types
+    -- * Setter
     Setter
   , Setter'
-  , ASetter
-  , ASetter'
-  , Resetter
-  , Resetter'
-  , AResetter
-  , AResetter'
-    -- * Constructors
   , setter
   , ixsetter
+  , closing
+    -- * Resetter
+  , Resetter
+  , Resetter'
   , resetter
   , cxsetter
-  , closing
-    -- * Primitive operators
-  , over
-  , ixover
-  , under
-  , cxover
-    -- * Common optics
+    -- * Optics
   , cod
   , dom
   , bound 
@@ -44,6 +35,12 @@ module Data.Profunctor.Optic.Setter (
   , reviewed
   , composed
   , exmapped
+    -- * Primitive operators
+  , over
+  , ixover
+  , under
+  , cxover
+  , through
     -- * Operators
   , assignA
   , set
@@ -52,15 +49,16 @@ module Data.Profunctor.Optic.Setter (
   , cxset
   , (.~)
   , (..~)
-  , (%~)
-  , (%%~)
   , (/~)
   , (//~)
-  , (#~)
-  , (##~)
   , (?~)
   , (<>~)
   , (><~)
+    -- * Indexed Operators
+  , (%~)
+  , (%%~)
+  , (#~)
+  , (##~)
     -- * MonadState
   , assigns
   , modifies
@@ -75,6 +73,16 @@ module Data.Profunctor.Optic.Setter (
   , (<>=)
   , (><=)
   , zoom
+    -- * Carriers
+  , ASetter
+  , ASetter'
+  , Star(..)
+  , AResetter
+  , AResetter'
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Control.Applicative (liftA)
@@ -232,6 +240,8 @@ over :: ASetter s t a b -> (a -> b) -> s -> t
 over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. ) 
 {-# INLINE over #-}
 
+-- |
+--
 -- >>> ixover (ixat 1) (+) [1,2,3 :: Int]
 -- [1,3,3]
 --
@@ -272,6 +282,8 @@ under :: AResetter s t a b -> (a -> b) -> s -> t
 under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 {-# INLINE under #-}
 
+-- |
+--
 -- >>> cxover (catchOn 42) (\k msg -> show k ++ ": " ++ msg) $ Just "foo"
 -- Just "0: foo"
 --
@@ -284,6 +296,12 @@ under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 cxover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 cxover o f = flip (under o (flip f)) mempty
 {-# INLINE cxover #-}
+
+-- | The join of 'under' and 'over'.
+--
+through :: Optic (->) s t a b -> (a -> b) -> s -> t
+through = id
+{-# INLINE through #-}
 
 ---------------------------------------------------------------------
 -- Optics 
