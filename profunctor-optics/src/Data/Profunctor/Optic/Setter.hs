@@ -175,12 +175,14 @@ setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 -- 'ixover' '.' 'ixsetter' ≡ 'id'
 -- @
 --
--- Your supplied function @f@ is required to satisfy:
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
 --
--- @
--- f 'id' ≡ 'id'
--- f g '.' f h ≡ f (g '.' h)
--- @
+-- * @iabst (const id) ≡ id@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ iabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
 --
 ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
 ixsetter f = setter $ \iab -> f (curry iab) . snd 
@@ -188,11 +190,28 @@ ixsetter f = setter $ \iab -> f (curry iab) . snd
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input function satisfies the following
+-- properties:
+--
+-- * @abst id ≡ id@
+--
+-- * @abst f . abst g ≡ abst (f . g)@
+--
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
 resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
 
 -- | TODO: Document
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @kabst (const id) ≡ id@
+--
+-- * @fmap (kabst $ const f) . (kabst $ const g) ≡ kabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
 --
 cxsetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
 cxsetter f = resetter $ \kab -> const . f (flip kab)

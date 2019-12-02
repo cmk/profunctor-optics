@@ -18,7 +18,6 @@ module Data.Profunctor.Optic.Lens (
   , matching
   , cloneLens
     -- * Colens & Cxlens
-  , Costrong(..)
   , Colens
   , Cxlens
   , Colens'
@@ -57,6 +56,7 @@ module Data.Profunctor.Optic.Lens (
   --, ColensRep(..)
     -- * Classes
   , Strong(..)
+  , Costrong(..)
 ) where
 
 import Data.Profunctor.Strong
