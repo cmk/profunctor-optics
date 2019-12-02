@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Prism (
     -- * Prism & Cxprism
-    Choice(..)
-  , Prism
+    Prism
   , Prism'
   , Cxprism
   , Cxprism'
@@ -20,7 +19,6 @@ module Data.Profunctor.Optic.Prism (
   , handling
   , clonePrism
     -- * Coprism & Ixprism
-  , Cochoice(..)
   , Coprism
   , Coprism'
   , Ixprism
@@ -29,28 +27,17 @@ module Data.Profunctor.Optic.Prism (
   , ACoprism'
   , coprism
   , coprism'
-  , ixprism
-  , ixprism'
   , rehandling
   , cloneCoprism
-    -- * Carriers
-  , PrismRep(..)
-  , CoprismRep(..)
-    -- * Primitive operators
-  , withPrism
-  , withCoprism
     -- * Optics
-  , left
-  , right
   , l1
   , r1
-  , coleft
-  , coright
-  , ixleft
-  , ixright
+  , left
+  , right
+  , cxright
   , just
-  , cxjust
   , nothing
+  , cxjust
   , keyed
   , filtered
   , compared
@@ -62,12 +49,21 @@ module Data.Profunctor.Optic.Prism (
   , async
   , exception
   , asyncException
+    -- * Primitive operators
+  , withPrism
+  , withCoprism
     -- * Operators
   , aside
   , without
   , below
   , toPastroSum
   , toTambaraSum
+    -- * Carriers
+  , PrismRep(..)
+  , CoprismRep(..)
+    -- * Classes
+  , Choice(..)
+  , Cochoice(..)
 ) where
 
 import Control.Exception
@@ -87,9 +83,12 @@ import GHC.Generics hiding (from, to)
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
+-- >>> import Data.Int.Instance ()
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let catchFoo :: b -> Cxprism String (String + a) (String + b) a b; catchFoo b = cxright $ \e k -> if e == "fooError" && k == mempty then Right b else Left e
 
 ---------------------------------------------------------------------
 -- 'Prism' & 'Cxprism'
@@ -173,16 +172,6 @@ coprism sa bat = unright . dimap (id ||| sa) bat
 coprism' :: (s -> a) -> (a -> Maybe s) -> Coprism' s a
 coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
 
--- | Obtain an 'Ixprism' from an indexed reviewer and a matcher function.
---
-ixprism :: Monoid r => (r -> s -> a) -> (b -> a + t) -> Ixprism r s t a b
-ixprism rsa bat = coprism (const mempty &&& uncurry rsa) (B.first (mempty,) . bat)
-
--- | Obtain an 'Ixprism'' from an indexed reviewer and a matcher function that produces a 'Maybe'.
---
-ixprism' :: Monoid r => (r -> s -> a) -> (a -> Maybe s) -> Ixprism' r s a
-ixprism' rsa = coprism' (rsa mempty)
-
 -- | Obtain a 'Coprism' from its free tensor representation.
 --
 rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
@@ -194,76 +183,22 @@ cloneCoprism :: ACoprism s t a b -> Coprism s t a b
 cloneCoprism o = withCoprism o coprism
 
 ---------------------------------------------------------------------
--- 'PrismRep' & 'CoprismRep'
----------------------------------------------------------------------
-
-type APrism s t a b = Optic (PrismRep a b) s t a b
-
-type APrism' s a = APrism s s a a
-
--- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
---
-data PrismRep a b s t = PrismRep (s -> t + a) (b -> t)
-
-instance Functor (PrismRep a b s) where
-  fmap f (PrismRep sta bt) = PrismRep (first f . sta) (f . bt)
-  {-# INLINE fmap #-}
-
-instance Profunctor (PrismRep a b) where
-  dimap f g (PrismRep sta bt) = PrismRep (first g . sta . f) (g . bt)
-  {-# INLINE dimap #-}
-
-  lmap f (PrismRep sta bt) = PrismRep (sta . f) bt
-  {-# INLINE lmap #-}
-
-  rmap = fmap
-  {-# INLINE rmap #-}
-
-instance Choice (PrismRep a b) where
-  left' (PrismRep sta bt) = PrismRep (either (first Left . sta) (Left . Right)) (Left . bt)
-  {-# INLINE left' #-}
-
-  right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
-  {-# INLINE right' #-}
-
-type ACoprism s t a b = Optic (CoprismRep a b) s t a b
-
-type ACoprism' s a = ACoprism s s a a
-
-data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
-
-instance Functor (CoprismRep a b s) where
-  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
-  {-# INLINE fmap #-}
-
-instance Profunctor (CoprismRep a b) where
-  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
-  {-# INLINE lmap #-}
-
-  rmap = fmap
-  {-# INLINE rmap #-}
-
-instance Cochoice (CoprismRep a b) where
-  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
-  {-# INLINE unleft #-}
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Extract the two functions that characterize a 'Prism'.
---
-withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
-withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
-
--- | Extract the two functions that characterize a 'Coprism'.
---
-withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
-withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
-
----------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
+
+l1 :: Prism ((a :+: c) t) ((b :+: c) t) (a t) (b t)
+l1 = prism sta L1
+  where
+    sta (L1 v) = Right v
+    sta (R1 v) = Left (R1 v)
+{-# INLINE l1 #-}
+
+r1 :: Prism ((c :+: a) t) ((c :+: b) t) (a t) (b t)
+r1 = prism sta R1
+  where
+    sta (R1 v) = Right v
+    sta (L1 v) = Left (L1 v)
+{-# INLINE r1 #-}
 
 -- | 'Prism' into the `Left` constructor of `Either`.
 --
@@ -275,60 +210,39 @@ left = left'
 right :: Prism (c + a) (c + b) a b
 right = right'
 
-l1 :: Prism ((a :+: c) t) ((b :+: c) t) (a t) (b t)
-l1 = prism sta L1
-  where
-  sta (L1 v) = Right v
-  sta (R1 v) = Left (R1 v)
-{-# INLINE l1 #-}
-
-r1 :: Prism ((c :+: a) t) ((c :+: b) t) (a t) (b t)
-r1 = prism sta R1
-  where
-  sta (R1 v) = Right v
-  sta (L1 v) = Left (L1 v)
-{-# INLINE r1 #-}
-
--- | 'Coprism' out of the `Left` constructor of `Either`.
+-- | Coindexed prism into the `Right` constructor of `Either`.
 --
-coleft :: Coprism a b (a + c) (b + c)
-coleft = unleft
-
--- | 'Coprism' out of the `Right` constructor of `Either`.
+-- >>>  cxset (catchFoo "Caught foo") id $ Left "fooError"
+-- Right "Caught foo"
+-- >>>  cxset (catchFoo "Caught foo") id $ Left "barError"
+-- Left "barError"
 --
-coright :: Coprism a b (c + a) (c + b)
-coright = unright
-
--- | Indexed 'Ixprism' out of the `Left` constructor of `Either`.
---
--- >>> ixview ixleft 7
--- (Just (),Left 7)
---
-ixleft :: Monoid r => Ixprism r a b (a + c) (b + c)
-ixleft = unleft . lmap (either (fmap Left) ((mempty,) . Right))
-
--- | Indexed 'Ixprism' out of the `Right` constructor of `Either`.
---
-ixright :: Monoid r => Ixprism r a b (c + a) (c + b)
-ixright = unright . lmap (either ((mempty,) . Left) (fmap Right))
+cxright :: (e -> k -> e + b) -> Cxprism k (e + a) (e + b) a b
+cxright ekeb = flip cxprism Right $ either (Left . ekeb) Right
 
 -- | 'Prism' into the `Just` constructor of `Maybe`.
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
--- | 'Cxprism' into the `Just` constructor of `Maybe`.
---
--- cxmatches (catchOn 0) Nothing 0
--- Left (Just "caught")
---
-cxjust :: (k -> Maybe b) -> Cxprism k (Maybe a) (Maybe b) a b
-cxjust kb = flip cxprism Just $ maybe (Left $ kb) Right
-
 -- | 'Prism' into the `Nothing` constructor of `Maybe`.
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
-nothing = flip prism  (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+
+-- | Coindexed prism into the `Just` constructor of `Maybe`.
+--
+-- >>> Just "foo" & catchOn 1 ##~ (\k msg -> show k ++ ": " ++ msg)
+-- Just "0: foo"
+--
+-- >>> Nothing & catchOn 1 ##~ (\k msg -> show k ++ ": " ++ msg)
+-- Nothing
+--
+-- >>> Nothing & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
+-- Just "caught"
+--
+cxjust :: (k -> Maybe b) -> Cxprism k (Maybe a) (Maybe b) a b
+cxjust kb = flip cxprism Just $ maybe (Left kb) Right
 
 -- | Match a given key to obtain the associated value. 
 --
@@ -393,6 +307,20 @@ asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
 
 ---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | Extract the two functions that characterize a 'Prism'.
+--
+withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
+withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
+
+-- | Extract the two functions that characterize a 'Coprism'.
+--
+withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
+withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
@@ -446,3 +374,57 @@ toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswa
 --
 toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left . prism sta bt $ p)
+
+---------------------------------------------------------------------
+-- 'PrismRep' & 'CoprismRep'
+---------------------------------------------------------------------
+
+type APrism s t a b = Optic (PrismRep a b) s t a b
+
+type APrism' s a = APrism s s a a
+
+-- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
+--
+data PrismRep a b s t = PrismRep (s -> t + a) (b -> t)
+
+instance Functor (PrismRep a b s) where
+  fmap f (PrismRep sta bt) = PrismRep (first f . sta) (f . bt)
+  {-# INLINE fmap #-}
+
+instance Profunctor (PrismRep a b) where
+  dimap f g (PrismRep sta bt) = PrismRep (first g . sta . f) (g . bt)
+  {-# INLINE dimap #-}
+
+  lmap f (PrismRep sta bt) = PrismRep (sta . f) bt
+  {-# INLINE lmap #-}
+
+  rmap = fmap
+  {-# INLINE rmap #-}
+
+instance Choice (PrismRep a b) where
+  left' (PrismRep sta bt) = PrismRep (either (first Left . sta) (Left . Right)) (Left . bt)
+  {-# INLINE left' #-}
+
+  right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
+  {-# INLINE right' #-}
+
+type ACoprism s t a b = Optic (CoprismRep a b) s t a b
+
+type ACoprism' s a = ACoprism s s a a
+
+data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
+
+instance Functor (CoprismRep a b s) where
+  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
+  {-# INLINE fmap #-}
+
+instance Profunctor (CoprismRep a b) where
+  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
+  {-# INLINE lmap #-}
+
+  rmap = fmap
+  {-# INLINE rmap #-}
+
+instance Cochoice (CoprismRep a b) where
+  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  {-# INLINE unleft #-}

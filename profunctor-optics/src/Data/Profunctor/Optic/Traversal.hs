@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Traversal & Ixtraversal
-    Representable(..)
-  , Traversal
+    Traversal
   , Traversal'
   , Ixtraversal
   , Ixtraversal'
@@ -20,10 +19,8 @@ module Data.Profunctor.Optic.Traversal (
   , ixtraversalVl
   , noix
   , ix
-    -- * Carriers
-  , Star(..)
     -- * Primitive operators
-  , traverseOf
+  , withTraversal
     -- * Optics
   , traversed
   , both
@@ -31,20 +28,20 @@ module Data.Profunctor.Optic.Traversal (
   , bitraversed
     -- * Operators
   , sequences
+    -- * Carriers
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
-import Data.Bifunctor (first, second)
 import Data.Bitraversable
-import Data.List.Index
-import Data.Map as Map
-import Data.Profunctor.Optic.Lens hiding (first, second, unit)
+import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (prism)
 import Data.Profunctor.Optic.Type
 import Data.Semiring
 import Control.Monad.Trans.State
-import Data.Profunctor.Optic.Iso
-import qualified Data.Bifunctor as B
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -53,6 +50,7 @@ import qualified Data.Bifunctor as B
 -- >>> :set -XTupleSections
 -- >>> :set -XRankNTypes
 -- >>> import Data.Maybe
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
@@ -96,9 +94,6 @@ type ATraversal' f s a = ATraversal f s s a a
 --
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
 traversing sa sbt = repn traverse . lens sa sbt
-
-ixtraversed :: Monoid i => Traversable f => AIxlens i s t a b -> Ixtraversal i (f s) (f t) a b
-ixtraversed = flip withIxlens ixtraversing
 
 -- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
 --
@@ -179,7 +174,7 @@ noix o = ixtraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
 ix :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
 ix o = ixtraversalVl $ \f s ->
   flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
-    Compose $ (f <$> get <*> pure a) <* modify (<> unit) 
+    Compose $ (f <$> get <*> pure a) <* modify (<> sunit) 
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -187,27 +182,27 @@ ix o = ixtraversalVl $ \f s ->
 
 -- | 
 --
--- The traversal laws can be stated in terms of 'traverseOf':
+-- The traversal laws can be stated in terms of 'withTraversal':
 -- 
 -- Identity:
 -- 
 -- @
--- traverseOf t (Identity . f) ≡  Identity (fmap f)
+-- withTraversal t (Identity . f) ≡  Identity (fmap f)
 -- @
 -- 
 -- Composition:
 -- 
 -- @ 
--- Compose . fmap (traverseOf t f) . traverseOf t g ≡ traverseOf t (Compose . fmap f . g)
+-- Compose . fmap (withTraversal t f) . withTraversal t g ≡ withTraversal t (Compose . fmap f . g)
 -- @
 --
 -- @
--- traverseOf :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
--- traverseOf :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
+-- withTraversal :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
+-- withTraversal :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
 -- @
 --
-traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-traverseOf o = runStar #. o .# Star
+withTraversal :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
+withTraversal o = runStar #. o .# Star
 
 ---------------------------------------------------------------------
 -- Common 'Traversal0's, 'Traversal's, 'Traversal1's, & 'Cotraversal1's
@@ -220,7 +215,7 @@ traversed = traversalVl traverse
 
 -- | TODO: Document
 --
--- >>> traverseOf both (pure . length) ("hello","world")
+-- >>> withTraversal both (pure . length) ("hello","world")
 -- (5,5)
 --
 both :: Traversal (a , a) (b , b) a b
@@ -236,10 +231,10 @@ duplicated p = pappend p p
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
--- >>> traverseOf bitraversed (pure . length) (Right "hello")
+-- >>> withTraversal bitraversed (pure . length) (Right "hello")
 -- Right 5
 --
--- >>> traverseOf bitraversed (pure . length) ("hello","world")
+-- >>> withTraversal bitraversed (pure . length) ("hello","world")
 -- (5,5)
 --
 -- >>> ("hello","world") ^. bitraversed
@@ -261,5 +256,5 @@ bitraversed = repn $ \f -> bitraverse f f
 -- | TODO: Document
 --
 sequences :: Applicative f => ATraversal f s t (f a) a -> s -> f t
-sequences o = traverseOf o id
+sequences o = withTraversal o id
 {-# INLINE sequences #-}

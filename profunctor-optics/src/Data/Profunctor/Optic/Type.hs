@@ -23,13 +23,12 @@ module Data.Profunctor.Optic.Type (
     -- * Grates
   , Grate, Grate', Cxgrate, Cxgrate'
     -- * Traversals
-  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal' 
+  , Traversal    , Traversal'   , Ixtraversal , Ixtraversal'
     -- * Affine traversals & cotraversals
   , Traversal0   , Traversal0'  , Ixtraversal0, Ixtraversal0'
-  , Cotraversal0 , Cotraversal0', Cxtraversal0, Cxtraversal0'
     -- * Non-empty traversals & cotraversals
-  , Traversal1, Traversal1'
-  , Cotraversal1 , Cotraversal1' , Cxtraversal1 , Cxtraversal1'
+  , Traversal1   , Traversal1'
+  , Cotraversal1 , Cotraversal1', Cxtraversal1, Cxtraversal1'
       -- * Affine folds, general & non-empty folds, & cofolds
   , Fold0, Ixfold0, Fold, Ixfold, Fold1, Cofold1
     -- * Views & Reviews
@@ -180,18 +179,18 @@ type Cxgrate k s t a b = forall p. Closed p => CoindexedOptic p k s t a b
 type Cxgrate' k s a = Cxgrate k s s a a
 
 ---------------------------------------------------------------------
--- 'Traversal'
+-- 'Traversal' & 'Cotraversal'
 ---------------------------------------------------------------------
 
 -- | A 'Traversal' processes 0 or more parts of the whole, with 'Applicative' interactions.
 --
 -- \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
 --
-type Traversal s t a b = forall p. Choice p => Representable p => Applicative (Rep p) => Optic p s t a b
+type Traversal s t a b = forall p. (Choice p, Representable p, Applicative (Rep p)) => Optic p s t a b
 
 type Traversal' s a = Traversal s s a a
 
-type Ixtraversal i s t a b = forall p. Choice p => Representable p => Applicative (Rep p) => IndexedOptic p i s t a b 
+type Ixtraversal i s t a b = forall p. (Choice p, Representable p, Applicative (Rep p)) => IndexedOptic p i s t a b 
 
 type Ixtraversal' i s a = Ixtraversal i s s a a
 
@@ -203,25 +202,13 @@ type Ixtraversal' i s a = Ixtraversal i s s a a
 --
 -- \( \mathsf{Traversal0}\;S\;A = \exists C, D, S \cong D + C \times A \)
 --
-type Traversal0 s t a b = forall p. Strong p => Choice p => Optic p s t a b 
+type Traversal0 s t a b = forall p. (Strong p, Choice p) => Optic p s t a b 
 
 type Traversal0' s a = Traversal0 s s a a
 
-type Ixtraversal0 i s t a b = forall p. Strong p => Choice p => IndexedOptic p i s t a b 
+type Ixtraversal0 i s t a b = forall p. (Strong p, Choice p) => IndexedOptic p i s t a b 
 
 type Ixtraversal0' i s a = Ixtraversal0 i s s a a 
-
--- | A 'Cotraversal0' arises from the combination of prisms and grates.
---
--- \( \mathsf{Cotraversal0}\;S\;A = \exists D,I, S \cong D + (I \to A) \)
---
-type Cotraversal0 s t a b = forall p. Costrong p => Closed p => Optic p s t a b
-
-type Cotraversal0' s a = Cotraversal0 s s a a
-
-type Cxtraversal0 i s t a b = forall p. Costrong p => Closed p => CoindexedOptic p i s t a b 
-
-type Cxtraversal0' i s a = Cxtraversal0 i s s a a 
 
 ---------------------------------------------------------------------
 -- 'Traversal1' & 'Cotraversal1'
@@ -231,17 +218,17 @@ type Cxtraversal0' i s a = Cxtraversal0 i s s a a
 --
 -- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
-type Traversal1 s t a b = forall p. Choice p => Representable p => Apply (Rep p) => Optic p s t a b 
+type Traversal1 s t a b = forall p. (Choice p, Representable p, Apply (Rep p)) => Optic p s t a b 
 
 type Traversal1' s a = Traversal1 s s a a
 
-type Cotraversal1 s t a b = forall p. Closed p => Corepresentable p => Apply (Corep p) => Optic p s t a b 
+type Cotraversal1 s t a b = forall p. (Closed p, Corepresentable p, Apply (Corep p)) => Optic p s t a b 
 
 type Cotraversal1' s a = Cotraversal1 s s a a
 
-type Cxtraversal1 k s t a b = forall p. Closed p => Corepresentable p => Apply (Corep p) => CoindexedOptic p k s t a b 
+type Cxtraversal1 k s t a b = forall p. (Closed p, Corepresentable p, Apply (Corep p)) => CoindexedOptic p k s t a b 
 
-type Cxtraversal1' k t b = Cxtraversal1 k t t b b 
+type Cxtraversal1' k s a = Cxtraversal1 k s s a a
 
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold', 'Fold1' & 'Cofold1'
@@ -249,37 +236,37 @@ type Cxtraversal1' k t b = Cxtraversal1 k t t b b
 
 -- | A 'Fold0' combines at most one element, with no interactions.
 --
-type Fold0 s a = forall p. (forall x. Contravariant (p x)) => Strong p => Choice p => Optic' p s a 
+type Fold0 s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a 
 
-type Ixfold0 i s a = forall p. (forall x. Contravariant (p x)) => Strong p => Choice p => IndexedOptic' p i s a 
+type Ixfold0 i s a = forall p. (Choice p, Strong p, forall x. Contravariant (p x)) => IndexedOptic' p i s a 
 
 -- | A 'Fold' combines 0 or more elements, with 'Monoid' interactions.
 --
-type Fold s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Applicative (Rep p) => Optic' p s a
+type Fold s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a
 
-type Ixfold i s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Applicative (Rep p) => IndexedOptic' p i s a
+type Ixfold i s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
 -- | A 'Fold1' combines 1 or more elements, with 'Semigroup' interactions.
 --
-type Fold1 s a = forall p. (forall x. Contravariant (p x)) => Choice p => Representable p => Apply (Rep p) => Optic p s s a a 
+type Fold1 s a = forall p. (Choice p, Representable p, Apply (Rep p), forall x. Contravariant (p x)) => Optic p s s a a 
 
-type Cofold1 t b = forall p. Bifunctor p => Closed p => Corepresentable p => Apply (Corep p) => Optic p t t b b
+type Cofold1 t b = forall p. (Cochoice p, Corepresentable p, Apply (Corep p), Bifunctor p) => Optic p t t b b
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
 ---------------------------------------------------------------------
 
-type PrimView s t a b = forall p. Profunctor p => (forall x. Contravariant (p x)) => Optic p s t a b
+type PrimView s t a b = forall p. (Profunctor p, forall x. Contravariant (p x)) => Optic p s t a b
 
-type View s a = forall p. Strong p => (forall x. Contravariant (p x)) => Optic' p s a 
+type View s a = forall p. (Strong p, forall x. Contravariant (p x)) => Optic' p s a 
 
-type Ixview i s a = forall p. Strong p => (forall x. Contravariant (p x)) => IndexedOptic' p i s a
+type Ixview i s a = forall p. (Strong p, forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
-type PrimReview s t a b = forall p. Profunctor p => Bifunctor p => Optic p s t a b
+type PrimReview s t a b = forall p. (Profunctor p, Bifunctor p) => Optic p s t a b
 
-type Review t b = forall p. Bifunctor p => Costrong p => Optic' p t b
+type Review t b = forall p. (Costrong p, Bifunctor p) => Optic' p t b
 
-type Cxview k t b = forall p. Bifunctor p => Costrong p => CoindexedOptic' p k t b
+type Cxview k t b = forall p. (Costrong p, Bifunctor p) => CoindexedOptic' p k t b
 
 ---------------------------------------------------------------------
 -- 'Setter' & 'Resetter'
@@ -289,19 +276,19 @@ type Cxview k t b = forall p. Bifunctor p => Costrong p => CoindexedOptic' p k t
 --
 -- \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
-type Setter s t a b = forall p. Closed p => Choice p => Representable p => Applicative (Rep p) => Distributive (Rep p) => Optic p s t a b
+type Setter s t a b = forall p. (Closed p, Choice p, Representable p, Applicative (Rep p), Distributive (Rep p)) => Optic p s t a b
 
 type Setter' s a = Setter s s a a
 
-type Ixsetter i s t a b = forall p. Closed p => Choice p => Representable p => Applicative (Rep p) => Distributive (Rep p) => IndexedOptic p i s t a b
+type Ixsetter i s t a b = forall p. (Closed p, Choice p, Representable p, Applicative (Rep p), Distributive (Rep p)) => IndexedOptic p i s t a b
 
 type Ixsetter' i s a = Ixsetter i s s a a 
 
-type Resetter s t a b = forall p. Choice p => Closed p => Corepresentable p => Apply (Corep p) => Traversable (Corep p) => Optic p s t a b 
+type Resetter s t a b = forall p. (Closed p, Cochoice p, Corepresentable p, Apply (Corep p), Traversable (Corep p)) => Optic p s t a b 
 
 type Resetter' s a = Resetter s s a a
 
-type Cxsetter k s t a b = forall p. Choice p => Closed p => Corepresentable p => Apply (Corep p) => Traversable (Corep p) => CoindexedOptic p k s t a b
+type Cxsetter k s t a b = forall p. (Closed p, Cochoice p, Corepresentable p, Apply (Corep p), Traversable (Corep p)) => CoindexedOptic p k s t a b
 
 ---------------------------------------------------------------------
 -- Common 'Representable' and 'Corepresentable' carriers

@@ -24,8 +24,8 @@ module Data.Profunctor.Optic.View (
     -- * Carriers
   , Tagged(..)
     -- * Primitive operators
-  , primViewOf
-  , primReviewOf
+  , withPrimView
+  , withPrimReview
     -- * Optics
   , like
   , ixlike
@@ -75,9 +75,11 @@ import qualified Data.Bifunctor as B
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XRank2Types
 -- >>> import Data.Either
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index as LI
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
@@ -114,7 +116,7 @@ type ACxview k t b = CoindexedOptic' Tagged k t b
 -- >>> 5 ^. to succ
 -- 6
 --
--- >>> (0, -5) ^. second . to abs
+-- >>> (0, -5) ^. t22 . to abs
 -- 5
 --
 -- @
@@ -177,15 +179,15 @@ cloneReview = from . review
 
 -- | TODO: Document
 --
-primViewOf :: APrimView r s t a b -> (a -> r) -> s -> r
-primViewOf o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
-{-# INLINE primViewOf #-}
+withPrimView :: APrimView r s t a b -> (a -> r) -> s -> r
+withPrimView o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
+{-# INLINE withPrimView #-}
 
 -- | TODO: Document
 --
-primReviewOf :: APrimReview s t a b -> (t -> r) -> b -> r
-primReviewOf o f = f . unTagged #. o .# Tagged
-{-# INLINE primReviewOf #-}
+withPrimReview :: APrimReview s t a b -> (t -> r) -> b -> r
+withPrimReview o f = f . unTagged #. o .# Tagged
+{-# INLINE withPrimReview #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -266,11 +268,11 @@ infixl 8 ^.
 -- Fixity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
 --
--- >>> ("hello","world") ^. second
+-- >>> ("hello","world") ^. t22
 -- "world"
 --
 -- >>> import Data.Complex
--- >>> ((0, 1 :+ 2), 3) ^. first . second . to magnitude
+-- >>> ((0, 1 :+ 2), 3) ^. t21 . t22 . to magnitude
 -- 2.23606797749979
 --
 -- @
@@ -310,13 +312,13 @@ infixl 8 ^%
 -- 'view' '.' 'to' ≡ 'id'
 -- @
 --
--- >>> view second (1, "hello")
+-- >>> view t22 (1, "hello")
 -- "hello"
 --
 -- >>> view (to succ) 5
 -- 6
 --
--- >>> view (second . first) ("hello",("world","!!!"))
+-- >>> view (t22 . t21) ("hello",("world","!!!"))
 -- "world"
 --
 view :: MonadReader s m => AView s a -> m a
@@ -346,13 +348,13 @@ view o = views o id
 -- (Just 6,10)
 --
 ixview :: MonadReader s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
-ixview o = asks $ primViewOf o (B.first Just) . (mempty,)
+ixview o = asks $ withPrimView o (B.first Just) . (mempty,)
 {-# INLINE ixview #-}
 
 -- | Map each part of a structure viewed to a semantic edixtor combinator.
 --
 -- @
--- 'views o f ≡ foldMapOf o f'
+-- 'views o f ≡ withFold o f'
 -- 'Data.Foldable.foldMap' = 'views' 'folding''
 -- @
 --
@@ -371,12 +373,12 @@ ixview o = asks $ primViewOf o (B.first Just) . (mempty,)
 -- @
 --
 views :: MonadReader s m => Optic' (Star (Const r)) s a -> (a -> r) -> m r
-views o f = asks $ primViewOf o f
+views o f = asks $ withPrimView o f
 {-# INLINE views #-}
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
--- 'ixviews' ≡ 'ifoldMapOf'
+-- 'ixviews' ≡ 'iwithFold'
 --
 -- >>> ixviews (ixat 2) (-) ([0,1,2] :: [Int])
 -- 0
@@ -390,7 +392,7 @@ views o f = asks $ primViewOf o f
 -- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
 --
 ixviews :: MonadReader s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-ixviews o f = asks $ primViewOf o (uncurry f) . (mempty,) 
+ixviews o f = asks $ withPrimView o (uncurry f) . (mempty,) 
 
 -- | TODO: Document
 --
@@ -408,7 +410,7 @@ ixuse o = gets (ixview o)
 -- 'Data.Profunctor.Optic.Fold.Fold' or 'Data.Profunctor.Optic.Traversal.Traversal' that
 -- points to a monoidal value.
 --
--- >>> evalState (uses first length) ("hello","world")
+-- >>> evalState (uses t21 length) ("hello","world!")
 -- 5
 --
 -- @
@@ -431,7 +433,7 @@ uses l f = gets (views l f)
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
 ixuses :: MonadState s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-ixuses o f = gets $ primViewOf o (uncurry f) . (mempty,)
+ixuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
 
 infixr 8 #^
 
@@ -505,7 +507,7 @@ cxview o = cxviews o id
 -- @
 --
 reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews o f = asks $ primReviewOf o f
+reviews o f = asks $ withPrimReview o f
 {-# INLINE reviews #-}
 
 -- | Bring a continuation of the index of a co-indexed optic into the current environment.
@@ -515,7 +517,7 @@ reviews o f = asks $ primReviewOf o f
 -- @
 --
 cxviews :: MonadReader b m => ACxview k t b -> ((k -> t) -> r) -> m r
-cxviews o f = asks $ primReviewOf o f . const
+cxviews o f = asks $ withPrimReview o f . const
 
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --

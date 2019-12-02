@@ -1,7 +1,7 @@
 cabal-version: >= 1.10
 
 name:           profunctor-arrows
-version:        0.0.0.1
+version:        0.0.0.2
 synopsis:       Profunctor arrows
 description:    Free prearrows and arrows for profunctors.
 category:       Data, Profunctors

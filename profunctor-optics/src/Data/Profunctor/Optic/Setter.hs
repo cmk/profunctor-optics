@@ -6,27 +6,18 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Setter (
-    -- * Types
+    -- * Setter
     Setter
   , Setter'
-  , ASetter
-  , ASetter'
-  , Resetter
-  , Resetter'
-  , AResetter
-  , AResetter'
-    -- * Constructors
   , setter
   , ixsetter
+  , closing
+    -- * Resetter
+  , Resetter
+  , Resetter'
   , resetter
   , cxsetter
-  , closing
-    -- * Primitive operators
-  , over
-  , ixover
-  , under
-  , cxover
-    -- * Common optics
+    -- * Optics
   , cod
   , dom
   , bound 
@@ -44,6 +35,12 @@ module Data.Profunctor.Optic.Setter (
   , reviewed
   , composed
   , exmapped
+    -- * Primitive operators
+  , over
+  , ixover
+  , under
+  , cxover
+  , through
     -- * Operators
   , assignA
   , set
@@ -52,15 +49,16 @@ module Data.Profunctor.Optic.Setter (
   , cxset
   , (.~)
   , (..~)
-  , (%~)
-  , (%%~)
   , (/~)
   , (//~)
-  , (#~)
-  , (##~)
   , (?~)
   , (<>~)
   , (><~)
+    -- * Indexed Operators
+  , (%~)
+  , (%%~)
+  , (#~)
+  , (##~)
     -- * MonadState
   , assigns
   , modifies
@@ -75,6 +73,16 @@ module Data.Profunctor.Optic.Setter (
   , (<>=)
   , (><=)
   , zoom
+    -- * Carriers
+  , ASetter
+  , ASetter'
+  , Star(..)
+  , AResetter
+  , AResetter'
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Control.Applicative (liftA)
@@ -107,6 +115,7 @@ import qualified Control.Exception as Ex
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
@@ -135,7 +144,7 @@ type ACxsetter k s t a b = ACxrepn Identity k s t a b
 --
 -- To demote an optic to a semantic edit combinator, use the section @(l ..~)@ or @over l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter fmap . first ..~ Prelude.length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter fmap . t21 ..~ Prelude.length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -217,10 +226,10 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- >>> over fmapped (*10) [1,2,3]
 -- [10,20,30]
 --
--- >>> over first (+1) (1,2)
+-- >>> over t21 (+1) (1,2)
 -- (2,2)
 --
--- >>> over first show (10,20)
+-- >>> over t21 show (10,20)
 -- ("10",20)
 --
 -- @
@@ -232,6 +241,8 @@ over :: ASetter s t a b -> (a -> b) -> s -> t
 over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. ) 
 {-# INLINE over #-}
 
+-- |
+--
 -- >>> ixover (ixat 1) (+) [1,2,3 :: Int]
 -- [1,3,3]
 --
@@ -272,6 +283,8 @@ under :: AResetter s t a b -> (a -> b) -> s -> t
 under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 {-# INLINE under #-}
 
+-- |
+--
 -- >>> cxover (catchOn 42) (\k msg -> show k ++ ": " ++ msg) $ Just "foo"
 -- Just "0: foo"
 --
@@ -284,6 +297,12 @@ under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 cxover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 cxover o f = flip (under o (flip f)) mempty
 {-# INLINE cxover #-}
+
+-- | The join of 'under' and 'over'.
+--
+through :: Optic (->) s t a b -> (a -> b) -> s -> t
+through = id
+{-# INLINE through #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -460,7 +479,7 @@ infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, ?~, <>~, ><~
 --
 -- >>> getVal1 = Right 3
 -- >>> getVal2 = Right False
--- >>> action = assignA first (Kleisli (const getVal1)) >>> assignA second (Kleisli (const getVal2))
+-- >>> action = assignA t21 (Kleisli (const getVal1)) >>> assignA t22 (Kleisli (const getVal2))
 -- >>> runKleisli action ((), ())
 -- Right (3,False)
 --
@@ -595,7 +614,7 @@ cxset o kb = cxover o $ flip (const kb)
 --
 -- '?~' can be used type-changily:
 --
--- >>> ('a', ('b', 'c')) & second . both ?~ 'x'
+-- >>> ('a', ('b', 'c')) & t22 . both ?~ 'x'
 -- ('a',(Just 'x',Just 'x'))
 --
 -- @
@@ -687,7 +706,7 @@ modifies o f = State.modify (over o f)
 --
 -- This is an infix version of 'assigns'.
 --
--- >>> execState (do first .= 1; second .= 2) (3,4)
+-- >>> execState (do t21 .= 1; t22 .= 2) (3,4)
 -- (1,2)
 --
 -- >>> execState (both .= 3) (1,2)
@@ -713,7 +732,7 @@ o .= b = State.modify (o .~ b)
 -- >>> execState (do just ..= (+1) ) Nothing
 -- Nothing
 --
--- >>> execState (do first ..= (+1) ;second ..= (+2)) (1,2)
+-- >>> execState (do t21 ..= (+1) ;t22 ..= (+2)) (1,2)
 -- (2,4)
 --
 -- >>> execState (do both ..= (+1)) (1,2)
@@ -763,7 +782,7 @@ o ##= f = State.modify (o ##~ f)
 
 -- | Replace the target(s) of a settable optic with 'Just' a new value.
 --
--- >>> execState (do first ?= 1; second ?= 2) (Just 1, Nothing)
+-- >>> execState (do t21 ?= 1; t22 ?= 2) (Just 1, Nothing)
 -- (Just 1,Just 2)
 --
 -- @

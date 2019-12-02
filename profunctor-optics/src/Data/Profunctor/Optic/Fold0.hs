@@ -13,16 +13,11 @@ module Data.Profunctor.Optic.Fold0 (
   , failing
   , toFold0
   , fromFold0 
-    -- * Carriers
-  , Fold0Rep(..)
-  , AFold0
-  , AIxfold0
-  , Pre(..)
-    -- * Primitive operators
-  , foldMap0Of
-  , ixfoldMap0Of
     -- * Optics
   , folded0
+    -- * Primitive operators
+  , withFold0
+  , withIxfold0
     -- * Operators
   , (^?)
   , preview 
@@ -37,6 +32,14 @@ module Data.Profunctor.Optic.Fold0 (
   , catches_
   , handles
   , handles_
+    -- * Carriers
+  , Fold0Rep(..)
+  , AFold0
+  , AIxfold0
+  , Pre(..)
+    -- * Classes
+  , Strong(..)
+  , Choice(..)
 ) where
 
 import Control.Applicative
@@ -54,7 +57,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (right, just, async)
 import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, is)
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, from, primViewOf, view, cloneView)
+import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Control.Exception as Ex
 import qualified Data.List.NonEmpty as NEL
@@ -137,66 +140,7 @@ fromFold0 = to . preview
 {-# INLINE fromFold0 #-}
 
 ---------------------------------------------------------------------
--- 'Fold0Rep'
----------------------------------------------------------------------
-
-newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
-
-instance Functor (Fold0Rep r a) where
-  fmap _ (Fold0Rep p) = Fold0Rep p
-
-instance Contravariant (Fold0Rep r a) where
-  contramap _ (Fold0Rep p) = Fold0Rep p
-
-instance Profunctor (Fold0Rep r) where
-  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
-
-instance Choice (Fold0Rep r) where
-  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
-  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
-
-instance Cochoice (Fold0Rep r) where
-  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
-  unright (Fold0Rep k) = Fold0Rep (k . Right)
-
-instance Strong (Fold0Rep r) where
-  first' (Fold0Rep p) = Fold0Rep (p . fst)
-  second' (Fold0Rep p) = Fold0Rep (p . snd)
-
-instance Sieve (Fold0Rep r) (Pre r) where
-  sieve = (Pre .) . runFold0Rep
-
-instance Representable (Fold0Rep r) where
-  type Rep (Fold0Rep r) = Pre r
-  tabulate = Fold0Rep . (getPre .)
-  {-# INLINE tabulate #-}
-
--- | 'Pre' is 'Maybe' with a phantom type variable.
---
-newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
-
-instance Functor (Pre a) where fmap _ (Pre p) = Pre p
-
-instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | TODO: Document
---
-foldMap0Of :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-foldMap0Of o = runFold0Rep #. o .# Fold0Rep
-{-# INLINE foldMap0Of #-}
-
--- | TODO: Document
---
-ixfoldMap0Of :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
-ixfoldMap0Of o f = curry $ foldMap0Of o (uncurry f)
-{-# INLINE ixfoldMap0Of #-}
-
----------------------------------------------------------------------
--- Common folds
+-- Optics 
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Fold0' from a partial function.
@@ -207,6 +151,22 @@ ixfoldMap0Of o f = curry $ foldMap0Of o (uncurry f)
 folded0 :: Fold0 (Maybe a) a
 folded0 = fold0 id
 {-# INLINE folded0 #-}
+
+---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
+withFold0 o = runFold0Rep #. o .# Fold0Rep
+{-# INLINE withFold0 #-}
+
+-- | TODO: Document
+--
+withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
+withIxfold0 o f = curry $ withFold0 o (uncurry f)
+{-# INLINE withIxfold0 #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -239,7 +199,7 @@ infixl 8 ^?
 -- | TODO: Document
 --
 preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
-preview o = Reader.asks $ foldMap0Of o Just
+preview o = Reader.asks $ withFold0 o Just
 {-# INLINE preview #-}
 
 -- | TODO: Document
@@ -252,7 +212,6 @@ preuse o = State.gets $ preview o
 -- Indexed operators
 ------------------------------------------------------------------------------
 
-
 -- | TODO: Document 
 --
 ixpreview :: Monoid i => AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
@@ -262,7 +221,7 @@ ixpreview o = ixpreviews o (,)
 -- | TODO: Document 
 --
 ixpreviews :: Monoid i => AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
-ixpreviews o f = ixfoldMap0Of o (\i -> Just . f i) mempty
+ixpreviews o f = withIxfold0 o (\i -> Just . f i) mempty
 {-# INLINE ixpreviews #-}
 
 ------------------------------------------------------------------------------
@@ -337,3 +296,46 @@ handles_ o = flip $ catches_ o
 throwM :: MonadIO m => Exception e => e -> m a
 throwM = liftIO . Ex.throwIO
 {-# INLINE throwM #-}
+
+---------------------------------------------------------------------
+-- 'Fold0Rep'
+---------------------------------------------------------------------
+
+newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
+
+instance Functor (Fold0Rep r a) where
+  fmap _ (Fold0Rep p) = Fold0Rep p
+
+instance Contravariant (Fold0Rep r a) where
+  contramap _ (Fold0Rep p) = Fold0Rep p
+
+instance Profunctor (Fold0Rep r) where
+  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
+
+instance Choice (Fold0Rep r) where
+  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
+  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
+
+instance Cochoice (Fold0Rep r) where
+  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
+  unright (Fold0Rep k) = Fold0Rep (k . Right)
+
+instance Strong (Fold0Rep r) where
+  first' (Fold0Rep p) = Fold0Rep (p . fst)
+  second' (Fold0Rep p) = Fold0Rep (p . snd)
+
+instance Sieve (Fold0Rep r) (Pre r) where
+  sieve = (Pre .) . runFold0Rep
+
+instance Representable (Fold0Rep r) where
+  type Rep (Fold0Rep r) = Pre r
+  tabulate = Fold0Rep . (getPre .)
+  {-# INLINE tabulate #-}
+
+-- | 'Pre' is 'Maybe' with a phantom type variable.
+--
+newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
+
+instance Functor (Pre a) where fmap _ (Pre p) = Pre p
+
+instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p

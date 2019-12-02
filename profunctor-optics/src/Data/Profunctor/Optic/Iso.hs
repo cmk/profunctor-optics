@@ -39,7 +39,6 @@ module Data.Profunctor.Optic.Iso (
   , aup
   , ala
     -- * Optics
-  , as
   , equaled
   , coerced
   , wrapped
@@ -71,13 +70,11 @@ module Data.Profunctor.Optic.Iso (
 
 import Control.Newtype.Generics (Newtype(..), op)
 import Data.Coerce
-import Data.Foldable
 import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type hiding (Rep)
-import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 import Data.Sequence as Seq
 import GHC.Generics hiding (from, to)
@@ -89,6 +86,7 @@ import qualified GHC.Generics as GHC (to, from, to1, from1)
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> import Data.Monoid
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
 -- >>> import Data.Sequence as Seq hiding (reverse)
@@ -331,17 +329,6 @@ ala = au . rewrapping
 ---------------------------------------------------------------------
 -- Common 'Iso's
 ---------------------------------------------------------------------
-
--- | Obtain an 'Optic'' from an 'Optic'.
---
--- Useful for reducing polymorphism.
---
--- >>> :t (^. equaled . as @Int)
--- (^. equaled . as @Int) :: Int -> Int
---
-as :: As a
-as = id
-{-# INLINE as #-}
 
 -- | Capture type constraints as an 'Iso''.
 --

@@ -946,7 +946,7 @@ buildScaffold rules s cons defName =
 
   do (s',t,a,b) <- buildStab s (concatMap snd consForDef)
 
-     let prev o s = getFirst $ foldMapOf o (First . Just) s
+     let prev o s = getFirst $ withFold o (First . Just) s
 
          defType
            | Just (_,cx,a') <- prev forallt a =

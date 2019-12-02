@@ -7,15 +7,13 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal1 (
     -- * Traversal1
-    Representable(..)
-  , Traversal1
+    Traversal1
   , Traversal1'
   , ATraversal1
   , ATraversal1'
   , traversal1
   , traversal1Vl
     -- * Cotraversal1 & Cxtraversal1
-  , Corepresentable(..)
   , Cotraversal1
   , Cotraversal1'
   , Cxtraversal1
@@ -28,12 +26,6 @@ module Data.Profunctor.Optic.Traversal1 (
   , cotraversal1Vl
   , cxtraversal1Vl
   , nocx1
-    -- * Carriers
-  , Star(..)
-  , Costar(..)
-    -- * Primitive operators
-  , traverse1Of
-  , cotraverse1Of
     -- * Optics
   , traversed1
   , cotraversed1
@@ -41,10 +33,19 @@ module Data.Profunctor.Optic.Traversal1 (
   , bitraversed1
   , repeated 
   , iterated
-  , cycled 
+  , cycled
+    -- * Primitive operators
+  , withTraversal1
+  , withCotraversal1
     -- * Operators
   , sequences1
   , distributes1
+    -- * Carriers
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Data.Bifunctor (first, second)
@@ -201,36 +202,36 @@ nocx1 o = cxtraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
 
 -- |
 --
--- The traversal laws can be stated in terms or 'traverse1Of':
+-- The traversal laws can be stated in terms or 'withTraversal1':
 -- 
 -- Identity:
 -- 
 -- @
--- traverse1Of t (Identity . f) ≡  Identity (fmap f)
+-- withTraversal1 t (Identity . f) ≡  Identity (fmap f)
 -- @
 -- 
 -- Composition:
 -- 
 -- @ 
--- Compose . fmap (traverse1Of t f) . traverse1Of t g ≡ traverse1Of t (Compose . fmap f . g)
+-- Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)
 -- @
 --
 -- @
--- traverse1Of :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
--- traverse1Of :: Apply f => Traversal1 s t a b -> (a -> f b) -> s -> f t
+-- withTraversal1 :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
+-- withTraversal1 :: Apply f => Traversal1 s t a b -> (a -> f b) -> s -> f t
 -- @
 --
-traverse1Of :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
-traverse1Of o = runStar #. o .# Star
+withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
+withTraversal1 o = runStar #. o .# Star
 
 -- | TODO: Document
 --
 -- @
--- 'cotraverse1Of' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
+-- 'withCotraversal1' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
 -- @
 --
-cotraverse1Of :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
-cotraverse1Of o = runCostar #. o .# Costar
+withCotraversal1 :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
+withCotraversal1 o = runCostar #. o .# Costar
 
 ---------------------------------------------------------------------
 -- Optics
@@ -249,7 +250,7 @@ cotraversed1 = cotraversal1Vl cotraverse
 
 -- | TODO: Document
 --
--- >>> traverse1Of both1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
+-- >>> withTraversal1 both1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
 -- (5,5)
 --
 both1 :: Traversal1 (a , a) (b , b) a b
@@ -257,7 +258,7 @@ both1 p = tabulate $ \s -> liftF2 ($) (flip sieve s $ dimap fst (,) p) (flip sie
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
 --
--- >>> traverse1Of bitraversed1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
+-- >>> withTraversal1 bitraversed1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
 -- (5,5)
 --
 bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
@@ -307,7 +308,7 @@ iterated f = repn $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 -- @
 --
 cycled :: Apply f => ATraversal1' f s a -> ATraversal1' f s a
-cycled o = repn $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
+cycled o = repn $ \g a -> go g a where go g a = (withTraversal1 o g) a .> go g a
 {-# INLINE cycled #-}
 
 ---------------------------------------------------------------------
@@ -317,9 +318,9 @@ cycled o = repn $ \g a -> go g a where go g a = (traverse1Of o g) a .> go g a
 -- | TODO: Document
 --
 sequences1 :: Apply f => ATraversal1 f s t (f a) a -> s -> f t
-sequences1 o = traverse1Of o id
+sequences1 o = withTraversal1 o id
 
 -- | TODO: Document
 --
 distributes1 :: Apply f => ACotraversal1 f s t a (f a) -> f s -> t
-distributes1 o = cotraverse1Of o id
+distributes1 o = withCotraversal1 o id
