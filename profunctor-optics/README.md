@@ -35,7 +35,7 @@ Optics libraries generally consist of three components:
 - Rank-2 types representing the families of optic (e.g. `Lens`, `Prism`, etc.).
 - Functions for constructing optics (e.g. `lens`, `prism`, etc.)
 - Particular 'carriers' (e.g.`LensRep a b s t`,  `(a -> Const r b) -> s -> Const r t`, `Costar f s a`, `Int -> Int`, etc) 
-- Primitive operators derived by using the optics to manipulate the carriers (`withLens`, `foldMapOf`, etc.)
+- Primitive operators derived by using the optics to manipulate the carriers (`withLens`, `withFold`, etc.)
 - Particular optics (e.g. `_1`, `just`, `traversed`, etc.)
 - Operators derived by various applications of the primitive operators (e.g. `^..`, `view`, `set`, `throws`, etc)
 
@@ -194,9 +194,9 @@ Primary operators are derived by pushing a carrier type (e.g. `Star`, `GrateRep`
 constOf :: AGrate s t a b -> b -> t
 zipWithOf :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
-traverseOf :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-cofoldMap1Of :: ACofold1 r t b -> (r -> b) -> r -> t
-ixfoldMap0Of :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
+withTraversal :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
+cowithFold1 :: ACofold1 r t b -> (r -> b) -> r -> t
+withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
 ```
 
 Secondary operators are derived from applications of primary operators and are generally named using the (first or third-person) simple present tense. For example:

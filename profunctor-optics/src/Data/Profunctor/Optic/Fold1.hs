@@ -17,18 +17,6 @@ module Data.Profunctor.Optic.Fold1 (
   , Cofold1
   , cofold1Vl 
   , cofolding1
-    -- * Carriers
-  , FoldRep
-  , AFold1
-  , Cofold1Rep
-  , ACofold1
-  , afold1
-  , acofold1
-    -- * Primitive operators
-  , foldMap1Of 
-  , product1Of
-  , cofoldMap1Of
-  , cofold1Of
     -- * Optics
   , folded1 
   , cofolded1 
@@ -36,11 +24,29 @@ module Data.Profunctor.Optic.Fold1 (
   , nonunital
   , presemiring
   , summed1
-  , multiplied1 
+  , multiplied1
+    -- * Primitive operators
+  , withFold1 
+  , withCofold1
     -- * Operators
   , folds1
+  , cofolds1
+  , folds1p
   , nelists
-    -- * Indexed operators
+    -- * Carriers
+  , FoldRep
+  , AFold1
+  , Cofold1Rep
+  , ACofold1
+  , afold1
+  , acofold1
+  , Star(..)
+  , Costar(..)
+    -- * Classes
+  , Representable(..)
+  , Corepresentable(..)
+  , Contravariant(..)
+  , Bifunctor(..)
     -- * Auxilliary Types
   , Nedl(..)
 ) where
@@ -60,7 +66,7 @@ import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Prism (right, just, async)
 import Data.Profunctor.Optic.Traversal1
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, from, primViewOf, view, cloneView)
+import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Control.Exception as Ex
 import qualified Data.List.NonEmpty as NEL
@@ -175,46 +181,6 @@ acofold1 o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar
 {-# INLINE acofold1 #-}
 
 ---------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Map an optic to a semigroup and combine the results.
---
-foldMap1Of :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
-foldMap1Of = primViewOf
-{-# INLINE foldMap1Of #-}
-
--- | Compute the semiring product of the foci of an optic.
---
--- For semirings without a multiplicative unit this is equivalent to @const mempty@:
---
--- >>> productOf folded Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'product1Of'.
---
-product1Of :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-product1Of o p = getProd . foldMap1Of o (Prod . p)
-{-# INLINE product1Of #-}
-
--- | TODO: Document
---
--- >>> cofoldMap1Of (from succ) (*2) 3
--- 7
---
--- Compare 'Data.Profunctor.Optic.View.primReviewOf'.
---
-cofoldMap1Of :: ACofold1 r t b -> (r -> b) -> r -> t
-cofoldMap1Of o = (.# Const) #. runCostar #. o .# Costar .# (.# getConst)
-{-# INLINE cofoldMap1Of #-}
-
--- | TODO: Document
---
-cofold1Of :: ACofold1 b t b -> b -> t
-cofold1Of = flip cofoldMap1Of id
-{-# INLINE cofold1Of #-}
-
----------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
 
@@ -233,7 +199,7 @@ cofolded1 = cofolding1 id
 -- | The canonical 'Fold1'.
 --
 -- @
--- 'Data.Semigroup.Foldable.foldMap1' ≡ 'foldMap1Of' 'folded1_''
+-- 'Data.Semigroup.Foldable.foldMap1' ≡ 'withFold1' 'folded1_''
 -- @
 --
 folded1_ :: Foldable1 f => Fold1 (f a) a
@@ -284,14 +250,54 @@ multiplied1 = afold1 Rng.product1
 {-# INLINE multiplied1 #-}
 
 ---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | Map an optic to a semigroup and combine the results.
+--
+withFold1 :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
+withFold1 = withPrimView
+{-# INLINE withFold1 #-}
+
+-- | TODO: Document
+--
+-- >>> withCofold1 (from succ) (*2) 3
+-- 7
+--
+-- Compare 'Data.Profunctor.Optic.View.withPrimReview'.
+--
+withCofold1 :: ACofold1 r t b -> (r -> b) -> r -> t
+withCofold1 o = (.# Const) #. runCostar #. o .# Costar .# (.# getConst)
+{-# INLINE withCofold1 #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
 -- | TODO: Document
 --
 folds1 :: Semigroup a => AFold1 a s a -> s -> a
-folds1 = flip foldMap1Of id
+folds1 = flip withFold1 id
 {-# INLINE folds1 #-}
+
+-- | TODO: Document
+--
+cofolds1 :: ACofold1 b t b -> b -> t
+cofolds1 = flip withCofold1 id
+{-# INLINE cofolds1 #-}
+
+-- | Compute the semiring product of the foci of an optic.
+--
+-- For semirings without a multiplicative unit this is equivalent to @const mempty@:
+--
+-- >>> productOf folded Just [1..(5 :: Int)]
+-- Just 0
+--
+-- In this situation you most likely want to use 'folds1p'.
+--
+folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
+folds1p o p = getProd . withFold1 o (Prod . p)
+{-# INLINE folds1p #-}
 
 {-
 >>> nelists bitraversed1 ('h' :| "ello", 'w' :| "orld")
@@ -311,7 +317,7 @@ folds1 = flip foldMap1Of id
 -- @
 --
 nelists :: AFold1 (Nedl a) s a -> s -> NonEmpty a
-nelists l = flip getNedl [] . foldMap1Of l (Nedl #. (:|))
+nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
 {-# INLINE nelists #-}
 
 ------------------------------------------------------------------------------

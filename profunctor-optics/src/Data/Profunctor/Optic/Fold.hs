@@ -21,14 +21,14 @@ module Data.Profunctor.Optic.Fold (
   , summed
   , multiplied
     -- * Primitive operators
-  , foldMapOf
-  , ixfoldMapOf
-  , pureOf
-  , productOf
+  , withFold
+  , withIxfold
     -- * Operators
   , (^..)
   , (^??)
   , folds
+  , foldsa
+  , foldsp
   , foldsr
   , foldsl
   , foldsl'
@@ -77,9 +77,8 @@ module Data.Profunctor.Optic.Fold (
 ) where
 
 import Control.Applicative
-import Control.Monad ((<=<), void)
+import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
-import Control.Monad.State as State hiding (lift)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
@@ -88,9 +87,8 @@ import Data.Monoid hiding (All(..), Any(..))
 import Data.Prd (Prd(..), Min(..), Max(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (right, just)
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, from, primViewOf, view, cloneView)
+import Data.Profunctor.Optic.View (AView, to, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
@@ -102,6 +100,7 @@ import qualified Data.Semiring as Rng
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.Map as Map
 -- >>> import Data.Sequence as Seq hiding ((><))
 -- >>> import Data.Maybe
@@ -163,12 +162,6 @@ toFold :: AView s a -> Fold s a
 toFold = to . view
 {-# INLINE toFold #-}
 
--- | TODO: Document
---
-afold :: ((a -> r) -> s -> r) -> AFold r s a
-afold o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afold #-}
-
 -- | Obtain a 'Fold' from a 'AFold'.
 --
 cloneFold :: Monoid a => AFold a s a -> View s a
@@ -188,7 +181,7 @@ folded = folding id
 -- | The canonical 'Fold'.
 --
 -- @
--- 'Data.Foldable.foldMap' ≡ 'foldMapOf' 'folded_''
+-- 'Data.Foldable.foldMap' ≡ 'withFold' 'folded_''
 -- @
 --
 folded_ :: Foldable f => Fold (f a) a
@@ -257,7 +250,6 @@ multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
 multiplied = afold Rng.product
 {-# INLINE multiplied #-}
 
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -265,70 +257,46 @@ multiplied = afold Rng.product
 -- | Map an optic to a monoid and combine the results.
 --
 -- @
--- 'Data.Foldable.foldMap' = 'foldMapOf' 'folded_''
+-- 'Data.Foldable.foldMap' = 'withFold' 'folded_''
 -- @
 --
--- >>> foldMapOf both id (["foo"], ["bar", "baz"])
+-- >>> withFold both id (["foo"], ["bar", "baz"])
 -- ["foo","bar","baz"]
 --
--- >>> :t foldMapOf . fold_
--- foldMapOf . fold_
+-- >>> :t withFold . fold_
+-- withFold . fold_
 --   :: (Monoid r, Foldable f) => (s -> f a) -> (a -> r) -> s -> r
 --
--- >>> :t foldMapOf traversed
--- foldMapOf traversed
+-- >>> :t withFold traversed
+-- withFold traversed
 --   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
 --
--- >>> :t foldMapOf left
--- foldMapOf left :: Monoid r => (a -> r) -> (a + c) -> r
+-- >>> :t withFold left
+-- withFold left :: Monoid r => (a -> r) -> (a + c) -> r
 --
--- >>> :t foldMapOf first
--- foldMapOf first :: Monoid r => (a -> r) -> (a, c) -> r
+-- >>> :t withFold t21
+-- withFold t21 :: Monoid r => (a -> r) -> (a, b) -> r
 --
--- >>> :t foldMapOf $ selected even
--- foldMapOf $ selected even
+-- >>> :t withFold $ selected even
+-- withFold $ selected even
 --   :: (Monoid r, Integral a) => (b -> r) -> (a, b) -> r
 --
--- >>> :t flip foldMapOf Seq.singleton
--- flip foldMapOf Seq.singleton :: AFold (Seq a) s a -> s -> Seq a
+-- >>> :t flip withFold Seq.singleton
+-- flip withFold Seq.singleton :: AFold (Seq a) s a -> s -> Seq a
 --
-foldMapOf :: Monoid r => AFold r s a -> (a -> r) -> s -> r
-foldMapOf = primViewOf
-{-# INLINE foldMapOf #-}
+withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
+withFold = withPrimView
+{-# INLINE withFold #-}
 
 -- | TODO: Document
 --
--- >>> :t flip ixfoldMapOf Map.singleton
--- flip ixfoldMapOf Map.singleton
+-- >>> :t flip withIxfold Map.singleton
+-- flip withIxfold Map.singleton
 --   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
 --
-ixfoldMapOf :: AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
-ixfoldMapOf o f = curry $ primViewOf o (uncurry f)
-{-# INLINE ixfoldMapOf #-}
-
--- | TODO: Document
--- 
--- @
--- pureOf :: Fold s a -> s -> [a]
--- pureOf :: Applicative f => Setter s t a b -> s -> f a
--- @
---
-pureOf :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
-pureOf o = foldMapOf o pure
-{-# INLINE pureOf #-}
-
--- | Compute the semiring product of the foci of an optic.
---
--- For semirings without a multiplicative unit this is equivalent to @const mempty@:
---
--- >>> productOf folded Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'product1Of'.
---
-productOf :: Monoid r => Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-productOf o p = getProd . foldMapOf o (Prod . p)
-{-# INLINE productOf #-}
+withIxfold :: AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
+withIxfold o f = curry $ withPrimView o (uncurry f)
+{-# INLINE withIxfold #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -372,14 +340,38 @@ infixl 8 ^??
 -- | Return a semigroup aggregation of the foci, if they exist.
 --
 (^??) :: Semigroup a => s -> AFold (Maybe a) s a -> Maybe a
-s ^?? o = foldMapOf o Just s
+s ^?? o = withFold o Just s
 {-# INLINE (^??) #-}
 
 -- | TODO: Document
 --
 folds :: Monoid a => AFold a s a -> s -> a
-folds = flip foldMapOf id
+folds = flip withFold id
 {-# INLINE folds #-}
+
+-- | TODO: Document
+-- 
+-- @
+-- foldsa :: Fold s a -> s -> [a]
+-- foldsa :: Applicative f => Setter s t a b -> s -> f a
+-- @
+--
+foldsa :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
+foldsa = flip withFold pure
+{-# INLINE foldsa #-}
+
+-- | Compute the semiring product of the foci of an optic.
+--
+-- For semirings without a multiplicative unit this is equivalent to @const mempty@:
+--
+-- >>> foldsp folded Just [1..(5 :: Int)]
+-- Just 0
+--
+-- In this situation you most likely want to use 'folds1p'.
+--
+foldsp :: Monoid r => Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
+foldsp o p = getProd . withFold o (Prod . p)
+{-# INLINE foldsp #-}
 
 -- | Right fold over an optic.
 --
@@ -387,13 +379,13 @@ folds = flip foldMapOf id
 -- 15
 --
 foldsr :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
-foldsr o f r = (`appEndo` r) . foldMapOf o (Endo . f)
+foldsr o f r = (`appEndo` r) . withFold o (Endo . f)
 {-# INLINE foldsr #-}
 
 -- | Left fold over an optic.
 --
 foldsl :: AFold (Dual (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
-foldsl o f r = (`appEndo` r) . getDual . foldMapOf o (Dual . Endo . flip f)
+foldsl o f r = (`appEndo` r) . getDual . withFold o (Dual . Endo . flip f)
 {-# INLINE foldsl #-}
 
 -- | Fold repn the elements of a structure, associating to the left, but strictly.
@@ -446,7 +438,7 @@ lists o = foldsr o (:) []
 -- @
 --
 concats :: AFold [r] s a -> (a -> [r]) -> s -> [r]
-concats = foldMapOf
+concats = withFold
 {-# INLINE concats #-}
 
 -- | Find the first focus of an optic that satisfies a predicate, if one exists.
@@ -468,19 +460,19 @@ finds o f = foldsr o (\a y -> if f a then Just a else y) Nothing
 -- | Determine whether an optic has at least one focus.
 --
 has :: AFold Any s a -> s -> Bool
-has o = foldMapOf o (const True)
+has o = withFold o (const True)
 {-# INLINE has #-}
 
 -- | Determine whether an optic does not have a focus.
 --
 hasnt :: AFold All s a -> s -> Bool
-hasnt o = productOf o (const False)
+hasnt o = foldsp o (const False)
 {-# INLINE hasnt #-}
 
 -- | TODO: Document
 --
 nulls :: AFold All s a -> s -> Bool
-nulls o = productOf o (const False)
+nulls o = foldsp o (const False)
 {-# INLINE nulls #-}
 
 -- | The sum of a collection of actions, generalizing 'concatOf'.
@@ -526,7 +518,7 @@ meets' o = meets o maximal
 -- | Determine whether the foci of an optic contain an element equivalent to a given element.
 --
 pelem :: Prd a => AFold Any s a -> a -> s -> Bool
-pelem o a = foldMapOf o (Prd.=~ a)
+pelem o a = withFold o (Prd.=~ a)
 {-# INLINE pelem #-}
 
 ------------------------------------------------------------------------------
@@ -557,7 +549,7 @@ ixfoldsr o f = ixfoldsrFrom o f mempty
 -- | Indexed right fold over an indexed optic, using an initial index value.
 --
 ixfoldsrFrom :: AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> i -> r -> s -> r
-ixfoldsrFrom o f i r = (`appEndo` r) . ixfoldMapOf o (\i -> Endo . f i) i
+ixfoldsrFrom o f i r = (`appEndo` r) . withIxfold o (\i -> Endo . f i) i
 {-# INLINE ixfoldsrFrom #-}
 
 -- | Indexed left fold over an indexed optic.
@@ -573,7 +565,7 @@ ixfoldsl o f = ixfoldslFrom o f mempty
 -- | Indexed left fold over an indexed optic, using an initial index value.
 --
 ixfoldslFrom :: AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> i -> r -> s -> r
-ixfoldslFrom o f i r = (`appEndo` r) . getDual . ixfoldMapOf o (\i -> Dual . Endo . flip (f i)) i
+ixfoldslFrom o f i r = (`appEndo` r) . getDual . withIxfold o (\i -> Dual . Endo . flip (f i)) i
 {-# INLINE ixfoldslFrom #-}
 
 -- | Indexed monadic right fold over an indexed optic.
@@ -644,7 +636,7 @@ ixtraverses_ p f = ixfoldsr p (\i a fu -> void (f i a) *> fu) (pure ())
 -- [1,2,3,4,5,6,7,8]
 --
 ixconcats :: Monoid i => AIxfold [r] i s a -> (i -> a -> [r]) -> s -> [r]
-ixconcats o f = ixfoldMapOf o f mempty
+ixconcats o f = withIxfold o f mempty
 {-# INLINE ixconcats #-}
 
 -- | Find the first focus of an indexed optic that satisfies a predicate, if one exists.
@@ -660,3 +652,13 @@ ixfinds o f = ixfoldsr o (\i a y -> if f i a then Just (i,a) else y) Nothing
 type All = Prod Bool
 
 type Any = Bool
+
+---------------------------------------------------------------------
+-- Carriers
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+afold :: ((a -> r) -> s -> r) -> AFold r s a
+afold o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afold #-}

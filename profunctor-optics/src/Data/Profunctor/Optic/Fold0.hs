@@ -16,8 +16,8 @@ module Data.Profunctor.Optic.Fold0 (
     -- * Optics
   , folded0
     -- * Primitive operators
-  , foldMap0Of
-  , ixfoldMap0Of
+  , withFold0
+  , withIxfold0
     -- * Operators
   , (^?)
   , preview 
@@ -57,7 +57,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (right, just, async)
 import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, is)
 import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, from, primViewOf, view, cloneView)
+import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Control.Exception as Ex
 import qualified Data.List.NonEmpty as NEL
@@ -158,15 +158,15 @@ folded0 = fold0 id
 
 -- | TODO: Document
 --
-foldMap0Of :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-foldMap0Of o = runFold0Rep #. o .# Fold0Rep
-{-# INLINE foldMap0Of #-}
+withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
+withFold0 o = runFold0Rep #. o .# Fold0Rep
+{-# INLINE withFold0 #-}
 
 -- | TODO: Document
 --
-ixfoldMap0Of :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
-ixfoldMap0Of o f = curry $ foldMap0Of o (uncurry f)
-{-# INLINE ixfoldMap0Of #-}
+withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
+withIxfold0 o f = curry $ withFold0 o (uncurry f)
+{-# INLINE withIxfold0 #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -199,7 +199,7 @@ infixl 8 ^?
 -- | TODO: Document
 --
 preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
-preview o = Reader.asks $ foldMap0Of o Just
+preview o = Reader.asks $ withFold0 o Just
 {-# INLINE preview #-}
 
 -- | TODO: Document
@@ -221,7 +221,7 @@ ixpreview o = ixpreviews o (,)
 -- | TODO: Document 
 --
 ixpreviews :: Monoid i => AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
-ixpreviews o f = ixfoldMap0Of o (\i -> Just . f i) mempty
+ixpreviews o f = withIxfold0 o (\i -> Just . f i) mempty
 {-# INLINE ixpreviews #-}
 
 ------------------------------------------------------------------------------

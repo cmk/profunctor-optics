@@ -83,7 +83,9 @@ import GHC.Generics hiding (from, to)
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
+-- >>> import Data.Int.Instance ()
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let catchFoo :: b -> Cxprism String (String + a) (String + b) a b; catchFoo b = cxright $ \e k -> if e == "fooError" && k == mempty then Right b else Left e
@@ -210,9 +212,9 @@ right = right'
 
 -- | Coindexed prism into the `Right` constructor of `Either`.
 --
--- >>>  cxset (fooErr "Caught foo") id $ Left "fooError"
+-- >>>  cxset (catchFoo "Caught foo") id $ Left "fooError"
 -- Right "Caught foo"
--- >>>  cxset (fooErr "Caught foo") id $ Left "barError"
+-- >>>  cxset (catchFoo "Caught foo") id $ Left "barError"
 -- Left "barError"
 --
 cxright :: (e -> k -> e + b) -> Cxprism k (e + a) (e + b) a b

@@ -179,11 +179,11 @@ idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2
 --
 -- * @fmap (abst f) . abst g ≡ getCompose . abst (Compose . fmap f . g)@
 --
--- These can be restated in terms of 'traverseOf':
+-- These can be restated in terms of 'withTraversal':
 --
--- * @traverseOf abst (Identity . f) ≡  Identity . fmap f@
+-- * @withTraversal abst (Identity . f) ≡  Identity . fmap f@
 --
--- * @Compose . fmap (traverseOf abst f) . traverseOf abst g == traverseOf abst (Compose . fmap f . g)@
+-- * @Compose . fmap (withTraversal abst f) . withTraversal abst g == withTraversal abst (Compose . fmap f . g)@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
@@ -220,11 +220,11 @@ compose_traversal1 abst f g = liftF2 (==) (fmap (abst f) . abst g)
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- These can be restated in terms of 'cotraverse1Of':
+-- These can be restated in terms of 'cowithTraversal1':
 --
--- * @cotraverse1Of abst (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @cowithTraversal1 abst (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @cotraverse1Of abst f . fmap (cotraverse1Of abst g) . getCompose == cotraverse1Of abst (f . fmap g . getCompose)@
+-- * @cowithTraversal1 abst f . fmap (cowithTraversal1 abst g) . getCompose == cowithTraversal1 abst (f . fmap g . getCompose)@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --

@@ -190,7 +190,7 @@ instance HasTypeVars Type where
   typeVarsEx s = traversalVl tyT -- $ \f (VarT n)            -> VarT <$> typeVarsEx' s f n
     where 
       typeVarsEx' :: Applicative f => HasTypeVars t => Set Name -> (Name -> f Name) -> t -> f t 
-      typeVarsEx' s = traverseOf $ typeVarsEx s
+      typeVarsEx' s = withTraversal $ typeVarsEx s
  
       tyT f (VarT n) = VarT <$> typeVarsEx' s f n
       tyT f (AppT l r) = AppT <$> typeVarsEx' s f l <*> typeVarsEx' s f r

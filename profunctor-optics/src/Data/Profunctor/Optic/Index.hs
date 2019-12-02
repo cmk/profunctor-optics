@@ -41,27 +41,13 @@ module Data.Profunctor.Optic.Index (
   , (##)
 ) where
 
-import Control.Monad (void)
-import Data.Bifunctor
 import Data.Bifunctor as B
 import Data.Foldable
 import Data.Semigroup
-import Data.Profunctor.Closed
-import Data.Profunctor.Monad
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Strong
-import Data.Profunctor.Traversing
-import Data.Profunctor.Unsafe
-import Data.Semiring
-import Data.Tagged
 import GHC.Generics (Generic)
-import Prelude (Num(..))
-import qualified Control.Arrow as Arrow
-import qualified Control.Category as C
-import qualified Prelude as Prelude
-
-import Data.List.Index
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -70,17 +56,12 @@ import Data.List.Index
 -- >>> :set -XTupleSections
 -- >>> import Data.Semigroup
 -- >>> import Data.Semiring
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.Map
 -- >>> :load Data.Profunctor.Optic
 -- >>> let ixtraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; ixtraversed = ixtraversalVl traverseWithKey
 -- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
 -- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
-
--- | Generic type for a product-indexed optic.
-type Ix p i a b = p (i , a) b
-
--- | Generic type for a co-indexed optic.
-type Cx p k a b = p a (k -> b)
 
 ---------------------------------------------------------------------
 -- Indexing
@@ -97,7 +78,7 @@ infixr 8 %
 -- >>> ixlists (ixtraversed . ixtraversed) foobar
 -- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
 --
--- >>> ixlistsFrom (ixlast ixtraversed % ixlast ixtraversed) (Last 0) foobar & fmapped . first ..~ getLast
+-- >>> ixlistsFrom (ixlast ixtraversed % ixlast ixtraversed) (Last 0) foobar & fmapped . t21 ..~ getLast
 -- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
 --
 -- >>> ixlists (ixtraversed . ixtraversed) exercises
@@ -170,6 +151,11 @@ recx kl lk = (. rmap (. kl)) . (rmap (. lk) .)
 cxmap :: Profunctor p => (s -> a) -> (b -> t) -> CoindexedOptic p k s t a b 
 cxmap sa bt = dimap sa (fmap bt)
 
+-- | Generic type for a co-indexed optic.
+type Cx p k a b = p a (k -> b)
+
+type Cx' p a b = Cx p a a b
+
 cxed :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
 cxed = dimap cxjoin cxreturn
 
@@ -178,8 +164,6 @@ cxjoin = peval
 
 cxreturn :: Profunctor p => p a b -> Cx p k a b
 cxreturn = rmap const
-
-type Cx' p a b = Cx p a a b
 
 cxunit :: Strong p => Cx' p :-> p
 cxunit p = dimap fork apply (first' p)
