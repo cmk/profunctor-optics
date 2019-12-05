@@ -15,6 +15,7 @@ module Data.Profunctor.Optic.Fold0 (
   , fromFold0 
     -- * Optics
   , folded0
+  , filtered
     -- * Primitive operators
   , withFold0
   , withIxfold0
@@ -54,8 +55,8 @@ import Data.Monoid hiding (All(..), Any(..))
 import Data.Prd (Prd(..), Min(..), Max(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (right, just, async)
-import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, is)
+import Data.Profunctor.Optic.Prism (just, async)
+import Data.Profunctor.Optic.Traversal0 (traversal0Vl, ixtraversal0Vl, is)
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
@@ -152,6 +153,15 @@ folded0 :: Fold0 (Maybe a) a
 folded0 = fold0 id
 {-# INLINE folded0 #-}
 
+-- | Filter another optic.
+--
+-- >>> [1..10] ^.. folded . filtered even
+-- [2,4,6,8,10]
+--
+filtered :: (a -> Bool) -> Fold0 a a
+filtered p = traversal0Vl (\point f a -> if p a then f a else point a) . coercer
+{-# INLINE filtered #-}
+
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -246,7 +256,7 @@ tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
 -- | A variant of 'tries' that returns synchronous exceptions.
 --
 tries_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Maybe a)
-tries_ o a = preview right `liftM` tries o a
+tries_ o a = preview right' `liftM` tries o a
 {-# INLINE tries_ #-}
 
 -- | Catch synchronous exceptions that match a given optic.

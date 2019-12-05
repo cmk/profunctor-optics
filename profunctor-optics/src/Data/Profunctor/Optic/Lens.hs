@@ -28,17 +28,14 @@ module Data.Profunctor.Optic.Lens (
   , comatching
   --, cloneColens
     -- * Optics
-  , ixfirst
-  , cofirst
-  , ixsecond
-  , cosecond
   , united
   , voided
-  , valued
-  , root
-  , branches
+    -- * Indexed optics
+  , ixfirst
+  , ixsecond
     -- * Primitive operators
   , withLens
+  , withLensVl
   , withIxlens
   --, withColens
     -- * Operators
@@ -68,6 +65,12 @@ import Data.Tree
 import Data.Void (Void, absurd)
 import GHC.Generics hiding (from, to)
 import qualified Data.Bifunctor as B
+import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap'
+import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map'
+import qualified Data.Set as Set
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -138,7 +141,7 @@ ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
 -- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
 --
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . first'
+lensVl abst = dimap ((info &&& values) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
 
 -- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
@@ -243,19 +246,30 @@ comatching csa bct = unsecond . dimap csa bct
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- withLensVl o (Identity . f) ≡  Identity (fmap f)
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (withLensVl o f) . withLensVl o g ≡ withLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+withLensVl :: Functor f => ALens s t a b -> (a -> f b) -> s -> f t
+withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
-
--- | TODO: Document
---
-cofirst :: Colens a b (a , c) (b , c)
-cofirst = unfirst
-
--- | TODO: Document
---
-cosecond :: Colens a b (c , a) (c , b)
-cosecond = unsecond
 
 -- | TODO: Document
 --
@@ -298,30 +312,6 @@ united = lens (const ()) const
 --
 voided :: Lens' Void a
 voided = lens absurd const
-
--- | TODO: Document
---
--- Compare 'Data.Profunctor.Optic.Prism.keyed'.
---
-valued :: Eq k => k -> Lens' (k -> v) v
-valued k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
-
--- | A 'Lens' that focuses on the root of a 'Tree'.
---
--- >>> view root $ Node 42 []
--- 42
---
-root :: Lens' (Tree a) a
-root = lensVl $ \f (Node a as) -> (`Node` as) <$> f a
-{-# INLINE root #-}
-
--- | A 'Lens' returning the direct descendants of the root of a 'Tree'
---
--- @'Data.Profunctor.Optic.View.view' 'branches' ≡ 'subForest'@
---
-branches :: Lens' (Tree a) [Tree a]
-branches = lensVl $ \f (Node a as) -> Node a <$> f as
-{-# INLINE branches #-}
 
 ---------------------------------------------------------------------
 -- Operators

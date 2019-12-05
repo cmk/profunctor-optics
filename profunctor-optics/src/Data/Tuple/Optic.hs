@@ -9,6 +9,10 @@ module Data.Tuple.Optic (
     curried
   , swapped
   , associated
+  , first
+  , second
+  , cofirst
+  , cosecond
   , t21
   , t22
   , t31
@@ -28,11 +32,22 @@ module Data.Tuple.Optic (
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Lens
-import Data.Profunctor.Optic.Type
 
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
+
+first :: Lens (a , c) (b , c) a b
+first = first'
+
+second :: Lens (c , a) (c , b) a b
+second = second'
+
+cofirst :: Colens a b (a , c) (b , c)
+cofirst = unfirst
+
+cosecond :: Colens a b (c , a) (c , b)
+cosecond = unsecond
 
 t21 :: Lens (a,b) (a',b) a a'
 t21 = lensVl $ \f ~(a,b) -> (\a' -> (a',b)) <$> f a

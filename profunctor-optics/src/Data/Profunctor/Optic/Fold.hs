@@ -67,13 +67,8 @@ module Data.Profunctor.Optic.Fold (
   , AFold
   , AIxfold
   , afold
+  , aixfold
   , Star(..)
-  , Costar(..)
-    -- * Classes
-  , Representable(..)
-  , Corepresentable(..)
-  , Contravariant(..)
-  , Bifunctor(..)
 ) where
 
 import Control.Applicative
@@ -659,6 +654,16 @@ type Any = Bool
 
 -- | TODO: Document
 --
-afold :: ((a -> r) -> s -> r) -> AFold r s a
-afold o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+-- @
+-- afold :: ((a -> r) -> s -> r) -> AFold r s a
+-- @
+--
+afold :: ((a -> r) -> s -> r) -> Optic (FoldRep r) s t a b
+afold arsr = Star #. (Const #.) #. arsr .# (getConst #.) .# runStar
 {-# INLINE afold #-}
+
+-- | TODO: Document
+--
+aixfold :: Monoid i => ((i -> a -> r) -> s -> r) -> AIxfold r i s a
+aixfold f = afold $ \iar s -> f (curry iar) $ snd s
+{-# INLINE aixfold #-}

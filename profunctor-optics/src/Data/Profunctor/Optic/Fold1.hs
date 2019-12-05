@@ -42,35 +42,20 @@ module Data.Profunctor.Optic.Fold1 (
   , acofold1
   , Star(..)
   , Costar(..)
-    -- * Classes
-  , Representable(..)
-  , Corepresentable(..)
-  , Contravariant(..)
-  , Bifunctor(..)
     -- * Auxilliary Types
   , Nedl(..)
 ) where
 
 import Control.Applicative
-import Control.Monad ((<=<), void)
-import Control.Monad.Reader as Reader hiding (lift)
-import Control.Monad.State as State hiding (lift)
-import Data.Foldable (Foldable, foldMap, traverse_)
+import Data.Foldable (Foldable)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
-import Data.Prd (Prd(..), Min(..), Max(..))
-import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Prism (right, just, async)
-import Data.Profunctor.Optic.Traversal1
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
-import qualified Control.Exception as Ex
 import qualified Data.List.NonEmpty as NEL
-import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
 
 -- $setup
@@ -299,22 +284,10 @@ folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
 folds1p o p = getProd . withFold1 o (Prod . p)
 {-# INLINE folds1p #-}
 
-{-
->>> nelists bitraversed1 ('h' :| "ello", 'w' :| "orld")
- "hello" :| ["world"]
--}
-
 -- | Extract a 'NonEmpty' of the foci of an optic.
 --
---
--- @
--- 'nelists' :: 'View' s a        -> s -> NonEmpty a
--- 'nelists' :: 'Fold1' s a       -> s -> NonEmpty a
--- 'nelists' :: 'Lens'' s a       -> s -> NonEmpty a
--- 'nelists' :: 'Iso'' s a        -> s -> NonEmpty a
--- 'nelists' :: 'Traversal1'' s a -> s -> NonEmpty a
--- 'nelists' :: 'Prism'' s a      -> s -> NonEmpty a
--- @
+-- >>> nelists bitraversed1 ('h' :| "ello", 'w' :| "orld")
+-- "hello" :| ["world"]
 --
 nelists :: AFold1 (Nedl a) s a -> s -> NonEmpty a
 nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
@@ -323,6 +296,8 @@ nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
 ------------------------------------------------------------------------------
 -- Indexed operators
 ------------------------------------------------------------------------------
+
+-- TODO
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types

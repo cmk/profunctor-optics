@@ -10,7 +10,6 @@ module Data.Profunctor.Optic.Iso (
     -- * Types
     Equality
   , Equality'
-  , As
   , Iso
   , Iso'
     -- * Constructors
@@ -29,9 +28,7 @@ module Data.Profunctor.Optic.Iso (
   , coerced
   , wrapped
   , rewrapped
-  , rewrapping
-  , generic
-  , generic1
+  , rewrapped'
   , flipped 
   , curried
   , swapped 
@@ -45,11 +42,6 @@ module Data.Profunctor.Optic.Iso (
   , viewedr
   , non 
   , anon
-  , u1
-  , par1
-  , rec1
-  , k1
-  , m1
     -- * Primitive operators
   , withIso
   , invert
@@ -245,24 +237,9 @@ rewrapped = withIso wrapped $ \ sa _ -> withIso wrapped $ \ _ bt -> iso sa bt
 
 -- | Variant of 'rewrapped' that ignores its argument.
 --
-rewrapping :: Newtype s => Newtype t => (O s -> s) -> Iso s t (O s) (O t)
-rewrapping _ = rewrapped
-{-# INLINE rewrapping #-}
-
--- | Convert between a data type and its 'Generic' representation.
---
--- >>> view (generic . re generic) "hello" :: String
--- "hello"
---
-generic :: Generic a => Generic b => Iso a b (Rep a c) (Rep b c)
-generic = iso GHC.from GHC.to
-{-# INLINE generic #-}
-
--- | Convert between a data type and its 'Generic1' representation.
---
-generic1 :: Generic1 f => Generic1 g => Iso (f a) (g b) (Rep1 f a) (Rep1 g b)
-generic1 = iso GHC.from1 GHC.to1
-{-# INLINE generic1 #-}
+rewrapped' :: Newtype s => Newtype t => (O s -> s) -> Iso s t (O s) (O t)
+rewrapped' _ = rewrapped
+{-# INLINE rewrapped' #-}
 
 -- | Flip two arguments of a function.
 --
@@ -413,26 +390,6 @@ anon a p = iso (fromMaybe a) go where
        | otherwise = Just b
 {-# INLINE anon #-}
 
-u1 :: Iso (U1 p) (U1 q) () ()
-u1 = iso (const ()) (const U1)
-{-# INLINE u1 #-}
-
-k1 :: Iso (K1 i c p) (K1 j d q) c d
-k1 = iso unK1 K1
-{-# INLINE k1 #-}
-
-m1 :: Iso (M1 i c f p) (M1 j d g q) (f p) (g q)
-m1 = iso unM1 M1
-{-# INLINE m1 #-}
-
-par1 :: Iso (Par1 p) (Par1 q) p q
-par1 = iso unPar1 Par1
-{-# INLINE par1 #-}
-
-rec1 :: Iso (Rec1 f p) (Rec1 g q) (f p) (g q)
-rec1 = iso unRec1 Rec1
-{-# INLINE rec1 #-}
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -481,7 +438,7 @@ recxed o = withIso o recx
 --
 -- This version is generalized to accept any 'Iso', not just a @newtype@.
 --
--- >>> au (rewrapping Sum) foldMap [1,2,3,4]
+-- >>> au (rewrapped' Sum) foldMap [1,2,3,4]
 -- 10
 --
 -- You may want to think of this combinator as having the following, simpler type:
@@ -531,7 +488,7 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 -- @
 --
 ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
-ala = au . rewrapping
+ala = au . rewrapped'
 {-# INLINE ala #-}
 
 ---------------------------------------------------------------------

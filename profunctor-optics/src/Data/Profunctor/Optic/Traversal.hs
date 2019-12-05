@@ -184,22 +184,9 @@ ix o = ixtraversalVl $ \f s ->
 --
 -- The traversal laws can be stated in terms of 'withTraversal':
 -- 
--- Identity:
--- 
--- @
--- withTraversal t (Identity . f) ≡  Identity (fmap f)
--- @
--- 
--- Composition:
--- 
--- @ 
--- Compose . fmap (withTraversal t f) . withTraversal t g ≡ withTraversal t (Compose . fmap f . g)
--- @
+-- * @withTraversal t (Identity . f) ≡  Identity (fmap f)@
 --
--- @
--- withTraversal :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
--- withTraversal :: Applicative f => Traversal s t a b -> (a -> f b) -> s -> f t
--- @
+-- * @Compose . fmap (withTraversal t f) . withTraversal t g ≡ withTraversal1 t (Compose . fmap f . g)@
 --
 withTraversal :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
 withTraversal o = runStar #. o .# Star

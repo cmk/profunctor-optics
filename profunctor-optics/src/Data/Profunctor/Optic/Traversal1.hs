@@ -11,7 +11,7 @@ module Data.Profunctor.Optic.Traversal1 (
   , Traversal1'
   , ATraversal1
   , ATraversal1'
-  , traversal1
+  , traversing1
   , traversal1Vl
     -- * Cotraversal1 & Cxtraversal1
   , Cotraversal1
@@ -84,13 +84,6 @@ import qualified Data.Bifunctor as B
 type ATraversal1 f s t a b = Apply f => ARepn f s t a b
 
 type ATraversal1' f s a = ATraversal1 f s s a a
-
--- | Obtain a 'Traversal1' optic from a getter and setter.
---
--- \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
---
-traversal1 :: Traversable1 f => (s -> f a) -> (s -> f b -> t) -> Traversal1 s t a b
-traversal1 sa sbt = lens sa sbt . repn traverse1
 
 -- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
@@ -168,6 +161,8 @@ retraversing1 sabt = corepn cotraverse . grate sabt
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
 --
+-- * @abst runIdentity ≡ runIdentity@
+--
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose@
 --
 -- See 'Data.Profunctor.Optic.Property'.
@@ -202,19 +197,11 @@ nocx1 o = cxtraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
 
 -- |
 --
--- The traversal laws can be stated in terms or 'withTraversal1':
+-- The traversal laws can be stated in terms of 'withTraversal1':
 -- 
--- Identity:
--- 
--- @
--- withTraversal1 t (Identity . f) ≡  Identity (fmap f)
--- @
--- 
--- Composition:
--- 
--- @ 
--- Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)
--- @
+-- * @withTraversal1 t (Identity . f) ≡  Identity (fmap f)@
+--
+-- * @Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)@
 --
 -- @
 -- withTraversal1 :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
@@ -224,29 +211,38 @@ nocx1 o = cxtraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
 withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
 withTraversal1 o = runStar #. o .# Star
 
--- | TODO: Document
+-- |
 --
 -- @
 -- 'withCotraversal1' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
 -- @
 --
-withCotraversal1 :: Functor f => Optic (Costar f) s t a b -> (f a -> b) -> (f s -> t)
+-- The cotraversal laws can be restated in terms of 'cowithTraversal1':
+--
+-- * @withCotraversal1 o (f . runIdentity) ≡  fmap f . runIdentity @
+--
+-- * @withCotraversal1 o f . fmap (withCotraversal1 o g) == withCotraversal1 o (f . fmap g . getCompose) . Compose@
+--
+-- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
+--
+withCotraversal1 :: Apply f => ACotraversal1 f s t a b -> (f a -> b) -> (f s -> t)
 withCotraversal1 o = runCostar #. o .# Costar
 
 ---------------------------------------------------------------------
 -- Optics
 ---------------------------------------------------------------------
 
-
 -- | Obtain a 'Traversal1' from a 'Traversable1' functor.
 --
 traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
 traversed1 = traversal1Vl traverse1
+{-# INLINE traversed1 #-}
 
 -- | TODO: Document
 --
 cotraversed1 :: Distributive f => Cotraversal1 (f a) (f b) a b 
 cotraversed1 = cotraversal1Vl cotraverse
+{-# INLINE cotraversed1 #-}
 
 -- | TODO: Document
 --
@@ -255,6 +251,7 @@ cotraversed1 = cotraversal1Vl cotraverse
 --
 both1 :: Traversal1 (a , a) (b , b) a b
 both1 p = tabulate $ \s -> liftF2 ($) (flip sieve s $ dimap fst (,) p) (flip sieve s $ lmap snd p)
+{-# INLINE both1 #-}
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
 --
@@ -319,8 +316,10 @@ cycled o = repn $ \g a -> go g a where go g a = (withTraversal1 o g) a .> go g a
 --
 sequences1 :: Apply f => ATraversal1 f s t (f a) a -> s -> f t
 sequences1 o = withTraversal1 o id
+{-# INLINE sequences1 #-}
 
 -- | TODO: Document
 --
 distributes1 :: Apply f => ACotraversal1 f s t a (f a) -> f s -> t
 distributes1 o = withCotraversal1 o id
+{-# INLINE distributes1 #-}

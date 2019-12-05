@@ -26,8 +26,6 @@ module Data.Profunctor.Optic.Traversal0 (
     -- * Optics
   , nulled
   , inserted
-  , selected
-  , predicated
     -- * Operators
   , is
   , isnt
@@ -134,7 +132,7 @@ withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) ->
 withTraversal0 o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
 
 ---------------------------------------------------------------------
--- Common 'Traversal0's, 'Traversal's, 'Traversal1's, & 'Cotraversal1's
+-- Optics 
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -152,42 +150,11 @@ nulled = traversal0 Left const
 -- @
 --
 inserted :: (i -> s -> Maybe (i, a)) -> (i -> a -> s -> s) -> i -> Ixtraversal0' i s a
-inserted isia iasa i = ixtraversal0Vl $ \point f s ->
+inserted isia iasa i = ixtraversal0Vl $ \point iab s ->
   case isia i s of
     Nothing      -> point s
-    Just (i', a) -> f i' a <&> \a -> iasa i' a s
+    Just (i', a) -> iab i' a <&> \a -> iasa i' a s
 {-# INLINE inserted #-}
-
--- | TODO: Document
---
--- See also 'Data.Profunctor.Optic.Prism.keyed'.
---
--- >>>  preview (selected even) (2, "hi")
--- Just "hi"
--- >>>  preview (selected even) (3, "hi")
--- Nothing
---
-selected :: (a -> Bool) -> Traversal0' (a, b) b
-selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
-{-# INLINE selected #-}
-
--- | Filter result(s) that don't satisfy a predicate.
---
--- /Caution/: While this is a valid 'Traversal0', it is only a valid 'Traversal'
--- if the predicate always evaluates to 'True' on the targets of the 'Traversal'.
---
--- @
--- 'predicated' p ≡ 'traversal0Vl' $ \point f a -> if p a then f a else point a
--- @
---
--- >>> [1..10] ^.. folded . predicated even
--- [2,4,6,8,10]
---
--- See also 'Data.Profunctor.Optic.Prism.filtered'.
---
-predicated :: (a -> Bool) -> Traversal0' a a
-predicated p = traversal0 (branch' p) (flip const)
-{-# INLINE predicated #-}
 
 ---------------------------------------------------------------------
 -- Operators

@@ -23,9 +23,6 @@ module Data.Profunctor.Optic.Setter (
   , bound 
   , fmapped
   , contramapped
-  , setmapped
-  , isetmapped
-  , foldmapped
   , liftedA
   , liftedM
   , locally
@@ -38,6 +35,7 @@ module Data.Profunctor.Optic.Setter (
     -- * Primitive operators
   , over
   , ixover
+  , ixoverFrom
   , under
   , cxover
   , through
@@ -49,16 +47,15 @@ module Data.Profunctor.Optic.Setter (
   , cxset
   , (.~)
   , (..~)
+  , (%~)
+  , (%%~)
   , (/~)
   , (//~)
+  , (#~)
+  , (##~)
   , (?~)
   , (<>~)
   , (><~)
-    -- * Indexed Operators
-  , (%~)
-  , (%%~)
-  , (#~)
-  , (##~)
     -- * MonadState
   , assigns
   , modifies
@@ -97,9 +94,6 @@ import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Type
 import Data.Semiring
 
-import Data.IntSet as IntSet
-import Data.Set as Set
-import Prelude (Num(..))
 import qualified Control.Exception as Ex
 
 -- $setup
@@ -269,8 +263,12 @@ over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. )
 -- [1,2,3]
 --
 ixover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-ixover o f = curry (over o (uncurry f)) mempty
+ixover o f = ixoverFrom o f mempty 
 {-# INLINE ixover #-}
+
+ixoverFrom :: AIxsetter i s t a b -> (i -> a -> b) -> i -> s -> t
+ixoverFrom o f = curry (over o (uncurry f))
+{-# INLINE ixoverFrom #-}
 
 -- | Extract a SEC from a 'Resetter'.
 --
@@ -385,28 +383,6 @@ fmapped = setter fmap
 contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
-
--- | 
---
--- >>> over setmapped (+1) (Set.fromList [1,2,3,4])
--- fromList [2,3,4,5]
-setmapped :: Ord b => Setter (Set a) (Set b) a b
-setmapped = setter Set.map
-{-# INLINE setmapped #-}
-
--- |
---
--- >>> over isetmapped (+1) (IntSet.fromList [1,2,3,4])
--- fromList [2,3,4,5]
-isetmapped :: Setter' IntSet Int
-isetmapped = setter IntSet.map
-{-# INLINE isetmapped #-}
-
--- | TODO: Document
---
-foldmapped :: Foldable f => Monoid m => Setter (f a) m a m
-foldmapped = setter foldMap
-{-# INLINE foldmapped #-}
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
