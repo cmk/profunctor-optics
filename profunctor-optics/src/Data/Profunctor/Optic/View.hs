@@ -16,16 +16,16 @@ module Data.Profunctor.Optic.View (
   , PrimReview
     -- * Constructors
   , to
-  , ixto
+  , ito
   , from
-  , cxfrom
+  , kfrom
   , cloneView
   , cloneReview
     -- * Optics
   , like
-  , ixlike
+  , ilike
   , relike
-  , cxlike
+  , klike
   , toProduct
   , fromSum
     -- * Primitive operators
@@ -35,22 +35,22 @@ module Data.Profunctor.Optic.View (
   , (^.)
   , (^%)
   , view
-  , ixview
+  , iview
   , views
-  , ixviews
+  , iviews
   , use
-  , ixuse
+  , iuse
   , uses
-  , ixuses
+  , iuses
   , (#^)
   , review
-  , cxview
+  , kview
   , reviews
-  , cxviews
+  , kviews
   , reuse
   , reuses
-  , cxuse
-  , cxuses
+  , kuse
+  , kuses
     -- * MonadIO
   , throws
   , throws_
@@ -82,10 +82,10 @@ import qualified Data.Bifunctor as B
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index as LI
--- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl LI.itraverse
--- >>> let ixat :: Int -> Ixtraversal0' Int [a] a; ixat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl LI.itraverse
+-- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
 
 type APrimView r s t a b = Optic (Star (Const r)) s t a b
 
@@ -130,9 +130,9 @@ to f = coercer . lmap f
 
 -- | TODO: Document
 --
-ixto :: (s -> (i , a)) -> Ixview i s a
-ixto f = to $ f . snd
-{-# INLINE ixto #-}
+ito :: (s -> (i , a)) -> Ixview i s a
+ito f = to $ f . snd
+{-# INLINE ito #-}
 
 -- | Obtain a 'Review' from an arbitrary function.
 --
@@ -153,9 +153,9 @@ from f = coercel . rmap f
 
 -- | TODO: Document
 --
-cxfrom :: ((k -> b) -> t) -> Cxview k t b
-cxfrom f = from $ \kb _ -> f kb
-{-# INLINE cxfrom #-}
+kfrom :: ((k -> b) -> t) -> Cxview k t b
+kfrom f = from $ \kb _ -> f kb
+{-# INLINE kfrom #-}
 
 -- | TODO: Document
 --
@@ -216,9 +216,9 @@ like = to . const
 
 -- | TODO: Document
 --
-ixlike :: i -> a -> Ixview i s a
-ixlike i a = ixto (const (i, a))
-{-# INLINE ixlike #-}
+ilike :: i -> a -> Ixview i s a
+ilike i a = ito (const (i, a))
+{-# INLINE ilike #-}
 
 -- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
 --
@@ -234,9 +234,9 @@ relike = from . const
 
 -- | Obtain a constant-valued 'Cxview' from an arbitrary value. 
 --
-cxlike :: t -> Cxview k t b
-cxlike = cxfrom . const
-{-# INLINE cxlike #-}
+klike :: t -> Cxview k t b
+klike = kfrom . const
+{-# INLINE klike #-}
 
 -- | Combine two 'View's into a 'View' to a product.
 --
@@ -264,9 +264,9 @@ fromSum l r = from (review l ||| review r)
 
 infixl 8 ^.
 
--- | An infix alias for 'view'. Dual to '#'.
+-- | An infixalias for 'view'. Dual to '#'.
 --
--- Fixity and semantics are such that subsequent field accesses can be
+-- Fiity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
 --
 -- >>> ("hello","world") ^. t22
@@ -293,21 +293,18 @@ infixl 8 ^%
 
 -- | Bring the index and value of a indexed optic into the current environment as a pair.
 --
--- This a flipped, infix variant of 'ixview' and an indexed variant of '^.'.
+-- This a flipped, infix variant of 'iview' and an indexed variant of '^.'.
 --
--- The fixity and semantics are such that subsequent field accesses can be
+-- The fiity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
 --
 -- The result probably doesn't have much meaning when applied to an 'Ixfold'.
 --
 (^%) ::  Monoid i => s -> AIxview a i s a -> (Maybe i , a)
-(^%) = flip ixview 
+(^%) = flip iview 
 {-# INLINE (^%) #-}
 
--- | View the value pointed to by a 'View', 'Data.Profunctor.Optic.Iso.Iso' or
--- 'Lens' or the result of folding over all the results of a
--- 'Data.Profunctor.Optic.Fold.Fold' or 'Data.Profunctor.Optic.Traversal.Traversal' that points
--- at a monoidal value.
+-- | View the focus of an optic.
 --
 -- @
 -- 'view' '.' 'to' ≡ 'id'
@@ -328,31 +325,31 @@ view o = views o id
 
 -- | Bring the index and value of a indexed optic into the current environment as a pair.
 --
--- >>> ixview ixfirst ("foo", 42)
+-- >>> iview ifirst ("foo", 42)
 -- (Just (),"foo")
 --
--- >>> ixview (ixat 3 . ixfirst) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r') :: (Int, Char)]
+-- >>> iview (iat 3 . ifirst) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r') :: (Int, Char)]
 -- (Just 3,3)
 --
--- In order to 'ixview' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
+-- In order to 'iview' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
 -- /a/ must have a 'Monoid' instance:
 --
--- >>> ixview (ixat 0) ([] :: [Int])
+-- >>> iview (iat 0) ([] :: [Int])
 -- (Nothing,0)
--- >>> ixview (ixat 0) ([1] :: [Int])
+-- >>> iview (iat 0) ([1] :: [Int])
 -- (Just 0,1)
 --
--- /Note/ when applied to a 'Ixtraversal' or 'Ixfold', then 'ixview' will return a monoidal 
+-- /Note/ when applied to a 'Ixtraversal' or 'Ixfold', then 'iview' will return a monoidal 
 -- summary of the indices tupled with a monoidal summary of the values:
 --
--- >>> (ixview @_ @_ @Int @Int) ixtraversed [1,2,3,4]
+-- >>> (iview @_ @_ @Int @Int) itraversed [1,2,3,4]
 -- (Just 6,10)
 --
-ixview :: MonadReader s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
-ixview o = asks $ withPrimView o (B.first Just) . (mempty,)
-{-# INLINE ixview #-}
+iview :: MonadReader s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
+iview o = asks $ withPrimView o (B.first Just) . (mempty,)
+{-# INLINE iview #-}
 
--- | Map each part of a structure viewed to a semantic edixtor combinator.
+-- | Map each part of a structure viewed to a semantic editor combinator.
 --
 -- @
 -- 'views o f ≡ withFold o f'
@@ -379,21 +376,21 @@ views o f = asks $ withPrimView o f
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
--- 'ixviews' ≡ 'iwithFold'
+-- 'iviews' ≡ 'iwithFold'
 --
--- >>> ixviews (ixat 2) (-) ([0,1,2] :: [Int])
+-- >>> iviews (iat 2) (-) ([0,1,2] :: [Int])
 -- 0
 --
--- In order to 'ixviews' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
+-- In order to 'iviews' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
 -- /a/ must have a 'Monoid' instance (here from the 'rings' package):
 --
--- >>> ixviews (ixat 3) (flip const) ([1] :: [Int])
+-- >>> iviews (iat 3) (flip const) ([1] :: [Int])
 -- 0
 --
--- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
+-- Use 'iview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
 --
-ixviews :: MonadReader s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-ixviews o f = asks $ withPrimView o (uncurry f) . (mempty,) 
+iviews :: MonadReader s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iviews o f = asks $ withPrimView o (uncurry f) . (mempty,) 
 
 -- | TODO: Document
 --
@@ -403,8 +400,8 @@ use o = gets (view o)
 
 -- | Bring the index and value of an indexed optic into the current environment as a pair.
 --
-ixuse :: MonadState s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
-ixuse o = gets (ixview o)
+iuse :: MonadState s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
+iuse o = gets (iview o)
 
 -- | Use the target of a 'Lens', 'Data.Profunctor.Optic.Iso.Iso' or
 -- 'View' in the current state, or use a summary of a
@@ -433,12 +430,12 @@ uses l f = gets (views l f)
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
-ixuses :: MonadState s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-ixuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
+iuses :: MonadState s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
 
 infixr 8 #^
 
--- | An infix variant of 'review'. Dual to '^.'.
+-- | An infixvariant of 'review'. Dual to '^.'.
 --
 -- @
 -- 'from' f #^ x ≡ f x
@@ -484,9 +481,9 @@ review o = reviews o id
 
 -- | Bring a function of the index of a co-indexed optic into the current environment.
 --
-cxview :: MonadReader b m => ACxview k t b -> m (k -> t)
-cxview o = cxviews o id
-{-# INLINE cxview #-}
+kview :: MonadReader b m => ACxview k t b -> m (k -> t)
+kview o = kviews o id
+{-# INLINE kview #-}
 
 -- | Turn an optic around and look through the other end, applying a function.
 --
@@ -514,11 +511,11 @@ reviews o f = asks $ withPrimReview o f
 -- | Bring a continuation of the index of a co-indexed optic into the current environment.
 --
 -- @
--- cxviews :: ACxview k t b -> ((k -> t) -> r) -> b -> r
+-- kviews :: ACxview k t b -> ((k -> t) -> r) -> b -> r
 -- @
 --
-cxviews :: MonadReader b m => ACxview k t b -> ((k -> t) -> r) -> m r
-cxviews o f = asks $ withPrimReview o f . const
+kviews :: MonadReader b m => ACxview k t b -> ((k -> t) -> r) -> m r
+kviews o f = asks $ withPrimReview o f . const
 
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --
@@ -545,9 +542,9 @@ reuse o = gets (unTagged #. o .# Tagged)
 
 -- | TODO: Document
 --
-cxuse :: MonadState b m => ACxview k t b -> m (k -> t)
-cxuse o = gets (cxview o)
-{-# INLINE cxuse #-}
+kuse :: MonadState b m => ACxview k t b -> m (k -> t)
+kuse o = gets (kview o)
+{-# INLINE kuse #-}
 
 -- | Turn an optic around and 'use' the current state through it the other way, applying a function.
 --
@@ -571,9 +568,9 @@ reuses o tr = gets (tr . unTagged #. o .# Tagged)
 
 -- | TODO: Document
 --
-cxuses :: MonadState b m => ACxview k t b -> ((k -> t) -> r) -> m r
-cxuses o f = gets (cxviews o f)
-{-# INLINE cxuses #-}
+kuses :: MonadState b m => ACxview k t b -> ((k -> t) -> r) -> m r
+kuses o f = gets (kviews o f)
+{-# INLINE kuses #-}
 
 ---------------------------------------------------------------------
 -- 'MonadIO'

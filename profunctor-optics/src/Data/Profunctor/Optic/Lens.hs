@@ -12,9 +12,9 @@ module Data.Profunctor.Optic.Lens (
   , Lens'
   , Ixlens'
   , lens
-  , ixlens
+  , ilens
   , lensVl
-  , ixlensVl
+  , ilensVl
   , matching
   , cloneLens
     -- * Colens & Cxlens
@@ -23,22 +23,19 @@ module Data.Profunctor.Optic.Lens (
   , Colens'
   , Cxlens'
   , colens
-  --, cxlens
+  --, klens
   , colensVl
   , comatching
   --, cloneColens
     -- * Optics
-  , ixfirst
-  , cofirst
-  , ixsecond
-  , cosecond
   , united
   , voided
-  , valued
-  , root
-  , branches
+    -- * Indexed optics
+  , ifirst
+  , isecond
     -- * Primitive operators
   , withLens
+  , withLensVl
   , withIxlens
   --, withColens
     -- * Operators
@@ -68,6 +65,12 @@ import Data.Tree
 import Data.Void (Void, absurd)
 import GHC.Generics hiding (from, to)
 import qualified Data.Bifunctor as B
+import qualified Data.IntMap as IntMap
+import qualified Data.IntMap.Strict as IntMap'
+import qualified Data.IntSet as IntSet
+import qualified Data.Map as Map
+import qualified Data.Map.Strict as Map'
+import qualified Data.Set as Set
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -75,7 +78,7 @@ import qualified Data.Bifunctor as B
 -- >>> :set -XFlexibleContexts
 -- >>> import Data.Tree
 -- >>> import Data.Int.Instance
--- >>> :load Data.Profunctor.Optic
+-- >>> :load Data.Profunctor.Optic Data.Tuple.Optic
 
 ---------------------------------------------------------------------
 -- 'Lens' & 'Ixlens'
@@ -101,7 +104,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- | Obtain an indexed 'Lens' from an indexed getter and a setter.
 --
--- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.ixtraversal'.
+-- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.itraversal'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions constitute a legal 
@@ -115,9 +118,9 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ixlens :: (s -> (i , a)) -> (s -> b -> t) -> Ixlens i s t a b
-ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
-{-# INLINE ixlens #-}
+ilens :: (s -> (i , a)) -> (s -> b -> t) -> Ixlens i s t a b
+ilens sia sbt = ilensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
+{-# INLINE ilens #-}
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
@@ -138,14 +141,14 @@ ixlens sia sbt = ixlensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
 -- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
 --
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . first'
+lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
 
 -- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
 --
 -- An 'Ixlens' is a valid 'Lens' and a valid 'IxTraversal'. 
 --
--- Compare 'lensVl' & 'Data.Profunctor.Optic.Traversal.ixtraversalVl'.
+-- Compare 'lensVl' & 'Data.Profunctor.Optic.Traversal.itraversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -163,9 +166,9 @@ lensVl o = dimap ((info &&& values) . o (flip Index id)) (uncurry id . swap) . f
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ixlensVl :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixlens i s t a b
-ixlensVl f = lensVl $ \iab -> f (curry iab) . snd
-{-# INLINE ixlensVl #-}
+ilensVl :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixlens i s t a b
+ilensVl f = lensVl $ \iab -> f (curry iab) . snd
+{-# INLINE ilensVl #-}
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --
@@ -227,7 +230,7 @@ colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 -- However removing the annotation will result in a faulty optic.
 -- 
 colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& values) . o (flip Index id))
+colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
 
 -- | Obtain a 'Colens' from its free tensor representation.
 --
@@ -243,41 +246,52 @@ comatching csa bct = unsecond . dimap csa bct
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- withLensVl o (Identity . f) ≡  Identity (fmap f)
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (withLensVl o f) . withLensVl o g ≡ withLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+withLensVl :: Functor f => ALens s t a b -> (a -> f b) -> s -> f t
+withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
 
 -- | TODO: Document
 --
-cofirst :: Colens a b (a , c) (b , c)
-cofirst = unfirst
-
--- | TODO: Document
---
-cosecond :: Colens a b (c , a) (c , b)
-cosecond = unsecond
-
--- | TODO: Document
---
--- >>> ixlists (ix @Int traversed . ix first' . ix traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (i @Int traversed . i first' . i traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ixlists (ix @Int traversed . ixfirst . ix traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (i @Int traversed . ifirst . i traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ixlists (ix @Int traversed % ix first' % ix traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (i @Int traversed % i first' % i traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(1,'b'),(2,'a'),(3,'r')]
 --
--- >>> ixlists (ix @Int traversed % ixfirst % ix traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (i @Int traversed % ifirst % i traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
 --
-ixfirst :: Ixlens i (a , c) (b , c) a b
-ixfirst = lmap assocl . first'
+ifirst :: Ixlens i (a , c) (b , c) a b
+ifirst = lmap assocl . first'
 
 -- | TODO: Document
 --
-ixsecond :: Ixlens i (c , a) (c , b) a b
-ixsecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
+isecond :: Ixlens i (c , a) (c , b) a b
+isecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
 -- | There is a `Unit` in everything.
 --
@@ -298,30 +312,6 @@ united = lens (const ()) const
 --
 voided :: Lens' Void a
 voided = lens absurd const
-
--- | TODO: Document
---
--- Compare 'Data.Profunctor.Optic.Prism.keyed'.
---
-valued :: Eq k => k -> Lens' (k -> v) v
-valued k = lens ($ k) (\g v' x -> if (k == x) then v' else g x)
-
--- | A 'Lens' that focuses on the root of a 'Tree'.
---
--- >>> view root $ Node 42 []
--- 42
---
-root :: Lens' (Tree a) a
-root = lensVl $ \f (Node a as) -> (`Node` as) <$> f a
-{-# INLINE root #-}
-
--- | A 'Lens' returning the direct descendants of the root of a 'Tree'
---
--- @'Data.Profunctor.Optic.View.view' 'branches' ≡ 'subForest'@
---
-branches :: Lens' (Tree a) [Tree a]
-branches = lensVl $ \f (Node a as) -> Node a <$> f as
-{-# INLINE branches #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -365,7 +355,7 @@ instance Sieve (LensRep a b) (Index a b) where
 instance Representable (LensRep a b) where
   type Rep (LensRep a b) = Index a b
 
-  tabulate f = LensRep (\s -> info (f s)) (\s -> values (f s))
+  tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
 
 ---------------------------------------------------------------------
 -- IxlensRep

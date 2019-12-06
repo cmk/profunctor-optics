@@ -9,12 +9,13 @@ module Data.Profunctor.Optic.Fold0 (
     -- * Fold0 & Ixfold0
     Fold0
   , fold0
-  , ixfold0
+  , ifold0
   , failing
   , toFold0
   , fromFold0 
     -- * Optics
   , folded0
+  , filtered
     -- * Primitive operators
   , withFold0
   , withIxfold0
@@ -23,8 +24,8 @@ module Data.Profunctor.Optic.Fold0 (
   , preview 
   , preuse
     -- * Indexed operators
-  , ixpreview
-  , ixpreviews
+  , ipreview
+  , ipreviews
     -- * MonadUnliftIO 
   , tries
   , tries_ 
@@ -42,7 +43,6 @@ module Data.Profunctor.Optic.Fold0 (
   , Choice(..)
 ) where
 
-import Control.Applicative
 import Control.Exception (Exception)
 import Control.Monad ((<=<), void)
 import Control.Monad.IO.Unlift
@@ -51,11 +51,12 @@ import Control.Monad.State as State hiding (lift)
 import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
-import Data.Prd (Prd(..), Min(..), Max(..))
+import Data.Prd
 import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (right, just, async)
-import Data.Profunctor.Optic.Traversal0 (ixtraversal0Vl, is)
+import Data.Profunctor.Optic.Index (iempty)
+import Data.Profunctor.Optic.Prism (just, async)
+import Data.Profunctor.Optic.Traversal0 (traversal0Vl, itraversal0Vl, is)
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
@@ -78,8 +79,8 @@ import qualified Data.Semiring as Rng
 -- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
 -- >>> import Data.Sequence as Seq
 -- >>> import qualified Data.List.NonEmpty as NE
--- >>> :load Data.Profunctor.Optic
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Fold0' & 'Ixfold0'
@@ -110,9 +111,9 @@ fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
 {-# INLINE fold0 #-}
 
 -- | Create an 'Ixfold0' from a partial function.
-ixfold0 :: (s -> Maybe (i, a)) -> Ixfold0 i s a
-ixfold0 g = ixtraversal0Vl (\point f s -> maybe (point s) (uncurry f) $ g s) . coercer
-{-# INLINE ixfold0 #-}
+ifold0 :: (s -> Maybe (i, a)) -> Ixfold0 i s a
+ifold0 g = itraversal0Vl (\point f s -> maybe (point s) (uncurry f) $ g s) . coercer
+{-# INLINE ifold0 #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
@@ -152,6 +153,15 @@ folded0 :: Fold0 (Maybe a) a
 folded0 = fold0 id
 {-# INLINE folded0 #-}
 
+-- | Filter another optic.
+--
+-- >>> [1..10] ^.. folded . filtered even
+-- [2,4,6,8,10]
+--
+filtered :: (a -> Bool) -> Fold0 a a
+filtered p = traversal0Vl (\point f a -> if p a then f a else point a) . coercer
+{-# INLINE filtered #-}
+
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
@@ -164,8 +174,8 @@ withFold0 o = runFold0Rep #. o .# Fold0Rep
 
 -- | TODO: Document
 --
-withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> i -> s -> Maybe r
-withIxfold0 o f = curry $ withFold0 o (uncurry f)
+withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
+withIxfold0 o f = flip curry iempty $ withFold0 o (uncurry f)
 {-# INLINE withIxfold0 #-}
 
 ---------------------------------------------------------------------
@@ -174,7 +184,7 @@ withIxfold0 o f = curry $ withFold0 o (uncurry f)
 
 infixl 8 ^?
 
--- | An infix variant of 'preview''.
+-- | An infixvariant of 'preview''.
 --
 -- @
 -- ('^?') ≡ 'flip' 'preview''
@@ -214,15 +224,15 @@ preuse o = State.gets $ preview o
 
 -- | TODO: Document 
 --
-ixpreview :: Monoid i => AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
-ixpreview o = ixpreviews o (,)
-{-# INLINE ixpreview #-}
+ipreview :: AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
+ipreview o = ipreviews o (,)
+{-# INLINE ipreview #-}
 
 -- | TODO: Document 
 --
-ixpreviews :: Monoid i => AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
-ixpreviews o f = withIxfold0 o (\i -> Just . f i) mempty
-{-# INLINE ixpreviews #-}
+ipreviews :: AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
+ipreviews o f = withIxfold0 o (\i -> Just . f i)
+{-# INLINE ipreviews #-}
 
 ------------------------------------------------------------------------------
 -- 'MonadUnliftIO'
@@ -246,7 +256,7 @@ tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
 -- | A variant of 'tries' that returns synchronous exceptions.
 --
 tries_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Maybe a)
-tries_ o a = preview right `liftM` tries o a
+tries_ o a = preview right' `liftM` tries o a
 {-# INLINE tries_ #-}
 
 -- | Catch synchronous exceptions that match a given optic.

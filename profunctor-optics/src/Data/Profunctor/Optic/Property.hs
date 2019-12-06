@@ -17,33 +17,39 @@ module Data.Profunctor.Optic.Property (
   , idempotent_prism 
     -- * Lens
   , Lens
+  , id_lens
   , tofrom_lens
   , fromto_lens
   , idempotent_lens
     -- * Grate
   , Grate
-  , pure_grate
+  , id_grate
+  , const_grate
   , compose_grate
     -- * Traversal0
   , Traversal0
   , tofrom_traversal0
   , fromto_traversal0
   , idempotent_traversal0
-    -- * Traversal & Traversal1
+    -- * Traversal
   , Traversal
+  , id_traversal
   , pure_traversal
   , compose_traversal
+    -- * Traversal1
+  , id_traversal1
   , compose_traversal1
     -- * Cotraversal1
   , Cotraversal1 
   , compose_cotraversal1
     -- * Setter
   , Setter
-  , pure_setter
+  , id_setter
   , compose_setter
   , idempotent_setter
 ) where 
 
+import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Type
@@ -56,6 +62,9 @@ import Data.Profunctor.Optic.Grate
 --import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Traversal0
+import Data.Profunctor.Optic.Traversal1
+
+import Test.Property.Function.Invertible as FI
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -82,7 +91,6 @@ tofrom_iso o a = withIso o $ \sa as -> sa (as a) == a
 tofrom_prism :: Eq s => Prism' s a -> s -> Bool
 tofrom_prism o s = withPrism o $ \sta bt -> either id bt (sta s) == s
 
-
 -- | If we build a whole from a focus, that whole must contain the focus.
 --
 -- * @sta (bt b) ≡ Right b@
@@ -95,13 +103,16 @@ fromto_prism o a = withPrism o $ \sta bt -> sta (bt a) == Right a
 -- * @left sta (sta s) ≡ left Left (sta s)@
 --
 idempotent_prism :: Eq s => Eq a => Prism' s a -> s -> Bool
-idempotent_prism o s = withPrism o $ \sta _ -> left sta (sta s) == left Left (sta s)
+idempotent_prism o s = withPrism o $ \sta _ -> left' sta (sta s) == left' Left (sta s)
 
 ---------------------------------------------------------------------
 -- 'Lens'
 ---------------------------------------------------------------------
 
 -- A 'Lens' is a valid 'Traversal' with the following additional laws:
+
+id_lens :: Eq s => Lens' s a -> s -> Bool
+id_lens o = M.join FI.invertible $ runIdentity . withLensVl o Identity 
 
 -- | You get back what you put in.
 --
@@ -130,19 +141,20 @@ idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 
 -- The 'Grate' laws are that of an algebra for the parameterised continuation 'Coindex'.
 
+id_grate :: Eq s => Grate' s a -> s -> Bool
+id_grate o = M.join FI.invertible $ withGrateVl o runIdentity . Identity 
+
 -- |
 --
 -- * @sabt ($ s) ≡ s@
 --
-pure_grate :: Eq s => Grate' s a -> s -> Bool
-pure_grate o s = withGrate o $ \sabt -> sabt ($ s) == s
+const_grate :: Eq s => Grate' s a -> s -> Bool
+const_grate o s = withGrate o $ \sabt -> sabt ($ s) == s
 
--- |
---
--- * @sabt (\k -> h (k . sabt)) ≡ sabt (\k -> h ($ k))@
---
-compose_grate :: Eq s => Grate' s a -> ((((s -> a) -> a) -> a) -> a) -> Bool
-compose_grate o f = withGrate o $ \sabt -> sabt (\k -> f (k . sabt)) == sabt (\k -> f ($ k))
+compose_grate :: Eq s => Functor f => Functor g => Grate' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+compose_grate o f g = liftA2 (==) lhs rhs
+  where lhs = withGrateVl o f . fmap (withGrateVl o g) 
+        rhs = withGrateVl o (f . fmap g . getCompose) . Compose
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
@@ -170,47 +182,33 @@ idempotent_traversal0 :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
 idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
 
 ---------------------------------------------------------------------
--- 'Traversal' & 'Traversal1'
+-- 'Traversal'
 ---------------------------------------------------------------------
 
--- | A 'Traversal' is a valid 'Setter' with the following additional laws:
---
--- * @abst pure ≡ pure@
---
--- * @fmap (abst f) . abst g ≡ getCompose . abst (Compose . fmap f . g)@
---
--- These can be restated in terms of 'withTraversal':
---
--- * @withTraversal abst (Identity . f) ≡  Identity . fmap f@
---
--- * @Compose . fmap (withTraversal abst f) . withTraversal abst g == withTraversal abst (Compose . fmap f . g)@
---
--- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
---
-pure_traversal
-  :: Eq (f s) 
-  => Applicative f
-  => ((a -> f a) -> s -> f s)
-  -> s -> Bool
-pure_traversal abst = liftA2 (==) (abst pure) pure
+-- A 'Traversal' is a valid 'Setter' with the following additional laws:
 
-compose_traversal
-  :: Eq (f (g s))
-  => Applicative f
-  => Applicative g 
-  => (forall f. Applicative f => (a -> f a) -> s -> f s) 
-  -> (a -> g a) -> (a -> f a) -> s -> Bool
-compose_traversal abst f g = liftA2 (==) (fmap (abst f) . abst g)
-                                         (getCompose . abst (Compose . fmap f . g))
+id_traversal :: Eq s => Traversal' s a -> s -> Bool
+id_traversal o = M.join FI.invertible $ runIdentity . withTraversal o Identity 
 
-compose_traversal1
-  :: Eq (f (g s))
-  => Apply f
-  => Apply g 
-  => (forall f. Apply f => (a -> f a) -> s -> f s) 
-  -> (a -> g a) -> (a -> f a) -> s -> Bool
-compose_traversal1 abst f g = liftF2 (==) (fmap (abst f) . abst g)
-                                         (getCompose . abst (Compose . fmap f . g))
+pure_traversal :: Eq (f s) => Applicative f => ATraversal' f s a -> s -> Bool
+pure_traversal o = liftA2 (==) (withTraversal o pure) pure
+
+compose_traversal :: Eq (f (g s)) => Applicative f => Applicative g => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
+compose_traversal o f g = liftA2 (==) lhs rhs
+  where lhs = fmap (withTraversal o f) . withTraversal o g
+        rhs = getCompose . withTraversal o (Compose . fmap f . g)
+
+---------------------------------------------------------------------
+-- 'Traversal1'
+---------------------------------------------------------------------
+
+id_traversal1 :: Eq s => Traversal1' s a -> s -> Bool
+id_traversal1 o = M.join FI.invertible $ runIdentity . withTraversal1 o Identity 
+
+compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
+compose_traversal1 o f g s = lhs s == rhs s
+  where lhs = fmap (withTraversal1 o f) . withTraversal1 o g
+        rhs = getCompose . withTraversal1 o (Compose . fmap f . g)
 
 ---------------------------------------------------------------------
 -- 'Cotraversal1'
@@ -220,22 +218,18 @@ compose_traversal1 abst f g = liftF2 (==) (fmap (abst f) . abst g)
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- These can be restated in terms of 'cowithTraversal1':
+-- The cotraversal laws can be restated in terms of 'cowithTraversal1':
 --
--- * @cowithTraversal1 abst (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @withCotraversal1 o (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @cowithTraversal1 abst f . fmap (cowithTraversal1 abst g) . getCompose == cowithTraversal1 abst (f . fmap g . getCompose)@
+-- * @withCotraversal1 o f . fmap (withCotraversal1 o g) == withCotraversal1 o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-compose_cotraversal1
-  :: Eq s
-  => Apply f 
-  => Apply g 
-  => (forall f. Apply f => (f a -> a) -> f s -> s) 
-  -> (g a -> a) -> (f a -> a) -> g (f s) -> Bool
-compose_cotraversal1 abst f g = liftF2 (==) (abst f . fmap (abst g))
-                                            (abst (f . fmap g . getCompose) . Compose)
+compose_cotraversal1 :: Eq s => Apply f => Apply g => Cotraversal1' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+compose_cotraversal1 o f g = liftF2 (==) lhs rhs
+  where lhs = withCotraversal1 o f . fmap (withCotraversal1 o g) 
+        rhs = withCotraversal1 o (f . fmap g . getCompose) . Compose
 
 ---------------------------------------------------------------------
 -- 'Setter'
@@ -245,8 +239,8 @@ compose_cotraversal1 abst f g = liftF2 (==) (abst f . fmap (abst g))
 --
 -- * @over o id ≡ id@
 --
-pure_setter :: Eq s => Setter' s a -> s -> Bool
-pure_setter o s = over o id s == s
+id_setter :: Eq s => Setter' s a -> s -> Bool
+id_setter o s = over o id s == s
 
 -- |
 --

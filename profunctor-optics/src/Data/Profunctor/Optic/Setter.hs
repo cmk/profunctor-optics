@@ -10,22 +10,19 @@ module Data.Profunctor.Optic.Setter (
     Setter
   , Setter'
   , setter
-  , ixsetter
+  , isetter
   , closing
     -- * Resetter
   , Resetter
   , Resetter'
   , resetter
-  , cxsetter
+  , ksetter
     -- * Optics
   , cod
   , dom
   , bound 
   , fmapped
   , contramapped
-  , setmapped
-  , isetmapped
-  , foldmapped
   , liftedA
   , liftedM
   , locally
@@ -37,37 +34,37 @@ module Data.Profunctor.Optic.Setter (
   , exmapped
     -- * Primitive operators
   , over
-  , ixover
+  , iover
   , under
-  , cxover
+  , kunder
   , through
     -- * Operators
   , assignA
   , set
-  , ixset
+  , iset
   , reset
-  , cxset
+  , kset
   , (.~)
-  , (..~)
+  , (%~)
   , (/~)
+  , (#~)
+  , (..~)
+  , (%%~)
   , (//~)
+  , (##~)
   , (?~)
   , (<>~)
   , (><~)
-    -- * Indexed Operators
-  , (%~)
-  , (%%~)
-  , (#~)
-  , (##~)
     -- * MonadState
   , assigns
   , modifies
   , (.=)
-  , (..=)
   , (%=)
+  , (/==)
+  , (#=)
+  , (..=)
   , (%%=)
   , (//=)
-  , (#=)
   , (##=)
   , (?=)
   , (<>=)
@@ -93,13 +90,10 @@ import Control.Monad.Writer as Writer
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
+import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial, iempty)
 import Data.Profunctor.Optic.Type
 import Data.Semiring
 
-import Data.IntSet as IntSet
-import Data.Set as Set
-import Prelude (Num(..))
 import qualified Control.Exception as Ex
 
 -- $setup
@@ -119,10 +113,10 @@ import qualified Control.Exception as Ex
 -- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
--- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
--- >>> let ixat :: Int -> Ixtraversal0' Int [a] a; ixat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
 
 type ASetter s t a b = ARepn Identity s t a b
 
@@ -171,8 +165,8 @@ setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 -- | Build an 'Ixsetter' from an indexed function.
 --
 -- @
--- 'ixsetter' '.' 'ixover' ≡ 'id'
--- 'ixover' '.' 'ixsetter' ≡ 'id'
+-- 'isetter' '.' 'iover' ≡ 'id'
+-- 'iover' '.' 'isetter' ≡ 'id'
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -184,9 +178,9 @@ setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
-ixsetter f = setter $ \iab -> f (curry iab) . snd 
-{-# INLINE ixsetter #-}
+isetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
+isetter f = setter $ \iab -> f (curry iab) . snd 
+{-# INLINE isetter #-}
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
@@ -213,9 +207,9 @@ resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f ->
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cxsetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
-cxsetter f = resetter $ \kab -> const . f (flip kab)
-{-# INLINE cxsetter #-}
+ksetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
+ksetter f = resetter $ \kab -> const . f (flip kab)
+{-# INLINE ksetter #-}
 
 -- | Every valid 'Grate' is a 'Setter'.
 --
@@ -262,15 +256,15 @@ over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. )
 
 -- |
 --
--- >>> ixover (ixat 1) (+) [1,2,3 :: Int]
+-- >>> iover (iat 1) (+) [1,2,3 :: Int]
 -- [1,3,3]
 --
--- >>> ixover (ixat 5) (+) [1,2,3 :: Int]
+-- >>> iover (iat 5) (+) [1,2,3 :: Int]
 -- [1,2,3]
 --
-ixover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-ixover o f = curry (over o (uncurry f)) mempty
-{-# INLINE ixover #-}
+iover :: AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+iover o f = flip curry iempty (over o (uncurry f)) 
+{-# INLINE iover #-}
 
 -- | Extract a SEC from a 'Resetter'.
 --
@@ -304,18 +298,18 @@ under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 
 -- |
 --
--- >>> cxover (catchOn 42) (\k msg -> show k ++ ": " ++ msg) $ Just "foo"
+-- >>> kunder (catchOn 42) (\k msg -> show k ++ ": " ++ msg) $ Just "foo"
 -- Just "0: foo"
 --
--- >>> cxover (catchOn 42) (\k msg -> show k ++ ": " ++ msg) Nothing
+-- >>> kunder (catchOn 42) (\k msg -> show k ++ ": " ++ msg) Nothing
 -- Nothing
 --
--- >>> cxover (catchOn 0) (\k msg -> show k ++ ": " ++ msg) Nothing
+-- >>> kunder (catchOn 0) (\k msg -> show k ++ ": " ++ msg) Nothing
 -- Just "caught"
 --
-cxover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-cxover o f = flip (under o (flip f)) mempty
-{-# INLINE cxover #-}
+kunder :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
+kunder o f = flip (under o (flip f)) iempty
+{-# INLINE kunder #-}
 
 -- | The join of 'under' and 'over'.
 --
@@ -385,28 +379,6 @@ fmapped = setter fmap
 contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
-
--- | 
---
--- >>> over setmapped (+1) (Set.fromList [1,2,3,4])
--- fromList [2,3,4,5]
-setmapped :: Ord b => Setter (Set a) (Set b) a b
-setmapped = setter Set.map
-{-# INLINE setmapped #-}
-
--- |
---
--- >>> over isetmapped (+1) (IntSet.fromList [1,2,3,4])
--- fromList [2,3,4,5]
-isetmapped :: Setter' IntSet Int
-isetmapped = setter IntSet.map
-{-# INLINE isetmapped #-}
-
--- | TODO: Document
---
-foldmapped :: Foldable f => Monoid m => Setter (f a) m a m
-foldmapped = setter foldMap
-{-# INLINE foldmapped #-}
 
 -- | This 'setter' can be used to modify all of the values in an 'Applicative'.
 --
@@ -522,23 +494,23 @@ set :: ASetter s t a b -> b -> s -> t
 set o b = over o (const b)
 {-# INLINE set #-}
 
--- | Set with index. Equivalent to 'ixover' with the current value ignored.
+-- | Set with index. Equivalent to 'iover' with the current value ignored.
 --
 -- When you do not need access to the index, then 'set' is more liberal in what it can accept.
 --
 -- @
--- 'set' o ≡ 'ixset' o '.' 'const'
+-- 'set' o ≡ 'iset' o '.' 'const'
 -- @
 --
--- >>> ixset (ixat 2) (2-) [1,2,3 :: Int]
+-- >>> iset (iat 2) (2-) [1,2,3 :: Int]
 -- [1,2,0]
 --
--- >>> ixset (ixat 5) (const 0) [1,2,3 :: Int]
+-- >>> iset (iat 5) (const 0) [1,2,3 :: Int]
 -- [1,2,3]
 --
-ixset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
-ixset o = ixover o . (const .)
-{-# INLINE ixset #-}
+iset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+iset o = iover o . (const .)
+{-# INLINE iset #-}
 
 -- | Set all referenced fields to the given value.
 --
@@ -550,26 +522,44 @@ reset :: AResetter s t a b -> b -> s -> t
 reset o b = under o (const b)
 {-# INLINE reset #-}
 
--- | Dual set with index. Equivalent to 'cxover' with the current value ignored.
+-- | Dual set with index. Equivalent to 'kunder' with the current value ignored.
 --
--- >>> cxset (catchOn 42) show $ Just "foo"
+-- >>> kset (catchOn 42) show $ Just "foo"
 -- Just "0"
 --
--- >>> cxset (catchOn 42) show Nothing
+-- >>> kset (catchOn 42) show Nothing
 -- Nothing
 --
--- >>> cxset (catchOn 0) show Nothing
+-- >>> kset (catchOn 0) show Nothing
 -- Just "caught"
 --
-cxset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
-cxset o kb = cxover o $ flip (const kb)
-{-# INLINE cxset #-}
+kset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
+kset o kb = kunder o $ flip (const kb)
+{-# INLINE kset #-}
 
 -- | TODO: Document
 --
 (.~) :: ASetter s t a b -> b -> s -> t
 (.~) = set
 {-# INLINE (.~) #-}
+
+-- | An infixvariant of 'iset'. Dual to '#~'.
+--
+(%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+(%~) = iset
+{-# INLINE (%~) #-}
+
+-- | An infixvariant of 'reset'. Dual to '.~'.
+--
+(/~) :: AResetter s t a b -> b -> s -> t
+(/~) = reset
+{-# INLINE (/~) #-}
+
+-- | An infixvariant of 'kset'. Dual to '%~'.
+--
+(#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
+(#~) = kset
+{-# INLINE (#~) #-}
 
 -- | TODO: Document
 --
@@ -580,37 +570,19 @@ cxset o kb = cxover o $ flip (const kb)
 (..~) = over
 {-# INLINE (..~) #-}
 
--- | An infix variant of 'ixset'. Dual to '#~'.
---
-(%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
-(%~) = ixset
-{-# INLINE (%~) #-}
-
--- | An infix variant of 'ixover'. Dual to '##~'.
+-- | An infixvariant of 'iover'. Dual to '##~'.
 --
 (%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = ixover
+(%%~) = iover
 {-# INLINE (%%~) #-}
 
--- | An infix variant of 'reset'. Dual to '.~'.
---
-(/~) :: AResetter s t a b -> b -> s -> t
-(/~) = reset
-{-# INLINE (/~) #-}
-
--- | An infix variant of 'under'. Dual to '..~'.
+-- | An infixvariant of 'under'. Dual to '..~'.
 --
 (//~) :: AResetter s t a b -> (a -> b) -> s -> t
 (//~) = under
 {-# INLINE (//~) #-}
 
--- | An infix variant of 'cxset'. Dual to '%~'.
---
-(#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
-(#~) = cxset
-{-# INLINE (#~) #-}
-
--- | An infix variant of 'cxover'. Dual to '%%~'.
+-- | An infixvariant of 'kunder'. Dual to '%%~'.
 --
 -- >>> Just "foo" & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
 -- Just "0: foo"
@@ -619,7 +591,7 @@ cxset o kb = cxover o $ flip (const kb)
 -- Just "caught"
 --
 (##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-(##~) = cxover
+(##~) = kunder
 {-# INLINE (##~) #-}
 
 -- | Set the target of a settable optic to 'Just' a value.
@@ -723,7 +695,7 @@ modifies o f = State.modify (over o f)
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
--- This is an infix version of 'assigns'.
+-- This is an infixversion of 'assigns'.
 --
 -- >>> execState (do t21 .= 1; t22 .= 2) (3,4)
 -- (1,2)
@@ -744,9 +716,27 @@ modifies o f = State.modify (over o f)
 o .= b = State.modify (o .~ b)
 {-# INLINE (.=) #-}
 
+-- | TODO: Document 
+--
+(%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
+o %= b = State.modify (o %~ b)
+{-# INLINE (%=) #-}
+
+-- | TODO: Document 
+--
+(/==) :: MonadState s m => AResetter s s a b -> b -> m ()
+o /== b = State.modify (o /~ b)
+{-# INLINE (/==) #-}
+
+-- | TODO: Document 
+--
+(#=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> b) -> m ()
+o #= f = State.modify (o #~ f)
+{-# INLINE (#=) #-}
+
 -- | Map over the target(s) of a 'Setter' in a monadic state.
 --
--- This is an infix version of 'modifies'.
+-- This is an infixversion of 'modifies'.
 --
 -- >>> execState (do just ..= (+1) ) Nothing
 -- Nothing
@@ -772,11 +762,6 @@ o ..= f = State.modify (o ..~ f)
 
 -- | TODO: Document 
 --
-(%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
-o %= b = State.modify (o %~ b)
-
--- | TODO: Document 
---
 (%%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
 o %%= f = State.modify (o %%~ f)
 {-# INLINE (%%=) #-}
@@ -786,12 +771,6 @@ o %%= f = State.modify (o %%~ f)
 (//=) :: MonadState s m => AResetter s s a b -> (a -> b) -> m ()
 o //= f = State.modify (o //~ f)
 {-# INLINE (//=) #-}
-
--- | TODO: Document 
---
-(#=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> b) -> m ()
-o #= f = State.modify (o #~ f)
-{-# INLINE (#=) #-}
 
 -- | TODO: Document 
 --
