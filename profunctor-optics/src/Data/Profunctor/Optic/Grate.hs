@@ -15,9 +15,9 @@ module Data.Profunctor.Optic.Grate  (
   , AGrate'
     -- * Constructors
   , grate
-  , cxgrate
+  , kgrate
   , grateVl
-  , cxgrateVl
+  , kgrateVl
   , inverting
   , cloneGrate
     -- * Optics
@@ -27,9 +27,9 @@ module Data.Profunctor.Optic.Grate  (
   , continued
   , unlifted
     -- * Indexed optics
-  , cxclosed
-  , cxfirst
-  , cxsecond
+  , kclosed
+  , kfirst
+  , ksecond
     -- * Primitive operators
   , withGrate 
   , withGrateVl
@@ -66,7 +66,7 @@ import Data.Profunctor.Rep (unfirstCorep)
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Connection.Int
--- >>> :load Data.Profunctor.Optic
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -80,7 +80,7 @@ import Data.Profunctor.Rep (unfirstCorep)
 -- A 'Grate' lets you lift a profunctor through any representable 
 -- functor (aka Naperian container). In the special case where the 
 -- indexing type is finitary (e.g. 'Bool') then the tabulated type is 
--- isomorphic to a fixed length vector (e.g. 'V2 a').
+-- isomorphic to a fied length vector (e.g. 'V2 a').
 --
 -- The identity container is representable, and representable functors 
 -- are closed under composition.
@@ -111,8 +111,8 @@ grate sabt = dimap (flip ($)) sabt . closed
 
 -- | TODO: Document
 --
-cxgrate :: (((s -> a) -> k -> b) -> t) -> Cxgrate k s t a b
-cxgrate f = grate $ \sakb _ -> f sakb
+kgrate :: (((s -> a) -> k -> b) -> t) -> Cxgrate k s t a b
+kgrate f = grate $ \sakb _ -> f sakb
 
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
@@ -132,8 +132,8 @@ grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 
 -- | TODO: Document
 --
-cxgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
-cxgrateVl f = grateVl $ \kab -> const . f (flip kab) 
+kgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
+kgrateVl f = grateVl $ \kab -> const . f (flip kab) 
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
@@ -205,24 +205,24 @@ unlifted = grate withRunInIO
 -- Indexed optics
 ---------------------------------------------------------------------
 
--- >>> cxover cxclosed (,) (*2) 5
+-- >>> kover kclosed (,) (*2) 5
 -- ((),10)
 --
-cxclosed :: Cxgrate k (c -> a) (c -> b) a b
-cxclosed = rmap flip . closed
-{-# INLINE cxclosed #-}
+kclosed :: Cxgrate k (c -> a) (c -> b) a b
+kclosed = rmap flip . closed
+{-# INLINE kclosed #-}
 
 -- | TODO: Document
 --
-cxfirst :: Cxgrate k a b (a , c) (b , c)
-cxfirst = rmap (unfirst . uncurry . flip) . curry'
-{-# INLINE cxfirst #-}
+kfirst :: Cxgrate k a b (a , c) (b , c)
+kfirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE kfirst #-}
 
 -- | TODO: Document
 --
-cxsecond :: Cxgrate k a b (c , a) (c , b)
-cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
-{-# INLINE cxsecond #-}
+ksecond :: Cxgrate k a b (c , a) (c , b)
+ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE ksecond #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators

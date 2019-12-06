@@ -11,14 +11,12 @@ module Data.Profunctor.Optic.Traversal (
   , Traversal'
   , Ixtraversal
   , Ixtraversal'
-  , ATraversal
-  , ATraversal'
   , traversing
-  , ixtraversing
+  , itraversing
   , traversalVl
-  , ixtraversalVl
-  , noix
-  , ix
+  , itraversalVl
+  , noi
+  , i
     -- * Primitive operators
   , withTraversal
     -- * Optics
@@ -31,6 +29,8 @@ module Data.Profunctor.Optic.Traversal (
     -- * Carriers
   , Star(..)
   , Costar(..)
+  , ATraversal
+  , ATraversal'
     -- * Classes
   , Representable(..)
   , Corepresentable(..)
@@ -56,8 +56,8 @@ import Control.Monad.Trans.State
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Traversal' & 'Ixtraversal'
@@ -98,7 +98,7 @@ traversing sa sbt = repn traverse . lens sa sbt
 -- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
 --
 -- @
---  'withIxlens' o 'ixtraversing' ≡ 'ixtraversed' . o
+--  'withIxlens' o 'itraversing' ≡ 'itraversed' . o
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -113,8 +113,8 @@ traversing sa sbt = repn traverse . lens sa sbt
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ixtraversing :: Monoid i => Traversable f => (s -> (i , a)) -> (s -> b -> t) -> Ixtraversal i (f s) (f t) a b
-ixtraversing sia sbt = repn (\iab -> traverse (curry iab mempty) . snd) . ixlens sia sbt 
+itraversing :: Monoid i => Traversable f => (s -> (i , a)) -> (s -> b -> t) -> Ixtraversal i (f s) (f t) a b
+itraversing sia sbt = repn (\iab -> traverse (curry iab mempty) . snd) . ilens sia sbt 
 
 -- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --
@@ -141,38 +141,38 @@ traversalVl abst = tabulate . abst . sieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ixtraversalVl :: (forall f. Applicative f => (i -> a -> f b) -> s -> f t) -> Ixtraversal i s t a b
-ixtraversalVl f = traversalVl $ \iab -> f (curry iab) . snd
+itraversalVl :: (forall f. Applicative f => (i -> a -> f b) -> s -> f t) -> Ixtraversal i s t a b
+itraversalVl f = traversalVl $ \iab -> f (curry iab) . snd
 
 -- | Lift a VL traversal into an indexed profunctor traversal that ignores its input.
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
--- >>> ixlists (noix traversed . ixtraversed) ["foo", "bar"]
+-- >>> ilists (noi traversed . itraversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ixlists (ixtraversed . noix traversed) ["foo", "bar"]
+-- >>> ilists (itraversed . noi traversed) ["foo", "bar"]
 -- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
 --
-noix :: Monoid i => Traversal s t a b -> Ixtraversal i s t a b
-noix o = ixtraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
+noi :: Monoid i => Traversal s t a b -> Ixtraversal i s t a b
+noi o = itraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
 
 -- | Index a traversal with a 'Data.Semiring'.
 --
--- >>> ixlists (ix traversed . ix traversed) ["foo", "bar"]
+-- >>> ilists (i traversed . i traversed) ["foo", "bar"]
 -- [((),'f'),((),'o'),((),'o'),((),'b'),((),'a'),((),'r')]
 --
--- >>> ixlists (ix @Int traversed . ix traversed) ["foo", "bar"]
+-- >>> ilists (i @Int traversed . i traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ixlists (ix @[()] traversed . ix traversed) ["foo", "bar"]
+-- >>> ilists (i @[()] traversed . i traversed) ["foo", "bar"]
 -- [([],'f'),([()],'o'),([(),()],'o'),([],'b'),([()],'a'),([(),()],'r')]
 --
--- >>> ixlists (ix @[()] traversed % ix traversed) ["foo", "bar"]
+-- >>> ilists (i @[()] traversed % i traversed) ["foo", "bar"]
 -- [([],'f'),([()],'o'),([(),()],'o'),([()],'b'),([(),()],'a'),([(),(),()],'r')]
 --
-ix :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
-ix o = ixtraversalVl $ \f s ->
+i :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
+i o = itraversalVl $ \f s ->
   flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
     Compose $ (f <$> get <*> pure a) <* modify (<> sunit) 
 

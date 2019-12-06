@@ -9,10 +9,11 @@ module Data.Profunctor.Optic.Traversal1 (
     -- * Traversal1
     Traversal1
   , Traversal1'
-  , ATraversal1
-  , ATraversal1'
+  , Ixtraversal1
+  , Ixtraversal1'
   , traversing1
   , traversal1Vl
+  , itraversal1Vl
     -- * Cotraversal1 & Cxtraversal1
   , Cotraversal1
   , Cotraversal1'
@@ -24,8 +25,8 @@ module Data.Profunctor.Optic.Traversal1 (
   , cotraversing1
   , retraversing1
   , cotraversal1Vl
-  , cxtraversal1Vl
-  , nocx1
+  , ktraversal1Vl
+  , nok1
     -- * Optics
   , traversed1
   , cotraversed1
@@ -43,6 +44,8 @@ module Data.Profunctor.Optic.Traversal1 (
     -- * Carriers
   , Star(..)
   , Costar(..)
+  , ATraversal1
+  , ATraversal1'
     -- * Classes
   , Representable(..)
   , Corepresentable(..)
@@ -73,9 +76,9 @@ import qualified Data.Bifunctor as B
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
--- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = cxjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Traversal1'
@@ -124,6 +127,20 @@ traversing1 sa sbt = repn traverse1 . lens sa sbt
 --
 traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
 traversal1Vl abst = tabulate . abst . sieve 
+
+-- | Lift an indexed VL traversal into an indexed profunctor traversal.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const pure) ≡ pure@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+itraversal1Vl :: (forall f. Apply f => (i -> a -> f b) -> s -> f t) -> Ixtraversal1 i s t a b
+itraversal1Vl f = traversal1Vl $ \iab -> f (curry iab) . snd
 
 ---------------------------------------------------------------------
 -- 'Cotraversal1' & 'Cxtraversal11'
@@ -181,15 +198,15 @@ cotraversal1Vl abst = cotabulate . abst . cosieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cxtraversal1Vl :: (forall f. Apply f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
-cxtraversal1Vl kabst = cotraversal1Vl $ \kab -> const . kabst (flip kab)
+ktraversal1Vl :: (forall f. Apply f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
+ktraversal1Vl kabst = cotraversal1Vl $ \kab -> const . kabst (flip kab)
 
 -- | Lift a VL cotraversal into an (co-)indexed profunctor cotraversal that ignores its input.
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
-nocx1 :: Monoid k => Cotraversal1 s t a b -> Cxtraversal1 k s t a b
-nocx1 o = cxtraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
+nok1 :: Monoid k => Cotraversal1 s t a b -> Cxtraversal1 k s t a b
+nok1 o = ktraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
 
 ---------------------------------------------------------------------
 -- Primitive operators

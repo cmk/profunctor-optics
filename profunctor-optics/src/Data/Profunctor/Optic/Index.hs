@@ -10,28 +10,29 @@
 module Data.Profunctor.Optic.Index ( 
     -- * Indexing
     (%)
-  , ixinit
-  , ixlast
-  , reix
-  , ixmap
+  , iinit
+  , ilast
+  , rei
+  , imap
   , withIxrepn
+  , iempty
     -- * Coindexing
   , (#)
-  , cxinit
-  , cxlast
-  , recx
-  , cxmap
-  , cxed
-  , cxjoin
-  , cxreturn
+  , kinit
+  , klast
+  , rek
+  , kmap
+  , ked
+  , kjoin
+  , kreturn
   , type Cx'
-  , cxunit
-  , cxpastro
-  , cxfirst'
+  , kunit
+  , kpastro
+  , kfirst'
   , withCxrepn
     -- * Index
   , Index(..)
-  , values
+  , vals
   , info
     -- * Coindex
   , Coindex(..)
@@ -58,8 +59,8 @@ import GHC.Generics (Generic)
 -- >>> import Data.Semiring
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.Map
--- >>> :load Data.Profunctor.Optic
--- >>> let ixtraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; ixtraversed = ixtraversalVl traverseWithKey
+-- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> let itraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; itraversed = itraversalVl traverseWithKey
 -- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
 -- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
 
@@ -75,16 +76,16 @@ infixr 8 %
 --
 -- If you only need the final index then use /./:
 --
--- >>> ixlists (ixtraversed . ixtraversed) foobar
+-- >>> ilists (itraversed . itraversed) foobar
 -- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
 --
--- >>> ixlistsFrom (ixlast ixtraversed % ixlast ixtraversed) (Last 0) foobar & fmapped . t21 ..~ getLast
+-- >>> ilists (ilast itraversed % ilast itraversed) foobar & fmapped . t21 ..~ getLast
 -- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
 --
--- >>> ixlists (ixtraversed . ixtraversed) exercises
+-- >>> ilists (itraversed . itraversed) exercises
 -- [("crunches",25),("handstands",5),("crunches",20),("pushups",10),("handstands",3),("pushups",15)]
 --
--- >>> ixlists (ixtraversed % ixtraversed) exercises 
+-- >>> ilists (itraversed % itraversed) exercises 
 -- [("Fridaycrunches",25),("Fridayhandstands",5),("Mondaycrunches",20),("Mondaypushups",10),("Wednesdayhandstands",3),("Wednesdaypushups",15)]
 --
 (%) :: Semigroup i => Representable p => IndexedOptic p i b1 b2 a1 a2 -> IndexedOptic p i c1 c2 b1 b2 -> IndexedOptic p i c1 c2 a1 a2
@@ -93,29 +94,32 @@ f % g = repn $ \ia1a2 (ic,c1) ->
             withIxrepn f ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
 {-# INLINE (%) #-}
 
-ixinit :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (First i) s t a b
-ixinit = reix First getFirst
+iinit :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (First i) s t a b
+iinit = rei First getFirst
 
-ixlast :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Last i) s t a b
-ixlast = reix Last getLast
+ilast :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Last i) s t a b
+ilast = rei Last getLast
 
 -- | Map over the indices of an indexed optic.
 --
--- >>> ixlists (ixtraversed . reix (<>10) id ixtraversed) foobar
+-- >>> ilists (itraversed . rei (<>10) id itraversed) foobar
 -- [(10,"foo"),(11,"bar"),(10,"baz"),(11,"bip")]
 --
--- See also 'Data.Profunctor.Optic.Iso.reixed'.
+-- See also 'Data.Profunctor.Optic.Iso.reied'.
 --
-reix :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-reix ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
+rei :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+rei ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
 
--- >>> ixlists (ixtraversed . ixmap head pure) [[1,2,3],[4,5,6]]
+-- >>> ilists (itraversed . imap head pure) [[1,2,3],[4,5,6]]
 -- [(0,1),(1,4)]
-ixmap :: Profunctor p => (s -> a) -> (b -> t) -> IndexedOptic p i s t a b
-ixmap sa bt = dimap (fmap sa) bt
+imap :: Profunctor p => (s -> a) -> (b -> t) -> IndexedOptic p i s t a b
+imap sa bt = dimap (fmap sa) bt
 
 withIxrepn :: Representable p => IndexedOptic p i s t a b -> i -> s -> (i -> a -> Rep p b) -> Rep p t
 withIxrepn abst i s iab = (sieve . abst . tabulate $ uncurry iab) (i, s)
+
+iempty :: a
+iempty = error "Empty index"
 
 ---------------------------------------------------------------------
 -- Coindexing
@@ -135,48 +139,48 @@ f # g = corepn $ \a1ka2 c1 kc ->
             withCxrepn f b1 kb $ \a1 ka -> a1ka2 a1 (kb <> ka)
 {-# INLINE (#) #-}
 
-cxinit :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (First k) s t a b
-cxinit = recx First getFirst
+kinit :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (First k) s t a b
+kinit = rek First getFirst
 
-cxlast :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (Last k) s t a b
-cxlast = recx Last getLast
+klast :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (Last k) s t a b
+klast = rek Last getLast
 
 -- | Map over the indices of a coindexed optic.
 --
--- See also 'Data.Profunctor.Optic.Iso.recxed'.
+-- See also 'Data.Profunctor.Optic.Iso.reked'.
 --
-recx :: Profunctor p => (k -> l) -> (l -> k) -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-recx kl lk = (. rmap (. kl)) . (rmap (. lk) .)
+rek :: Profunctor p => (k -> l) -> (l -> k) -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+rek kl lk = (. rmap (. kl)) . (rmap (. lk) .)
 
-cxmap :: Profunctor p => (s -> a) -> (b -> t) -> CoindexedOptic p k s t a b 
-cxmap sa bt = dimap sa (fmap bt)
+kmap :: Profunctor p => (s -> a) -> (b -> t) -> CoindexedOptic p k s t a b 
+kmap sa bt = dimap sa (fmap bt)
 
 -- | Generic type for a co-indexed optic.
 type Cx p k a b = p a (k -> b)
 
 type Cx' p a b = Cx p a a b
 
-cxed :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
-cxed = dimap cxjoin cxreturn
+ked :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
+ked = dimap kjoin kreturn
 
-cxjoin :: Strong p => Cx p a a b -> p a b
-cxjoin = peval
+kjoin :: Strong p => Cx p a a b -> p a b
+kjoin = peval
 
-cxreturn :: Profunctor p => p a b -> Cx p k a b
-cxreturn = rmap const
+kreturn :: Profunctor p => p a b -> Cx p k a b
+kreturn = rmap const
 
-cxunit :: Strong p => Cx' p :-> p
-cxunit p = dimap fork apply (first' p)
+kunit :: Strong p => Cx' p :-> p
+kunit p = dimap fork apply (first' p)
 
-cxpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
-cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
+kpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
+kpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
 
 -- | 'Cx'' is freely strong.
 --
 -- See <https://r6research.livejournal.com/27858.html>.
 --
-cxfirst' :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
-cxfirst' = dimap fst (B.first @(,))
+kfirst' :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
+kfirst' = dimap fst (B.first @(,))
 
 withCxrepn :: Corepresentable p => CoindexedOptic p k s t a b -> Corep p s -> k -> (Corep p a -> k -> b) -> t
 withCxrepn abst s k akb = (cosieve . abst $ cotabulate akb) s k
@@ -191,9 +195,9 @@ withCxrepn abst s k akb = (cosieve . abst $ cotabulate akb) s k
 --
 data Index a b r = Index a (b -> r)
 
-values :: Index a b r -> b -> r
-values (Index _ br) = br
-{-# INLINE values #-}
+vals :: Index a b r -> b -> r
+vals (Index _ br) = br
+{-# INLINE vals #-}
 
 info :: Index a b r -> a
 info (Index a _) = a

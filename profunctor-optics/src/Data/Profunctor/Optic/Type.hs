@@ -25,14 +25,14 @@ module Data.Profunctor.Optic.Type (
     -- * Traversal0
   , Traversal0   , Traversal0'  , Ixtraversal0, Ixtraversal0'
     -- * Traversal1 & Cotraversal1
-  , Traversal1   , Traversal1'
+  , Traversal1   , Traversal1'  , Ixtraversal1, Ixtraversal1'
   , Cotraversal1 , Cotraversal1', Cxtraversal1, Cxtraversal1'
     -- * Traversal
   , Traversal    , Traversal'   , Ixtraversal , Ixtraversal'
     -- * Fold0
   , Fold0, Ixfold0
     -- * Fold1 & Cofold1
-  , Fold1, Cofold1
+  , Fold1, Ixfold1, Cofold1
     -- * Fold
   , Fold, Ixfold
     -- * View & Review
@@ -58,6 +58,7 @@ import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
+-- >>> import Data.Either.Optic
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -208,6 +209,10 @@ type Traversal1 s t a b = forall p. (Representable p, Apply (Rep p)) => Optic p 
 
 type Traversal1' s a = Traversal1 s s a a
 
+type Ixtraversal1 i s t a b = forall p. (Representable p, Apply (Rep p)) => IndexedOptic p i s t a b 
+
+type Ixtraversal1' i s a = Ixtraversal1 i s s a a
+
 type Cotraversal1 s t a b = forall p. (Closed p, Corepresentable p, Apply (Corep p)) => Optic p s t a b 
 
 type Cotraversal1' s a = Cotraversal1 s s a a
@@ -246,13 +251,15 @@ type Ixfold0 i s a = forall p. (Choice p, Strong p, forall x. Contravariant (p x
 --
 type Fold1 s a = forall p. (Representable p, Apply (Rep p), forall x. Contravariant (p x)) => Optic p s s a a 
 
+type Ixfold1 i s a = forall p. (Representable p, Apply (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
+
 type Cofold1 t b = forall p. (Corepresentable p, Apply (Corep p), Bifunctor p) => Optic p t t b b
 
 -- | A 'Fold' combines 0 or more elements, with 'Monoid' interactions.
 --
-type Fold s a = forall p. (Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a
+type Fold s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a
 
-type Ixfold i s a = forall p. (Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
+type Ixfold i s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'

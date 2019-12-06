@@ -8,6 +8,7 @@
 module Data.Profunctor.Optic.Fold1 (
     -- * Fold1 & Ixfold1
     Fold1
+  , Ixfold1
   , fold1_
   , folding1
   , fold1Vl
@@ -26,7 +27,8 @@ module Data.Profunctor.Optic.Fold1 (
   , summed1
   , multiplied1
     -- * Primitive operators
-  , withFold1 
+  , withFold1
+  , withIxfold1
   , withCofold1
     -- * Operators
   , folds1
@@ -36,9 +38,11 @@ module Data.Profunctor.Optic.Fold1 (
     -- * Carriers
   , FoldRep
   , AFold1
+  , AIxfold1
   , Cofold1Rep
   , ACofold1
   , afold1
+  , aifold1
   , acofold1
   , Star(..)
   , Costar(..)
@@ -46,11 +50,11 @@ module Data.Profunctor.Optic.Fold1 (
   , Nedl(..)
 ) where
 
-import Control.Applicative
 import Data.Foldable (Foldable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Index (iempty)
 import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
@@ -73,13 +77,15 @@ import qualified Data.Semiring as Rng
 -- >>> import Data.Sequence as Seq
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> :load Data.Profunctor.Optic
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Fold1' & 'Ixfold1'
 ---------------------------------------------------------------------
 
 type AFold1 r s a = Optic' (FoldRep r) s a
+
+type AIxfold1 r i s a = IndexedOptic' (FoldRep r) i s a
 
 -- | Obtain a 'Fold1' directly.
 --
@@ -122,12 +128,6 @@ toFold1 :: AView s a -> Fold1 s a
 toFold1 = to . view
 {-# INLINE toFold1 #-}
 
--- | TODO: Document
---
-afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-afold1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afold1 #-}
-
 -- | Obtain a 'Fold1' from a 'AFold1'.
 --
 cloneFold1 :: Semigroup a => AFold1 a s a -> View s a
@@ -158,12 +158,6 @@ cofolding1 f = cofold1Vl cotraverse . from f
 cofold1Vl :: (forall f. Apply f => (f a -> b) -> f s -> t) -> Cofold1 t b
 cofold1Vl f = coercel . corepn f . coercel
 {-# INLINE cofold1Vl #-}
-
--- | TODO: Document
---
-acofold1 :: ((r -> b) -> r -> t) -> ACofold1 r t b
-acofold1 o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE acofold1 #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -246,6 +240,21 @@ withFold1 = withPrimView
 
 -- | TODO: Document
 --
+-- >>> :t flip withIxfold Map.singleton
+-- flip withIxfold Map.singleton
+--   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
+-- 
+-- >>> withIxfold itraversed const [1..5]
+-- 10
+-- >>> withIxfold itraversed const []
+-- 0
+--
+withIxfold1 :: Semigroup r => AIxfold1 r i s a -> (i -> a -> r) -> s -> r
+withIxfold1 o f = flip curry iempty $ withPrimView o (uncurry f)
+{-# INLINE withIxfold1 #-}
+
+-- | TODO: Document
+--
 -- >>> withCofold1 (from succ) (*2) 3
 -- 7
 --
@@ -293,11 +302,27 @@ nelists :: AFold1 (Nedl a) s a -> s -> NonEmpty a
 nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
 {-# INLINE nelists #-}
 
-------------------------------------------------------------------------------
--- Indexed operators
-------------------------------------------------------------------------------
+---------------------------------------------------------------------
+-- Carriers
+---------------------------------------------------------------------
 
--- TODO
+-- | TODO: Document
+--
+afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
+afold1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
+{-# INLINE afold1 #-}
+
+-- | TODO: Document
+--
+aifold1 :: Semigroup r => ((i -> a -> r) -> s -> r) -> AIxfold1 r i s a
+aifold1 f = afold $ \iar s -> f (curry iar) $ snd s
+{-# INLINE aifold1 #-}
+
+-- | TODO: Document
+--
+acofold1 :: ((r -> b) -> r -> t) -> ACofold1 r t b
+acofold1 o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE acofold1 #-}
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types

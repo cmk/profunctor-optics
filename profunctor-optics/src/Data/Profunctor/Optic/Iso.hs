@@ -15,8 +15,8 @@ module Data.Profunctor.Optic.Iso (
     -- * Constructors
   , iso
   , isoVl
-  , ixmapping
-  , cxmapping
+  , imapping
+  , kmapping
   , fmapping
   , contramapping
   , dimapping
@@ -46,8 +46,8 @@ module Data.Profunctor.Optic.Iso (
   , withIso
   , invert
   , reover
-  , reixed
-  , recxed
+  , reied
+  , reked
   , op
   , au 
   , aup
@@ -85,7 +85,7 @@ import qualified GHC.Generics as GHC (to, from, to1, from1)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> :load Data.Profunctor.Optic
--- >>> let ixtraversed :: Ixtraversal Int [a] [b] a b ; ixtraversed = ixtraversalVl itraverse
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Iso' 
@@ -124,18 +124,18 @@ isoVl abst = iso f g
 
 -- | Lift an 'Iso' into an indexed version. 
 --
--- >>> ixlists (ixtraversed . ixmapping swapped) [(40,'f'),(41,'o'),(42,'o')]
+-- >>> ilists (itraversed . imapping swapped) [(40,'f'),(41,'o'),(42,'o')]
 -- [(0,('f',40)),(1,('o',41)),(2,('o',42))]
 --
-ixmapping :: Profunctor p => AIso s t a b -> IndexedOptic p i s t a b
-ixmapping o = withIso o ixmap
-{-# INLINE ixmapping #-}
+imapping :: Profunctor p => AIso s t a b -> IndexedOptic p i s t a b
+imapping o = withIso o imap
+{-# INLINE imapping #-}
 
 -- | Lift an 'Iso' into a coindexed version. 
 --
-cxmapping :: Profunctor p => AIso s t a b -> CoindexedOptic p k s t a b
-cxmapping o = withIso o cxmap
-{-# INLINE cxmapping #-}
+kmapping :: Profunctor p => AIso s t a b -> CoindexedOptic p k s t a b
+kmapping o = withIso o kmap
+{-# INLINE kmapping #-}
 
 -- | TODO: Document
 --
@@ -424,15 +424,15 @@ reover o = withIso o $ \sa bt ts -> sa . ts . bt
 
 -- | Remap the indices of an indexed optic.
 --
-reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-reixed o = withIso o reix
-{-# INLINE reixed #-}
+reied :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+reied o = withIso o rei
+{-# INLINE reied #-}
 
 -- | Remap the indices of a coindexed optic.
 --
-recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-recxed o = withIso o recx
-{-# INLINE recxed #-}
+reked :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+reked o = withIso o rek
+{-# INLINE reked #-}
 
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --
