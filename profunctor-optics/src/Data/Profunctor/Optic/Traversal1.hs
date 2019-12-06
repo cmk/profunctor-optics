@@ -52,8 +52,6 @@ module Data.Profunctor.Optic.Traversal1 (
 ) where
 
 import Data.Bifunctor (first, second)
-import Data.List.Index
-import Data.Map as Map
 import Data.Semigroup.Bitraversable
 import Data.Profunctor.Optic.Lens hiding (first, second, unit)
 import Data.Profunctor.Optic.Import

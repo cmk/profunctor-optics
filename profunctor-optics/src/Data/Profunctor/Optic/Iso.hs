@@ -38,16 +38,14 @@ module Data.Profunctor.Optic.Iso (
   , involuted 
   , added 
   , subtracted
-  , viewedl
-  , viewedr
   , non 
   , anon
     -- * Primitive operators
   , withIso
   , invert
   , reover
-  , reied
-  , reked
+  , reixed
+  , recxed
   , op
   , au 
   , aup
@@ -68,7 +66,6 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type hiding (Rep)
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
-import Data.Sequence as Seq
 import GHC.Generics hiding (from, to)
 import qualified Control.Monad as M (join)
 import qualified GHC.Generics as GHC (to, from, to1, from1)
@@ -318,50 +315,6 @@ subtracted :: Group a => a -> Iso' a a
 subtracted n = iso (<< n) (<> n)
 {-# INLINE subtracted #-}
 
--- | A 'Seq' is isomorphic to a 'ViewL'
---
--- @'viewl' m ≡ m 'Data.Profunctor.Optic.Operator.^.' 'viewedl'@
---
--- >>> Seq.fromList [1,2,3] ^. viewedl
--- 1 :< fromList [2,3]
---
--- >>> Seq.empty ^. viewedl
--- EmptyL
---
--- >>> EmptyL ^. re viewedl
--- fromList []
---
--- >>> review viewedl $ 1 Seq.:< fromList [2,3]
--- fromList [1,2,3]
---
-viewedl :: Iso (Seq a) (Seq b) (ViewL a) (ViewL b)
-viewedl = iso viewl $ \xs -> case xs of
-  EmptyL      -> mempty
-  a Seq.:< as -> a Seq.<| as
-{-# INLINE viewedl #-}
-
--- | A 'Seq' is isomorphic to a 'ViewR'
---
--- @'viewr' m ≡ m 'Data.Profunctor.Optic.Operator.^.' 'viewedr'@
---
--- >>> Seq.fromList [1,2,3] ^. viewedr
--- fromList [1,2] :> 3
---
--- >>> Seq.empty ^. viewedr
--- EmptyR
---
--- >>> EmptyR ^. re viewedr
--- fromList []
---
--- >>> review viewedr $ fromList [1,2] Seq.:> 3
--- fromList [1,2,3]
---
-viewedr :: Iso (Seq a) (Seq b) (ViewR a) (ViewR b)
-viewedr = iso viewr $ \xs -> case xs of
-  EmptyR      -> mempty
-  as Seq.:> a -> as Seq.|> a
-{-# INLINE viewedr #-}
-
 -- | Remove a single value from a type.
 --
 -- @
@@ -424,15 +377,15 @@ reover o = withIso o $ \sa bt ts -> sa . ts . bt
 
 -- | Remap the indices of an indexed optic.
 --
-reied :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-reied o = withIso o rei
-{-# INLINE reied #-}
+reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+reixed o = withIso o reix
+{-# INLINE reixed #-}
 
 -- | Remap the indices of a coindexed optic.
 --
-reked :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-reked o = withIso o rek
-{-# INLINE reked #-}
+recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+recxed o = withIso o recx
+{-# INLINE recxed #-}
 
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --

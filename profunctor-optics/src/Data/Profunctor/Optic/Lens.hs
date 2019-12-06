@@ -61,16 +61,9 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Type
-import Data.Tree
-import Data.Void (Void, absurd)
+import Data.Void
 import GHC.Generics hiding (from, to)
 import qualified Data.Bifunctor as B
-import qualified Data.IntMap as IntMap
-import qualified Data.IntMap.Strict as IntMap'
-import qualified Data.IntSet as IntSet
-import qualified Data.Map as Map
-import qualified Data.Map.Strict as Map'
-import qualified Data.Set as Set
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings

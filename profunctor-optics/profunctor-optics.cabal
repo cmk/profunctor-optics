@@ -92,9 +92,7 @@ library
       base              >= 4.9      && < 5.0
     , comonad           >= 4        && < 6
     , connections       >= 0.0.2.1  && < 0.1
-    , containers        >= 0.4.0    && < 0.7
     , distributive      >= 0.3      && < 1
-    , ilist             >= 0.3.1.0  && < 0.4
     , mtl               >= 2.0.1    && < 2.3
     , newtype-generics  >= 0.5.3    && < 0.6
     , profunctor-arrows >= 0.0.0.2  && < 0.0.1
@@ -104,7 +102,6 @@ library
     , tagged            >= 0.4.4    && < 1
     , transformers      >= 0.2      && < 0.6
     , unliftio-core     >= 0.1.2    && < 0.2
-    , property
 
 test-suite test
   type: exitcode-stdio-1.0

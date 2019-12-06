@@ -34,6 +34,15 @@ makeOptics ''Bar
 checkBaz :: Lens (Bar a b c) (Bar a' b' c') (a, b) (a', b')
 checkBaz = baz
 
+data Foobaz = Foo { _x :: Int, _y :: Bool } | Baz { _x :: Int } deriving (Eq, Show)
+makeOptics ''Foobaz
+
+checkY :: Traversal' Foobaz Bool
+checkY = y
+
+checkX :: Lens' Foobaz Int
+checkX = x
+
 data Quux a b = Quux { _quaffle :: Int, _quartz :: Double }
 makeOptics ''Quux
 
@@ -42,6 +51,9 @@ checkQuaffle = quaffle
 
 checkQuartz :: Lens (Quux a b) (Quux a' b') Double Double
 checkQuartz = quartz
+
+
+
 
 data Quark a = Qualified   { _gaffer :: a }
              | Unqualified { _gaffer :: a, _tape :: a }

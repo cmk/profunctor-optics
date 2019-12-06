@@ -40,6 +40,7 @@ import qualified Data.Set as Set
 import           Data.Set (Set)
 import           Data.List (nub)
 import           Data.Maybe
+import           Data.Tuple.Optic
 import           Data.Profunctor.Optic
 import           Language.Haskell.TH
 
@@ -48,99 +49,6 @@ import           Control.Applicative
 import           Data.Monoid
 import           Data.Traversable (traverse)
 #endif
-
-class Field1 s t a b | s -> a, t -> b, s b -> t, t a -> s where
-  {- |
-Gives access to the 1st field of a tuple (up to 5-tuples).
-
-Getting the 1st component:
-
->>> (1,2,3,4,5) ^. _1
-1
-
-Setting the 1st component:
-
->>> (1,2,3) & _1 .~ 10
-(10,2,3)
-
-Note that this lens is lazy, and can set fields even of 'undefined':
-
->>> set _1 10 undefined :: (Int, Int)
-(10,*** Exception: Prelude.undefined
-
-This is done to avoid violating a lens law stating that you can get back what you put:
-
->>> view _1 . set _1 10 $ (undefined :: (Int, Int))
-10
-
-The implementation (for 2-tuples) is:
-
-@
-'_1' f t = (,) '<$>' f    ('fst' t)
-             '<*>' 'pure' ('snd' t)
-@
-
-or, alternatively,
-
-@
-'_1' f ~(a,b) = (\\a' -> (a',b)) '<$>' f a
-@
-
-(where @~@ means a <https://wiki.haskell.org/Lazy_pattern_match lazy pattern>).
-
-'_2', '_3', '_4', and '_5' are also available (see below).
-  -}
-  _1 :: forall f. Functor f => (a -> f b) -> s -> f t
-instance Field1 (a,b) (a',b) a a' where
-  _1 k ~(a,b) = (\a' -> (a',b)) <$> k a
-  {-# INLINE _1 #-}
-
-instance Field1 (a,b,c) (a',b,c) a a' where
-  _1 k ~(a,b,c) = (\a' -> (a',b,c)) <$> k a
-  {-# INLINE _1 #-}
-
-instance Field1 (a,b,c,d) (a',b,c,d) a a' where
-  _1 k ~(a,b,c,d) = (\a' -> (a',b,c,d)) <$> k a
-  {-# INLINE _1 #-}
-
-instance Field1 (a,b,c,d,e) (a',b,c,d,e) a a' where
-  _1 k ~(a,b,c,d,e) = (\a' -> (a',b,c,d,e)) <$> k a
-  {-# INLINE _1 #-}
-
-class Field2 s t a b | s -> a, t -> b, s b -> t, t a -> s where
-  _2 :: forall f. Functor f => (a -> f b) -> s -> f t 
-
-instance Field2 (a,b) (a,b') b b' where
-  _2 k ~(a,b) = (\b' -> (a,b')) <$> k b
-  {-# INLINE _2 #-}
-
-instance Field2 (a,b,c) (a,b',c) b b' where
-  _2 k ~(a,b,c) = (\b' -> (a,b',c)) <$> k b
-  {-# INLINE _2 #-}
-
-instance Field2 (a,b,c,d) (a,b',c,d) b b' where
-  _2 k ~(a,b,c,d) = (\b' -> (a,b',c,d)) <$> k b
-  {-# INLINE _2 #-}
-
-instance Field2 (a,b,c,d,e) (a,b',c,d,e) b b' where
-  _2 k ~(a,b,c,d,e) = (\b' -> (a,b',c,d,e)) <$> k b
-  {-# INLINE _2 #-}
-
-class Field3 s t a b | s -> a, t -> b, s b -> t, t a -> s where
-  _3 :: forall f. Functor f => (a -> f b) -> s -> f t
-
-instance Field3 (a,b,c) (a,b,c') c c' where
-  _3 k ~(a,b,c) = (\c' -> (a,b,c')) <$> k c
-  {-# INLINE _3 #-}
-
-instance Field3 (a,b,c,d) (a,b,c',d) c c' where
-  _3 k ~(a,b,c,d) = (\c' -> (a,b,c',d)) <$> k c
-  {-# INLINE _3 #-}
-
-instance Field3 (a,b,c,d,e) (a,b,c',d,e) c c' where
-  _3 k ~(a,b,c,d,e) = (\c' -> (a,b,c',d,e)) <$> k c
-  {-# INLINE _3 #-}
-
 
 -- | Has a 'Name'
 class HasName t where
@@ -165,9 +73,9 @@ instance HasName Con where
       conT f (InfixC l n r)        = (\n' -> InfixC l n' r) <$> f n
       conT f (ForallC bds ctx con) = ForallC bds ctx <$> (flip runStar con $ name (Star f))
       conT f (GadtC ns argTys retTy) =
-	(\n -> GadtC [n] argTys retTy) <$> f (head ns)
+        (\n -> GadtC [n] argTys retTy) <$> f (head ns)
       conT f (RecGadtC ns argTys retTy) =
-	(\n -> RecGadtC [n] argTys retTy) <$> f (head ns)
+        (\n -> RecGadtC [n] argTys retTy) <$> f (head ns)
 
 -- | Generate many new names from a given base name.
 newNames :: String {- ^ base name -} -> Int {- ^ count -} -> Q [Name]
@@ -187,7 +95,7 @@ instance HasTypeVars Name where
   typeVarsEx s = traversalVl $ \f n -> if Set.member n s then pure n else f n
 
 instance HasTypeVars Type where
-  typeVarsEx s = traversalVl tyT -- $ \f (VarT n)            -> VarT <$> typeVarsEx' s f n
+  typeVarsEx s = traversalVl tyT
     where 
       typeVarsEx' :: Applicative f => HasTypeVars t => Set Name -> (Name -> f Name) -> t -> f t 
       typeVarsEx' s = withTraversal $ typeVarsEx s
@@ -218,12 +126,13 @@ instance HasTypeVars Pred where
   typeVarsEx s = traversalVl $ \f (ClassP n ts) -> ClassP n <$> typeVarsEx s f ts
   typeVarsEx s = traversalVl $ \f (EqualP l r)  -> EqualP <$> typeVarsEx s f l <*> typeVarsEx s f r
 #endif
+
 {-
 instance HasTypeVars Con where
   typeVarsEx s = traversalVl $ \f (NormalC n ts) ->
-    NormalC n <$> (traverse . _2) (typeVarsEx s f) ts
+    NormalC n <$> (traverse . t32) (typeVarsEx s f) ts
   typeVarsEx s = traversalVl $ \f (RecC n ts) ->
-    RecC n <$> (traverse . _3) (typeVarsEx s f) ts
+    RecC n <$> (traverse . t33) (typeVarsEx s f) ts -- traversed . t33 etc
   typeVarsEx s = traversalVl $ \f (InfixC l n r) ->
     InfixC <$> g l <*> pure n <*> g r
       where g (i, t) = (,) i <$> typeVarsEx s f t
@@ -232,13 +141,14 @@ instance HasTypeVars Con where
       where s' = s `Set.union` Set.fromList (bs ^.. typeVars)
 #if MIN_VERSION_template_haskell(2,11,0)
   typeVarsEx s = traversalVl $ \f (GadtC ns argTys retTy) ->
-    GadtC ns <$> (traverse . _2) (typeVarsEx s f) argTys
+    GadtC ns <$> (traverse . t32) (typeVarsEx s f) argTys
              <*> typeVarsEx s f retTy
   typeVarsEx s = traversalVl $ \f (RecGadtC ns argTys retTy) ->
-    RecGadtC ns <$> (traverse . _3) (typeVarsEx s f) argTys
+    RecGadtC ns <$> (traverse . t33) (typeVarsEx s f) argTys
                 <*> typeVarsEx s f retTy
 #endif
 -}
+
 instance HasTypeVars t => HasTypeVars [t] where
   typeVarsEx s = traversed . typeVarsEx s
 
@@ -255,11 +165,7 @@ substTypeVars m = over typeVars $ \n -> fromMaybe n (Map.lookup n m)
 
 -- | Generate an INLINE pragma.
 inlinePragma :: Name -> [DecQ]
-#if MIN_VERSION_template_haskell(2,8,0)
 inlinePragma methodName = [pragInlD methodName Inline FunLike AllPhases]
-#else
-inlinePragma methodName = [pragInlD methodName (inlineSpecNoPhase True False)]
-#endif
 
 -- | Apply arguments to a type constructor.
 conAppsT :: Name -> [Type] -> Type

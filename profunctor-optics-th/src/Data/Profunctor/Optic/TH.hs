@@ -65,6 +65,7 @@ import           Control.Monad.Trans.State
 import           Data.Char
 import           Data.Data
 import           Data.Either
+import           Data.Either.Optic
 import qualified Data.Map as Map
 import           Data.Map (Map)
 import           Data.Monoid
@@ -73,6 +74,7 @@ import           Data.Set (Set)
 import           Data.Functor.Identity
 import           Data.List (nub, findIndices, stripPrefix, isPrefixOf)
 import           Data.Maybe
+import           Data.Tuple.Optic
 import           Data.Profunctor.Optic
 import           Data.Profunctor.Optic.TH.Internal
 import           Language.Haskell.TH
@@ -221,15 +223,13 @@ makeOptics ''Foobar
 
 {- $view-fold-note
 
-When updates are forbidden (by using 'generateUpdateableOptics'), or when a field simply can't be updated (for instance, in the presence of @forall@), instead of 'Lens' and 'Traversal' we generate 'View' and 'Fold'. These aren't true @View@ and @Fold@ from lens, so beware. (Still, they're compatible, it's just that you can't do some things with them that you can do with original ones – for instance, @backwards@ and @takingWhile@ don't work on 'Fold'.)
-
-If you want to export true folds, it's recommended that you depend on <http://hackage.haskell.org/package/microlens-contra microlens-contra>, use 'makeOpticsFor' to generate 'Fold's with prefixes, and then export versions of those folds with @<http://hackage.haskell.org/package/microlens-contra/docs/Lens-Micro-Contra.html#v:fromFold fromFold>@ applied.
+When updates are forbidden (by using 'generateUpdateableOptics'), or when a field simply can't be updated (for instance, in the presence of @forall@), instead of 'Lens' and 'Traversal' we generate 'View' and 'Fold'.
 -}
 
 
 
 {- |
-Generate lenses for a data type or a newtype.
+Generate optics for a data type or a newtype.
 
 To use it, you have to enable Template Haskell first:
 
@@ -247,7 +247,7 @@ data Foo = Foo {
 'makeOptics' ''Foo
 @
 
-This would generate the following lenses, which can be used to access the fields of @Foo@:
+This would generate the following optics, which can be used to access the fields of @Foo@:
 
 @
 x :: 'Lens'' Foo Int
@@ -259,7 +259,7 @@ y = lensVl $ \f foo -> (\\y' -> foo {_y = y'}) '<$>' f (_y foo)
 
 (If you don't want a lens to be generated for some field, don't prefix it with “_”.)
 
-If you want to create lenses for many types, you can do it all in one place like this (of course, instead you just can use 'makeOptics' several times if you feel it would be more readable):
+If you want to create optics for many types, you can do it all in one place like this (of course, instead you just can use 'makeOptics' several times if you feel it would be more readable):
 
 @
 data Foo = ...
@@ -314,7 +314,6 @@ x :: 'Lens'' FooBar Int
 y :: 'Traversal'' FooBar Bool
 @
 
-So, to get @_y@, you'd have to either use ('^?') if you're not sure it's there, or ('^?!') if you're absolutely sure (and if you're wrong, you'll get an exception). Setting and updating @_y@ can be done as usual.
 -}
 makeOptics :: Name -> DecsQ
 makeOptics = makeFieldOptics opticRules
@@ -951,14 +950,14 @@ buildScaffold rules s cons defName =
          defType
            | Just (_,cx,a') <- prev forallt a =
                let optic | lensCase   = ViewType
-                        -- | affineCase = Fold0Type
+                        {-- | affineCase = Fold0Type --}
                          | otherwise  = FoldType
                in OpticSa cx optic s' a'
 
            -- View and Fold are always simple
            | not (_allowUpdates rules) =
                let optic | lensCase   = ViewType
-                        -- | affineCase = Fold0Type
+                        {-- | affineCase = Fold0Type --}
                          | otherwise  = FoldType
                in OpticSa [] optic s' a
 
@@ -966,7 +965,7 @@ buildScaffold rules s cons defName =
            | _simpleOptics rules || s' == t && a == b =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                        -- | affineCase                  = Traversal0Type
+                        {-- | affineCase                  = Traversal0Type --}
                          | otherwise                   = TraversalType
                in OpticSa [] optic s' a
 
@@ -974,7 +973,7 @@ buildScaffold rules s cons defName =
            | otherwise =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                        -- | affineCase                  = Traversal0Type
+                        {-- | affineCase                  = Traversal0Type --}
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
@@ -1006,7 +1005,7 @@ buildScaffold rules s cons defName =
   lensCase = all (\x -> lengthOf (second . folded . right) x == 1) consForDef
 
   --affectedFields :: [Int]
-  --affectedFields = lists (folded . _3 . to length) scaffolds
+  --affectedFields = lists (folded . t33 . to length) scaffolds
 
   --lensCase :: Bool
   --lensCase = all (== 1) affectedFields

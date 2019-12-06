@@ -64,8 +64,6 @@ import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Traversal0
 import Data.Profunctor.Optic.Traversal1
 
-import Test.Property.Function.Invertible as FI
-
 ---------------------------------------------------------------------
 -- 'Iso'
 ---------------------------------------------------------------------
@@ -109,10 +107,12 @@ idempotent_prism o s = withPrism o $ \sta _ -> left' sta (sta s) == left' Left (
 -- 'Lens'
 ---------------------------------------------------------------------
 
+invertible f g a = g (f a) == a
+
 -- A 'Lens' is a valid 'Traversal' with the following additional laws:
 
 id_lens :: Eq s => Lens' s a -> s -> Bool
-id_lens o = M.join FI.invertible $ runIdentity . withLensVl o Identity 
+id_lens o = M.join invertible $ runIdentity . withLensVl o Identity 
 
 -- | You get back what you put in.
 --
@@ -142,7 +142,7 @@ idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 -- The 'Grate' laws are that of an algebra for the parameterised continuation 'Coindex'.
 
 id_grate :: Eq s => Grate' s a -> s -> Bool
-id_grate o = M.join FI.invertible $ withGrateVl o runIdentity . Identity 
+id_grate o = M.join invertible $ withGrateVl o runIdentity . Identity 
 
 -- |
 --
@@ -188,7 +188,7 @@ idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2
 -- A 'Traversal' is a valid 'Setter' with the following additional laws:
 
 id_traversal :: Eq s => Traversal' s a -> s -> Bool
-id_traversal o = M.join FI.invertible $ runIdentity . withTraversal o Identity 
+id_traversal o = M.join invertible $ runIdentity . withTraversal o Identity 
 
 pure_traversal :: Eq (f s) => Applicative f => ATraversal' f s a -> s -> Bool
 pure_traversal o = liftA2 (==) (withTraversal o pure) pure
@@ -203,7 +203,7 @@ compose_traversal o f g = liftA2 (==) lhs rhs
 ---------------------------------------------------------------------
 
 id_traversal1 :: Eq s => Traversal1' s a -> s -> Bool
-id_traversal1 o = M.join FI.invertible $ runIdentity . withTraversal1 o Identity 
+id_traversal1 o = M.join invertible $ runIdentity . withTraversal1 o Identity 
 
 compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal1 o f g s = lhs s == rhs s

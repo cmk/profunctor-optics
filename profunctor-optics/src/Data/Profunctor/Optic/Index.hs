@@ -12,7 +12,7 @@ module Data.Profunctor.Optic.Index (
     (%)
   , iinit
   , ilast
-  , rei
+  , reix
   , imap
   , withIxrepn
   , iempty
@@ -20,9 +20,9 @@ module Data.Profunctor.Optic.Index (
   , (#)
   , kinit
   , klast
-  , rek
+  , recx
   , kmap
-  , ked
+  , cxed
   , kjoin
   , kreturn
   , type Cx'
@@ -95,20 +95,20 @@ f % g = repn $ \ia1a2 (ic,c1) ->
 {-# INLINE (%) #-}
 
 iinit :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (First i) s t a b
-iinit = rei First getFirst
+iinit = reix First getFirst
 
 ilast :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Last i) s t a b
-ilast = rei Last getLast
+ilast = reix Last getLast
 
 -- | Map over the indices of an indexed optic.
 --
--- >>> ilists (itraversed . rei (<>10) id itraversed) foobar
+-- >>> ilists (itraversed . reix (<>10) id itraversed) foobar
 -- [(10,"foo"),(11,"bar"),(10,"baz"),(11,"bip")]
 --
--- See also 'Data.Profunctor.Optic.Iso.reied'.
+-- See also 'Data.Profunctor.Optic.Iso.reixed'.
 --
-rei :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-rei ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
+reix :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
+reix ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
 
 -- >>> ilists (itraversed . imap head pure) [[1,2,3],[4,5,6]]
 -- [(0,1),(1,4)]
@@ -140,17 +140,17 @@ f # g = corepn $ \a1ka2 c1 kc ->
 {-# INLINE (#) #-}
 
 kinit :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (First k) s t a b
-kinit = rek First getFirst
+kinit = recx First getFirst
 
 klast :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (Last k) s t a b
-klast = rek Last getLast
+klast = recx Last getLast
 
 -- | Map over the indices of a coindexed optic.
 --
--- See also 'Data.Profunctor.Optic.Iso.reked'.
+-- See also 'Data.Profunctor.Optic.Iso.recxed'.
 --
-rek :: Profunctor p => (k -> l) -> (l -> k) -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-rek kl lk = (. rmap (. kl)) . (rmap (. lk) .)
+recx :: Profunctor p => (k -> l) -> (l -> k) -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
+recx kl lk = (. rmap (. kl)) . (rmap (. lk) .)
 
 kmap :: Profunctor p => (s -> a) -> (b -> t) -> CoindexedOptic p k s t a b 
 kmap sa bt = dimap sa (fmap bt)
@@ -160,8 +160,8 @@ type Cx p k a b = p a (k -> b)
 
 type Cx' p a b = Cx p a a b
 
-ked :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
-ked = dimap kjoin kreturn
+cxed :: Strong p => Iso (Cx p s s t) (Cx p k a b) (p s t) (p a b)
+cxed = dimap kjoin kreturn
 
 kjoin :: Strong p => Cx p a a b -> p a b
 kjoin = peval
