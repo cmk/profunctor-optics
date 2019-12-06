@@ -16,12 +16,12 @@ description:
   .
   Well-documented properties and exportable predicates for testing your own optics.
   .
-  See the <https://github.com/cmk/profunctor-extras/blob/master/profunctor-optics/README.md Readme> file for more information. 
+  See the <https://github.com/cmk/profunctor-optics/blob/master/profunctor-optics/README.md Readme> file for more information. 
 
 category:       Data, Lenses, Profunctors
 stability:      Experimental
-homepage:       https://github.com/cmk/profunctor-extras
-bug-reports:    https://github.com/cmk/profunctor-extras/issues
+homepage:       https://github.com/cmk/profunctor-optics
+bug-reports:    https://github.com/cmk/profunctor-optics/issues
 author:         Chris McKinlay
 maintainer:     Chris McKinlay
 copyright:      2019 Chris McKinlay
@@ -33,7 +33,7 @@ extra-source-files:  ChangeLog.md
 
 source-repository head
   type: git
-  location: https://github.com/cmk/profunctor-extras
+  location: https://github.com/cmk/profunctor-optics
 
 library
   exposed-modules:
