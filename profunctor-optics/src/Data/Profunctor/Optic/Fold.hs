@@ -577,7 +577,7 @@ joins o = foldsl' o (\/)
 
 -- | Compute the join of the foci of an optic including a least element.
 --
-joins' :: Lattice a => Min a => AFold (Endo (Endo a)) s a -> s -> a
+joins' :: Lattice a => Minimal a => AFold (Endo (Endo a)) s a -> s -> a
 joins' o = joins o minimal
 {-# INLINE joins' #-}
 
@@ -589,7 +589,7 @@ meets o = foldsl' o (/\)
 
 -- | Compute the meet of the foci of an optic including a greatest element.
 --
-meets' :: Lattice a => Max a => AFold (Endo (Endo a)) s a -> s -> a
+meets' :: Lattice a => Maximal a => AFold (Endo (Endo a)) s a -> s -> a
 meets' o = meets o maximal
 {-# INLINE meets' #-}
 
