@@ -120,8 +120,7 @@ test-suite test
       TypeApplications
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
 
-test-suite doctest
-  type:              exitcode-stdio-1.0
+executable doctest
   main-is:           doctest.hs
   ghc-options:       -Wall -threaded
   hs-source-dirs:    test
