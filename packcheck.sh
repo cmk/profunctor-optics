@@ -1344,7 +1344,7 @@ build_compile () {
   show_step "Install package dependencies"
   install_deps
 
-  show_step "Obtain and test"
+  show_step "Build and test"
   build_and_test
 
   if test -n "$COVERALLS_OPTIONS"

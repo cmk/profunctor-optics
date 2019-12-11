@@ -25,6 +25,12 @@ import Data.Functor.Identity as Export
 import Data.Profunctor.Arrow as Export ((|||),(&&&),(+++),(***))
 import Data.Profunctor.Extra as Export
 import Data.Profunctor.Unsafe as Export
+import Data.Profunctor.Types as Export
+import Data.Profunctor.Strong as Export (Strong(..), Costrong(..))
+import Data.Profunctor.Choice as Export (Choice(..), Cochoice(..))
+import Data.Profunctor.Closed as Export (Closed(..))
+import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
+import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tagged as Export
 import Data.Void as Export
 import Prelude as Export hiding (Num(..), Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)

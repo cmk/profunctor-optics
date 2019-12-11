@@ -43,7 +43,7 @@ Optics libraries generally consist of three components:
 
 There are several additional modules within the main `Data.Profunctor.Optic` namespace:
 
-- `Data.Profunctor.Optic.Type` contains all of the optic family definitions.
+- `Data.Profunctor.Optic.Types` contains all of the optic family definitions.
 - `Data.Profunctor.Optic.Index` contains functions for manipulating (co-)indexed optics, as well as the definitions of `Index` and `Coindex`.
 - `Data.Profunctor.Optic.Property` contains predicates for use with property-based testing libraries such as `quickcheck` or `hedgehog`.
 - `Data.Profunctor.Optic.Operator` re-exports some of the more commonly used operators.

@@ -38,8 +38,8 @@ module Data.Profunctor.Optic.Grate  (
   , zipsWith
   , zipsWith3
   , zipsWith4 
-  , toEnvironment
   , toClosure
+  , toEnvironment
     -- * Carriers
   , GrateRep(..)
     -- * Classes
@@ -52,8 +52,7 @@ import Control.Monad.IO.Unlift
 import Data.Distributive
 import Data.Connection (Conn(..))
 import Data.Profunctor.Closed
-import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Rep (unfirstCorep)
@@ -66,7 +65,7 @@ import Data.Profunctor.Rep (unfirstCorep)
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Connection.Int
--- >>> :load Data.Profunctor.Optic Data.Either.Optic
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -116,7 +115,7 @@ kgrate f = grate $ \sakb _ -> f sakb
 
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
--- Compare 'Data.Profunctor.Optic.Lens.vlens' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
+-- Compare 'Data.Profunctor.Optic.Lens.lensVl' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
 -- /Caution/: In order for the generated family to be well-defined,
 -- you must ensure that the traversal1 law holds for the input function:
@@ -231,7 +230,7 @@ ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
 -- | Extract the function that characterizes a 'Grate'.
 --
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
-withGrate o k = case o (GrateRep $ \f -> f id) of GrateRep sabt -> k sabt
+withGrate o sabtr = case o (GrateRep $ \f -> f id) of GrateRep sabt -> sabtr sabt
 {-# INLINE withGrate #-}
 
 -- | Extract the higher order function that characterizes a 'Grate'.
@@ -271,32 +270,32 @@ coview o b = withGrate o $ \sabt -> sabt (const b)
 -- @\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
 --
 zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
-zipsWith o comb s1 s2 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2)
+zipsWith o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
 {-# INLINE zipsWith #-}
 
 -- | Zip over a 'Grate' with 3 arguments.
 --
 zipsWith3 :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
-zipsWith3 o comb s1 s2 s3 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3)
+zipsWith3 o aaab s1 s2 s3 = withGrate o $ \sabt -> sabt $ \sa -> aaab (sa s1) (sa s2) (sa s3)
 {-# INLINE zipsWith3 #-}
 
 -- | Zip over a 'Grate' with 4 arguments.
 --
 zipsWith4 :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
-zipsWith4 o comb s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \get -> comb (get s1) (get s2) (get s3) (get s4)
+zipsWith4 o aaaab s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> aaaab (sa s1) (sa s2) (sa s3) (sa s4)
 {-# INLINE zipsWith4 #-}
-
--- | Use a 'Grate' to construct an 'Environment'.
---
-toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
-toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
-{-# INLINE toEnvironment #-}
 
 -- | Use a 'Grate' to construct a 'Closure'.
 --
 toClosure :: Closed p => AGrate s t a b -> p a b -> Closure p s t
 toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
 {-# INLINE toClosure #-}
+
+-- | Use a 'Grate' to construct an 'Environment'.
+--
+toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
+toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
+{-# INLINE toEnvironment #-}
 
 ---------------------------------------------------------------------
 -- Carriers

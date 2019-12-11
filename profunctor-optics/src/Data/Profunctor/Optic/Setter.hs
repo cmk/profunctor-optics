@@ -29,8 +29,6 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , cond
   , modded
-  , reviewed
-  , composed
   , exmapped
     -- * Primitive operators
   , over
@@ -52,7 +50,6 @@ module Data.Profunctor.Optic.Setter (
   , (%%~)
   , (//~)
   , (##~)
-  , (?~)
   , (<>~)
   , (><~)
     -- * MonadState
@@ -66,20 +63,19 @@ module Data.Profunctor.Optic.Setter (
   , (%%=)
   , (//=)
   , (##=)
-  , (?=)
   , (<>=)
   , (><=)
   , zoom
     -- * Carriers
   , ASetter
   , ASetter'
-  , Star(..)
+ -- , Star(..)
   , AResetter
   , AResetter'
-  , Costar(..)
+ -- , Costar(..)
     -- * Classes
-  , Representable(..)
-  , Corepresentable(..)
+ -- , Representable(..)
+ -- , Corepresentable(..)
 ) where
 
 import Control.Applicative (liftA)
@@ -90,8 +86,8 @@ import Control.Monad.Writer as Writer
 import Data.Foldable (Foldable, foldMap)
 import Data.Profunctor.Arrow
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial, iempty)
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
+import Data.Profunctor.Optic.Types
 import Data.Semiring
 
 import qualified Control.Exception as Ex
@@ -110,13 +106,11 @@ import qualified Control.Exception as Ex
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
 -- >>> import Data.Int.Instance ()
--- >>> import Data.List.Index as LI
+-- >>> import Data.List.Optic (iat, itraversed)
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
 
 type ASetter s t a b = ARepn Identity s t a b
 
@@ -138,7 +132,7 @@ type ACxsetter k s t a b = ACxrepn Identity k s t a b
 --
 -- To demote an optic to a semantic edit combinator, use the section @(l ..~)@ or @over l@.
 --
--- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter fmap . t21 ..~ Prelude.length
+-- >>> [("The",0),("quick",1),("brown",1),("fox",2)] & setter fmap . first' ..~ Prelude.length
 -- [(3,0),(5,1),(5,1),(3,2)]
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -239,10 +233,10 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- >>> over fmapped (*10) [1,2,3]
 -- [10,20,30]
 --
--- >>> over t21 (+1) (1,2)
+-- >>> over first' (+1) (1,2)
 -- (2,2)
 --
--- >>> over t21 show (10,20)
+-- >>> over first' show (10,20)
 -- ("10",20)
 --
 -- @
@@ -262,8 +256,8 @@ over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. )
 -- >>> iover (iat 5) (+) [1,2,3 :: Int]
 -- [1,2,3]
 --
-iover :: AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-iover o f = flip curry iempty (over o (uncurry f)) 
+iover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+iover o f = flip curry mempty (over o (uncurry f)) 
 {-# INLINE iover #-}
 
 -- | Extract a SEC from a 'Resetter'.
@@ -296,19 +290,10 @@ under :: AResetter s t a b -> (a -> b) -> s -> t
 under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
 {-# INLINE under #-}
 
--- |
---
--- >>> kunder (catchOn 42) (\k msg -> show k ++ ": " ++ msg) $ Just "foo"
--- Just "0: foo"
---
--- >>> kunder (catchOn 42) (\k msg -> show k ++ ": " ++ msg) Nothing
--- Nothing
---
--- >>> kunder (catchOn 0) (\k msg -> show k ++ ": " ++ msg) Nothing
--- Just "caught"
+-- | TODO: Document
 --
 kunder :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-kunder o f = flip (under o (flip f)) iempty
+kunder o f = flip (under o (flip f)) mempty
 {-# INLINE kunder #-}
 
 -- | The join of 'under' and 'over'.
@@ -433,18 +418,6 @@ modded :: (a -> Bool) -> Setter' (a -> b) b
 modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 {-# INLINE modded #-}
 
--- | TODO: Document
---
-reviewed :: Setter (b -> t) (((s -> a) -> b) -> t) s a
-reviewed = setter $ \sa bt sab -> bt (sab sa)
-{-# INLINE reviewed #-}
-
--- | TODO: Document
---
-composed :: Setter (s -> a) ((a -> b) -> s -> t) b t
-composed = setter between
-{-# INLINE composed #-}
-
 -- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
 --
 -- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped ..~ \ (AssertionFailed _) -> Overflow)
@@ -462,7 +435,7 @@ exmapped = setter Ex.mapException
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, ?~, <>~, ><~
+infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, <>~, ><~
 
 -- | Run a profunctor arrow command and set the optic targets to the result.
 --
@@ -470,7 +443,7 @@ infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, ?~, <>~, ><~
 --
 -- >>> getVal1 = Right 3
 -- >>> getVal2 = Right False
--- >>> action = assignA t21 (Kleisli (const getVal1)) >>> assignA t22 (Kleisli (const getVal2))
+-- >>> action = assignA first' (Kleisli (const getVal1)) >>> assignA second' (Kleisli (const getVal2))
 -- >>> runKleisli action ((), ())
 -- Right (3,False)
 --
@@ -524,15 +497,6 @@ reset o b = under o (const b)
 
 -- | Dual set with index. Equivalent to 'kunder' with the current value ignored.
 --
--- >>> kset (catchOn 42) show $ Just "foo"
--- Just "0"
---
--- >>> kset (catchOn 42) show Nothing
--- Nothing
---
--- >>> kset (catchOn 0) show Nothing
--- Just "caught"
---
 kset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 kset o kb = kunder o $ flip (const kb)
 {-# INLINE kset #-}
@@ -584,41 +548,9 @@ kset o kb = kunder o $ flip (const kb)
 
 -- | An infixvariant of 'kunder'. Dual to '%%~'.
 --
--- >>> Just "foo" & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
--- Just "0: foo"
---
--- >>> Nothing & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
--- Just "caught"
---
 (##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 (##~) = kunder
 {-# INLINE (##~) #-}
-
--- | Set the target of a settable optic to 'Just' a value.
---
--- @
--- l '?~' t ≡ 'set' l ('Just' t)
--- @
---
--- >>> Nothing & id ?~ 1
--- Just 1
---
--- '?~' can be used type-changily:
---
--- >>> ('a', ('b', 'c')) & t22 . both ?~ 'x'
--- ('a',(Just 'x',Just 'x'))
---
--- @
--- ('?~') :: 'Iso' s t a ('Maybe' b)       -> b -> s -> t
--- ('?~') :: 'Lens' s t a ('Maybe' b)      -> b -> s -> t
--- ('?~') :: 'Grate' s t a ('Maybe' b)     -> b -> s -> t
--- ('?~') :: 'Setter' s t a ('Maybe' b)    -> b -> s -> t
--- ('?~') :: 'Traversal' s t a ('Maybe' b) -> b -> s -> t
--- @
---
-(?~) :: ASetter s t a (Maybe b) -> b -> s -> t
-o ?~ b = set o (Just b)
-{-# INLINE (?~) #-}
 
 -- | Modify the target by adding another value.
 --
@@ -661,7 +593,7 @@ l ><~ n = over l (>< n)
 -- MonadState
 ---------------------------------------------------------------------
 
-infix 4 .=, ..=, %=, %%=, //=, #=, ##=, ?=, <>=, ><=
+infix 4 .=, ..=, %=, %%=, //=, #=, ##=, <>=, ><=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
@@ -697,7 +629,7 @@ modifies o f = State.modify (over o f)
 --
 -- This is an infixversion of 'assigns'.
 --
--- >>> execState (do t21 .= 1; t22 .= 2) (3,4)
+-- >>> execState (do first' .= 1; second' .= 2) (3,4)
 -- (1,2)
 --
 -- >>> execState (both .= 3) (1,2)
@@ -741,7 +673,7 @@ o #= f = State.modify (o #~ f)
 -- >>> execState (do just ..= (+1) ) Nothing
 -- Nothing
 --
--- >>> execState (do t21 ..= (+1) ;t22 ..= (+2)) (1,2)
+-- >>> execState (do first' ..= (+1) ;second' ..= (+2)) (1,2)
 -- (2,4)
 --
 -- >>> execState (do both ..= (+1)) (1,2)
@@ -777,24 +709,6 @@ o //= f = State.modify (o //~ f)
 (##=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> a -> b) -> m () 
 o ##= f = State.modify (o ##~ f)
 {-# INLINE (##=) #-}
-
--- | Replace the target(s) of a settable optic with 'Just' a new value.
---
--- >>> execState (do t21 ?= 1; t22 ?= 2) (Just 1, Nothing)
--- (Just 1,Just 2)
---
--- @
--- ('?=') :: 'MonadState' s m => 'Iso'' s ('Maybe' a)       -> a -> m ()
--- ('?=') :: 'MonadState' s m => 'Lens'' s ('Maybe' a)      -> a -> m ()
--- ('?=') :: 'MonadState' s m => 'Grate'' s ('Maybe' a)     -> a -> m ()
--- ('?=') :: 'MonadState' s m => 'Prism'' s ('Maybe' a)     -> a -> m ()
--- ('?=') :: 'MonadState' s m => 'Setter'' s ('Maybe' a)    -> a -> m ()
--- ('?=') :: 'MonadState' s m => 'Traversal'' s ('Maybe' a) -> a -> m ()
--- @
---
-(?=) :: MonadState s m => ASetter s s a (Maybe b) -> b -> m ()
-o ?= b = State.modify (o ?~ b)
-{-# INLINE (?=) #-}
 
 -- | Modify the target(s) of a settable optic by adding a value.
 --

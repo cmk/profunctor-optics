@@ -7,7 +7,6 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic (
     module Type
-  , module Operator
   , module Property
   , module Iso
   , module Lens
@@ -24,8 +23,7 @@ module Data.Profunctor.Optic (
   , module Indexed
 ) where
 
-import Data.Profunctor.Optic.Type             as Type
-import Data.Profunctor.Optic.Operator         as Operator
+import Data.Profunctor.Optic.Types            as Type
 import Data.Profunctor.Optic.Property         as Property
 import Data.Profunctor.Optic.Iso              as Iso
 import Data.Profunctor.Optic.Lens             as Lens

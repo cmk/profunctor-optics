@@ -41,11 +41,8 @@ module Data.Profunctor.Optic.Fold1 (
   , AIxfold1
   , Cofold1Rep
   , ACofold1
-  , afold1
-  , aifold1
-  , acofold1
-  , Star(..)
-  , Costar(..)
+  , afold
+  , acofold
     -- * Auxilliary Types
   , Nedl(..)
 ) where
@@ -54,9 +51,8 @@ import Data.Foldable (Foldable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index (iempty)
 import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
 import qualified Data.List.NonEmpty as NEL
@@ -66,18 +62,13 @@ import qualified Data.Semiring as Rng
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
--- >>> import Control.Exception hiding (catches)
--- >>> import Data.Functor.Identity
--- >>> import Data.List.Index
+-- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
--- >>> import Data.Map as Map
--- >>> import Data.Maybe
+-- >>> import Data.Map.NonEmpty as Map1
 -- >>> import Data.Monoid
 -- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
--- >>> import Data.Sequence as Seq
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> :load Data.Profunctor.Optic
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Fold1' & 'Ixfold1'
@@ -191,7 +182,7 @@ folded1_ = fold1_ id
 -- 'nonunital' ≡ 'summed' . 'multiplied1'
 -- @
 --
--- >>> foldOf nonunital $ (fmap . fmap) Just [1 :| [2], 3 :| [4 :: Int]]
+-- >>> folds1 nonunital $ (fmap . fmap) Just [1 :| [2], 3 :| [4 :: Int]]
 -- Just 14
 --
 nonunital :: Foldable f => Foldable1 g => Monoid r => Semiring r => AFold r (f (g a)) a
@@ -212,20 +203,20 @@ presemiring = summed1 . multiplied1
 --
 -- >>> 1 <> 2 <> 3 <> 4 :: Int
 -- 10
--- >>> fold1Of summed1 $ 1 :| [2,3,4 :: Int]
+-- >>> folds1 summed1 $ 1 :| [2,3,4 :: Int]
 -- 10
 --
 summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
-summed1 = afold1 foldMap1
+summed1 = afold foldMap1
 {-# INLINE summed1 #-}
 
 -- | Semiring product of a non-empty foldable collection. 
 --
--- >>> fold1Of multiplied1 $ fmap Just (1 :| [2..(5 :: Int)])
+-- >>> folds1 multiplied1 $ fmap Just (1 :| [2..(5 :: Int)])
 -- Just 120 
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
-multiplied1 = afold1 Rng.product1
+multiplied1 = afold Rng.product1
 {-# INLINE multiplied1 #-}
 
 ---------------------------------------------------------------------
@@ -240,17 +231,17 @@ withFold1 = withPrimView
 
 -- | TODO: Document
 --
--- >>> :t flip withIxfold Map.singleton
--- flip withIxfold Map.singleton
+-- >>> :t flip withIxfold1 Map.singleton
+-- flip withIxfold1 Map.singleton
 --   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
 -- 
--- >>> withIxfold itraversed const [1..5]
+-- >>> withIxfold1 itraversed1 const 0 (1 :| [2..5])
 -- 10
--- >>> withIxfold itraversed const []
--- 0
+-- >>> withIxfold1 itraversed1 const 0 (1 :| [])
+-- 1
 --
-withIxfold1 :: Semigroup r => AIxfold1 r i s a -> (i -> a -> r) -> s -> r
-withIxfold1 o f = flip curry iempty $ withPrimView o (uncurry f)
+withIxfold1 :: Semigroup r => AIxfold1 r i s a -> (i -> a -> r) -> i -> s -> r
+withIxfold1 o f = curry $ withPrimView o (uncurry f)
 {-# INLINE withIxfold1 #-}
 
 -- | TODO: Document
@@ -282,13 +273,6 @@ cofolds1 = flip withCofold1 id
 
 -- | Compute the semiring product of the foci of an optic.
 --
--- For semirings without a multiplicative unit this is equivalent to @const mempty@:
---
--- >>> productOf folded Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'folds1p'.
---
 folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
 folds1p o p = getProd . withFold1 o (Prod . p)
 {-# INLINE folds1p #-}
@@ -296,33 +280,11 @@ folds1p o p = getProd . withFold1 o (Prod . p)
 -- | Extract a 'NonEmpty' of the foci of an optic.
 --
 -- >>> nelists bitraversed1 ('h' :| "ello", 'w' :| "orld")
--- "hello" :| ["world"]
+-- ('h' :| "ello") :| ['w' :| "orld"]
 --
 nelists :: AFold1 (Nedl a) s a -> s -> NonEmpty a
 nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
 {-# INLINE nelists #-}
-
----------------------------------------------------------------------
--- Carriers
----------------------------------------------------------------------
-
--- | TODO: Document
---
-afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
-afold1 o = Star #. (Const #.) #. o .# (getConst #.) .# runStar
-{-# INLINE afold1 #-}
-
--- | TODO: Document
---
-aifold1 :: Semigroup r => ((i -> a -> r) -> s -> r) -> AIxfold1 r i s a
-aifold1 f = afold $ \iar s -> f (curry iar) $ snd s
-{-# INLINE aifold1 #-}
-
--- | TODO: Document
---
-acofold1 :: ((r -> b) -> r -> t) -> ACofold1 r t b
-acofold1 o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
-{-# INLINE acofold1 #-}
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types

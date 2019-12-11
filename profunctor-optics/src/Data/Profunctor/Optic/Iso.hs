@@ -64,11 +64,9 @@ import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
-import Data.Profunctor.Optic.Type hiding (Rep)
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
-import GHC.Generics hiding (from, to)
 import qualified Control.Monad as M (join)
-import qualified GHC.Generics as GHC (to, from, to1, from1)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -81,6 +79,7 @@ import qualified GHC.Generics as GHC (to, from, to1, from1)
 -- >>> import Data.Sequence as Seq hiding (reverse)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
+-- >>> import Data.Profunctor.Types
 -- >>> :load Data.Profunctor.Optic
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
@@ -89,6 +88,13 @@ import qualified GHC.Generics as GHC (to, from, to1, from1)
 ---------------------------------------------------------------------
 
 -- | Obtain an 'Iso' from two inverses.
+--
+-- @
+-- o . 're' o ≡ 'id'
+-- 're' o . o ≡ 'id'
+-- 'Data.Profunctor.Optic.View.view' o ('Data.Profunctor.Optic.View.review' o b) ≡ b
+-- 'Data.Profunctor.Optic.View.review' o ('Data.Profunctor.Optic.View.view' o s) ≡ s
+-- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions satisfy the following
@@ -209,8 +215,8 @@ coerced = dimap coerce coerce
 -- | Work under a newtype wrapper.
 --
 -- @
--- 'view wrapped' f '.' f ≡ 'id'
--- f '.' 'view wrapped' f ≡ 'id'
+-- 'Data.Profunctor.Optic.View.view' 'wrapped' f '.' f ≡ 'id'
+-- f '.' 'Data.Profunctor.Optic.View.view' 'wrapped' f ≡ 'id'
 -- @
 --
 -- >>> view wrapped $ Identity 'x'

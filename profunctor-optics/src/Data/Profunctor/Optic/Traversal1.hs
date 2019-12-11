@@ -26,7 +26,7 @@ module Data.Profunctor.Optic.Traversal1 (
   , retraversing1
   , cotraversal1Vl
   , ktraversal1Vl
-  , nok1
+  , nocx1
     -- * Optics
   , traversed1
   , cotraversed1
@@ -42,8 +42,8 @@ module Data.Profunctor.Optic.Traversal1 (
   , sequences1
   , distributes1
     -- * Carriers
-  , Star(..)
-  , Costar(..)
+ -- , Star()
+ -- , Costar()
   , ATraversal1
   , ATraversal1'
     -- * Classes
@@ -51,17 +51,11 @@ module Data.Profunctor.Optic.Traversal1 (
   , Corepresentable(..)
 ) where
 
-import Data.Bifunctor (first, second)
 import Data.Semigroup.Bitraversable
-import Data.Profunctor.Optic.Lens hiding (first, second, unit)
+import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (prism)
 import Data.Profunctor.Optic.Grate
-import Data.Profunctor.Optic.Type
-import Data.Semiring
-import Control.Monad.Trans.State
-import Data.Profunctor.Optic.Iso
-import qualified Data.Bifunctor as B
+import Data.Profunctor.Optic.Types
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -203,8 +197,8 @@ ktraversal1Vl kabst = cotraversal1Vl $ \kab -> const . kabst (flip kab)
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
-nok1 :: Monoid k => Cotraversal1 s t a b -> Cxtraversal1 k s t a b
-nok1 o = ktraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
+nocx1 :: Monoid k => Cotraversal1 s t a b -> Cxtraversal1 k s t a b
+nocx1 o = ktraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
 
 ---------------------------------------------------------------------
 -- Primitive operators

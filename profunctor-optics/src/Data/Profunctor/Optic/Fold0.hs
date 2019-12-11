@@ -38,32 +38,20 @@ module Data.Profunctor.Optic.Fold0 (
   , AFold0
   , AIxfold0
   , Pre(..)
-    -- * Classes
-  , Strong(..)
-  , Choice(..)
 ) where
 
 import Control.Exception (Exception)
-import Control.Monad ((<=<), void)
 import Control.Monad.IO.Unlift
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
-import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
-import Data.Prd
-import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index (iempty)
 import Data.Profunctor.Optic.Prism (just, async)
 import Data.Profunctor.Optic.Traversal0 (traversal0Vl, itraversal0Vl, is)
-import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
-import Data.Semiring (Semiring(..), Prod(..))
+import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.View (to)
 import qualified Control.Exception as Ex
-import qualified Data.List.NonEmpty as NEL
-import qualified Data.Prd as Prd
-import qualified Data.Semiring as Rng
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -71,8 +59,7 @@ import qualified Data.Semiring as Rng
 -- >>> :set -XFlexibleContexts
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
--- >>> import Data.List.Index
--- >>> import Data.List.NonEmpty (NonEmpty(..))
+-- >>> import Data.List.Optic (iat, itraversed)
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
@@ -80,7 +67,6 @@ import qualified Data.Semiring as Rng
 -- >>> import Data.Sequence as Seq
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Fold0' & 'Ixfold0'
@@ -110,14 +96,15 @@ fold0 :: (s -> Maybe a) -> Fold0 s a
 fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
 {-# INLINE fold0 #-}
 
--- | Create an 'Ixfold0' from a partial function.
+-- | Obtain an 'Ixfold0' directly.
+--
 ifold0 :: (s -> Maybe (i, a)) -> Ixfold0 i s a
 ifold0 g = itraversal0Vl (\point f s -> maybe (point s) (uncurry f) $ g s) . coercer
 {-# INLINE ifold0 #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
--- | Try the first 'Fold0'. If it returns no entry, try the second one.
+-- | If the first 'Fold0' has no focus then try the second one.
 --
 failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
 failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
@@ -134,7 +121,7 @@ toFold0 :: View s (Maybe a) -> Fold0 s a
 toFold0 = (. just)
 {-# INLINE toFold0 #-}
 
--- | Obtain a partial 'View' from a 'Fold0' 
+-- | Obtain a 'View' from a 'Fold0' 
 --
 fromFold0 ::  AFold0 a s a -> View s (Maybe a)
 fromFold0 = to . preview
@@ -144,7 +131,7 @@ fromFold0 = to . preview
 -- Optics 
 ---------------------------------------------------------------------
 
--- | Obtain a 'Fold0' from a partial function.
+-- | The canonical 'Fold0'. 
 --
 -- >>> [Just 1, Nothing] ^.. folded . folded0
 -- [1]
@@ -174,8 +161,8 @@ withFold0 o = runFold0Rep #. o .# Fold0Rep
 
 -- | TODO: Document
 --
-withIxfold0 :: AIxfold0 r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
-withIxfold0 o f = flip curry iempty $ withFold0 o (uncurry f)
+withIxfold0 :: Monoid i => AIxfold0 r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
+withIxfold0 o f = flip curry mempty $ withFold0 o (uncurry f)
 {-# INLINE withIxfold0 #-}
 
 ---------------------------------------------------------------------
@@ -196,10 +183,10 @@ infixl 8 ^?
 -- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial
 -- 'View' this can be a convenient way to extract the optional value.
 --
--- >>> Left 4 ^? left
+-- >>> Left 4 ^? left'
 -- Just 4
 --
--- >>> Right 4 ^? left
+-- >>> Right 4 ^? left'
 -- Nothing
 --
 (^?) :: s -> AFold0 a s a -> Maybe a
@@ -224,13 +211,13 @@ preuse o = State.gets $ preview o
 
 -- | TODO: Document 
 --
-ipreview :: AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
+ipreview :: Monoid i => AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
 ipreview o = ipreviews o (,)
 {-# INLINE ipreview #-}
 
 -- | TODO: Document 
 --
-ipreviews :: AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
+ipreviews :: Monoid i => AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
 ipreviews o f = withIxfold0 o (\i -> Just . f i)
 {-# INLINE ipreviews #-}
 

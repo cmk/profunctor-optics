@@ -52,7 +52,7 @@ module Data.Profunctor.Optic.Property (
 import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso
 --import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Setter

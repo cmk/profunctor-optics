@@ -15,7 +15,6 @@ module Data.Profunctor.Optic.Index (
   , reix
   , imap
   , withIxrepn
-  , iempty
     -- * Coindexing
   , (#)
   , kinit
@@ -46,7 +45,7 @@ import Data.Bifunctor as B
 import Data.Foldable
 import Data.Semigroup
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import GHC.Generics (Generic)
 
@@ -59,8 +58,8 @@ import GHC.Generics (Generic)
 -- >>> import Data.Semiring
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.Map
--- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
--- >>> let itraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; itraversed = itraversalVl traverseWithKey
+-- >>> import Data.Map.Optic
+-- >>> :load Data.Profunctor.Optic
 -- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
 -- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
 
@@ -74,19 +73,21 @@ infixr 8 %
 --
 -- Its precedence is one lower than that of function composition, which allows /./ to be nested in /%/.
 --
--- If you only need the final index then use /./:
---
--- >>> ilists (itraversed . itraversed) foobar
--- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
---
--- >>> ilists (ilast itraversed % ilast itraversed) foobar & fmapped . t21 ..~ getLast
--- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
---
 -- >>> ilists (itraversed . itraversed) exercises
 -- [("crunches",25),("handstands",5),("crunches",20),("pushups",10),("handstands",3),("pushups",15)]
 --
 -- >>> ilists (itraversed % itraversed) exercises 
 -- [("Fridaycrunches",25),("Fridayhandstands",5),("Mondaycrunches",20),("Mondaypushups",10),("Wednesdayhandstands",3),("Wednesdaypushups",15)]
+--
+-- If you only need the final index then use /./:
+--
+-- >>> ilists (itraversed . itraversed) foobar
+-- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
+--
+-- This is identical to the more convoluted:
+--
+-- >>> ilistsFrom (ilast itraversed % ilast itraversed) (Last 0) foobar & fmapped . first' ..~ getLast
+-- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
 --
 (%) :: Semigroup i => Representable p => IndexedOptic p i b1 b2 a1 a2 -> IndexedOptic p i c1 c2 b1 b2 -> IndexedOptic p i c1 c2 a1 a2
 f % g = repn $ \ia1a2 (ic,c1) -> 
@@ -118,9 +119,6 @@ imap sa bt = dimap (fmap sa) bt
 withIxrepn :: Representable p => IndexedOptic p i s t a b -> i -> s -> (i -> a -> Rep p b) -> Rep p t
 withIxrepn abst i s iab = (sieve . abst . tabulate $ uncurry iab) (i, s)
 
-iempty :: a
-iempty = error "Empty index"
-
 ---------------------------------------------------------------------
 -- Coindexing
 ---------------------------------------------------------------------
@@ -131,7 +129,7 @@ infixr 8 #
 --
 -- Its precedence is one lower than that of function composition, which allows /./ to be nested in /#/.
 --
--- If you only need the final index then use /./
+-- If you only need the final index then use /./.
 --
 (#) :: Semigroup k => Corepresentable p => CoindexedOptic p k b1 b2 a1 a2 -> CoindexedOptic p k c1 c2 b1 b2 -> CoindexedOptic p k c1 c2 a1 a2
 f # g = corepn $ \a1ka2 c1 kc -> 

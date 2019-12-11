@@ -57,21 +57,17 @@ module Data.Profunctor.Optic.Lens (
 ) where
 
 import Data.Profunctor.Strong
-import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
-import Data.Profunctor.Optic.Type
-import Data.Void
-import GHC.Generics hiding (from, to)
+import Data.Profunctor.Optic.Types
 import qualified Data.Bifunctor as B
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
--- >>> import Data.Tree
 -- >>> import Data.Int.Instance
--- >>> :load Data.Profunctor.Optic Data.Tuple.Optic
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Lens' & 'Ixlens'
@@ -186,18 +182,15 @@ cloneLens o = withLens o lens
 -- 'set' . 're' $ 're' ('lens' f g) ≡ g
 -- @
 --
--- A 'Colens' is a 'Review', so you can specialise types to obtain:
---
--- @ 'review' :: 'Colens'' s a -> a -> s @
---
--- /Caution/: In addition to the normal optic laws, the input functions
--- must have the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
+-- /Caution/: Colenses are recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
+-- In addition to the normal optic laws, the input functions must have 
+-- the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
 --
 -- For example, this is a perfectly valid 'Colens':
 --
 -- @
--- co1 :: Colens a b (a, c) (b, c)
--- co1 = flip colens fst $ \ ~(_,y) b -> (b,y)
+-- ct21 :: Colens a b (a, c) (b, c)
+-- ct21 = flip colens fst $ \ ~(_,c) b -> (b,c)
 -- @
 --
 -- However removing the annotation will result in a faulty optic.
@@ -217,7 +210,7 @@ colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 -- For example, this is a perfectly valid 'Colens':
 --
 -- @ 
--- co1 = colensVl $ \f ~(a,b) -> (,b) <$> f a
+-- ct21 = colensVl $ \f ~(a,b) -> (,b) <$> f a
 -- @
 --
 -- However removing the annotation will result in a faulty optic.
@@ -246,7 +239,7 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 -- Identity:
 -- 
 -- @
--- withLensVl o (Identity . f) ≡  Identity (fmap f)
+-- withLensVl o Identity ≡ Identity
 -- @
 -- 
 -- Composition:
@@ -266,16 +259,16 @@ withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 
 -- | TODO: Document
 --
--- >>> ilists (i @Int traversed . i first' . i traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (ix @Int traversed . ix first' . ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ilists (i @Int traversed . ifirst . i traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (ix @Int traversed . ifirst . ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
 --
--- >>> ilists (i @Int traversed % i first' % i traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (ix @Int traversed % ix first' % ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(1,'b'),(2,'a'),(3,'r')]
 --
--- >>> ilists (i @Int traversed % ifirst % i traversed) [("foo",1), ("bar",2)]
+-- >>> ilists (ix @Int traversed % ifirst % ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
 --
 ifirst :: Ixlens i (a , c) (b , c) a b
@@ -286,7 +279,7 @@ ifirst = lmap assocl . first'
 isecond :: Ixlens i (c , a) (c , b) a b
 isecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
--- | There is a `Unit` in everything.
+-- | There is a '()' in everything.
 --
 -- >>> "hello" ^. united
 -- ()
@@ -296,7 +289,7 @@ isecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 united :: Lens' a ()
 united = lens (const ()) const
 
--- | There is everything in a `Void`.
+-- | There is everything in a 'Void'.
 --
 -- >>> [] & fmapped . voided <>~ "Void" 
 -- []

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
@@ -5,11 +6,17 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-module Data.Profunctor.Optic.Type (
+
+#ifndef MIN_VERSION_profunctors
+#define MIN_VERSION_profunctors(x,y,z) 1
+#endif
+
+module Data.Profunctor.Optic.Types (
     -- * Optic
-    Optic, Optic', between
+    Optic, Optic'
   , IndexedOptic, IndexedOptic'
   , CoindexedOptic, CoindexedOptic'
     -- * Equality
@@ -38,9 +45,10 @@ module Data.Profunctor.Optic.Type (
     -- * View & Review
   , PrimView, View, Ixview, PrimReview, Review, Cxview
     -- * Setter & Resetter
-  , Setter, Setter', Ixsetter, Resetter, Resetter', Cxsetter
+  , Setter, Setter', Ixsetter, Ixsetter', Resetter, Resetter', Cxsetter
     -- * Common represenable and corepresentable carriers
   , ARepn, ARepn', AIxrepn, AIxrepn', ACorepn, ACorepn', ACxrepn, ACxrepn'
+  , between, (&)
     -- * 'Re'
   , Re(..), re
   , module Export
@@ -49,16 +57,12 @@ module Data.Profunctor.Optic.Type (
 import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Types as Export
-import Data.Profunctor.Strong as Export (Strong(..), Costrong(..))
-import Data.Profunctor.Choice as Export (Choice(..), Cochoice(..))
-import Data.Profunctor.Closed
-import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
-import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
+import Data.Profunctor.Extra as Export (type (+))
+import qualified Control.Arrow as A
 
 -- $setup
+-- >>> :set -XCPP
 -- >>> :set -XNoOverloadedStrings
--- >>> import Data.Either.Optic
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -77,18 +81,6 @@ type CoindexedOptic p k s t a b = p a (k -> b) -> p s (k -> t)
 
 type CoindexedOptic' p k t b = CoindexedOptic p k t t b b
 
--- | Can be used to rewrite
---
--- > \g -> f . g . h
---
--- to
---
--- > between f h
---
-between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
-between f g = (f .) . (. g)
-{-# INLINE between #-}
-
 ---------------------------------------------------------------------
 -- 'Equality'
 ---------------------------------------------------------------------
@@ -104,14 +96,6 @@ type Equality' s a = Equality s s a a
 -- | 'Iso'
 --
 -- \( \mathsf{Iso}\;S\;A = S \cong A \)
---
--- For any valid 'Iso' /o/ we have:
--- @
--- o . re o ≡ id
--- re o . o ≡ id
--- view o (review o b) ≡ b
--- review o (view o s) ≡ s
--- @
 --
 type Iso s t a b = forall p. Profunctor p => Optic p s t a b
 
@@ -185,7 +169,7 @@ type Cxgrate' k s a = Cxgrate k s s a a
 -- 'Traversal0' & 'Cotraversal0'
 ---------------------------------------------------------------------
 
--- | A 'Traversal0' processes at most one part of the whole, with no interactions.
+-- | A 'Traversal0' processes 0 or more parts of the whole, with no interactions.
 --
 -- \( \mathsf{Traversal0}\;S\;A = \exists C, D, S \cong D + C \times A \)
 --
@@ -243,7 +227,7 @@ type Ixtraversal' i s a = Ixtraversal i s s a a
 
 -- | A 'Fold0' combines at most one element, with no interactions.
 --
-type Fold0 s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a 
+type Fold0 s a = forall p. (Choice p, Strong p, forall x. Contravariant (p x)) => Optic' p s a 
 
 type Ixfold0 i s a = forall p. (Choice p, Strong p, forall x. Contravariant (p x)) => IndexedOptic' p i s a 
 
@@ -319,16 +303,28 @@ type ACxrepn f k s t a b = CoindexedOptic (Costar f) k s t a b
 
 type ACxrepn' f k t b = ACxrepn f k t t b b
 
+-- | Can be used to rewrite
+--
+-- > \g -> f . g . h
+--
+-- to
+--
+-- > between f h
+--
+between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
+between f g = (f .) . (. g)
+{-# INLINE between #-}
+
 ---------------------------------------------------------------------
 -- 'Re' 
 ---------------------------------------------------------------------
 
 -- | Reverse an optic to obtain its dual.
 --
--- >>> 5 ^. re left
+-- >>> 5 ^. re left'
 -- Left 5
 --
--- >>> 6 ^. re (left . from succ)
+-- >>> 6 ^. re (left' . from succ)
 -- Left 7
 --
 -- @
@@ -379,20 +375,31 @@ instance Bifunctor p => Contravariant (Re p s t a) where
 instance Apply f => Apply (Star f a) where
   Star ff <.> Star fx = Star $ \a -> ff a <.> fx a
 
-instance Contravariant f => Contravariant (Star f a) where
-  contramap f (Star g) = Star $ contramap f . g
-
 instance Contravariant f => Bifunctor (Costar f) where
   first f (Costar g) = Costar $ g . contramap f
 
   second f (Costar g) = Costar $ f . g
 
+#if !(MIN_VERSION_profunctors(5,4,0))
+instance Contravariant f => Contravariant (Star f a) where
+  contramap f (Star g) = Star $ contramap f . g
+#endif
+
+#if !(MIN_VERSION_profunctors(5,5,0))
 instance Cochoice (Forget r) where 
   unleft (Forget f) = Forget $ f . Left
 
   unright (Forget f) = Forget $ f . Right
+#endif
 
 instance Comonad f => Strong (Costar f) where
-  first' (Costar f) = Costar $ \x -> (f (fmap fst x), snd (extract x))
+  first' (Costar f) = Costar . runCokleisli . A.first . Cokleisli $ f
 
-  second' (Costar f) = Costar $ \x -> (fst (extract x), f (fmap snd x))
+  second' (Costar f) = Costar . runCokleisli . A.second . Cokleisli $ f
+
+#if MIN_VERSION_profunctors(5,4,0)
+instance Comonad f => Choice (Costar f) where
+  left' (Costar f) = Costar . runCokleisli . A.left . Cokleisli $ f
+
+  right' (Costar f) = Costar . runCokleisli . A.right . Cokleisli $ f
+#endif

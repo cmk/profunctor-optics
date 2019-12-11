@@ -69,9 +69,7 @@ import Data.Prd
 import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
-import Data.Profunctor.Optic.Type
-
-import GHC.Generics hiding (from, to)
+import Data.Profunctor.Optic.Types
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -80,7 +78,7 @@ import GHC.Generics hiding (from, to)
 -- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
 -- >>> import Data.Int.Instance ()
--- >>> :load Data.Profunctor.Optic Data.Either.Optic
+-- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let catchFoo :: b -> Cxprism String (String + a) (String + b) a b; catchFoo b = kright $ \e k -> if e == "fooError" && k == mempty then Right b else Left e
 
@@ -323,10 +321,10 @@ without k =
 -- 
 -- Returns a 'Prism' that matches only if each element matches the original 'Prism'.
 --
--- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right
+-- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right'
 -- []
 --
--- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right
+-- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right'
 -- [["hail hydra!","foo","blah","woot"]]
 --
 below :: Traversable f => APrism' s a -> Prism' (f s) (f a)

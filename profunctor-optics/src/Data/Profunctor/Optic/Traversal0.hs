@@ -21,7 +21,7 @@ module Data.Profunctor.Optic.Traversal0 (
   , withTraversal0
     -- * Optics
   , nulled
-  , inserted
+  , selected
     -- * Operators
   , is
   , isnt
@@ -36,17 +36,9 @@ module Data.Profunctor.Optic.Traversal0 (
 ) where
 
 import Data.Bifunctor (first, second)
-import Data.Bitraversable
-import Data.Semigroup.Bitraversable
-import Data.Profunctor.Optic.Lens hiding (first, second, unit)
+import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Prism (prism)
-import Data.Profunctor.Optic.Grate
-import Data.Profunctor.Optic.Type
-import Data.Semiring
-import Control.Monad.Trans.State
-import Data.Profunctor.Optic.Iso
-import qualified Data.Bifunctor as B
+import Data.Profunctor.Optic.Types
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -142,20 +134,11 @@ nulled :: Traversal0' s a
 nulled = traversal0 Left const 
 {-# INLINE nulled #-}
 
--- | Obtain a 'Ixtraversal0'' from a pair of lookup and insert functions.
+-- | TODO: Document
 --
--- @
--- inserted (\i s -> flip 'Data.List.Index.ifind' s $ \n _ -> n == i) (\i a s -> 'Data.List.Index.modifyAt' i (const a) s) :: Int -> Ixtraversal0' Int [a] a
--- inserted 'Data.Map.lookupGT' 'Data.Map.insert' :: Ord i => i -> Ixtraversal0' i (Map i a) a
--- inserted 'Data.IntMap.lookupGT' 'Data.IntMap.insert' :: Int -> Ixtraversal0' Int (IntMap a) a
--- @
---
-inserted :: (i -> s -> Maybe (i, a)) -> (i -> a -> s -> s) -> i -> Ixtraversal0' i s a
-inserted isia iasa i = itraversal0Vl $ \point iab s ->
-  case isia i s of
-    Nothing      -> point s
-    Just (i', a) -> iab i' a <&> \a -> iasa i' a s
-{-# INLINE inserted #-}
+selected :: (a -> Bool) -> Traversal0' (a, b) b
+selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
+{-# INLINE selected #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -231,4 +214,7 @@ info0 (Index0 a _) = a
 
 instance Functor (Index0 a b) where
   fmap f (Index0 ra br) = Index0 (first f ra) (f . br)
-  {-# INLINE fmap #-}
+
+instance Applicative (Index0 a b) where
+  pure r = Index0 (Left r) (const r)
+  liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)

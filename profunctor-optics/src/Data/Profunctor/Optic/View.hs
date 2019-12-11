@@ -56,7 +56,7 @@ module Data.Profunctor.Optic.View (
   , throws_
   , throwsTo
     -- * Carriers
-  , Star(..)
+ -- , Star(..)
   , Tagged(..)
 ) where
 
@@ -65,9 +65,8 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index
 import GHC.Conc (ThreadId)
 import qualified Control.Exception as Ex
 import qualified Data.Bifunctor as B
@@ -81,17 +80,15 @@ import qualified Data.Bifunctor as B
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Int.Instance ()
--- >>> import Data.List.Index as LI
+-- >>> import Data.List.Optic (iat, itraversed)
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl LI.itraverse
--- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat = inserted (\i s -> flip LI.ifind s $ \n _ -> n == i) (\i a s -> LI.modifyAt i (const a) s)
 
 type APrimView r s t a b = Optic (Star (Const r)) s t a b
 
 type AView s a = Optic' (Star (Const a)) s a
 
-type AIxview r i s a = IndexedOptic' (Star (Const (Maybe i , r))) i s a
+type AIxview i s a = IndexedOptic' (Star (Const (Maybe i , a))) i s a
 
 type APrimReview s t a b = Optic Tagged s t a b
 
@@ -117,7 +114,7 @@ type ACxview k t b = CoindexedOptic' Tagged k t b
 -- >>> 5 ^. to succ
 -- 6
 --
--- >>> (0, -5) ^. t22 . to abs
+-- >>> (0, -5) ^. second' . to abs
 -- 5
 --
 -- @
@@ -173,22 +170,6 @@ cloneView = to . view
 cloneReview :: AReview t b -> PrimReview t t b b
 cloneReview = from . review
 {-# INLINE cloneReview #-}
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | TODO: Document
---
-withPrimView :: APrimView r s t a b -> (a -> r) -> s -> r
-withPrimView o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
-{-# INLINE withPrimView #-}
-
--- | TODO: Document
---
-withPrimReview :: APrimReview s t a b -> (t -> r) -> b -> r
-withPrimReview o f = f . unTagged #. o .# Tagged
-{-# INLINE withPrimReview #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -259,6 +240,22 @@ fromSum l r = from (review l ||| review r)
 {-# INLINE fromSum #-}
 
 ---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+withPrimView :: APrimView r s t a b -> (a -> r) -> s -> r
+withPrimView o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
+{-# INLINE withPrimView #-}
+
+-- | TODO: Document
+--
+withPrimReview :: APrimReview s t a b -> (t -> r) -> b -> r
+withPrimReview o f = f . unTagged #. o .# Tagged
+{-# INLINE withPrimReview #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
@@ -266,14 +263,14 @@ infixl 8 ^.
 
 -- | An infixalias for 'view'. Dual to '#'.
 --
--- Fiity and semantics are such that subsequent field accesses can be
+-- Fixity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
 --
--- >>> ("hello","world") ^. t22
+-- >>> ("hello","world") ^. second'
 -- "world"
 --
 -- >>> import Data.Complex
--- >>> ((0, 1 :+ 2), 3) ^. t21 . t22 . to magnitude
+-- >>> ((0, 1 :+ 2), 3) ^. first' . second' . to magnitude
 -- 2.23606797749979
 --
 -- @
@@ -300,7 +297,7 @@ infixl 8 ^%
 --
 -- The result probably doesn't have much meaning when applied to an 'Ixfold'.
 --
-(^%) ::  Monoid i => s -> AIxview a i s a -> (Maybe i , a)
+(^%) ::  Monoid i => s -> AIxview i s a -> (Maybe i , a)
 (^%) = flip iview 
 {-# INLINE (^%) #-}
 
@@ -310,13 +307,13 @@ infixl 8 ^%
 -- 'view' '.' 'to' ≡ 'id'
 -- @
 --
--- >>> view t22 (1, "hello")
+-- >>> view second' (1, "hello")
 -- "hello"
 --
 -- >>> view (to succ) 5
 -- 6
 --
--- >>> view (t22 . t21) ("hello",("world","!!!"))
+-- >>> view (second' . first') ("hello",("world","!!!"))
 -- "world"
 --
 view :: MonadReader s m => AView s a -> m a
@@ -345,7 +342,7 @@ view o = views o id
 -- >>> (iview @_ @_ @Int @Int) itraversed [1,2,3,4]
 -- (Just 6,10)
 --
-iview :: MonadReader s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
+iview :: MonadReader s m => Monoid i => AIxview i s a -> m (Maybe i , a)
 iview o = asks $ withPrimView o (B.first Just) . (mempty,)
 {-# INLINE iview #-}
 
@@ -400,7 +397,7 @@ use o = gets (view o)
 
 -- | Bring the index and value of an indexed optic into the current environment as a pair.
 --
-iuse :: MonadState s m => Monoid i => AIxview a i s a -> m (Maybe i , a)
+iuse :: MonadState s m => Monoid i => AIxview i s a -> m (Maybe i , a)
 iuse o = gets (iview o)
 
 -- | Use the target of a 'Lens', 'Data.Profunctor.Optic.Iso.Iso' or
@@ -408,7 +405,7 @@ iuse o = gets (iview o)
 -- 'Data.Profunctor.Optic.Fold.Fold' or 'Data.Profunctor.Optic.Traversal.Traversal' that
 -- points to a monoidal value.
 --
--- >>> evalState (uses t21 length) ("hello","world!")
+-- >>> evalState (uses first' length) ("hello","world!")
 -- 5
 --
 -- @
@@ -444,7 +441,7 @@ infixr 8 #^
 --
 -- This is commonly used when using a 'Prism' as a smart constructor.
 --
--- >>> left #^ 4
+-- >>> left' #^ 4
 -- Left 4
 --
 -- @
@@ -492,7 +489,7 @@ kview o = kviews o id
 -- 'reviews' ('from' f) g ≡ g '.' f
 -- @
 --
--- >>> reviews left isRight "mustard"
+-- >>> reviews left' isRight "mustard"
 -- False
 --
 -- >>> reviews (from succ) (*2) 3
@@ -524,7 +521,7 @@ kviews o f = asks $ withPrimReview o f . const
 -- 'reuse' '.' 'from' ≡ 'gets'
 -- @
 --
--- >>> evalState (reuse left) 5
+-- >>> evalState (reuse left') 5
 -- Left 5
 --
 -- >>> evalState (reuse (from succ)) 5
@@ -553,7 +550,7 @@ kuse o = gets (kview o)
 -- 'reuses' ('from' f) g ≡ 'gets' (g '.' f)
 -- @
 --
--- >>> evalState (reuses left isLeft) (5 :: Int)
+-- >>> evalState (reuses left' isLeft) (5 :: Int)
 -- True
 --
 -- @

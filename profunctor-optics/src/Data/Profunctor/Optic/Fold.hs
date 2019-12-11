@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 module Data.Profunctor.Optic.Fold (
     -- * Fold & Ixfold
     Fold
@@ -25,35 +26,30 @@ module Data.Profunctor.Optic.Fold (
   , withFold
   , withIxfold
     -- * Operators
-  , (^..)
-  , (^%%)
   , lists
+  , (^..)
   , ilists
+  , ilistsFrom
+  , (^%%)
   , folds
   , foldsa
   , foldsp
   , foldsr
   , ifoldsr
+  , ifoldsrFrom
   , foldsl
   , ifoldsl
+  , ifoldslFrom
+  , foldsr'
+  , ifoldsr'
   , foldsl'
+  , ifoldsl'
+  , foldsrM
   , ifoldsrM
+  , foldslM
   , ifoldslM
   , traverses_
   , itraverses_
-  , concats
-  , iconcats
-  , finds
-  , ifinds
-  , has
-  , hasnt 
-  , nulls
-  , asums
-  , joins
-  , joins'
-  , meets
-  , meets'
-  , pelem
     -- * Auxilliary Types
   , All, Any
     -- * Carriers
@@ -62,26 +58,19 @@ module Data.Profunctor.Optic.Fold (
   , AIxfold
   , afold
   , aifold
-  , Star(..)
+  , acofold
 ) where
 
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
-import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
-import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
-import Data.Prd
-import Data.Prd.Lattice (Lattice(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index (iempty)
-import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Type
-import Data.Profunctor.Optic.View (AView, to, ito, withPrimView, view, cloneView)
+import Data.Profunctor.Optic.Traversal (traversalVl, itraversalVl)
+import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.View (AView, to, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
-import qualified Control.Applicative as A
-import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
 
 -- $setup
@@ -90,15 +79,13 @@ import qualified Data.Semiring as Rng
 -- >>> :set -XFlexibleContexts
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
--- >>> import Data.List.Index
+-- >>> import Data.List.Optic
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
--- >>> import Data.Sequence as Seq hiding ((><))
--- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'Fold' & 'Ixfold'
@@ -121,7 +108,7 @@ type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
--- This can be useful to repn operations from @Data.List@ and elsewhere into a 'Fold'.
+-- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
 --
 -- >>> [1,2,3,4] ^.. fold_ tail
 -- [2,3,4]
@@ -268,45 +255,36 @@ multiplied = afold Rng.product
 -- withFold traversed
 --   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
 --
--- >>> :t withFold left
--- withFold left :: Monoid r => (a -> r) -> (a + c) -> r
---
--- >>> :t withFold t21
--- withFold t21 :: Monoid r => (a -> r) -> (a, b) -> r
---
--- >>> :t withFold $ selected even
--- withFold $ selected even
---   :: (Monoid r, Integral a) => (b -> r) -> (a, b) -> r
---
--- >>> :t flip withFold Seq.singleton
--- flip withFold Seq.singleton :: AFold (Seq a) s a -> s -> Seq a
---
 withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
 withFold = withPrimView
 {-# INLINE withFold #-}
 
--- | TODO: Document
+-- | Map an indexed optic to a monoid and combine the results.
 --
--- >>> :t flip withIxfold Map.singleton
--- flip withIxfold Map.singleton
---   :: AIxfold (Map i a) i s a -> i -> s -> Map i a
--- 
--- >>> withIxfold itraversed const [1..5]
+-- Note that most indexed optics do not use their output index:
+--
+-- >>> withIxfold itraversed const 100 [1..5]
 -- 10
--- >>> withIxfold itraversed const []
+-- >>> withIxfold itraversed const 100 []
 -- 0
 --
-withIxfold :: Monoid r => AIxfold r i s a -> (i -> a -> r) -> s -> r
-withIxfold o f = flip curry iempty $ withPrimView o (uncurry f)
+withIxfold :: Monoid r => AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
+withIxfold o f = curry $ withPrimView o (uncurry f)
 {-# INLINE withIxfold #-}
 
 ---------------------------------------------------------------------
 -- Operators
----------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- | Collect the foci of an optic into a list.
+--
+lists :: AFold (Endo [a]) s a -> s -> [a]
+lists o = foldsr o (:) []
+{-# INLINE lists #-}
 
 infixl 8 ^..
 
--- | Infi version of 'lists'.
+-- | Infix version of 'lists'.
 --
 -- @
 -- 'Data.Foldable.toList' xs ≡ xs '^..' 'folding'
@@ -337,29 +315,32 @@ infixl 8 ^..
 (^..) = flip lists
 {-# INLINE (^..) #-}
 
-infixl 8 ^%%
-
--- | Infi version of 'ilists'.
+-- | Collect the foci of an indexed optic into a list of index-value pairs.
 --
-(^%%) :: Monoid i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
-(^%%) = flip ilists
-{-# INLINE (^%%) #-}
-
--- | Collect the foci of an optic into a list.
+-- This is only for use with the few indexed optics that don't ignore their 
+-- output index. You most likely want to use 'ilists'.
 --
-lists :: AFold (Endo [a]) s a -> s -> [a]
-lists o = foldsr o (:) []
-{-# INLINE lists #-}
+ilistsFrom :: AIxfold (Endo [(i, a)]) i s a -> i -> s -> [(i, a)]
+ilistsFrom o i = ifoldsrFrom o (\i a -> ((i,a):)) i []
+{-# INLINE ilistsFrom #-}
 
--- | Extract the key-value pairs from the foci of an indexed optic.
+-- | Collect the foci of an indexed optic into a list of index-value pairs.
 --
 -- @
 -- 'lists' l ≡ 'map' 'snd' '.' 'ilists' l
 -- @
 --
-ilists :: AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
+ilists :: Monoid i => AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
 ilists o = ifoldsr o (\i a -> ((i,a):)) []
 {-# INLINE ilists #-}
+
+infixl 8 ^%%
+
+-- | Infix version of 'ilists'.
+--
+(^%%) :: Monoid i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
+(^%%) = flip ilists
+{-# INLINE (^%%) #-}
 
 -- | TODO: Document
 --
@@ -409,9 +390,18 @@ foldsr o f r = (`appEndo` r) . withFold o (Endo . f)
 -- >>> ifoldsr itraversed (\i a -> ((show i ++ ":" ++ show a ++ ", ") ++)) [] [1,3,5,7,9]
 -- "0:1, 1:3, 2:5, 3:7, 4:9, "
 --
-ifoldsr :: AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> r -> s -> r
-ifoldsr o f r = (`appEndo` r) . withIxfold o (\i -> Endo . f i)
+ifoldsr :: Monoid i => AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> r -> s -> r
+ifoldsr o f = ifoldsrFrom o f mempty
 {-# INLINE ifoldsr #-}
+
+-- | Indexed right fold over an indexed optic, using an initial index value.
+--
+-- This is only for use with the few indexed optics that don't ignore their 
+-- output index. You most likely want to use 'ifoldsr'.
+--
+ifoldsrFrom :: AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> i -> r -> s -> r
+ifoldsrFrom o f i r = (`appEndo` r) . withIxfold o (\i -> Endo . f i) i
+{-# INLINE ifoldsrFrom #-}
 
 -- | Left fold over an optic.
 --
@@ -419,35 +409,34 @@ foldsl :: AFold (Dual (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
 foldsl o f r = (`appEndo` r) . getDual . withFold o (Dual . Endo . flip f)
 {-# INLINE foldsl #-}
 
--- | Indexed left fold over an indexed optic, using an initial index value.
+-- | Left fold over an indexed optic.
 --
-ifoldsl :: AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
-ifoldsl o f r = (`appEndo` r) . getDual . withIxfold o (\i -> Dual . Endo . flip (f i))
+ifoldsl :: Monoid i => AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
+ifoldsl o f = ifoldslFrom o f mempty
 {-# INLINE ifoldsl #-}
 
--- | Indexed monadic right fold over an indexed optic.
+-- | Left fold over an indexed optic, using an initial index value.
 --
--- @
--- 'foldsrM' ≡ 'ifoldrM' '.' 'const'
--- @
+-- This is only for use with the few indexed optics that don't ignore their 
+-- output index. You most likely want to use 'ifoldsl'.
 --
-ifoldsrM :: Monad m => AIxfold (Dual (Endo (r -> m r))) i s a -> (i -> a -> r -> m r) -> r -> s -> m r
-ifoldsrM o f z0 xs = ifoldsl o f' return xs z0
-  where f' i k x z = f i x z >>= k
-{-# INLINE ifoldsrM #-}
+ifoldslFrom :: AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> i -> r -> s -> r
+ifoldslFrom o f i r = (`appEndo` r) . getDual . withIxfold o (\i -> Dual . Endo . flip (f i)) i
+{-# INLINE ifoldslFrom #-}
 
--- | Indexed monadic left fold over an indexed optic.
+-- | Strict right fold over an optic.
 --
--- @
--- 'foldslM' ≡ 'ifoldslM' '.' 'const'
--- @
---
-ifoldslM :: Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> r -> s -> m r
-ifoldslM o f z0 xs = ifoldsr o f' return xs z0
-  where f' i x k z = f i z x >>= k
-{-# INLINE ifoldslM #-}
+foldsr' :: AFold (Dual (Endo (Endo r))) s a -> (a -> r -> r) -> r -> s -> r
+foldsr' l f z0 xs = foldsl l f' (Endo id) xs `appEndo` z0 where f' (Endo k) x = Endo $ \ z -> k $! f x z
+{-# INLINE foldsr' #-}
 
--- | Fold repn the elements of a structure, associating to the left, but strictly.
+-- | Strict right fold over an indexed optic.
+--
+ifoldsr' :: Monoid i => AIxfold (Dual (Endo (r -> r))) i s a -> (i -> a -> r -> r) -> r -> s -> r
+ifoldsr' l f z0 xs = ifoldsl l f' id xs z0 where f' i k x z = k $! f i x z
+{-# INLINE ifoldsr' #-}
+
+-- | Strict left fold over an optic.
 --
 -- @
 -- 'Data.Foldable.foldl'' ≡ 'foldsl'' 'folding'
@@ -463,11 +452,48 @@ ifoldslM o f z0 xs = ifoldsr o f' return xs z0
 -- @
 --
 foldsl' :: AFold (Endo (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
-foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r
-  where f' x (Endo k) = Endo $ \z -> k $! f z x
+foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo $ \z -> k $! f z x
 {-# INLINE foldsl' #-}
 
--- | Collect an applicative over the foci of an optic.
+-- | Strict left fold over an indexed optic.
+--
+ifoldsl' :: Monoid i => AIxfold (Endo (r -> r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
+ifoldsl' l f z0 xs = ifoldsr l f' id xs z0 where f' i x k z = k $! f i z x
+{-# INLINE ifoldsl' #-}
+
+-- | Monadic right fold over an optic.
+--
+foldsrM :: Monad m => AFold (Dual (Endo (r -> m r))) s a -> (a -> r -> m r) -> r -> s -> m r
+foldsrM l f z0 xs = foldsl l f' return xs z0 where f' k x z = f x z >>= k
+{-# INLINE foldsrM #-}
+
+-- | Monadic right fold over an indexed optic.
+--
+-- @
+-- 'foldsrM' ≡ 'ifoldrM' '.' 'const'
+-- @
+--
+ifoldsrM :: Monoid i => Monad m => AIxfold (Dual (Endo (r -> m r))) i s a -> (i -> a -> r -> m r) -> r -> s -> m r
+ifoldsrM o f z0 xs = ifoldsl o f' return xs z0 where f' i k x z = f i x z >>= k
+{-# INLINE ifoldsrM #-}
+
+-- | Monadic left fold over an optic.
+--
+foldslM :: Monad m => AFold (Endo (r -> m r)) s a -> (r -> a -> m r) -> r -> s -> m r
+foldslM o f z0 xs = foldsr o f' return xs z0 where f' x k z = f z x >>= k
+{-# INLINE foldslM #-}
+
+-- | Monadic left fold over an indexed optic.
+--
+-- @
+-- 'foldslM' ≡ 'ifoldslM' '.' 'const'
+-- @
+--
+ifoldslM :: Monoid i => Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> r -> s -> m r
+ifoldslM o f z0 xs = ifoldsr o f' return xs z0 where f' i x k z = f i z x >>= k
+{-# INLINE ifoldslM #-}
+
+-- | Applicative fold over an optic.
 --
 -- >>> traverses_ both putStrLn ("hello","world")
 -- hello
@@ -481,123 +507,11 @@ traverses_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f (
 traverses_ p f = foldsr p (\a fu -> void (f a) *> fu) (pure ())
 {-# INLINE traverses_ #-}
 
--- | Collect an applicative over the foci of an indexed optic.
+-- | Applicative fold over an indexed optic.
 --
-itraverses_ :: Applicative f => AIxfold (Endo (f ())) i s a -> (i -> a -> f r) -> s -> f ()
+itraverses_ :: Monoid i => Applicative f => AIxfold (Endo (f ())) i s a -> (i -> a -> f r) -> s -> f ()
 itraverses_ p f = ifoldsr p (\i a fu -> void (f i a) *> fu) (pure ())
 {-# INLINE itraverses_ #-}
-
--- | Map a function over all the foci of an optic and concatenate the resulting lists.
---
--- >>> concats both (\x -> [x, x + 1]) (1,3)
--- [1,2,3,4]
---
--- @
--- 'concatMap' ≡ 'concats' 'folded'
--- @
---
-concats :: AFold [r] s a -> (a -> [r]) -> s -> [r]
-concats = withFold
-{-# INLINE concats #-}
-
--- | Concatenate the results of a function of the foci of an indexed optic.
---
--- @
--- 'concats' o ≡ 'iconcats' o '.' 'const'
--- @
---
--- >>> iconcats itraversed (\i x -> [i + x, i + x + 1]) [1,2,3,4]
--- [1,2,3,4,5,6,7,8]
---
-iconcats :: AIxfold [r] i s a -> (i -> a -> [r]) -> s -> [r]
-iconcats o f = withIxfold o f
-{-# INLINE iconcats #-}
-
--- | Find the first focus of an optic that satisfies a predicate, if one exists.
---
--- >>> finds both even (1,4)
--- Just 4
---
--- >>> finds folded even [1,3,5,7]
--- Nothing
---
--- @
--- 'Data.Foldable.find' ≡ 'finds' 'folded'
--- @
---
-finds :: AFold (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
-finds o f = foldsr o (\a y -> if f a then Just a else y) Nothing
-{-# INLINE finds #-}
-
--- | Find the first focus of an indexed optic that satisfies a predicate, if one exists.
---
-ifinds :: Monoid i => AIxfold (Endo (Maybe (i, a))) i s a -> (i -> a -> Bool) -> s -> Maybe (i, a)
-ifinds o f = ifoldsr o (\i a y -> if f i a then Just (i,a) else y) Nothing
-{-# INLINE ifinds #-}
-
--- | Determine whether an optic has at least one focus.
---
-has :: AFold Any s a -> s -> Bool
-has o = withFold o (const True)
-{-# INLINE has #-}
-
--- | Determine whether an optic does not have a focus.
---
-hasnt :: AFold All s a -> s -> Bool
-hasnt o = foldsp o (const False)
-{-# INLINE hasnt #-}
-
--- | TODO: Document
---
-nulls :: AFold All s a -> s -> Bool
-nulls o = foldsp o (const False)
-{-# INLINE nulls #-}
-
--- | The sum of a collection of actions, generalizing 'concatOf'.
---
--- >>> asums both ("hello","world")
--- "helloworld"
---
--- >>> asums both (Nothing, Just "hello")
--- Just "hello"
---
--- @
--- 'asum' ≡ 'asums' 'folded'
--- @
---
-asums :: Alternative f => AFold (Endo (Endo (f a))) s (f a) -> s -> f a
-asums o = foldsl' o (<|>) A.empty
-{-# INLINE asums #-}
-
--- | Compute the join of the foci of an optic. 
---
-joins :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
-joins o = foldsl' o (\/)
-{-# INLINE joins #-}
-
--- | Compute the join of the foci of an optic including a least element.
---
-joins' :: Lattice a => Minimal a => AFold (Endo (Endo a)) s a -> s -> a
-joins' o = joins o minimal
-{-# INLINE joins' #-}
-
--- | Compute the meet of the foci of an optic .
---
-meets :: Lattice a => AFold (Endo (Endo a)) s a -> a -> s -> a
-meets o = foldsl' o (/\)
-{-# INLINE meets #-}
-
--- | Compute the meet of the foci of an optic including a greatest element.
---
-meets' :: Lattice a => Maximal a => AFold (Endo (Endo a)) s a -> s -> a
-meets' o = meets o maximal
-{-# INLINE meets' #-}
-
--- | Determine whether the foci of an optic contain an element equivalent to a given element.
---
-pelem :: Prd a => AFold Any s a -> a -> s -> Bool
-pelem o a = withFold o (Prd.=~ a)
-{-# INLINE pelem #-}
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types
@@ -611,6 +525,8 @@ type Any = Bool
 -- Carriers
 ---------------------------------------------------------------------
 
+type CofoldRep r = Costar (Const r)
+
 -- | TODO: Document
 --
 -- @
@@ -623,6 +539,12 @@ afold arsr = Star #. (Const #.) #. arsr .# (getConst #.) .# runStar
 
 -- | TODO: Document
 --
-aifold :: Monoid r => ((i -> a -> r) -> s -> r) -> AIxfold r i s a
+aifold :: ((i -> a -> r) -> s -> r) -> AIxfold r i s a
 aifold f = afold $ \iar s -> f (curry iar) $ snd s
 {-# INLINE aifold #-}
+
+-- | TODO: Document
+--
+acofold :: ((r -> b) -> r -> t) -> Optic (CofoldRep r) s t a b 
+acofold o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+{-# INLINE acofold #-}

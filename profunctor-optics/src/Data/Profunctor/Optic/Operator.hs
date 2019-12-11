@@ -27,14 +27,13 @@ module Data.Profunctor.Optic.Operator (
   , (#~)
   , (//~)
   , (##~)
-  , (?~)
   , (<>~)
   , (><~)
   , module Extra
 ) where
 
 import Data.Function
-import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Index
