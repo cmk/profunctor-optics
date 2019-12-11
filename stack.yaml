@@ -5,7 +5,6 @@ packages:
   - profunctor-arrows
   - profunctor-optics
   - profunctor-optics-th
-  - containers-optics
 
 extra-deps:
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7

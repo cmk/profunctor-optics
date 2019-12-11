@@ -57,16 +57,19 @@ import qualified Control.Exception as Ex
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XRankNTypes
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
--- >>> import Data.List.Optic (iat, itraversed)
+-- >>> import Data.List.Index as LI
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
 -- >>> import Data.Sequence as Seq
 -- >>> import qualified Data.List.NonEmpty as NE
--- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> :load Data.Profunctor.Optic
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- 'Fold0' & 'Ixfold0'

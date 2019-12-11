@@ -80,9 +80,11 @@ import qualified Data.Bifunctor as B
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Int.Instance ()
--- >>> import Data.List.Optic (iat, itraversed)
+-- >>> import Data.List.Index as LI
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 type APrimView r s t a b = Optic (Star (Const r)) s t a b
 

@@ -132,9 +132,9 @@ test-suite doctest
       base
     , containers
     , doctest >= 0.8
+    , ilist
     , mtl
     , profunctor-optics
-    , containers-optics
 
   default-extensions: 
       ConstraintKinds

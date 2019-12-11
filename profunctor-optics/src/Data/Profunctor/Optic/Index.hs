@@ -54,12 +54,13 @@ import GHC.Generics (Generic)
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTupleSections
+-- >>> :set -XRankNTypes
 -- >>> import Data.Semigroup
 -- >>> import Data.Semiring
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.Map
--- >>> import Data.Map.Optic
 -- >>> :load Data.Profunctor.Optic
+-- >>> let itraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; itraversed = itraversalVl traverseWithKey
 -- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
 -- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
 

@@ -106,11 +106,13 @@ import qualified Control.Exception as Ex
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
 -- >>> import Data.Int.Instance ()
--- >>> import Data.List.Optic (iat, itraversed)
+-- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
+-- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 type ASetter s t a b = ARepn Identity s t a b
 
@@ -507,19 +509,19 @@ kset o kb = kunder o $ flip (const kb)
 (.~) = set
 {-# INLINE (.~) #-}
 
--- | An infixvariant of 'iset'. Dual to '#~'.
+-- | An infix variant of 'iset'. Dual to '#~'.
 --
 (%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 (%~) = iset
 {-# INLINE (%~) #-}
 
--- | An infixvariant of 'reset'. Dual to '.~'.
+-- | An infix variant of 'reset'. Dual to '.~'.
 --
 (/~) :: AResetter s t a b -> b -> s -> t
 (/~) = reset
 {-# INLINE (/~) #-}
 
--- | An infixvariant of 'kset'. Dual to '%~'.
+-- | An infix variant of 'kset'. Dual to '%~'.
 --
 (#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 (#~) = kset
@@ -534,19 +536,19 @@ kset o kb = kunder o $ flip (const kb)
 (..~) = over
 {-# INLINE (..~) #-}
 
--- | An infixvariant of 'iover'. Dual to '##~'.
+-- | An infix variant of 'iover'. Dual to '##~'.
 --
 (%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 (%%~) = iover
 {-# INLINE (%%~) #-}
 
--- | An infixvariant of 'under'. Dual to '..~'.
+-- | An infix variant of 'under'. Dual to '..~'.
 --
 (//~) :: AResetter s t a b -> (a -> b) -> s -> t
 (//~) = under
 {-# INLINE (//~) #-}
 
--- | An infixvariant of 'kunder'. Dual to '%%~'.
+-- | An infix variant of 'kunder'. Dual to '%%~'.
 --
 (##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 (##~) = kunder
