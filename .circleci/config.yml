@@ -5,25 +5,9 @@ jobs:
       - image: fpco/stack-build:lts
     steps:
       - checkout
-      - restore_cache:
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
-          name: Restore Cached Dependencies
-          keys:
-            - cci-demo-haskell-v1-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
-            - cci-demo-haskell-v1-{{ checksum "stack.yaml" }}
       - run:
           name: Resolve/Update Dependencies
           command: stack --no-terminal setup --skip profunctor-optics:doctest
       - run:
           name: Run tests
           command: stack --no-terminal test --skip profunctor-optics:doctest
-      - save_cache:
-          name: Cache Dependencies
-          key: cci-demo-haskell-v1-{{ checksum "stack.yaml" }}-{{ checksum "package.yaml" }}
-          paths:
-            - "/root/.stack"
-            - ".stack-work"
-      - store_artifacts:
-          # Upload test summary for display in Artifacts: https://circleci.com/docs/2.0/artifacts/ 
-          path: ~/.local/bin/circleci-demo-haskell-exe
-          destination: circleci-demo-haskell-exe
