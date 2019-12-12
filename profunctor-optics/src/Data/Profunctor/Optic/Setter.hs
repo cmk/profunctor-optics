@@ -65,17 +65,14 @@ module Data.Profunctor.Optic.Setter (
   , (##=)
   , (<>=)
   , (><=)
-  , zoom
     -- * Carriers
   , ASetter
   , ASetter'
- -- , Star(..)
   , AResetter
   , AResetter'
- -- , Costar(..)
     -- * Classes
- -- , Representable(..)
- -- , Corepresentable(..)
+  , Representable(..)
+  , Corepresentable(..)
 ) where
 
 import Control.Applicative (liftA)
@@ -89,6 +86,8 @@ import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
 import Data.Profunctor.Optic.Types
 import Data.Semiring
+
+import Control.Monad.Trans.RWS.CPS
 
 import qualified Control.Exception as Ex
 
@@ -750,13 +749,3 @@ o <>= a = State.modify (o <>~ a)
 (><=) :: MonadState s m => Semiring a => ASetter' s a -> a -> m ()
 o ><= a = State.modify (o ><~ a)
 {-# INLINE (><=) #-}
-
--- @
--- zoom :: Functor m => Lens' ta a -> StateT a m c -> StateT ta m c
--- zoom :: (Monoid c, Applicative m) => Traversal' ta a -> StateT a m c -> StateT ta m c
--- @
-zoom :: Functor m => Optic' (Star (Compose m ((,) c))) ta a -> StateT a m c -> StateT ta m c
-zoom o (StateT m) = StateT . out . o . into $ m
- where
-  into f = Star (Compose . f)
-  out (Star f) = getCompose . f

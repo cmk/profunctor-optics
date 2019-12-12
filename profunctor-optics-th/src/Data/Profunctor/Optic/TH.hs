@@ -76,6 +76,7 @@ import           Data.List (nub, findIndices, stripPrefix, isPrefixOf)
 import           Data.Maybe
 import           Data.Tuple.Optic
 import           Data.Profunctor.Optic
+import           Data.Profunctor.Optic.Prelude
 import           Data.Profunctor.Optic.TH.Internal
 import           Language.Haskell.TH
 import qualified Language.Haskell.TH.Datatype as D

@@ -5,14 +5,10 @@
 module Data.Profunctor.Optic.View (
     -- * Types
     View
-  , AView
   , Ixview
-  , AIxview
   , PrimView
   , Review
-  , AReview
   , Cxview
-  , ACxview
   , PrimReview
     -- * Constructors
   , to
@@ -56,8 +52,10 @@ module Data.Profunctor.Optic.View (
   , throws_
   , throwsTo
     -- * Carriers
- -- , Star(..)
-  , Tagged(..)
+  , AView
+  , AIxview
+  , AReview
+  , ACxview
 ) where
 
 import Control.Exception (Exception)

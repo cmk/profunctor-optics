@@ -58,6 +58,7 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Extra as Export (type (+))
+import Data.Profunctor.Types as Export
 import qualified Control.Arrow as A
 
 -- $setup
