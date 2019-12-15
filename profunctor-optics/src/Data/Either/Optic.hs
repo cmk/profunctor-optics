@@ -6,12 +6,10 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Either.Optic (
-    eswapped
-  , eassociated
+    coswapped
+  , coassociated
   , left
   , right
-  , coleft
-  , coright
 ) where
 
 import Data.Profunctor.Optic.Import
@@ -27,13 +25,3 @@ left = left'
 --
 right :: Prism (c + a) (c + b) a b
 right = right'
-
--- | 'Coprism' out of the `Left` constructor of `Either`.
---
-coleft :: Coprism a b (a + c) (b + c)
-coleft = unleft
-
--- | 'Coprism' out of the `Right` constructor of `Either`.
---
-coright :: Coprism a b (c + a) (c + b)
-coright = unright

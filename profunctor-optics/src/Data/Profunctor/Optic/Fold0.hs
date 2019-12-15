@@ -50,7 +50,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (just, async)
 import Data.Profunctor.Optic.Traversal0 (traversal0Vl, itraversal0Vl, is)
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.View (to)
+import Data.Profunctor.Optic.View
 import qualified Control.Exception as Ex
 
 -- $setup
@@ -298,11 +298,12 @@ throwM = liftIO . Ex.throwIO
 {-# INLINE throwM #-}
 
 ---------------------------------------------------------------------
--- 'Fold0Rep'
+-- Carriers
 ---------------------------------------------------------------------
 
 newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
 
+--todo coerce
 instance Functor (Fold0Rep r a) where
   fmap _ (Fold0Rep p) = Fold0Rep p
 

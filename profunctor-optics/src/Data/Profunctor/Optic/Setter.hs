@@ -22,74 +22,68 @@ module Data.Profunctor.Optic.Setter (
   , dom
   , bound 
   , fmapped
+  , imappedRep
   , contramapped
+  , exmapped
   , liftedA
   , liftedM
-  , locally
+  , forwarded
+  , censored
+  , seeked
   , zipped
-  , cond
   , modded
-  , exmapped
+  , cond
     -- * Primitive operators
-  , over
-  , iover
-  , under
-  , kunder
-  , through
+  , withIxsetter
+  , withCxsetter
     -- * Operators
-  , assignA
   , set
   , iset
-  , reset
   , kset
   , (.~)
   , (%~)
-  , (/~)
   , (#~)
+  , over
+  , iover
+  , kover
   , (..~)
   , (%%~)
-  , (//~)
   , (##~)
   , (<>~)
   , (><~)
-    -- * MonadState
+    -- * mtl
+  , locally
+  , scribe
   , assigns
   , modifies
   , (.=)
   , (%=)
-  , (/==)
   , (#=)
   , (..=)
   , (%%=)
-  , (//=)
   , (##=)
   , (<>=)
   , (><=)
     -- * Carriers
-  , ASetter
-  , ASetter'
-  , AResetter
-  , AResetter'
-    -- * Classes
-  , Representable(..)
-  , Corepresentable(..)
+  , AIxsetter
+  , AIxsetter'
+  , ACxsetter
+  , ACxsetter'
 ) where
 
 import Control.Applicative (liftA)
+import Control.Comonad.Store.Class (ComonadStore, seeks)
 import Control.Exception (Exception(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.Foldable (Foldable, foldMap)
-import Data.Profunctor.Arrow
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Index (Index(..), Coindex(..), trivial)
+import Data.Profunctor.Optic.Index (Index(..), Coindex(..), Conjoin(..), trivial)
 import Data.Profunctor.Optic.Types
 import Data.Semiring
 
-import Control.Monad.Trans.RWS.CPS
-
 import qualified Control.Exception as Ex
+import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -102,6 +96,10 @@ import qualified Control.Exception as Ex
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Reader
 -- >>> import Control.Monad.Writer
+-- >>> import Data.Bool (bool)
+-- >>> import Data.Bool.Instance ()
+-- >>> import Data.Complex
+-- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
 -- >>> import Data.Int.Instance ()
@@ -113,17 +111,13 @@ import qualified Control.Exception as Ex
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 -- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
-type ASetter s t a b = ARepn Identity s t a b
+type AIxsetter i s t a b = IndexedOptic (->) i s t a b
 
-type ASetter' s a = ASetter s s a a
+type AIxsetter' i s a = AIxsetter i s s a a
 
-type AIxsetter i s t a b = AIxrepn Identity i s t a b
+type ACxsetter k s t a b = CoindexedOptic (->) k s t a b
 
-type AResetter s t a b = ACorepn Identity s t a b
-
-type AResetter' s a = AResetter s s a a
-
-type ACxsetter k s t a b = ACxrepn Identity k s t a b
+type ACxsetter' k t b = ACxsetter k t t b b
 
 ---------------------------------------------------------------------
 -- Setter
@@ -177,6 +171,16 @@ isetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
 isetter f = setter $ \iab -> f (curry iab) . snd 
 {-# INLINE isetter #-}
 
+-- | Every valid 'Grate' is a 'Setter'.
+--
+closing :: (((s -> a) -> b) -> t) -> Setter s t a b
+closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
+{-# INLINE closing #-}
+
+---------------------------------------------------------------------
+-- Resetter
+---------------------------------------------------------------------
+
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -206,102 +210,6 @@ ksetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
 ksetter f = resetter $ \kab -> const . f (flip kab)
 {-# INLINE ksetter #-}
 
--- | Every valid 'Grate' is a 'Setter'.
---
-closing :: (((s -> a) -> b) -> t) -> Setter s t a b
-closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
-{-# INLINE closing #-}
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Extract a SEC from a 'Setter'.
---
--- Used to modify the target of a 'Lens' or all the targets of a 'Setter' 
--- or 'Traversal'.
---
--- @
--- 'over' o 'id' ≡ 'id' 
--- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
--- 'setter' '.' 'over' ≡ 'id'
--- 'over' '.' 'setter' ≡ 'id'
--- @
---
--- >>> over fmapped (+1) (Just 1)
--- Just 2
---
--- >>> over fmapped (*10) [1,2,3]
--- [10,20,30]
---
--- >>> over first' (+1) (1,2)
--- (2,2)
---
--- >>> over first' show (10,20)
--- ("10",20)
---
--- @
--- over :: Setter s t a b -> (a -> r) -> s -> r
--- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
--- @
---
-over :: ASetter s t a b -> (a -> b) -> s -> t
-over o = (runIdentity #.) #. runStar #. o .# Star .# (Identity #. ) 
-{-# INLINE over #-}
-
--- |
---
--- >>> iover (iat 1) (+) [1,2,3 :: Int]
--- [1,3,3]
---
--- >>> iover (iat 5) (+) [1,2,3 :: Int]
--- [1,2,3]
---
-iover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-iover o f = flip curry mempty (over o (uncurry f)) 
-{-# INLINE iover #-}
-
--- | Extract a SEC from a 'Resetter'.
---
--- @
--- 'under' o 'id' ≡ 'id' 
--- 'under' o f '.' 'under' o g ≡ 'under' o (f '.' g)
--- 'resetter' '.' 'under' ≡ 'id'
--- 'under' '.' 'resetter' ≡ 'id'
--- @
---
--- Note that 'under' (more properly co-/over/) is distinct from 'Data.Profunctor.Optic.Iso.reover':
---
--- >>> :t under $ wrapped @(Identity Int)
--- under $ wrapped @(Identity Int)
---   :: (Int -> Int) -> Identity Int -> Identity Int
--- >>> :t over $ wrapped @(Identity Int)
--- over $ wrapped @(Identity Int)
---   :: (Int -> Int) -> Identity Int -> Identity Int
--- >>> :t over . re $ wrapped @(Identity Int)
--- over . re $ wrapped @(Identity Int)
---   :: (Identity Int -> Identity Int) -> Int -> Int
--- >>> :t reover $ wrapped @(Identity Int)
--- reover $ wrapped @(Identity Int)
---   :: (Identity Int -> Identity Int) -> Int -> Int
---
--- Compare to the /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#v:under version>.
---
-under :: AResetter s t a b -> (a -> b) -> s -> t
-under o = (.# Identity) #. runCostar #. o .# Costar .# (.# runIdentity)
-{-# INLINE under #-}
-
--- | TODO: Document
---
-kunder :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-kunder o f = flip (under o (flip f)) mempty
-{-# INLINE kunder #-}
-
--- | The join of 'under' and 'over'.
---
-through :: Optic (->) s t a b -> (a -> b) -> s -> t
-through = id
-{-# INLINE through #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -350,7 +258,16 @@ fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
 
--- | This 'Setter' can be used to map over all of the inputs to a 'Contravariant'.
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & imappedRep %~ bool 20 10
+-- 20 :+ 10
+--
+imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+imappedRep = isetter F.imapRep
+{-# INLINE imappedRep #-}
+
+-- | 'Setter' on each value of a contravariant functor.
 --
 -- @
 -- 'contramap' ≡ 'over' 'contramapped'
@@ -366,7 +283,20 @@ contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
 
--- | This 'setter' can be used to modify all of the values in an 'Applicative'.
+-- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
+--
+-- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped ..~ \ (AssertionFailed _) -> Overflow)
+-- "caught"
+--
+-- @
+-- exmapped :: Exception e => Setter s s SomeException e
+-- @
+--
+exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
+exmapped = setter Ex.mapException
+{-# INLINE exmapped #-}
+
+-- | 'Setter' on each value of an applicative.
 --
 -- @
 -- 'liftA' ≡ 'setter' 'liftedA'
@@ -382,28 +312,49 @@ liftedA :: Applicative f => Setter (f a) (f b) a b
 liftedA = setter liftA
 {-# INLINE liftedA #-}
 
--- | TODO: Document
+-- | 'Setter' on each value of a monad.
 --
 liftedM :: Monad m => Setter (m a) (m b) a b
 liftedM = setter liftM
 {-# INLINE liftedM #-}
 
--- | Modify the local environment of a 'Reader'. 
+-- | 'Setter' on the local environment of a 'Reader'. 
 --
 -- Use to lift reader actions into a larger environment:
 --
--- >>> runReader ( ask & locally ..~ fst ) (1,2)
+-- >>> runReader (ask & forwarded ..~ fst) (1,2)
 -- 1
 --
-locally :: Setter (ReaderT r2 m a) (ReaderT r1 m a) r1 r2
-locally = setter withReaderT
-{-# INLINE locally #-}
+forwarded :: Setter (ReaderT r2 m a) (ReaderT r1 m a) r1 r2
+forwarded = setter withReaderT
+{-# INLINE forwarded #-}
 
 -- | TODO: Document
+--
+censored :: Writer.MonadWriter w m => Setter' (m a) w
+censored = setter Writer.censor
+{-# INLINE censored #-}
+
+-- | 'Setter' on the 
+--
+seeked :: ComonadStore a w => Setter' (w s) a
+seeked = setter seeks
+{-# INLINE seeked #-}
+
+-- | 'Setter' on the codomain of a zipping function.
+--
+-- >>> ((,) & zipped ..~ swap) 1 2
+-- (2,1)
 --
 zipped :: Setter (u -> v -> a) (u -> v -> b) a b
 zipped = setter ((.)(.)(.))
 {-# INLINE zipped #-}
+
+-- | TODO: Document
+--
+modded :: (a -> Bool) -> Setter' (a -> b) b
+modded p = setter $ \mods f a -> if p a then mods (f a) else f a
+{-# INLINE modded #-}
 
 -- | Apply a function only when the given condition holds.
 --
@@ -413,58 +364,33 @@ cond :: (a -> Bool) -> Setter' a a
 cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
 
+---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
 -- | TODO: Document
 --
-modded :: (a -> Bool) -> Setter' (a -> b) b
-modded p = setter $ \mods f a -> if p a then mods (f a) else f a
-{-# INLINE modded #-}
+withIxsetter :: IndexedOptic (->) i s t a b -> (i -> a -> b) -> i -> s -> t
+withIxsetter o = unConjoin #. corepn o .# Conjoin
+{-# INLINE withIxsetter #-}
 
--- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
+-- | TODO: Document
 --
--- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped ..~ \ (AssertionFailed _) -> Overflow)
--- "caught"
---
--- @
--- exmapped :: Exception e => Setter s s SomeException e
--- @
---
-exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
-exmapped = setter Ex.mapException
-{-# INLINE exmapped #-}
+withCxsetter :: CoindexedOptic (->) k s t a b -> (k -> a -> b) -> k -> s -> t
+withCxsetter o = unConjoin #. repn o .# Conjoin
+{-# INLINE withCxsetter #-}
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 .~, ..~, %~, %%~, /~, //~, #~, ##~, <>~, ><~
-
--- | Run a profunctor arrow command and set the optic targets to the result.
---
--- Similar to 'assign', except that the type of the object being modified can change.
---
--- >>> getVal1 = Right 3
--- >>> getVal2 = Right False
--- >>> action = assignA first' (Kleisli (const getVal1)) >>> assignA second' (Kleisli (const getVal2))
--- >>> runKleisli action ((), ())
--- Right (3,False)
---
--- @
--- 'assignA' :: 'Category' p => 'Iso' s t a b       -> 'Lenslike' p s t s b
--- 'assignA' :: 'Category' p => 'Lens' s t a b      -> 'Lenslike' p s t s b
--- 'assignA' :: 'Category' p => 'Grate' s t a b     -> 'Lenslike' p s t s b
--- 'assignA' :: 'Category' p => 'Setter' s t a b    -> 'Lenslike' p s t s b
--- 'assignA' :: 'Category' p => 'Traversal' s t a b -> 'Lenslike' p s t s b
--- @
---
-assignA :: Category p => Strong p => ASetter s t a b -> Optic p s t s b 
-assignA o p = arr (flip $ set o) &&& p >>> arr (uncurry id)
-{-# INLINE assignA #-}
+infixr 4 .~, ..~, %~, %%~, #~, ##~, <>~, ><~
 
 -- | Set all referenced fields to the given value.
 --
 -- @ 'set' l y ('set' l x a) ≡ 'set' l y a @
 --
-set :: ASetter s t a b -> b -> s -> t
+set :: Optic (->) s t a b -> b -> s -> t
 set o b = over o (const b)
 {-# INLINE set #-}
 
@@ -486,90 +412,118 @@ iset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 iset o = iover o . (const .)
 {-# INLINE iset #-}
 
--- | Set all referenced fields to the given value.
+-- | Set with an index.
 --
--- @
--- 'reset' ≡ 'set' '.' 're'
--- @
--- 
-reset :: AResetter s t a b -> b -> s -> t
-reset o b = under o (const b)
-{-# INLINE reset #-}
-
--- | Dual set with index. Equivalent to 'kunder' with the current value ignored.
+-- Equivalent to 'kover' with the current value ignored.
 --
 kset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
-kset o kb = kunder o $ flip (const kb)
+kset o kb = kover o $ flip (const kb)
 {-# INLINE kset #-}
 
--- | TODO: Document
+-- | Infix variant of 'set'.
 --
-(.~) :: ASetter s t a b -> b -> s -> t
+(.~) :: Optic (->) s t a b -> b -> s -> t
 (.~) = set
 {-# INLINE (.~) #-}
 
--- | An infix variant of 'iset'. Dual to '#~'.
+-- | Infix variant of 'iset'.
+--
+--  See also '#~'.
 --
 (%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 (%~) = iset
 {-# INLINE (%~) #-}
 
--- | An infix variant of 'reset'. Dual to '.~'.
+-- | Infix variant of 'kset'.
 --
-(/~) :: AResetter s t a b -> b -> s -> t
-(/~) = reset
-{-# INLINE (/~) #-}
-
--- | An infix variant of 'kset'. Dual to '%~'.
+--  See also '%~'.
 --
 (#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 (#~) = kset
 {-# INLINE (#~) #-}
 
--- | TODO: Document
+-- | Map over an optic.
+--
+-- @
+-- 'over' o 'id' ≡ 'id' 
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- 'over' '.' 'resetter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+--
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+--
+-- >>> over first' (+1) (1,2)
+-- (2,2)
+--
+-- >>> over first' show (10,20)
+-- ("10",20)
+--
+-- @
+-- over :: Setter s t a b -> (a -> r) -> s -> r
+-- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
+-- @
+--
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}
+
+-- | Map over an indexed optic.
+--
+-- >>> iover (iat 1) (+) [1,2,3 :: Int]
+-- [1,3,3]
+--
+-- >>> iover (iat 5) (+) [1,2,3 :: Int]
+-- [1,2,3]
+--
+iover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+iover o f = withIxsetter o f mempty
+{-# INLINE iover #-}
+
+-- | Map over a coindexed optic.
+--
+kover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
+kover o f = withCxsetter o f mempty 
+{-# INLINE kover #-}
+
+-- | Infix variant of 'over'.
 --
 -- >>> Nothing & just ..~ (+1)
 -- Nothing
 --
-(..~) :: ASetter s t a b -> (a -> b) -> s -> t
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
 (..~) = over
 {-# INLINE (..~) #-}
 
--- | An infix variant of 'iover'. Dual to '##~'.
+-- | Infix variant of 'iover'.
+--
+-- See also '##~'.
 --
 (%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 (%%~) = iover
 {-# INLINE (%%~) #-}
 
--- | An infix variant of 'under'. Dual to '..~'.
+-- | Infix variant of 'kover'.
 --
-(//~) :: AResetter s t a b -> (a -> b) -> s -> t
-(//~) = under
-{-# INLINE (//~) #-}
-
--- | An infix variant of 'kunder'. Dual to '%%~'.
+--  See also '%%~'.
 --
 (##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-(##~) = kunder
+(##~) = kover
 {-# INLINE (##~) #-}
 
 -- | Modify the target by adding another value.
 --
--- >>> both <>~ False $ (False,True)
--- (False,True)
+-- >>> both <>~ True $ (False,True)
+-- (True,True)
 --
--- >>> both <>~ "!!!" $ ("hello","world")
--- ("hello!!!","world!!!")
+-- >>> both <>~ "!" $ ("bar","baz")
+-- ("bar!","baz!")
 --
--- @
--- ('<>~') :: 'Semigroup' a => 'Iso' s t a a       -> a -> s -> t
--- ('<>~') :: 'Semigroup' a => 'Lens' s t a a      -> a -> s -> t
--- ('<>~') :: 'Semigroup' a => 'Grate' s t a a     -> a -> s -> t
--- ('<>~') :: 'Semigroup' a => 'Setter' s t a a    -> a -> s -> t
--- ('<>~') :: 'Semigroup' a => 'Traversal' s t a a -> a -> s -> t
--- @
---
-(<>~) :: Semigroup a => ASetter s t a a -> a -> s -> t
+(<>~) :: Semigroup a => Optic (->) s t a a -> a -> s -> t
 l <>~ n = over l (<> n)
 {-# INLINE (<>~) #-}
 
@@ -578,51 +532,53 @@ l <>~ n = over l (<> n)
 -- >>> both ><~ False $ (False,True)
 -- (False,False)
 --
--- @
--- ('><~') :: 'Semiring' a => 'Iso' s t a a       -> a -> s -> t
--- ('><~') :: 'Semiring' a => 'Lens' s t a a      -> a -> s -> t
--- ('><~') :: 'Semiring' a => 'Grate' s t a a     -> a -> s -> t
--- ('><~') :: 'Semiring' a => 'Setter' s t a a    -> a -> s -> t
--- ('><~') :: 'Semiring' a => 'Traversal' s t a a -> a -> s -> t
--- @
+-- >>> both ><~ ["!"] $ (["bar","baz"], [])
+-- (["bar!","baz!"],[])
 --
-(><~) :: Semiring a => ASetter s t a a -> a -> s -> t
+(><~) :: Semiring a => Optic (->) s t a a -> a -> s -> t
 l ><~ n = over l (>< n)
 {-# INLINE (><~) #-}
 
 ---------------------------------------------------------------------
--- MonadState
+-- Mtl
 ---------------------------------------------------------------------
 
-infix 4 .=, ..=, %=, %%=, //=, #=, ##=, <>=, ><=
+-- | Modify the value of a 'Reader' environment.
+--
+-- @
+-- 'locally' l 'id' a ≡ a
+-- 'locally' l f '.' locally l g ≡ 'locally' l (f '.' g)
+-- @
+--
+-- >>> (1,1) & locally first' (+1) (uncurry (+))
+-- 3
+--
+-- >>> "," & locally (setter ($)) ("Hello" <>) (<> " world!")
+-- "Hello, world!"
+--
+-- Compare 'forwarded'.
+--
+locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
+locally o f = Reader.local $ o ..~ f
+{-# INLINE locally #-}
+
+-- | Write to a fragment of a larger 'Writer' format.
+--
+scribe :: MonadWriter w m => Monoid b => Optic (->) s w a b -> s -> m ()
+scribe o s = Writer.tell $ set o mempty s
+{-# INLINE scribe #-}
+
+infix 4 .=, ..=, %=, %%=, #=, ##=, <>=, ><=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
--- @
--- 'assigns' :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
--- 'assigns' :: 'MonadState' s m => 'Lens'' s a      -> a -> m ()
--- 'assigns' :: 'MonadState' s m => 'Grate'' s a     -> a -> m ()
--- 'assigns' :: 'MonadState' s m => 'Prism'' s a     -> a -> m ()
--- 'assigns' :: 'MonadState' s m => 'Setter'' s a    -> a -> m ()
--- 'assigns' :: 'MonadState' s m => 'Traversal'' s a -> a -> m ()
--- @
---
-assigns :: MonadState s m => ASetter s s a b -> b -> m ()
+assigns :: MonadState s m => Optic (->) s s a b -> b -> m ()
 assigns o b = State.modify (set o b)
 {-# INLINE assigns #-}
 
 -- | Map over the target(s) of a 'Setter' in a monadic state.
 --
--- @
--- 'modifies' :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
--- 'modifies' :: 'MonadState' s m => 'Lens'' s a      -> (a -> a) -> m ()
--- 'modifies' :: 'MonadState' s m => 'Grate'' s a     -> (a -> a) -> m ()
--- 'modifies' :: 'MonadState' s m => 'Prism'' s a     -> (a -> a) -> m ()
--- 'modifies' :: 'MonadState' s m => 'Setter'' s a    -> (a -> a) -> m ()
--- 'modifies' :: 'MonadState' s m => 'Traversal'' s a -> (a -> a) -> m ()
--- @
---
-modifies :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
+modifies :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 modifies o f = State.modify (over o f)
 {-# INLINE modifies #-}
 
@@ -636,16 +592,7 @@ modifies o f = State.modify (over o f)
 -- >>> execState (both .= 3) (1,2)
 -- (3,3)
 --
--- @
--- ('.=') :: 'MonadState' s m => 'Iso'' s a       -> a -> m ()
--- ('.=') :: 'MonadState' s m => 'Lens'' s a      -> a -> m ()
--- ('.=') :: 'MonadState' s m => 'Grate'' s a    -> a -> m ()
--- ('.=') :: 'MonadState' s m => 'Prism'' s a    -> a -> m ()
--- ('.=') :: 'MonadState' s m => 'Setter'' s a    -> a -> m ()
--- ('.=') :: 'MonadState' s m => 'Traversal'' s a -> a -> m ()
--- @
---
-(.=) :: MonadState s m => ASetter s s a b -> b -> m ()
+(.=) :: MonadState s m => Optic (->) s s a b -> b -> m ()
 o .= b = State.modify (o .~ b)
 {-# INLINE (.=) #-}
 
@@ -654,12 +601,6 @@ o .= b = State.modify (o .~ b)
 (%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
 o %= b = State.modify (o %~ b)
 {-# INLINE (%=) #-}
-
--- | TODO: Document 
---
-(/==) :: MonadState s m => AResetter s s a b -> b -> m ()
-o /== b = State.modify (o /~ b)
-{-# INLINE (/==) #-}
 
 -- | TODO: Document 
 --
@@ -680,16 +621,7 @@ o #= f = State.modify (o #~ f)
 -- >>> execState (do both ..= (+1)) (1,2)
 -- (2,3)
 --
--- @
--- ('..=') :: 'MonadState' s m => 'Iso'' s a       -> (a -> a) -> m ()
--- ('..=') :: 'MonadState' s m => 'Lens'' s a      -> (a -> a) -> m ()
--- ('..=') :: 'MonadState' s m => 'Grate'' s a     -> (a -> a) -> m ()
--- ('..=') :: 'MonadState' s m => 'Prism'' s a     -> (a -> a) -> m ()
--- ('..=') :: 'MonadState' s m => 'Setter'' s a    -> (a -> a) -> m ()
--- ('..=') :: 'MonadState' s m => 'Traversal'' s a -> (a -> a) -> m ()
--- @
---
-(..=) :: MonadState s m => ASetter s s a b -> (a -> b) -> m ()
+(..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 o ..= f = State.modify (o ..~ f)
 {-# INLINE (..=) #-}
 
@@ -698,12 +630,6 @@ o ..= f = State.modify (o ..~ f)
 (%%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
 o %%= f = State.modify (o %%~ f)
 {-# INLINE (%%=) #-}
-
--- | TODO: Document 
---
-(//=) :: MonadState s m => AResetter s s a b -> (a -> b) -> m ()
-o //= f = State.modify (o //~ f)
-{-# INLINE (//=) #-}
 
 -- | TODO: Document 
 --
@@ -719,16 +645,7 @@ o ##= f = State.modify (o ##~ f)
 -- >>> execState (both <>= "!!!") ("hello","world")
 -- ("hello!!!","world!!!")
 --
--- @
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Iso'' s a -> a -> m ()
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Lens'' s a -> a -> m ()
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Grate'' s a -> a -> m ()
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Prism'' s a -> a -> m ()
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Setter'' s a -> a -> m ()
--- ('<>=') :: 'MonadState' s m => 'Semigroup' a => 'Traversal'' s a -> a -> m ()
--- @
---
-(<>=) :: MonadState s m => Semigroup a => ASetter' s a -> a -> m ()
+(<>=) :: MonadState s m => Semigroup a => Optic' (->) s a -> a -> m ()
 o <>= a = State.modify (o <>~ a)
 {-# INLINE (<>=) #-}
 
@@ -737,15 +654,6 @@ o <>= a = State.modify (o <>~ a)
 -- >>> execState (both ><= False) (False,True)
 -- (False,False)
 --
--- @
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Iso'' s a -> a -> m ()
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Lens'' s a -> a -> m ()
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Grate'' s a -> a -> m ()
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Prism'' s a -> a -> m ()
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Setter'' s a -> a -> m ()
--- ('><=') :: 'MonadState' s m => 'Semiring' a => 'Traversal'' s a -> a -> m ()
--- @
---
-(><=) :: MonadState s m => Semiring a => ASetter' s a -> a -> m ()
+(><=) :: MonadState s m => Semiring a => Optic' (->) s a -> a -> m ()
 o ><= a = State.modify (o ><~ a)
 {-# INLINE (><=) #-}

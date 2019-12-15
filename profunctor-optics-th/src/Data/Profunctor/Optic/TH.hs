@@ -76,7 +76,7 @@ import           Data.List (nub, findIndices, stripPrefix, isPrefixOf)
 import           Data.Maybe
 import           Data.Tuple.Optic
 import           Data.Profunctor.Optic
-import           Data.Profunctor.Optic.Prelude
+import           Data.Profunctor.Optic.Prelude hiding (elem)
 import           Data.Profunctor.Optic.TH.Internal
 import           Language.Haskell.TH
 import qualified Language.Haskell.TH.Datatype as D
@@ -537,7 +537,6 @@ mkNameLookup :: [(String,String)] -> Name -> [Name] -> Name -> [DefName]
 mkNameLookup kvs _ _ field =
   [ TopName (mkName v) | (k,v) <- kvs, k == nameBase field]
 
-_head :: Optic (Star Identity) [a] [a] a a
 _head = setter f
   where f _ [] = []
         f g (a:as) = (g a):as
@@ -1183,7 +1182,7 @@ modifyAt i f ls
     go n (x:xs) = x : go (n-1) xs
     go _ [] = []
 
-ixat :: Int -> ASetter [a] [a] a a
+ixat :: Int -> Setter [a] [a] a a
 ixat i = setter $ modifyAt i
 
 

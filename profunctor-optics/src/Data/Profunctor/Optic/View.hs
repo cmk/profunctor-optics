@@ -54,8 +54,10 @@ module Data.Profunctor.Optic.View (
     -- * Carriers
   , AView
   , AIxview
+  , APrimView
   , AReview
   , ACxview
+  , APrimReview
 ) where
 
 import Control.Exception (Exception)
@@ -99,7 +101,6 @@ type ACxview k t b = CoindexedOptic' Tagged k t b
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
 ---------------------------------------------------------------------
-
 
 -- | Obtain a 'View' from an arbitrary function.
 --

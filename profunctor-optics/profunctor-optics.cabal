@@ -105,6 +105,7 @@ library
     , transformers      >= 0.5.6.0  && < 0.6
     , unliftio-core     >= 0.1.2    && < 0.2
     , writer-cps-mtl    >= 0.1.1.6  && < 0.2
+    , adjunctions       >= 4.4      && < 5.0
 
 test-suite test
   type:              exitcode-stdio-1.0
@@ -132,6 +133,7 @@ executable doctest
 
   build-depends:
       base
+    , adjunctions
     , containers
     , doctest >= 0.8
     , ilist

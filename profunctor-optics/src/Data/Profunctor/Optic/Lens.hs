@@ -8,8 +8,8 @@
 module Data.Profunctor.Optic.Lens (
     -- * Lens & Ixlens
     Lens
-  , Ixlens
   , Lens'
+  , Ixlens
   , Ixlens'
   , lens
   , ilens
@@ -17,16 +17,7 @@ module Data.Profunctor.Optic.Lens (
   , ilensVl
   , matching
   , cloneLens
-    -- * Colens & Cxlens
-  , Colens
-  , Cxlens
-  , Colens'
-  , Cxlens'
   , colens
-  --, klens
-  , colensVl
-  , comatching
-  --, cloneColens
     -- * Optics
   , united
   , voided
@@ -37,7 +28,6 @@ module Data.Profunctor.Optic.Lens (
   , withLens
   , withLensVl
   , withIxlens
-  --, withColens
     -- * Operators
   , toPastro
   , toTambara
@@ -48,9 +38,6 @@ module Data.Profunctor.Optic.Lens (
   , AIxlens'
   , LensRep(..)
   , IxlensRep(..)
- -- , AColens
- -- , AColens'
-  --, ColensRep(..)
     -- * Classes
   , Strong(..)
   , Costrong(..)
@@ -169,10 +156,6 @@ matching sca cbt = dimap sca cbt . second'
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens o = withLens o lens 
 
----------------------------------------------------------------------
--- 'Colens' & 'Cxlens'
----------------------------------------------------------------------
-
 -- | Obtain a 'Colens' from a getter and setter. 
 --
 -- @
@@ -197,31 +180,8 @@ cloneLens o = withLens o lens
 -- 
 -- See 'Data.Profunctor.Optic.Property'.
 --
-colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
+--colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
 colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
-
--- | Transform a Van Laarhoven colens into a profunctor colens.
---
--- Compare 'Data.Profunctor.Optic.Grate.grateVl'.
---
--- /Caution/: In addition to the normal optic laws, the input functions
--- must have the correct laziness annotations.
---
--- For example, this is a perfectly valid 'Colens':
---
--- @ 
--- ct21 = colensVl $ \f ~(a,b) -> (,b) <$> f a
--- @
---
--- However removing the annotation will result in a faulty optic.
--- 
-colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
-
--- | Obtain a 'Colens' from its free tensor representation.
---
-comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
-comatching csa bct = unsecond . dimap csa bct
 
 ---------------------------------------------------------------------
 -- Primitive operators

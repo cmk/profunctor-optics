@@ -25,15 +25,13 @@ module Data.Profunctor.Optic.Prelude (
   , (.~)
   , iset
   , (%~)
+  , kset
+  , (#~)
   , over
   , (..~)
   , iover
   , (%%~)
-  , reset
-  , (/~)
-  , (#~)
-  , (//~)
-  , under
+  , kover
   , (##~)
   , (<>~)
   , (><~)
@@ -67,48 +65,51 @@ module Data.Profunctor.Optic.Prelude (
   , ifoldslM
   , traverses_
   , itraverses_
+  , asums
+  , concats
+  , iconcats
+  , endo
+  , endoM
   , finds
   , ifinds
   , has
   , hasnt 
-  , nulls
-  , asums
+  , elem
+  , pelem
   , joins
   , joins'
   , meets
   , meets'
-  , pelem
+  , min 
+  , max 
 ) where
-
-import Data.Function
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.View
-import Data.Profunctor.Optic.Index
-import Data.Profunctor.Optic.Setter
-import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Fold0
-import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Traversal0
 
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
+import Data.Function
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
+import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Iso
+import Data.Profunctor.Optic.View
+import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Index
+import Data.Profunctor.Optic.Setter
+import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Fold0
+import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Traversal0
 import Data.Prd (Prd, Minimal(..), Maximal(..))
 import Data.Prd.Lattice (Lattice(..))
-import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.View (AView, to, ito, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
+
 import qualified Control.Applicative as A
 import qualified Data.Prd as Prd
 import qualified Data.Semiring as Rng
+import qualified Prelude as Pre
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -129,41 +130,21 @@ import qualified Data.Semiring as Rng
 -- Fold operators
 ---------------------------------------------------------------------
 
-{-
--- | Determine whether the targets of a `Fold` contain a given element.
+-- | The sum of a collection of actions, generalizing 'concats'.
 --
-elem :: Eq a => AFold Any s a -> a -> s -> Bool
-elem o a = foldMapOf o (== a)
-
--- | Compute the minimum of the targets of a totally ordered fold. 
+-- >>> asums both ("hello","world")
+-- "helloworld"
 --
-min :: Ord a => AFold (Endo (Endo a)) s a -> a -> s -> a
-min o = foldsl' o Pre.min
-
--- | Compute the maximum of the targets of a totally ordered fold.
+-- >>> asums both (Nothing, Just "hello")
+-- Just "hello"
 --
-max :: Ord a => AFold (Endo (Endo a)) s a -> a -> s -> a
-max o = foldsl' o Pre.max
-
--- | TODO: Document
+-- @
+-- 'asum' ≡ 'asums' 'folded'
+-- @
 --
-endo :: AFold (Endo (a -> a)) s (a -> a) -> s -> a -> a
-endo o = foldsr o (.) id
-
--- | TODO: Document
---
-endoM :: Monad m => AFold (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
-endoM o = foldsr o (<=<) pure
-
--- | Compute the minimum of the targets of a partially ordered fold, if one exists.
---
-pmin :: Eq a => Prd a => AFold (Endo (EndoM Maybe a)) s a -> a -> s -> Maybe a
-pmin o = foldsM' o Prd.pmin
-
--- | Compute the maximum of the targets of a partially ordered fold, if one exists.
---
-pmax :: Eq a => Prd a => AFold (Endo (EndoM Maybe a)) s a -> a -> s -> Maybe a
-pmax o = foldsM' o Prd.pmax
+asums :: Alternative f => AFold (Endo (Endo (f a))) s (f a) -> s -> f a
+asums o = foldsl' o (<|>) A.empty
+{-# INLINE asums #-}
 
 -- | Map a function over the foci of an optic and concatenate the resulting lists.
 --
@@ -190,8 +171,16 @@ concats = withFold
 iconcats :: Monoid i => AIxfold [r] i s a -> (i -> a -> [r]) -> s -> [r]
 iconcats o f = withIxfold o f mempty
 {-# INLINE iconcats #-}
--}
 
+-- | TODO: Document
+--
+endo :: AFold (Endo (a -> a)) s (a -> a) -> s -> a -> a
+endo o = foldsr o (.) id
+
+-- | TODO: Document
+--
+endoM :: Monad m => AFold (Endo (a -> m a)) s (a -> m a) -> s -> a -> m a
+endoM o = foldsr o (<=<) pure
 
 -- | Find the first focus of an optic that satisfies a predicate, if one exists.
 --
@@ -227,27 +216,26 @@ hasnt :: AFold All s a -> s -> Bool
 hasnt o = foldsp o (const False)
 {-# INLINE hasnt #-}
 
--- | TODO: Document
+-- | Determine whether the targets of a `Fold` contain a given element.
 --
-nulls :: AFold All s a -> s -> Bool
-nulls o = foldsp o (const False)
-{-# INLINE nulls #-}
+elem :: Eq a => AFold Any s a -> a -> s -> Bool
+elem o a = withFold o (== a)
 
--- | The sum of a collection of actions, generalizing 'concatOf'.
+-- | Determine whether the foci of an optic contain an element equivalent to a given element.
 --
--- >>> asums both ("hello","world")
--- "helloworld"
+pelem :: Prd a => AFold Any s a -> a -> s -> Bool
+pelem o a = withFold o (Prd.=~ a)
+{-# INLINE pelem #-}
+
+-- | Compute the minimum of the targets of a totally ordered fold. 
 --
--- >>> asums both (Nothing, Just "hello")
--- Just "hello"
+min :: Ord a => AFold (Endo (Endo a)) s a -> a -> s -> a
+min o = foldsl' o Pre.min
+
+-- | Compute the maximum of the targets of a totally ordered fold.
 --
--- @
--- 'asum' ≡ 'asums' 'folded'
--- @
---
-asums :: Alternative f => AFold (Endo (Endo (f a))) s (f a) -> s -> f a
-asums o = foldsl' o (<|>) A.empty
-{-# INLINE asums #-}
+max :: Ord a => AFold (Endo (Endo a)) s a -> a -> s -> a
+max o = foldsl' o Pre.max
 
 -- | Compute the join of the foci of an optic. 
 --
@@ -272,9 +260,3 @@ meets o = foldsl' o (/\)
 meets' :: Lattice a => Maximal a => AFold (Endo (Endo a)) s a -> s -> a
 meets' o = meets o maximal
 {-# INLINE meets' #-}
-
--- | Determine whether the foci of an optic contain an element equivalent to a given element.
---
-pelem :: Prd a => AFold Any s a -> a -> s -> Bool
-pelem o a = withFold o (Prd.=~ a)
-{-# INLINE pelem #-}

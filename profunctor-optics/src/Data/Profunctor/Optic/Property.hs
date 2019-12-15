@@ -39,9 +39,9 @@ module Data.Profunctor.Optic.Property (
     -- * Traversal1
   , id_traversal1
   , compose_traversal1
-    -- * Cotraversal1
-  , Cotraversal1 
-  , compose_cotraversal1
+    -- * Cotraversal
+  --, Cotraversal
+  --, compose_cotraversal
     -- * Setter
   , Setter
   , id_setter
@@ -211,26 +211,27 @@ compose_traversal1 o f g s = lhs s == rhs s
         rhs = getCompose . withTraversal1 o (Compose . fmap f . g)
 
 ---------------------------------------------------------------------
--- 'Cotraversal1'
+-- 'Cotraversal'
 ---------------------------------------------------------------------
 
--- | A 'Cotraversal1' is a valid 'Resetter' with the following additional law:
+{-
+-- | A 'Cotraversal' is a valid 'Resetter' with the following additional law:
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
 -- The cotraversal laws can be restated in terms of 'cowithTraversal1':
 --
--- * @withCotraversal1 o (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @withCotraversal o (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @withCotraversal1 o f . fmap (withCotraversal1 o g) == withCotraversal1 o (f . fmap g . getCompose) . Compose@
+-- * @withCotraversal o f . fmap (withCotraversal o g) == withCotraversal o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-compose_cotraversal1 :: Eq s => Apply f => Apply g => Cotraversal1' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
-compose_cotraversal1 o f g = liftF2 (==) lhs rhs
-  where lhs = withCotraversal1 o f . fmap (withCotraversal1 o g) 
-        rhs = withCotraversal1 o (f . fmap g . getCompose) . Compose
-
+compose_cotraversal :: Eq s => Branch f => Branch g => Cotraversal' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+compose_cotraversal o f g = liftF2 (==) lhs rhs
+  where lhs = withCotraversal o f . fmap (withCotraversal o g) 
+        rhs = withCotraversal o (f . fmap g . getCompose) . Compose
+-}
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------

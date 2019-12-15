@@ -11,8 +11,6 @@ module Data.Tuple.Optic (
   , associated
   , first
   , second
-  , cofirst
-  , cosecond
   , t21
   , t22
   , t31
@@ -42,12 +40,6 @@ first = first'
 
 second :: Lens (c , a) (c , b) a b
 second = second'
-
-cofirst :: Colens a b (a , c) (b , c)
-cofirst = unfirst
-
-cosecond :: Colens a b (c , a) (c , b)
-cosecond = unsecond
 
 t21 :: Lens (a,b) (a',b) a a'
 t21 = lensVl $ \f ~(a,b) -> (\a' -> (a',b)) <$> f a
