@@ -106,6 +106,7 @@ library
     , unliftio-core     >= 0.1.2    && < 0.2
     , writer-cps-mtl    >= 0.1.1.6  && < 0.2
     , adjunctions
+    , recursion-schemes
 
 test-suite test
   type:              exitcode-stdio-1.0

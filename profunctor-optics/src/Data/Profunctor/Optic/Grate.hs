@@ -21,6 +21,7 @@ module Data.Profunctor.Optic.Grate  (
     -- * Optics
   , represented
   , distributed
+  , endomorphed
   , connected
   , continued
   , continuedT
@@ -53,6 +54,7 @@ import Control.Monad.Cont
 import Control.Monad.IO.Unlift
 import Data.Distributive
 import Data.Connection (Conn(..))
+import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
@@ -70,6 +72,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Connection.Int
+-- >>> import Data.Monoid (Endo(..))
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -155,10 +158,6 @@ cloneGrate k = withGrate k grate
 
 -- | Obtain a 'Grate' from a 'F.Representable' functor.
 --
--- @
--- represented :: Grate (c -> a) (c -> b) a b
--- @
---
 represented :: F.Representable f => Grate (f a) (f b) a b
 represented = tabulated . closed
 {-# INLINE represented #-}
@@ -169,7 +168,16 @@ distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate (`cotraverse` id)
 {-# INLINE distributed #-}
 
--- | Lift a Galois connection into a 'Grate'. 
+-- | Obtain a 'Grate' from an endomorphism. 
+--
+-- >>> flip appEndo 2 $ zipsWith endomorphed (+) (Endo (*3)) (Endo (*4))
+-- 14
+--
+endomorphed :: Grate' (Endo a) a
+endomorphed = dimap appEndo Endo . closed
+{-# INLINE endomorphed #-}
+
+-- | Obtain a 'Grate' from a Galois connection.
 --
 -- Useful for giving precise semantics to numerical computations.
 --
@@ -185,7 +193,7 @@ connected :: Conn s a -> Grate' s a
 connected (Conn f g) = inverting f g
 {-# INLINE connected #-}
 
--- | Lift an action into a continuation.
+-- | Obtain a 'Grate' from a continuation.
 --
 -- @
 -- 'zipsWith' 'continued' :: (r -> r -> r) -> s -> s -> 'Cont' r s
@@ -195,7 +203,7 @@ continued :: Grate a (Cont r a) r r
 continued = grate cont
 {-# INLINE continued #-}
 
--- | Lift an action into a continuation.
+-- | Obtain a 'Grate' from a continuation.
 --
 -- @
 -- 'zipsWith' 'continued' :: (m r -> m r -> m r) -> s -> s -> 'ContT' r m s 

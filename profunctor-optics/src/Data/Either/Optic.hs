@@ -6,8 +6,8 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Either.Optic (
-    eswapped
-  , eassociated
+    coswapped
+  , coassociated
   , left
   , right
   , coleft

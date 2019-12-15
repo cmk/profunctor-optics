@@ -6,7 +6,8 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
-module Data.Profunctor.Optic.Fold (
+module Data.Profunctor.Optic.Fold where
+{- (
     -- * Fold & Ixfold
     Fold
   , Ixfold
@@ -61,7 +62,7 @@ module Data.Profunctor.Optic.Fold (
   , aifold
   , acofold
 ) where
-
+-}
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
@@ -70,11 +71,13 @@ import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Traversal (traversalVl, itraversalVl)
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.View (AView, to, withPrimView, view, cloneView)
+import Data.Profunctor.Optic.View
 import Data.Semiring (Semiring(..), Prod(..))
 
 import qualified Data.Functor.Rep as F
 import qualified Data.Semiring as Rng
+
+import Data.Functor.Foldable as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -96,13 +99,6 @@ import qualified Data.Semiring as Rng
 ---------------------------------------------------------------------
 -- 'Fold' & 'Ixfold'
 ---------------------------------------------------------------------
-
-type FoldRep r = Star (Const r)
-
-type AFold r s a = Optic' (FoldRep r) s a
---type AFold s a = forall r. Monoid r => Optic' (FoldRep r) s a
-
-type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
 
 -- | Obtain a 'Fold' directly.
 --
@@ -412,7 +408,7 @@ ifoldsr o f = ifoldsrFrom o f mempty
 -- output index. You most likely want to use 'ifoldsr'.
 --
 ifoldsrFrom :: AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> i -> r -> s -> r
-ifoldsrFrom o f i r = (`appEndo` r) . withIxfold o (\i -> Endo . f i) i
+ifoldsrFrom o f i r = (`appEndo` r) . withIxfold o (\j -> Endo . f j) i
 {-# INLINE ifoldsrFrom #-}
 
 -- | Left fold over an optic.
@@ -536,6 +532,13 @@ type Any = Bool
 ---------------------------------------------------------------------
 -- Carriers
 ---------------------------------------------------------------------
+
+type FoldRep r = Star (Const r)
+
+type AFold r s a = Optic' (FoldRep r) s a
+--type AFold s a = forall r. Monoid r => Optic' (FoldRep r) s a
+
+type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
 
 type CofoldRep r = Costar (Const r)
 

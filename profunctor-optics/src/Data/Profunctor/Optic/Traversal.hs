@@ -22,6 +22,7 @@ module Data.Profunctor.Optic.Traversal (
   , Cotraversal'
   , cotraversal
   , cotraversing
+  , retraversing
   , cotraversalVl
     -- * Optics
   , traversed
@@ -211,7 +212,7 @@ ix o = itraversalVl $ \f s ->
 -- 'Cotraversal' & 'Cxtraversal'
 ---------------------------------------------------------------------
 
-type ACotraversal f s t a b = Comonad f => ACorepn f s t a b
+type ACotraversal f s t a b = Applicative f => ACorepn f s t a b
 
 type ACotraversal' f s a = ACotraversal f s s a a
 
@@ -229,7 +230,6 @@ cotraversal bsa bt = colens bsa bt . corepn cotraverse
 cotraversing :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal (g s) (g t) a b
 cotraversing bsa bt = corepn cotraverse . colens bsa bt 
 
-{-
 -- | Obtain a 'Cotraversal' by embedding a grate continuation into a 'Distributive' functor. 
 --
 -- @
@@ -238,7 +238,6 @@ cotraversing bsa bt = corepn cotraverse . colens bsa bt
 --
 retraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal (g s) (g t) a b
 retraversing sabt = corepn cotraverse . grate sabt
--}
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
@@ -251,7 +250,7 @@ retraversing sabt = corepn cotraverse . grate sabt
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cotraversalVl :: (forall f. Comonad f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversalVl :: (forall f. Applicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
 cotraversalVl abst = cotabulate . abst . cosieve 
 
 -- | TODO: Document
@@ -333,13 +332,13 @@ withTraversal o = runStar #. o .# Star
 --
 -- The cotraversal laws can be restated in terms of 'withCotraversal':
 --
--- * @withCotraversal o (f . extract) ≡  fmap f . extract@
+-- * @withCotraversal o (f . runIdentity) ≡  fmap f . runIdentity@
 --
 -- * @withCotraversal o f . fmap (withCotraversal o g) == withCotraversal o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-withCotraversal :: Comonad f => ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
+withCotraversal :: Applicative f => ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
 withCotraversal o = runCostar #. o .# Costar
 
 -- |
@@ -363,7 +362,7 @@ sequences o = withTraversal o id
 
 -- | TODO: Document
 --
-distributes :: Comonad f => ACotraversal f s t a (f a) -> f s -> t
+distributes :: Applicative f => ACotraversal f s t a (f a) -> f s -> t
 distributes o = withCotraversal o id
 {-# INLINE distributes #-}
 

@@ -517,11 +517,11 @@ kover o f = withCxsetter o f mempty
 
 -- | Modify the target by adding another value.
 --
--- >>> both <>~ False $ (False,True)
--- (False,True)
+-- >>> both <>~ True $ (False,True)
+-- (True,True)
 --
--- >>> both <>~ "!!!" $ ("hello","world")
--- ("hello!!!","world!!!")
+-- >>> both <>~ "!" $ ("bar","baz")
+-- ("bar!","baz!")
 --
 (<>~) :: Semigroup a => Optic (->) s t a a -> a -> s -> t
 l <>~ n = over l (<> n)
@@ -531,6 +531,9 @@ l <>~ n = over l (<> n)
 --
 -- >>> both ><~ False $ (False,True)
 -- (False,False)
+--
+-- >>> both ><~ ["!"] $ (["bar","baz"], [])
+-- (["bar!","baz!"],[])
 --
 (><~) :: Semiring a => Optic (->) s t a a -> a -> s -> t
 l ><~ n = over l (>< n)
