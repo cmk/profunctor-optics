@@ -36,16 +36,17 @@ module Data.Profunctor.Optic.Types (
   , Cotraversal1 , Cotraversal1', Cxtraversal1, Cxtraversal1'
     -- * Traversal
   , Traversal    , Traversal'   , Ixtraversal , Ixtraversal'
+  , Cotraversal  , Cotraversal'
     -- * Fold0
   , Fold0, Ixfold0
     -- * Fold1 & Cofold1
   , Fold1, Ixfold1, Cofold1
     -- * Fold
-  , Fold, Ixfold
+  , Fold, Ixfold, Cofold
     -- * View & Review
   , PrimView, View, Ixview, PrimReview, Review, Cxview
     -- * Setter & Resetter
-  , Setter, Setter', Ixsetter, Ixsetter', Resetter, Resetter', Cxsetter
+  , Setter, Setter', Ixsetter, Ixsetter', Resetter, Resetter', Cxsetter, Cxsetter'
     -- * Common represenable and corepresentable carriers
   , ARepn, ARepn', AIxrepn, AIxrepn', ACorepn, ACorepn', ACxrepn, ACxrepn'
   , between, (&)
@@ -222,6 +223,10 @@ type Ixtraversal i s t a b = forall p. (Choice p, Representable p, Applicative (
 
 type Ixtraversal' i s a = Ixtraversal i s s a a
 
+type Cotraversal s t a b = forall p. (Choice p, Corepresentable p, Comonad (Corep p)) => Optic p s t a b
+
+type Cotraversal' t b = Cotraversal t t b b
+
 ---------------------------------------------------------------------
 -- 'Fold0', 'Fold', 'Fold1' & 'Cofold1'
 ---------------------------------------------------------------------
@@ -245,6 +250,8 @@ type Cofold1 t b = forall p. (Corepresentable p, Apply (Corep p), Bifunctor p) =
 type Fold s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => Optic' p s a
 
 type Ixfold i s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
+
+type Cofold t b = forall p. (Choice p, Corepresentable p, Comonad (Corep p), Bifunctor p) => Optic p t t b b
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -283,6 +290,8 @@ type Resetter s t a b = forall p. (Corepresentable p, Comonad (Corep p), Travers
 type Resetter' s a = Resetter s s a a
 
 type Cxsetter k s t a b = forall p. (Corepresentable p, Comonad (Corep p), Traversable (Corep p)) => CoindexedOptic p k s t a b
+
+type Cxsetter' k t b = Cxsetter k t t b b 
 
 ---------------------------------------------------------------------
 -- Common 'Representable' and 'Corepresentable' carriers

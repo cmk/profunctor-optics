@@ -8,8 +8,8 @@
 module Data.Profunctor.Optic.Lens (
     -- * Lens & Ixlens
     Lens
-  , Ixlens
   , Lens'
+  , Ixlens
   , Ixlens'
   , lens
   , ilens

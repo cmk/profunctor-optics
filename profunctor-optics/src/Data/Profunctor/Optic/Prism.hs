@@ -11,8 +11,6 @@ module Data.Profunctor.Optic.Prism (
   , Prism'
   , Cxprism
   , Cxprism'
-  , APrism
-  , APrism'
   , prism
   , prism'
   , kprism
@@ -23,8 +21,6 @@ module Data.Profunctor.Optic.Prism (
   , Coprism'
   , Ixprism
   , Ixprism'
-  , ACoprism
-  , ACoprism'
   , coprism
   , coprism'
   , rehandling
@@ -53,7 +49,11 @@ module Data.Profunctor.Optic.Prism (
   , toPastroSum
   , toTambaraSum
     -- * Carriers
+  , APrism
+  , APrism'
   , PrismRep(..)
+  , ACoprism
+  , ACoprism'
   , CoprismRep(..)
     -- * Classes
   , Choice(..)
@@ -178,12 +178,12 @@ cloneCoprism o = withCoprism o coprism
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
 
--- | 'Prism' into the `Just` constructor of `Maybe`.
+-- | Focus on the `Just` constructor of `Maybe`.
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
--- | 'Prism' into the `Nothing` constructor of `Maybe`.
+-- | Focus on the `Nothing` constructor of `Maybe`.
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
@@ -193,7 +193,7 @@ nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 compared :: Eq a => Prd a => a -> Prism' a Ordering
 compared x = flip prism' (const x) (pcompare x)
 
--- | 'Prism' into the remainder of a list with a given prefi.
+-- | Focus on the remainder of a list with a given prefix.
 --
 prefixed :: Eq a => [a] -> Prism' [a] [a]
 prefixed ps = prism' (stripPrefix ps) (ps ++)
@@ -223,7 +223,7 @@ nearly x f = prism' (guard . f) (const x)
 nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
--- | Check whether an exception is synchronous.
+-- | Focus on whether an exception is synchronous.
 --
 sync :: Exception e => Prism' e e 
 sync = filterOn $ \e -> case fromException (toException e) of
@@ -231,7 +231,7 @@ sync = filterOn $ \e -> case fromException (toException e) of
   Nothing -> True
   where filterOn f = iso (branch' f) join . right'
 
--- | Check whether an exception is asynchronous.
+-- | Focus on whether an exception is asynchronous.
 --
 async :: Exception e => Prism' e e 
 async = filterOn $ \e -> case fromException (toException e) of
@@ -239,12 +239,12 @@ async = filterOn $ \e -> case fromException (toException e) of
   Nothing -> False
   where filterOn f = iso (branch' f) join . right'
 
--- | TODO: Document
+-- | Focus on whether a given exception has occurred.
 --
 exception :: Exception e => Prism' SomeException e
 exception = prism' fromException toException
 
--- | TODO: Document
+-- | Focus on whether a given asynchronous exception has occurred.
 --
 asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
@@ -255,9 +255,10 @@ asyncException = prism' asyncExceptionFromException asyncExceptionToException
 
 -- | Coindexed prism into the `Right` constructor of `Either`.
 --
--- >>>  kset (catchFoo "Caught foo") id $ Left "fooError"
+-- >>> kset (catchFoo "Caught foo") id $ Left "fooError"
 -- Right "Caught foo"
--- >>>  kset (catchFoo "Caught foo") id $ Left "barError"
+--
+-- >>> kset (catchFoo "Caught foo") id $ Left "barError"
 -- Left "barError"
 --
 kright :: (e -> k -> e + b) -> Cxprism k (e + a) (e + b) a b

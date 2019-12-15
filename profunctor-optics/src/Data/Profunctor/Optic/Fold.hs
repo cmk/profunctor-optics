@@ -18,7 +18,8 @@ module Data.Profunctor.Optic.Fold (
   , cloneFold
     -- * Optics
   , folded
-  , folded_ 
+  , folded_
+  , ifoldedRep
   , unital
   , summed
   , multiplied
@@ -71,6 +72,8 @@ import Data.Profunctor.Optic.Traversal (traversalVl, itraversalVl)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (AView, to, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
+
+import qualified Data.Functor.Rep as F
 import qualified Data.Semiring as Rng
 
 -- $setup
@@ -174,6 +177,12 @@ folded = folding id
 folded_ :: Foldable f => Fold (f a) a
 folded_ = fold_ id
 {-# INLINE folded_ #-}
+
+-- | Obtain an 'Ixfold' from a 'F.Representable' functor.
+--
+ifoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
+ifoldedRep = ifoldVl F.itraverseRep
+{-# INLINE ifoldedRep #-}
 
 -- | Expression in a unital semiring 
 --

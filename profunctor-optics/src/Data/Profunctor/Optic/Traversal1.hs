@@ -5,6 +5,12 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+
+{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+
 module Data.Profunctor.Optic.Traversal1 (
     -- * Traversal1
     Traversal1
@@ -19,8 +25,6 @@ module Data.Profunctor.Optic.Traversal1 (
   , Cotraversal1'
   , Cxtraversal1
   , Cxtraversal1'
-  , ACotraversal1
-  , ACotraversal1'
   , cotraversal1
   , cotraversing1
   , retraversing1
@@ -38,24 +42,37 @@ module Data.Profunctor.Optic.Traversal1 (
     -- * Primitive operators
   , withTraversal1
   , withCotraversal1
+  , withMoore
     -- * Operators
   , sequences1
   , distributes1
     -- * Carriers
- -- , Star()
- -- , Costar()
   , ATraversal1
   , ATraversal1'
-    -- * Classes
-  , Representable(..)
-  , Corepresentable(..)
+  , ACotraversal1
+  , ACotraversal1'
+  , moore
+  , Moore(..)
+    -- * Auxiliary types
 ) where
 
+import Control.Category
+import Control.Monad.Fix
+import Control.Monad.Reader.Class
+import Control.Monad.Zip
+import Data.List.NonEmpty as NonEmpty
 import Data.Semigroup.Bitraversable
+import Data.Semigroupoid
+import Data.Semiring
+import Data.Profunctor.Rep as Profunctor
 import Data.Profunctor.Optic.Lens
-import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Import hiding (id,(.))
 import Data.Profunctor.Optic.Grate
 import Data.Profunctor.Optic.Types
+import Prelude (Foldable(..), reverse)
+import Unsafe.Coerce
+
+import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -135,7 +152,7 @@ itraversal1Vl :: (forall f. Apply f => (i -> a -> f b) -> s -> f t) -> Ixtravers
 itraversal1Vl f = traversal1Vl $ \iab -> f (curry iab) . snd
 
 ---------------------------------------------------------------------
--- 'Cotraversal1' & 'Cxtraversal11'
+-- 'Cotraversal1' & 'Cxtraversal1'
 ---------------------------------------------------------------------
 
 type ACotraversal1 f s t a b = Apply f => ACorepn f s t a b
@@ -199,43 +216,6 @@ ktraversal1Vl kabst = cotraversal1Vl $ \kab -> const . kabst (flip kab)
 --
 nocx1 :: Monoid k => Cotraversal1 s t a b -> Cxtraversal1 k s t a b
 nocx1 o = ktraversal1Vl $ \kab s -> flip runCostar s . o . Costar $ kab mempty
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- |
---
--- The traversal laws can be stated in terms of 'withTraversal1':
--- 
--- * @withTraversal1 t (Identity . f) ≡  Identity (fmap f)@
---
--- * @Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)@
---
--- @
--- withTraversal1 :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
--- withTraversal1 :: Apply f => Traversal1 s t a b -> (a -> f b) -> s -> f t
--- @
---
-withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
-withTraversal1 o = runStar #. o .# Star
-
--- |
---
--- @
--- 'withCotraversal1' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
--- @
---
--- The cotraversal laws can be restated in terms of 'cowithTraversal1':
---
--- * @withCotraversal1 o (f . runIdentity) ≡  fmap f . runIdentity @
---
--- * @withCotraversal1 o f . fmap (withCotraversal1 o g) == withCotraversal1 o (f . fmap g . getCompose) . Compose@
---
--- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
---
-withCotraversal1 :: Apply f => ACotraversal1 f s t a b -> (f a -> b) -> (f s -> t)
-withCotraversal1 o = runCostar #. o .# Costar
 
 ---------------------------------------------------------------------
 -- Optics
@@ -318,6 +298,52 @@ cycled o = repn $ \g a -> go g a where go g a = (withTraversal1 o g) a .> go g a
 {-# INLINE cycled #-}
 
 ---------------------------------------------------------------------
+-- Primitive operators
+---------------------------------------------------------------------
+
+-- |
+--
+-- The traversal laws can be stated in terms of 'withTraversal1':
+-- 
+-- * @withTraversal1 t (Identity . f) ≡  Identity (fmap f)@
+--
+-- * @Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)@
+--
+-- @
+-- withTraversal1 :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
+-- withTraversal1 :: Apply f => Traversal1 s t a b -> (a -> f b) -> s -> f t
+-- @
+--
+withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
+withTraversal1 o = runStar #. o .# Star
+
+-- |
+--
+-- @
+-- 'withCotraversal1' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
+-- @
+--
+-- The cotraversal laws can be restated in terms of 'withCotraversal1':
+--
+-- * @withCotraversal1 o (f . runIdentity) ≡  fmap f . runIdentity @
+--
+-- * @withCotraversal1 o f . fmap (withCotraversal1 o g) == withCotraversal1 o (f . fmap g . getCompose) . Compose@
+--
+-- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
+--
+withCotraversal1 :: Apply f => ACotraversal1 f s t a b -> (f a -> b) -> (f s -> t)
+withCotraversal1 o = runCostar #. o .# Costar
+
+-- |
+--
+-- @
+-- 'withMoore' 'cotraversed' :: 'Distributive' f => (x -> a -> (b, x)) -> x -> a -> [f a] -> f b
+-- @
+--
+withMoore :: Optic Moore s t a b -> (x -> (b, a -> x)) -> x -> [s] -> t
+withMoore o f x = cosieve $ o (moore f x)
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
@@ -332,3 +358,158 @@ sequences1 o = withTraversal1 o id
 distributes1 :: Apply f => ACotraversal1 f s t a (f a) -> f s -> t
 distributes1 o = withCotraversal1 o id
 {-# INLINE distributes1 #-}
+
+---------------------------------------------------------------------
+-- Carriers
+---------------------------------------------------------------------
+
+data Moore a b = forall x. Moore (x -> a -> x) x (x -> b)
+
+moore :: (s -> (b, a -> s)) -> s -> Moore a b
+moore f s = Moore (snd . f) s (fst . f)
+{-# INLINE moore #-}
+
+instance Semigroup b => Semigroup (Moore a b) where
+  (<>) = liftA2 (<>)
+  {-# INLINE (<>) #-}
+
+instance Monoid b => Monoid (Moore a b) where
+  mempty = pure mempty
+  {-# INLINE mempty #-}
+
+  mappend = liftA2 mappend
+  {-# INLINE mappend #-}
+
+instance (Semiring b, Monoid b) => Semiring (Moore a b) where
+  (><) = liftA2 (><)
+  {-# INLINE (><) #-}
+
+  fromBoolean = pure . fromBoolean
+
+instance Functor (Moore a) where
+  fmap f (Moore step begin done) = Moore step begin (f . done)
+  {-# INLINE fmap #-}
+
+instance Apply (Moore a) where
+  (<.>) = (<*>)
+  {-# INLINE (<.>) #-}
+
+  (<.) m = \_ -> m
+  {-# INLINE (<.) #-}
+
+  _ .> m = m
+  {-# INLINE (.>) #-}
+
+instance Applicative (Moore a) where
+  pure b    = Moore (\() _ -> ()) () (\() -> b)
+  {-# INLINE pure #-}
+
+  (Moore stepL beginL doneL) <*> (Moore stepR beginR doneR) =
+      let step (Pair xL xR) a = Pair (stepL xL a) (stepR xR a)
+	  begin = Pair beginL beginR
+	  done (Pair xL xR) = doneL xL (doneR xR)
+      in  Moore step begin done
+  {-# INLINE (<*>) #-}
+
+instance Distributive (Moore a) where
+  --distribute x = Moore (\fm a -> fmap (prefix1 a) fm) x (fmap extract)
+  distribute = F.distributeRep
+  {-# INLINE distribute #-}
+
+instance F.Representable (Moore a) where
+  type Rep (Moore a) = [a]
+  index = cosieve
+  tabulate = cotabulate
+
+{-
+instance Monad (Moore a) where
+  return = pure
+  {-# INLINE return #-}
+
+  m >>= f = Moore (\xs a -> run xs (f a)) Snoc Nil <*> m
+  {-# INLINE (>>=) #-}
+
+  (>>) = (*>)
+  {-# INLINE (>>) #-}
+-}
+
+instance Comonad (Moore a) where
+  extract (Moore _ begin done) = done begin
+  {-#  INLINE extract #-}
+
+  duplicate (Moore step begin done) = Moore step begin (\x -> Moore step x done)
+  {-#  INLINE duplicate #-}
+
+instance Profunctor Moore where
+  lmap f (Moore step begin done) = Moore step' begin done where step' x a = step x (f a)
+  rmap = fmap
+
+instance Choice Moore where
+  right' (Moore step begin done) = Moore (liftA2 step) (Right begin) (fmap done)
+  {-# INLINE right' #-}
+
+instance Semigroupoid Moore where
+  o (Moore step1 begin1 done1) (Moore step2 begin2 done2) = Moore
+      step
+      (Pair begin1 begin2)
+      (\(Pair x _) -> done1 x)
+    where
+      step (Pair c1 c2) a =
+	  let c2' = step2 c2 a
+	      c1' = step1 c1 (done2 c2')
+	  in  Pair c1' c2'
+  {-# INLINE o #-}
+
+instance Costrong Moore where
+  unfirst = unfirstCorep
+  unsecond = unsecondCorep
+
+instance Closed Moore where
+  closed (Moore h z k) = Moore (liftA2 h) (pure z) (\f x -> k (f x))
+
+-- >>> cosieve (Moore (+) 0 id) [1,2,3]
+-- 6
+instance Cosieve Moore [] where
+  cosieve (Moore h0 z0 k0) as0 = go k0 h0 z0 as0 where
+    go k _ z [] = k z
+    go k h z (a:as) = go k h (h z a) as
+  {-# INLINE cosieve #-}
+
+instance Corepresentable Moore where
+  type Corep Moore = []
+  cotabulate f = Moore (flip (:)) [] (f . Prelude.reverse)
+  {-# INLINE cotabulate #-}
+
+-- | Reversed '[]'
+data SnocList a = Snoc (SnocList a) a | Nil
+  deriving (Eq,Ord,Show)
+
+instance Functor SnocList where
+  fmap f (Snoc xs x) = Snoc (fmap f xs) (f x)
+  fmap _ Nil = Nil
+  {-# INLINABLE fmap #-}
+
+instance Foldable SnocList where
+  foldl f z m0 = go m0 where
+    go (Snoc xs x) = f (go xs) x
+    go Nil = z
+  {-# INLINE foldl #-}
+  foldMap f (Snoc xs x) = foldMap f xs `mappend` f x
+  foldMap _ Nil = mempty
+  {-# INLINABLE foldMap #-}
+
+instance Traversable SnocList where
+  traverse f (Snoc xs x) = Snoc <$> traverse f xs <*> f x
+  traverse _ Nil = pure Nil
+  {-# INLINABLE traverse #-}
+
+-- | Strict Pair
+data Pair a b = Pair !a !b deriving (Eq,Ord,Show)
+
+instance (Semigroup a, Semigroup b) => Semigroup (Pair a b) where
+  Pair a b <> Pair c d = Pair (a <> c) (b <> d)
+  {-# INLINE (<>) #-}
+
+instance (Monoid a, Monoid b) => Monoid (Pair a b) where
+  mempty = Pair mempty mempty
+  {-# INLINE mempty #-}
