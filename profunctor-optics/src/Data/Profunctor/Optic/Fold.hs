@@ -16,7 +16,6 @@ module Data.Profunctor.Optic.Fold where
   , foldVl
   , ifoldVl
   , toFold
-  , cloneFold
     -- * Optics
   , folded
   , folded_
@@ -65,6 +64,7 @@ module Data.Profunctor.Optic.Fold where
 -}
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
+import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Monoid hiding (All(..), Any(..))
@@ -72,12 +72,11 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Traversal (traversalVl, itraversalVl)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View
+import Data.Profunctor.Rep
 import Data.Semiring (Semiring(..), Prod(..))
 
 import qualified Data.Functor.Rep as F
 import qualified Data.Semiring as Rng
-
-import Data.Functor.Foldable as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -147,12 +146,6 @@ ifoldVl f = coercer . itraversalVl f . coercer
 toFold :: AView s a -> Fold s a
 toFold = to . view
 {-# INLINE toFold #-}
-
--- | Obtain a 'Fold' from a 'AFold'.
---
-cloneFold :: Monoid a => AFold a s a -> View s a
-cloneFold = cloneView
-{-# INLINE cloneFold #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -263,8 +256,12 @@ multiplied = afold Rng.product
 -- withFold traversed
 --   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
 --
-withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
-withFold = withPrimView
+-- @
+-- 'withFold' :: 'Monoid' r => 'AFold' r s a -> (a -> r) -> s -> r
+-- @
+--
+withFold :: Monoid r => Optic (Forget r) s t a b -> (a -> r) -> s -> r
+withFold o = runForget #. o .# Forget --withPrimView
 {-# INLINE withFold #-}
 
 -- | Map an indexed optic to a monoid and combine the results.
@@ -277,7 +274,7 @@ withFold = withPrimView
 -- 0
 --
 withIxfold :: Monoid r => AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
-withIxfold o f = curry $ withPrimView o (uncurry f)
+withIxfold o f = curry $ withFold o (uncurry f)
 {-# INLINE withIxfold #-}
 
 ---------------------------------------------------------------------
@@ -533,14 +530,52 @@ type Any = Bool
 -- Carriers
 ---------------------------------------------------------------------
 
-type FoldRep r = Star (Const r)
-
-type AFold r s a = Optic' (FoldRep r) s a
+type AFold r s a = Optic' (Forget r) s a
 --type AFold s a = forall r. Monoid r => Optic' (FoldRep r) s a
 
-type AIxfold r i s a = IndexedOptic' (FoldRep r) i s a
+type AIxfold r i s a = IndexedOptic' (Forget r) i s a
 
-type CofoldRep r = Costar (Const r)
+type ACofold r t b = Optic' (Coforget r) t b
+
+type ACxfold r k t b = CoindexedOptic' (Coforget r) k t b
+
+newtype Coforget r a b = Coforget { runCoforget :: r -> b }
+
+--TODO: optimize
+instance Bifunctor (Coforget r) where
+  first _ (Coforget f) = (Coforget f)
+  second g (Coforget f) = Coforget $ g . f
+
+--TODO: optimize
+instance Profunctor (Coforget r) where
+  dimap _ g (Coforget f) = Coforget $ g . f
+
+instance Choice (Coforget r) where
+  left' (Coforget f) = Coforget (Left . f)
+
+instance Costrong (Coforget r) where
+  unfirst (Coforget f) = Coforget $ fst . f
+  unsecond (Coforget f) = Coforget $ snd . f
+
+instance Closed (Coforget r) where
+  closed = closedCorep
+
+instance Cosieve (Coforget r) (Const r) where
+  cosieve (Coforget f) c = f $ getConst c
+
+instance Corepresentable (Coforget r) where
+  type Corep (Coforget r) = Const r
+  cotabulate = Coforget . (. Const)
+  {-# INLINE cotabulate #-}
+
+
+
+withCxfold :: ACxfold r k t b -> (k -> r -> b) -> k -> r -> t
+withCxfold o f = flip $ withCofold o (flip f)
+{-# INLINE withCxfold #-}
+
+withCofold :: Optic (Coforget r) s t a b -> (r -> b) -> r -> t 
+withCofold o = runCoforget #. o .# Coforget
 
 -- | TODO: Document
 --
@@ -548,8 +583,8 @@ type CofoldRep r = Costar (Const r)
 -- afold :: ((a -> r) -> s -> r) -> AFold r s a
 -- @
 --
-afold :: ((a -> r) -> s -> r) -> Optic (FoldRep r) s t a b
-afold arsr = Star #. (Const #.) #. arsr .# (getConst #.) .# runStar
+afold :: ((a -> r) -> s -> r) -> Optic (Forget r) s t a b
+afold f = Forget #. f .# runForget --Star #. (Const #.) #. arsr .# (getConst #.) .# runStar
 {-# INLINE afold #-}
 
 -- | TODO: Document
@@ -560,6 +595,6 @@ aifold f = afold $ \iar s -> f (curry iar) $ snd s
 
 -- | TODO: Document
 --
-acofold :: ((r -> b) -> r -> t) -> Optic (CofoldRep r) s t a b 
-acofold o = Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
+acofold :: ((r -> b) -> r -> t) -> Optic (Coforget r) s t a b 
+acofold f = Coforget #. f .# runCoforget --Costar #. (.# getConst) #. o .#  (.# Const) .# runCostar  
 {-# INLINE acofold #-}

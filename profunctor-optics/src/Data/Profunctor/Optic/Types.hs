@@ -28,7 +28,7 @@ module Data.Profunctor.Optic.Types (
   , Colens, Colens', Cxlens, Cxlens'
     -- * Prism & Coprism
   , Prism, Prism', Cxprism, Cxprism'
-  , Coprism, Coprism', Ixprism, Ixprism' 
+  , Coprism, Coprism'
     -- * Grate
   , Grate, Grate', Cxgrate, Cxgrate'
     -- * Traversal0
@@ -55,6 +55,7 @@ module Data.Profunctor.Optic.Types (
   , ARepn, ARepn', AIxrepn, AIxrepn'
   , ACorepn, ACorepn', ACxrepn, ACxrepn'
   , between, (&)
+  , Coapplicative(..), Coapply(..)
     -- * 'Re'
   , Re(..), re
   , module Export
@@ -152,10 +153,6 @@ type Coprism s t a b = forall p. Cochoice p => Optic p s t a b
 
 type Coprism' t b = Coprism t t b b 
 
-type Ixprism i s t a b = forall p. Cochoice p => IndexedOptic p i s t a b
-
-type Ixprism' i s a = Coprism s s a a
-
 ---------------------------------------------------------------------
 -- 'Grate'
 ---------------------------------------------------------------------
@@ -188,7 +185,7 @@ type Ixtraversal0 i s t a b = forall p. (Choice p, Strong p) => IndexedOptic p i
 
 type Ixtraversal0' i s a = Ixtraversal0 i s s a a 
 
-type Cotraversal0 s t a b = forall p. (Cochoice p, Costrong p) => Optic p s t a b
+type Cotraversal0 s t a b = forall p. (Choice p, Closed p) => Optic p s t a b
 
 type Cotraversal0' t b = Cotraversal0 t t b b
 
@@ -208,11 +205,11 @@ type Ixtraversal1 i s t a b = forall p. (Strong p, Representable p, Apply (Rep p
 
 type Ixtraversal1' i s a = Ixtraversal1 i s s a a
 
-type Cotraversal1 s t a b = forall p. (Costrong p, Closed p, Corepresentable p, Apply (Corep p)) => Optic p s t a b 
+type Cotraversal1 s t a b = forall p. (Closed p, Corepresentable p, Coapply (Corep p)) => Optic p s t a b 
 
 type Cotraversal1' s a = Cotraversal1 s s a a
 
-type Cxtraversal1 k s t a b = forall p. (Costrong p, Closed p, Corepresentable p, Apply (Corep p)) => CoindexedOptic p k s t a b 
+type Cxtraversal1 k s t a b = forall p. (Closed p, Corepresentable p, Coapply (Corep p)) => CoindexedOptic p k s t a b 
 
 type Cxtraversal1' k s a = Cxtraversal1 k s s a a
 
@@ -232,7 +229,7 @@ type Ixtraversal i s t a b = forall p. (Choice p, Strong p, Representable p, App
 
 type Ixtraversal' i s a = Ixtraversal i s s a a
 
-type Cotraversal s t a b = forall p. (Choice p, Costrong p, Closed p, Corepresentable p, Applicative (Corep p)) => Optic p s t a b
+type Cotraversal s t a b = forall p. (Choice p, Closed p, Corepresentable p, Coapplicative (Corep p)) => Optic p s t a b
 
 type Cotraversal' t b = Cotraversal t t b b
 
@@ -248,11 +245,11 @@ type Ixfold0 i s a = forall p. (Choice p, Strong p, forall x. Contravariant (p x
 
 -- | A 'Fold1' combines 1 or more elements, with 'Semigroup' interactions.
 --
-type Fold1 s a = forall p. (Representable p, Apply (Rep p), forall x. Contravariant (p x)) => Optic p s s a a 
+type Fold1 s a = forall p. (Strong p, Representable p, Apply (Rep p), forall x. Contravariant (p x)) => Optic p s s a a 
 
-type Ixfold1 i s a = forall p. (Representable p, Apply (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
+type Ixfold1 i s a = forall p. (Strong p, Representable p, Apply (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
-type Cofold1 t b = forall p. (Costrong p, Closed p, Corepresentable p, Apply (Corep p), Bifunctor p) => Optic p t t b b
+type Cofold1 t b = forall p. (Closed p, Corepresentable p, Coapply (Corep p), Bifunctor p) => Optic p t t b b
 
 -- | A 'Fold' combines 0 or more elements, with 'Monoid' interactions.
 --
@@ -260,7 +257,7 @@ type Fold s a = forall p. (Choice p, Representable p, Applicative (Rep p), foral
 
 type Ixfold i s a = forall p. (Choice p, Representable p, Applicative (Rep p), forall x. Contravariant (p x)) => IndexedOptic' p i s a
 
-type Cofold t b = forall p. (Choice p, Costrong p, Closed p, Corepresentable p, Applicative (Corep p), Bifunctor p) => Optic p t t b b
+type Cofold t b = forall p. (Choice p, Closed p, Corepresentable p, Coapplicative (Corep p), Bifunctor p) => Optic p t t b b
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -274,9 +271,9 @@ type Ixview i s a = forall p. (Strong p, forall x. Contravariant (p x)) => Index
 
 type PrimReview s t a b = forall p. (Profunctor p, Bifunctor p) => Optic p s t a b
 
-type Review t b = forall p. (Costrong p, Bifunctor p) => Optic' p t b
+type Review t b = forall p. (Closed p, Bifunctor p) => Optic' p t b
 
-type Cxview k t b = forall p. (Costrong p, Bifunctor p) => CoindexedOptic' p k t b
+type Cxview k t b = forall p. (Closed p, Bifunctor p) => CoindexedOptic' p k t b
 
 ---------------------------------------------------------------------
 -- 'Setter' & 'Resetter'
@@ -294,11 +291,11 @@ type Ixsetter i s t a b = forall p. (Choice p, Strong p, Representable p, Applic
 
 type Ixsetter' i s a = Ixsetter i s s a a 
 
-type Resetter s t a b = forall p. (Cochoice p, Costrong p, Closed p, Corepresentable p, Applicative (Corep p), Traversable (Corep p)) => Optic p s t a b 
+type Resetter s t a b = forall p. (Choice p, Closed p, Corepresentable p, Coapplicative (Corep p), Traversable (Corep p)) => Optic p s t a b 
 
 type Resetter' s a = Resetter s s a a
 
-type Cxsetter k s t a b = forall p. (Cochoice p, Costrong p, Closed p, Corepresentable p, Applicative (Corep p), Traversable (Corep p)) => CoindexedOptic p k s t a b
+type Cxsetter k s t a b = forall p. (Choice p, Closed p, Corepresentable p, Coapplicative (Corep p), Traversable (Corep p)) => CoindexedOptic p k s t a b
 
 type Cxsetter' k t b = Cxsetter k t t b b 
 
@@ -333,6 +330,57 @@ type ACxrepn' f k t b = ACxrepn f k t t b b
 between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
 between f g = (f .) . (. g)
 {-# INLINE between #-}
+
+class Functor f => Coapply f where
+  cozip' :: f (Either a b) -> Either (f a) (f b)
+
+--TODO coerce
+instance Coapply (Const r) where
+  cozip' (Const r) = Right (Const r)
+
+-- comonads, tagged, profunctors
+class Functor f => Coapplicative f where
+  copure :: f a -> a
+  cozip :: f (Either a b) -> Either (f a) (f b)
+
+instance Coapplicative Identity where
+  copure (Identity a) = a
+  cozip (Identity ab) = either (Left . Identity) (Right . Identity) ab
+
+instance Coapplicative (Tagged k) where
+  copure (Tagged a) = a
+  cozip (Tagged ab) = either (Left . Tagged) (Right . Tagged) ab
+
+instance Coapplicative ((,) r) where
+  copure (_, a) = a
+  cozip (r, ab) = either (Left . (r,)) (Right . (r,)) ab
+
+instance Coapplicative f => Choice (Costar f) where
+  left' (Costar fab) = Costar $ either (Left . fab) (Right . copure) . cozip
+
+{-
+class Functor f => Coapply f where
+  cozip :: f (Either a b) -> Either (f a) (f b)
+
+instance Coapplicative NonEmpty where
+  copure = head
+  cozip (Left x :| zs) = Left $ x :| catLefts zs
+  cozip (Right y :| zs) = Right $ y :| catRights zs
+
+catLefts = foldr (either (:) (const id)) []
+catRights = foldr (either (const id) (:)) []
+
+instance Coapplicative Store where
+  copure (Store f s) = f s
+  cozip (Store f s)  = case f s of
+    Left  a -> Left  (Store (either id (const a) . f) s)
+    Right b -> Right (Store (either (const b) id . f) s)
+
+instance Coapplicative Costate where
+  copure (Costate _ a) = a
+  cozip (Costate f (Left  a)) = Left  (Costate (f . Left ) a)
+  cozip (Costate f (Right a)) = Right (Costate (f . Right) a)
+-}
 
 ---------------------------------------------------------------------
 -- 'Re' 
@@ -394,15 +442,18 @@ instance Bifunctor p => Contravariant (Re p s t a) where
 instance Apply f => Apply (Star f a) where
   Star ff <.> Star fx = Star $ \a -> ff a <.> fx a
 
-instance Contravariant f => Bifunctor (Costar f) where
-  first f (Costar g) = Costar $ g . contramap f
-
-  second f (Costar g) = Costar $ f . g
-
 #if !(MIN_VERSION_profunctors(5,4,0))
 instance Contravariant f => Contravariant (Star f a) where
   contramap f (Star g) = Star $ contramap f . g
 #endif
+
+instance Apply (Costar f a) where
+  Costar ff <.> Costar fx = Costar $ \a -> ff a (fx a)
+
+instance Contravariant f => Bifunctor (Costar f) where
+  first f (Costar g) = Costar $ g . contramap f
+
+  second f (Costar g) = Costar $ f . g
 
 #if !(MIN_VERSION_profunctors(5,5,0))
 instance Cochoice (Forget r) where 
@@ -411,6 +462,8 @@ instance Cochoice (Forget r) where
   unright (Forget f) = Forget $ f . Right
 #endif
 
+
+{-
 instance Comonad f => Strong (Costar f) where
   first' (Costar f) = Costar . runCokleisli . A.first . Cokleisli $ f
 
@@ -422,3 +475,4 @@ instance Comonad f => Choice (Costar f) where
 
   right' (Costar f) = Costar . runCokleisli . A.right . Cokleisli $ f
 #endif
+-}

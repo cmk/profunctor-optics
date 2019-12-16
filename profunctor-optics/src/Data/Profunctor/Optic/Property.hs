@@ -41,7 +41,7 @@ module Data.Profunctor.Optic.Property (
   , compose_traversal1
     -- * Cotraversal1
   , Cotraversal1 
-  , compose_cotraversal1
+  --, compose_cotraversal1
     -- * Setter
   , Setter
   , id_setter
@@ -226,11 +226,12 @@ compose_traversal1 o f g s = lhs s == rhs s
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-compose_cotraversal1 :: Eq s => Apply f => Apply g => Cotraversal1' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+{-
+compose_cotraversal1 :: Eq s => Coapply f => Coapply g => Cotraversal1' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
 compose_cotraversal1 o f g = liftF2 (==) lhs rhs
   where lhs = withCotraversal1 o f . fmap (withCotraversal1 o g) 
         rhs = withCotraversal1 o (f . fmap g . getCompose) . Compose
-
+-}
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------

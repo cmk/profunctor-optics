@@ -91,13 +91,17 @@ import Unsafe.Coerce
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
----------------------------------------------------------------------
--- 'Traversal' & 'Ixtraversal'
----------------------------------------------------------------------
-
 type ATraversal f s t a b = Applicative f => ARepn f s t a b
 
 type ATraversal' f s a = ATraversal f s s a a
+
+type ACotraversal f s t a b = Coapplicative f => ACorepn f s t a b
+
+type ACotraversal' f s a = ACotraversal f s s a a
+
+---------------------------------------------------------------------
+-- 'Traversal' & 'Ixtraversal'
+---------------------------------------------------------------------
 
 -- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
@@ -212,10 +216,6 @@ ix o = itraversalVl $ \f s ->
 -- 'Cotraversal' & 'Cxtraversal'
 ---------------------------------------------------------------------
 
-type ACotraversal f s t a b = Applicative f => ACorepn f s t a b
-
-type ACotraversal' f s a = ACotraversal f s s a a
-
 -- | Obtain a 'Cotraversal' directly. 
 --
 cotraversal :: Distributive g => (g b -> s -> g a) -> (g b -> t) -> Cotraversal s t a b
@@ -250,7 +250,7 @@ retraversing sabt = corepn cotraverse . grate sabt
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cotraversalVl :: (forall f. Applicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
+cotraversalVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
 cotraversalVl abst = cotabulate . abst . cosieve 
 
 -- | TODO: Document
@@ -317,7 +317,7 @@ bitraversed = repn $ \f -> bitraverse f f
 --
 -- The traversal laws can be stated in terms of 'withTraversal':
 -- 
--- * @withTraversal t (Identity . f) ≡  Identity (fmap f)@
+-- * @withTraversal t (pure . f) ≡  pure (fmap f)@
 --
 -- * @Compose . fmap (withTraversal t f) . withTraversal t g ≡ withTraversal t (Compose . fmap f . g)@
 --
@@ -332,13 +332,13 @@ withTraversal o = runStar #. o .# Star
 --
 -- The cotraversal laws can be restated in terms of 'withCotraversal':
 --
--- * @withCotraversal o (f . runIdentity) ≡  fmap f . runIdentity@
+-- * @withCotraversal o (f . extract) ≡  fmap f . extract@
 --
 -- * @withCotraversal o f . fmap (withCotraversal o g) == withCotraversal o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-withCotraversal :: Applicative f => ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
+withCotraversal :: Coapplicative f => ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
 withCotraversal o = runCostar #. o .# Costar
 
 -- |
@@ -362,7 +362,7 @@ sequences o = withTraversal o id
 
 -- | TODO: Document
 --
-distributes :: Applicative f => ACotraversal f s t a (f a) -> f s -> t
+distributes :: Coapplicative f => ACotraversal f s t a (f a) -> f s -> t
 distributes o = withCotraversal o id
 {-# INLINE distributes #-}
 
@@ -521,7 +521,7 @@ instance Closed Mealy where
 instance Cosieve Mealy NonEmpty where
   cosieve (Mealy h z k) (a :| as) = k (foldl h (z a) as)
 
-instance Profunctor.Corepresentable Mealy where
+instance Corepresentable Mealy where
   type Corep Mealy = NonEmpty
   cotabulate f = Mealy (flip (:)) pure (f . NonEmpty.fromList . Prelude.reverse)
   {-# INLINE cotabulate #-}

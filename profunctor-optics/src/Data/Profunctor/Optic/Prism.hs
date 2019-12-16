@@ -16,11 +16,9 @@ module Data.Profunctor.Optic.Prism (
   , kprism
   , handling
   , clonePrism
-    -- * Coprism & Ixprism
+    -- * Coprism
   , Coprism
   , Coprism'
-  , Ixprism
-  , Ixprism'
   , coprism
   , coprism'
   , rehandling

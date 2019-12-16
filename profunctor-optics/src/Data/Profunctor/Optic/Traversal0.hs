@@ -17,14 +17,9 @@ module Data.Profunctor.Optic.Traversal0 (
   , itraversal0'
   , traversal0Vl
   , itraversal0Vl
-    -- * Cotraversal0 
-  , cotraversal0
-  , cotraversal0Vl
     -- * Optics
   , nulled
-  , renulled
   , selected
-  , reselected
     -- * Primitive operators
   , withTraversal0
     -- * Operators
@@ -44,6 +39,7 @@ module Data.Profunctor.Optic.Traversal0 (
 
 import Data.Bifunctor (first, second)
 import Data.Profunctor.Optic.Lens
+import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 
@@ -118,22 +114,25 @@ traversal0Vl f = dimap (\s -> (s,) <$> eswap (sat s)) (id ||| uncurry sbt) . rig
 itraversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (i -> a -> f b) -> s -> f t) -> Ixtraversal0 i s t a b
 itraversal0Vl f = traversal0Vl $ \cc iab -> f cc (curry iab) . snd
 
----------------------------------------------------------------------
--- Cotraversal0
----------------------------------------------------------------------
-
--- | TODO: Document
+-- | Create a 'Cotraversal0' from match and constructor functions.
 --
-cotraversal0 :: (b -> s -> a) -> (b -> a + t) -> Cotraversal0 s t a b
-cotraversal0 bsa bat = unsecond . unright . dimap (id ||| uncurry bsa) (\b -> (b,) <$> bat b) 
-
--- | TODO: Document
+-- /Caution/: In order for the 'Traversal0' to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
 --
-cotraversal0Vl :: (forall f. Functor f => (forall c. c -> f c) -> (t -> f s) -> b -> f a) -> Cotraversal0 s t a b
-cotraversal0Vl f = unsecond . unright . dimap (id ||| uncurry bsa) (\b -> (b,) <$> eswap (bat b))
-  where
-    bat = f Right Left
-    bsa b s = runIdentity $ f Identity (\_ -> Identity s) b 
+-- * @TODO@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cotraversal0 :: (s -> t + (k -> a)) -> ((k -> b) -> t) -> Cotraversal0 s t a b 
+cotraversal0 stka kbt = prism stka kbt . closed
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -147,21 +146,9 @@ nulled = traversal0 Left const
 
 -- | TODO: Document
 --
-renulled :: Cotraversal0' t b
-renulled = flip cotraversal0 Left const
-{-# INLINE renulled #-}
-
--- | TODO: Document
---
 selected :: (a -> Bool) -> Traversal0' (a, b) b
 selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
 {-# INLINE selected #-}
-
--- | TODO: Document
---
-reselected :: (a -> Bool) -> Cotraversal0' b (a, b)
-reselected p = flip cotraversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then (k,v') else kv)
-{-# INLINE reselected #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -171,6 +158,11 @@ reselected p = flip cotraversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' ->
 --
 withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
 withTraversal0 o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
+
+-- | TODO: Document
+--
+withCotraversal0 :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
+withCotraversal0 o k = case o (Cotraversal0Rep $ \f -> f Right) of Cotraversal0Rep g -> k g
 
 ---------------------------------------------------------------------
 -- Operators
@@ -254,3 +246,32 @@ instance Functor (Index0 a b) where
 instance Applicative (Index0 a b) where
   pure r = Index0 (Left r) (const r)
   liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
+
+---------------------------------------------------------------------
+-- 'Cotraversal0Rep'
+---------------------------------------------------------------------
+
+-- | The 'Cotraversal0Rep' profunctor precisely characterizes 'Cotraversal0'.
+--
+newtype Cotraversal0Rep a b s t = Cotraversal0Rep { unCotraversal0Rep :: ((s -> t + a) -> b) -> t }
+
+type ACotraversal0 s t a b = Optic (Cotraversal0Rep a b) s t a b
+
+type ACotraversal0' s a = ACotraversal0 s s a a
+
+instance Profunctor (Cotraversal0Rep a b) where
+  dimap us tv (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
+
+instance Closed (Cotraversal0Rep a b) where
+  closed (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+
+instance Choice (Cotraversal0Rep a b) where
+  left' (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
+
+{-todo
+Corepresentable
+Coapplicative (Corep)
+-}

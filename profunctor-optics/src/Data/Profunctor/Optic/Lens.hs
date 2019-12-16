@@ -23,10 +23,8 @@ module Data.Profunctor.Optic.Lens (
   , Colens'
   , Cxlens'
   , colens
-  --, klens
   , colensVl
   , comatching
-  --, cloneColens
     -- * Optics
   , united
   , voided
@@ -37,7 +35,6 @@ module Data.Profunctor.Optic.Lens (
   , withLens
   , withLensVl
   , withIxlens
-  --, withColens
     -- * Operators
   , toPastro
   , toTambara
@@ -48,9 +45,6 @@ module Data.Profunctor.Optic.Lens (
   , AIxlens'
   , LensRep(..)
   , IxlensRep(..)
- -- , AColens
- -- , AColens'
-  --, ColensRep(..)
     -- * Classes
   , Strong(..)
   , Costrong(..)
@@ -209,7 +203,8 @@ colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 --
 -- For example, this is a perfectly valid 'Colens':
 --
--- @ 
+-- @
+-- ct21 :: Colens a b (a, c) (b, c)
 -- ct21 = colensVl $ \f ~(a,b) -> (,b) <$> f a
 -- @
 --

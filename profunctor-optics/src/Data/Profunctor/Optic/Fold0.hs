@@ -34,7 +34,7 @@ module Data.Profunctor.Optic.Fold0 (
   , handles
   , handles_
     -- * Carriers
-  , Fold0Rep(..)
+  , Forget0(..)
   , AFold0
   , AIxfold0
   , Pre(..)
@@ -50,7 +50,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (just, async)
 import Data.Profunctor.Optic.Traversal0 (traversal0Vl, itraversal0Vl, is)
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.View (to)
+import Data.Profunctor.Optic.View
 import qualified Control.Exception as Ex
 
 -- $setup
@@ -75,9 +75,9 @@ import qualified Control.Exception as Ex
 -- 'Fold0' & 'Ixfold0'
 ---------------------------------------------------------------------
 
-type AFold0 r s a = Optic' (Fold0Rep r) s a
+type AFold0 r s a = Optic' (Forget0 r) s a
 
-type AIxfold0 r i s a = IndexedOptic' (Fold0Rep r) i s a
+type AIxfold0 r i s a = IndexedOptic' (Forget0 r) i s a
 
 -- | Obtain a 'Fold0' directly.
 --
@@ -158,8 +158,8 @@ filtered p = traversal0Vl (\point f a -> if p a then f a else point a) . coercer
 
 -- | TODO: Document
 --
-withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-withFold0 o = runFold0Rep #. o .# Fold0Rep
+withFold0 :: Optic (Forget0 r) s t a b -> (a -> Maybe r) -> s -> Maybe r
+withFold0 o = runForget0 #. o .# Forget0
 {-# INLINE withFold0 #-}
 
 -- | TODO: Document
@@ -298,38 +298,38 @@ throwM = liftIO . Ex.throwIO
 {-# INLINE throwM #-}
 
 ---------------------------------------------------------------------
--- 'Fold0Rep'
+-- Carriers
 ---------------------------------------------------------------------
 
-newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
+newtype Forget0 r a b = Forget0 { runForget0 :: a -> Maybe r }
 
-instance Functor (Fold0Rep r a) where
-  fmap _ (Fold0Rep p) = Fold0Rep p
+instance Functor (Forget0 r a) where
+  fmap _ (Forget0 p) = Forget0 p
 
-instance Contravariant (Fold0Rep r a) where
-  contramap _ (Fold0Rep p) = Fold0Rep p
+instance Contravariant (Forget0 r a) where
+  contramap _ (Forget0 p) = Forget0 p
 
-instance Profunctor (Fold0Rep r) where
-  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
+instance Profunctor (Forget0 r) where
+  dimap f _ (Forget0 p) = Forget0 (p . f)
 
-instance Choice (Fold0Rep r) where
-  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
-  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
+instance Choice (Forget0 r) where
+  left' (Forget0 p) = Forget0 (either p (const Nothing))
+  right' (Forget0 p) = Forget0 (either (const Nothing) p)
 
-instance Cochoice (Fold0Rep r) where
-  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
-  unright (Fold0Rep k) = Fold0Rep (k . Right)
+instance Cochoice (Forget0 r) where
+  unleft  (Forget0 k) = Forget0 (k . Left)
+  unright (Forget0 k) = Forget0 (k . Right)
 
-instance Strong (Fold0Rep r) where
-  first' (Fold0Rep p) = Fold0Rep (p . fst)
-  second' (Fold0Rep p) = Fold0Rep (p . snd)
+instance Strong (Forget0 r) where
+  first' (Forget0 p) = Forget0 (p . fst)
+  second' (Forget0 p) = Forget0 (p . snd)
 
-instance Sieve (Fold0Rep r) (Pre r) where
-  sieve = (Pre .) . runFold0Rep
+instance Sieve (Forget0 r) (Pre r) where
+  sieve = (Pre .) . runForget0
 
-instance Representable (Fold0Rep r) where
-  type Rep (Fold0Rep r) = Pre r
-  tabulate = Fold0Rep . (getPre .)
+instance Representable (Forget0 r) where
+  type Rep (Forget0 r) = Pre r
+  tabulate = Forget0 . (getPre .)
   {-# INLINE tabulate #-}
 
 -- | 'Pre' is 'Maybe' with a phantom type variable.

@@ -89,13 +89,18 @@ import qualified Data.Functor.Rep as F
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
----------------------------------------------------------------------
--- 'Traversal1'
----------------------------------------------------------------------
 
 type ATraversal1 f s t a b = Apply f => ARepn f s t a b
 
 type ATraversal1' f s a = ATraversal1 f s s a a
+
+type ACotraversal1 f s t a b = Coapply f => ACorepn f s t a b
+
+type ACotraversal1' f s a = ACotraversal1 f s s a a
+
+---------------------------------------------------------------------
+-- 'Traversal1'
+---------------------------------------------------------------------
 
 -- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
@@ -155,10 +160,6 @@ itraversal1Vl f = traversal1Vl $ \iab -> f (curry iab) . snd
 -- 'Cotraversal1' & 'Cxtraversal1'
 ---------------------------------------------------------------------
 
-type ACotraversal1 f s t a b = Apply f => ACorepn f s t a b
-
-type ACotraversal1' f s a = ACotraversal1 f s s a a
-
 -- | Obtain a 'Cotraversal1' directly. 
 --
 cotraversal1 :: Distributive g => (g b -> s -> g a) -> (g b -> t) -> Cotraversal1 s t a b
@@ -193,7 +194,7 @@ retraversing1 sabt = corepn cotraverse . grate sabt
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cotraversal1Vl :: (forall f. Apply f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
+cotraversal1Vl :: (forall f. Coapply f => (f a -> b) -> f s -> t) -> Cotraversal1 s t a b
 cotraversal1Vl abst = cotabulate . abst . cosieve 
 
 -- | Lift an indexed VL cotraversal into a (co-)indexed profunctor cotraversal.
@@ -207,7 +208,7 @@ cotraversal1Vl abst = cotabulate . abst . cosieve
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-ktraversal1Vl :: (forall f. Apply f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
+ktraversal1Vl :: (forall f. Coapply f => (k -> f a -> b) -> f s -> t) -> Cxtraversal1 k s t a b
 ktraversal1Vl kabst = cotraversal1Vl $ \kab -> const . kabst (flip kab)
 
 -- | Lift a VL cotraversal into an (co-)indexed profunctor cotraversal that ignores its input.
@@ -331,7 +332,7 @@ withTraversal1 o = runStar #. o .# Star
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
-withCotraversal1 :: Apply f => ACotraversal1 f s t a b -> (f a -> b) -> (f s -> t)
+withCotraversal1 :: Coapply f => ACotraversal1 f s t a b -> (f a -> b) -> (f s -> t)
 withCotraversal1 o = runCostar #. o .# Costar
 
 -- |
@@ -355,7 +356,7 @@ sequences1 o = withTraversal1 o id
 
 -- | TODO: Document
 --
-distributes1 :: Apply f => ACotraversal1 f s t a (f a) -> f s -> t
+distributes1 :: Coapply f => ACotraversal1 f s t a (f a) -> f s -> t
 distributes1 o = withCotraversal1 o id
 {-# INLINE distributes1 #-}
 
