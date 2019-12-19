@@ -34,7 +34,7 @@ Optics libraries generally consist of three components:
 
 - Rank-2 types representing the families of optic (e.g. `Lens`, `Prism`, etc.).
 - Functions for constructing optics (e.g. `lens`, `prism`, etc.)
-- Particular 'carriers' (e.g.`LensRep a b s t`,  `(a -> Const r b) -> s -> Const r t`, `Costar f s a`, `Int -> Int`, etc) 
+- Particular 'carriers' (e.g.`LensRep a b s t`,  `(a -> Const r b) -> s -> Const r t`, `Cokleisli f s a`, `Int -> Int`, etc) 
 - Primitive operators derived by using the optics to manipulate the carriers (`withLens`, `withFold`, etc.)
 - Particular optics (e.g. `_1`, `just`, `traversed`, etc.)
 - Operators derived by various applications of the primitive operators (e.g. `^..`, `view`, `set`, `throws`, etc)
@@ -126,10 +126,10 @@ folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
 cofolding1 :: Distributive f => (b -> t) -> Cofold1 (f t) b
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
 cotraversing1 :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal1 (g s) (g t) a b
-retraversing1 :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
+cotraversing1 :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
 ```
 
-In some cases there are additional constructors using an alternative present participle (e.g. `retraversing`, `matching`, `handling`, `fmapping`, `contramapping`, `failing`, etc). Other than the consistent use of the present participle these constructors mirror the ones in `lens`.
+In some cases there are additional constructors using an alternative present participle (e.g. `cotraversing`, `matching`, `handling`, `fmapping`, `contramapping`, `failing`, etc). Other than the consistent use of the present participle these constructors mirror the ones in `lens`.
 
 Constructors ending in `Vl` are reserved for translations from the [Van Laarhoven](https://www.twanvl.nl/blog/haskell/cps-functional-references) representation to the profunctor representation. For example:
 

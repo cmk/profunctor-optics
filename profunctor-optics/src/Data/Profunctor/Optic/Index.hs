@@ -7,7 +7,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE DeriveGeneric         #-}
-module Data.Profunctor.Optic.Index ( 
+module Data.Profunctor.Optic.Index where
+{- ( 
     -- * Indexing
     (%)
   , iinit
@@ -38,13 +39,23 @@ module Data.Profunctor.Optic.Index (
   , trivial
   , noindex
   , coindex
-  , (##)
+  , (.#.)
 ) where
+-}
+
+import Control.Arrow as Arrow
+import Control.Category
+import Control.Comonad
+import Control.Monad
+import Control.Monad.Fix
+import Data.Profunctor.Closed
+import Data.Profunctor.Rep
+import Data.Profunctor.Sieve
 
 import Data.Bifunctor as B
 import Data.Foldable
 import Data.Semigroup
-import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Import hiding ((.),id)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import GHC.Generics (Generic)
@@ -190,28 +201,30 @@ withCxrepn abst s k akb = (cosieve . abst $ cotabulate akb) s k
 
 -- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
 --
--- @'Index' a b r ≡ forall f. 'Functor' f => (a -> f b) -> f r@,
+-- @'Index' a b s ≡ forall f. 'Functor' f => (a -> f b) -> f s@,
 --
-data Index a b r = Index a (b -> r)
+-- See also 'Data.Profunctor.Optic.Lens.withLensVl'.
+--
+data Index a b s = Index a (b -> s) deriving Generic
 
-vals :: Index a b r -> b -> r
-vals (Index _ br) = br
+vals :: Index a b s -> b -> s
+vals (Index _ bs) = bs
 {-# INLINE vals #-}
 
-info :: Index a b r -> a
+info :: Index a b s -> a
 info (Index a _) = a
 {-# INLINE info #-}
 
 instance Functor (Index a b) where
-  fmap f (Index a br) = Index a (f . br)
+  fmap f (Index a bs) = Index a (f . bs)
   {-# INLINE fmap #-}
 
 instance Profunctor (Index a) where
-  dimap f g (Index a br) = Index a (g . br . f)
+  dimap f g (Index a bs) = Index a (g . bs . f)
   {-# INLINE dimap #-}
 
 instance a ~ b => Foldable (Index a b) where
-  foldMap f (Index b br) = f . br $ b
+  foldMap f (Index b bs) = f . bs $ b
 
 ---------------------------------------------------------------------
 -- Coindex
@@ -219,9 +232,9 @@ instance a ~ b => Foldable (Index a b) where
 
 -- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
 --
--- @'Coindex' a b k ≡ forall f. 'Functor' f => (f a -> b) -> f k@,
+-- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@,
 --
--- See also 'Data.Profunctor.Optic.Grate.zipWithFOf'.
+-- See also 'Data.Profunctor.Optic.Grate.withGrateVl'.
 --
 -- 'Coindex' can also be used to compose indexed maps, folds, or traversals directly.
 --
@@ -233,18 +246,16 @@ instance a ~ b => Foldable (Index a b) where
 --  Coindex traverseWithKey :: Applicative t => Coindex (a -> t b) (Map k a -> t (Map k b)) k
 -- @
 --
-newtype Coindex a b k = Coindex { runCoindex :: (k -> a) -> b } deriving Generic
+newtype Coindex a b s = Coindex { runCoindex :: (s -> a) -> b } deriving Generic
 
--- | Change the @Monoid@ used to combine indices.
---
 instance Functor (Coindex a b) where
-  fmap kl (Coindex abk) = Coindex $ \la -> abk (la . kl)
+  fmap sl (Coindex abs) = Coindex $ \la -> abs (la . sl)
 
 instance a ~ b => Apply (Coindex a b) where
-  (Coindex klab) <.> (Coindex abk) = Coindex $ \la -> klab $ \kl -> abk (la . kl) 
+  (Coindex slab) <.> (Coindex abs) = Coindex $ \la -> slab $ \sl -> abs (la . sl) 
 
 instance a ~ b => Applicative (Coindex a b) where
-  pure k = Coindex ($k)
+  pure s = Coindex ($s)
   (<*>) = (<.>)
 
 trivial :: Coindex a b a -> b
@@ -256,23 +267,23 @@ trivial (Coindex f) = f id
 -- For example, to traverse two layers, keeping only the first index:
 --
 -- @
---  Coindex 'Data.Map.mapWithKey' ## noindex 'Data.Map.map'
+--  Coindex 'Data.Map.mapWithKey' .#. noindex 'Data.Map.map'
 --    :: Monoid k =>
 --       Coindex (a -> b) (Map k (Map j a) -> Map k (Map j b)) k
 -- @
 --
-noindex :: Monoid k => (a -> b) -> Coindex a b k
+noindex :: Monoid s => (a -> b) -> Coindex a b s
 noindex f = Coindex $ \a -> f (a mempty)
 
-coindex :: Functor f => k -> (a -> b) -> Coindex (f a) (f b) k
-coindex k ab = Coindex $ \kfa -> fmap ab (kfa k)
+coindex :: Functor f => s -> (a -> b) -> Coindex (f a) (f b) s
+coindex s ab = Coindex $ \sfa -> fmap ab (sfa s)
 {-# INLINE coindex #-}
 
-infixr 9 ##
+infixr 9 .#.
 
 -- | Compose two coindexes.
 --
--- When /k/ is a 'Monoid', 'Coindex' can be used to compose indexed traversals, folds, etc.
+-- When /s/ is a 'Monoid', 'Coindex' can be used to compose indexed traversals, folds, etc.
 --
 -- For example, to keep track of only the first index seen, use @Data.Monoid.First@:
 --
@@ -286,5 +297,114 @@ infixr 9 ##
 --  fmap (:[]) :: Coindex a b c -> Coindex a b [c]
 -- @
 --
-(##) :: Semigroup k => Coindex b c k -> Coindex a b k -> Coindex a c k
-Coindex f ## Coindex g = Coindex $ \b -> f $ \k1 -> g $ \k2 -> b (k1 <> k2)
+(.#.) :: Semigroup s => Coindex b c s -> Coindex a b s -> Coindex a c s
+Coindex f .#. Coindex g = Coindex $ \b -> f $ \s1 -> g $ \s2 -> b (s1 <> s2)
+
+---------------------------------------------------------------------
+-- Conjoin
+---------------------------------------------------------------------
+
+-- '(->)' is simultaneously both indexed and co-indexed.
+newtype Conjoin j a b = Conjoin { unConjoin :: j -> a -> b }
+
+instance Functor (Conjoin j a) where
+  fmap g (Conjoin f) = Conjoin $ \j a -> g (f j a)
+  {-# INLINE fmap #-}
+
+instance Apply (Conjoin j a) where
+  Conjoin f <.> Conjoin g = Conjoin $ \j a -> f j a (g j a)
+  {-# INLINE (<.>) #-}
+
+instance Applicative (Conjoin j a) where
+  pure b = Conjoin $ \_ _ -> b
+  {-# INLINE pure #-}
+  Conjoin f <*> Conjoin g = Conjoin $ \j a -> f j a (g j a)
+  {-# INLINE (<*>) #-}
+
+instance Monad (Conjoin j a) where
+  return = pure
+  {-# INLINE return #-}
+  Conjoin f >>= k = Conjoin $ \j a -> unConjoin (k (f j a)) j a
+  {-# INLINE (>>=) #-}
+
+instance MonadFix (Conjoin j a) where
+  mfix f = Conjoin $ \ j a -> let o = unConjoin (f o) j a in o
+  {-# INLINE mfix #-}
+
+instance Profunctor (Conjoin j) where
+  dimap ab cd jbc = Conjoin $ \j -> cd . unConjoin jbc j . ab
+  {-# INLINE dimap #-}
+  lmap ab jbc = Conjoin $ \j -> unConjoin jbc j . ab
+  {-# INLINE lmap #-}
+  rmap bc jab = Conjoin $ \j -> bc . unConjoin jab j
+  {-# INLINE rmap #-}
+
+instance Closed (Conjoin j) where
+  closed (Conjoin jab) = Conjoin $ \j xa x -> jab j (xa x)
+
+instance Costrong (Conjoin j) where
+  unfirst (Conjoin jadbd) = Conjoin $ \j a -> let
+      (b, d) = jadbd j (a, d)
+    in b
+
+instance Sieve (Conjoin j) ((->) j) where
+  sieve = flip . unConjoin
+  {-# INLINE sieve #-}
+
+instance Representable (Conjoin j) where
+  type Rep (Conjoin j) = (->) j
+  tabulate = Conjoin . flip
+  {-# INLINE tabulate #-}
+
+instance Cosieve (Conjoin j) ((,) j) where
+  cosieve = uncurry . unConjoin
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (Conjoin j) where
+  type Corep (Conjoin j) = (,) j
+  cotabulate = Conjoin . curry
+  {-# INLINE cotabulate #-}
+
+instance Choice (Conjoin j) where
+  right' = right
+  {-# INLINE right' #-}
+
+instance Strong (Conjoin j) where
+  second' = Arrow.second
+  {-# INLINE second' #-}
+
+instance Category (Conjoin j) where
+  id = Conjoin (const id)
+  {-# INLINE id #-}
+  Conjoin f . Conjoin g = Conjoin $ \j -> f j . g j
+  {-# INLINE (.) #-}
+
+instance Arrow (Conjoin j) where
+  arr f = Conjoin (\_ -> f)
+  {-# INLINE arr #-}
+  first f = Conjoin (Arrow.first . unConjoin f)
+  {-# INLINE first #-}
+  second f = Conjoin (Arrow.second . unConjoin f)
+  {-# INLINE second #-}
+  Conjoin f *** Conjoin g = Conjoin $ \j -> f j *** g j
+  {-# INLINE (***) #-}
+  Conjoin f &&& Conjoin g = Conjoin $ \j -> f j &&& g j
+  {-# INLINE (&&&) #-}
+
+instance ArrowChoice (Conjoin j) where
+  left f = Conjoin (left . unConjoin f)
+  {-# INLINE left #-}
+  right f = Conjoin (right . unConjoin f)
+  {-# INLINE right #-}
+  Conjoin f +++ Conjoin g = Conjoin $ \j -> f j +++ g j
+  {-# INLINE (+++)  #-}
+  Conjoin f ||| Conjoin g = Conjoin $ \j -> f j ||| g j
+  {-# INLINE (|||) #-}
+
+instance ArrowApply (Conjoin j) where
+  app = Conjoin $ \i (f, b) -> unConjoin f i b
+  {-# INLINE app #-}
+
+instance ArrowLoop (Conjoin j) where
+  loop (Conjoin f) = Conjoin $ \j b -> let (c,d) = f j (b, d) in c
+  {-# INLINE loop #-}

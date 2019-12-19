@@ -13,14 +13,9 @@ module Data.Profunctor.Optic.Fold1 (
   , folding1
   , fold1Vl
   , toFold1
-  , cloneFold1
-    -- * Cofold1 & Cxfold
-  , Cofold1
-  , cofold1Vl 
-  , cofolding1
+  , afold1
     -- * Optics
   , folded1 
-  , cofolded1 
   , folded1_
   , nonunital
   , presemiring
@@ -29,20 +24,12 @@ module Data.Profunctor.Optic.Fold1 (
     -- * Primitive operators
   , withFold1
   , withIxfold1
-  , withCofold1
     -- * Operators
-  , folds1
-  , cofolds1
-  , folds1p
   , nelists
+  , folds1
     -- * Carriers
-  , FoldRep
   , AFold1
   , AIxfold1
-  , Cofold1Rep
-  , ACofold1
-  , afold
-  , acofold
     -- * Auxilliary Types
   , Nedl(..)
 ) where
@@ -52,6 +39,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Traversal1
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (AView, to, from, withPrimView, view, cloneView)
 import Data.Semiring (Semiring(..), Prod(..))
@@ -70,13 +58,15 @@ import qualified Data.Semiring as Rng
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> :load Data.Profunctor.Optic
 
----------------------------------------------------------------------
--- 'Fold1' & 'Ixfold1'
----------------------------------------------------------------------
+type Fold1Rep r = Star (Const r)
 
 type AFold1 r s a = Optic' (FoldRep r) s a
 
-type AIxfold1 r i s a = IndexedOptic' (FoldRep r) i s a
+type AIxfold1 r i s a = IndexedOptic' (Fold1Rep r) i s a
+
+---------------------------------------------------------------------
+-- 'Fold1' & 'Ixfold1'
+---------------------------------------------------------------------
 
 -- | Obtain a 'Fold1' directly.
 --
@@ -119,36 +109,15 @@ toFold1 :: AView s a -> Fold1 s a
 toFold1 = to . view
 {-# INLINE toFold1 #-}
 
--- | Obtain a 'Fold1' from a 'AFold1'.
---
-cloneFold1 :: Semigroup a => AFold1 a s a -> View s a
-cloneFold1 = cloneView
-{-# INLINE cloneFold1 #-}
-
----------------------------------------------------------------------
--- 'Cofold1' & 'Cxfold'
----------------------------------------------------------------------
-
-type Cofold1Rep r = Costar (Const r)
-
-type ACofold1 r t b = Optic' (Cofold1Rep r) t b
-
--- | Obtain an 'Cofold1' from a 'Distributive' functor. 
+-- | TODO: Document
 --
 -- @
--- 'cofolding1' f ≡ 'cotraversed1' . 'from' f
--- 'cofolding1' f ≡ 'cofold1Vl' 'cotraverse' . 'from' f
+-- afold1 :: ((a -> r) -> s -> r) -> AFold1 r s a
 -- @
 --
-cofolding1 :: Distributive f => (b -> t) -> Cofold1 (f t) b
-cofolding1 f = cofold1Vl cotraverse . from f
-{-# INLINE cofolding1 #-}
-
--- | Obtain a 'Cofold1' from a Van Laarhoven 'Cofold1'.
---
-cofold1Vl :: (forall f. Apply f => (f a -> b) -> f s -> t) -> Cofold1 t b
-cofold1Vl f = coercel . corepn f . coercel
-{-# INLINE cofold1Vl #-}
+afold1 :: ((a -> r) -> s -> r) -> Optic (Fold1Rep r) s t a b
+afold1 f = Star #. (Const #.) #. f .# (getConst #.) .# runStar
+{-# INLINE afold1 #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -159,12 +128,6 @@ cofold1Vl f = coercel . corepn f . coercel
 folded1 :: Traversable1 f => Fold1 (f a) a
 folded1 = folding1 id
 {-# INLINE folded1 #-}
-
--- | Obtain an 'Cofold1' from a 'Distributive' functor. 
---
-cofolded1 :: Distributive f => Cofold1 (f b) b
-cofolded1 = cofolding1 id
-{-# INLINE cofolded1 #-}
 
 -- | The canonical 'Fold1'.
 --
@@ -225,7 +188,11 @@ multiplied1 = afold Rng.product1
 
 -- | Map an optic to a semigroup and combine the results.
 --
-withFold1 :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
+-- @
+-- 'withFold1' :: 'Semigroup' r => 'AFold1' r s a -> (a -> r) -> s -> r
+-- @
+--
+withFold1 :: Semigroup r => Optic (Fold1Rep r) s t a b -> (a -> r) -> s -> r
 withFold1 = withPrimView
 {-# INLINE withFold1 #-}
 
@@ -241,41 +208,12 @@ withFold1 = withPrimView
 -- 1
 --
 withIxfold1 :: Semigroup r => AIxfold1 r i s a -> (i -> a -> r) -> i -> s -> r
-withIxfold1 o f = curry $ withPrimView o (uncurry f)
+withIxfold1 o f = curry $ withFold1 o (uncurry f)
 {-# INLINE withIxfold1 #-}
-
--- | TODO: Document
---
--- >>> withCofold1 (from succ) (*2) 3
--- 7
---
--- Compare 'Data.Profunctor.Optic.View.withPrimReview'.
---
-withCofold1 :: ACofold1 r t b -> (r -> b) -> r -> t
-withCofold1 o = (.# Const) #. runCostar #. o .# Costar .# (.# getConst)
-{-# INLINE withCofold1 #-}
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
-
--- | TODO: Document
---
-folds1 :: Semigroup a => AFold1 a s a -> s -> a
-folds1 = flip withFold1 id
-{-# INLINE folds1 #-}
-
--- | TODO: Document
---
-cofolds1 :: ACofold1 b t b -> b -> t
-cofolds1 = flip withCofold1 id
-{-# INLINE cofolds1 #-}
-
--- | Compute the semiring product of the foci of an optic.
---
-folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-folds1p o p = getProd . withFold1 o (Prod . p)
-{-# INLINE folds1p #-}
 
 -- | Extract a 'NonEmpty' of the foci of an optic.
 --
@@ -286,9 +224,21 @@ nelists :: AFold1 (Nedl a) s a -> s -> NonEmpty a
 nelists l = flip getNedl [] . withFold1 l (Nedl #. (:|))
 {-# INLINE nelists #-}
 
-------------------------------------------------------------------------------
+-- | TODO: Document
+--
+folds1 :: Semigroup a => AFold1 a s a -> s -> a
+folds1 = flip withFold1 id
+{-# INLINE folds1 #-}
+
+-- | Compute the semiring product of the foci of an optic.
+--
+folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
+folds1p o p = getProd . withFold1 o (Prod . p)
+{-# INLINE folds1p #-}
+
+--------------------------------------------------------------------
 -- Auxilliary Types
-------------------------------------------------------------------------------
+--------------------------------------------------------------------
 
 -- A non-empty difference list.
 newtype Nedl a = Nedl { getNedl :: [a] -> NEL.NonEmpty a }

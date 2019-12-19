@@ -11,24 +11,11 @@ module Data.Profunctor.Optic.Prism (
   , Prism'
   , Cxprism
   , Cxprism'
-  , APrism
-  , APrism'
   , prism
   , prism'
   , kprism
   , handling
   , clonePrism
-    -- * Coprism & Ixprism
-  , Coprism
-  , Coprism'
-  , Ixprism
-  , Ixprism'
-  , ACoprism
-  , ACoprism'
-  , coprism
-  , coprism'
-  , rehandling
-  , cloneCoprism
     -- * Optics
   , kright
   , just
@@ -45,7 +32,6 @@ module Data.Profunctor.Optic.Prism (
   , asyncException
     -- * Primitive operators
   , withPrism
-  , withCoprism
     -- * Operators
   , aside
   , without
@@ -53,8 +39,9 @@ module Data.Profunctor.Optic.Prism (
   , toPastroSum
   , toTambaraSum
     -- * Carriers
+  , APrism
+  , APrism'
   , PrismRep(..)
-  , CoprismRep(..)
     -- * Classes
   , Choice(..)
   , Cochoice(..)
@@ -132,58 +119,17 @@ handling sca cbt = dimap sca cbt . right'
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
 
----------------------------------------------------------------------
--- 'Coprism' & 'Ixprism'
----------------------------------------------------------------------
-
--- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
---
--- @
--- coprism f g ≡ \f g -> re (prism f g)
--- @
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input functions satisfy the following
--- properties:
---
--- * @bat (bt b) ≡ Right b@
---
--- * @(id ||| bt) (bat b) ≡ b@
---
--- * @left bat (bat b) ≡ left Left (bat b)@
---
--- A 'Coprism' is a 'View', so you can specialise types to obtain:
---
--- @ view :: 'Coprism'' s a -> s -> a @
---
-coprism :: (s -> a) -> (b -> a + t) -> Coprism s t a b
-coprism sa bat = unright . dimap (id ||| sa) bat
-
--- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
---
-coprism' :: (s -> a) -> (a -> Maybe s) -> Coprism' s a
-coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
-
--- | Obtain a 'Coprism' from its free tensor representation.
---
-rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
-rehandling csa bct = unright . dimap csa bct
-
--- | TODO: Document
---
-cloneCoprism :: ACoprism s t a b -> Coprism s t a b
-cloneCoprism o = withCoprism o coprism
 
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
 
--- | 'Prism' into the `Just` constructor of `Maybe`.
+-- | Focus on the `Just` constructor of `Maybe`.
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
--- | 'Prism' into the `Nothing` constructor of `Maybe`.
+-- | Focus on the `Nothing` constructor of `Maybe`.
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
@@ -193,7 +139,7 @@ nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 compared :: Eq a => Prd a => a -> Prism' a Ordering
 compared x = flip prism' (const x) (pcompare x)
 
--- | 'Prism' into the remainder of a list with a given prefi.
+-- | Focus on the remainder of a list with a given prefix.
 --
 prefixed :: Eq a => [a] -> Prism' [a] [a]
 prefixed ps = prism' (stripPrefix ps) (ps ++)
@@ -223,7 +169,7 @@ nearly x f = prism' (guard . f) (const x)
 nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
--- | Check whether an exception is synchronous.
+-- | Focus on whether an exception is synchronous.
 --
 sync :: Exception e => Prism' e e 
 sync = filterOn $ \e -> case fromException (toException e) of
@@ -231,7 +177,7 @@ sync = filterOn $ \e -> case fromException (toException e) of
   Nothing -> True
   where filterOn f = iso (branch' f) join . right'
 
--- | Check whether an exception is asynchronous.
+-- | Focus on whether an exception is asynchronous.
 --
 async :: Exception e => Prism' e e 
 async = filterOn $ \e -> case fromException (toException e) of
@@ -239,12 +185,12 @@ async = filterOn $ \e -> case fromException (toException e) of
   Nothing -> False
   where filterOn f = iso (branch' f) join . right'
 
--- | TODO: Document
+-- | Focus on whether a given exception has occurred.
 --
 exception :: Exception e => Prism' SomeException e
 exception = prism' fromException toException
 
--- | TODO: Document
+-- | Focus on whether a given asynchronous exception has occurred.
 --
 asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
@@ -255,9 +201,10 @@ asyncException = prism' asyncExceptionFromException asyncExceptionToException
 
 -- | Coindexed prism into the `Right` constructor of `Either`.
 --
--- >>>  kset (catchFoo "Caught foo") id $ Left "fooError"
+-- >>> kset (catchFoo "Caught foo") id $ Left "fooError"
 -- Right "Caught foo"
--- >>>  kset (catchFoo "Caught foo") id $ Left "barError"
+--
+-- >>> kset (catchFoo "Caught foo") id $ Left "barError"
 -- Left "barError"
 --
 kright :: (e -> k -> e + b) -> Cxprism k (e + a) (e + b) a b
@@ -285,11 +232,6 @@ kjust kb = flip kprism Just $ maybe (Left kb) Right
 --
 withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
-
--- | Extract the two functions that characterize a 'Coprism'.
---
-withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
-withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
 
 ---------------------------------------------------------------------
 -- Operators
@@ -347,7 +289,7 @@ toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
 
 ---------------------------------------------------------------------
--- 'PrismRep' & 'CoprismRep'
+-- 'PrismRep'
 ---------------------------------------------------------------------
 
 type APrism s t a b = Optic (PrismRep a b) s t a b
@@ -378,24 +320,3 @@ instance Choice (PrismRep a b) where
 
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
-
-type ACoprism s t a b = Optic (CoprismRep a b) s t a b
-
-type ACoprism' s a = ACoprism s s a a
-
-data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
-
-instance Functor (CoprismRep a b s) where
-  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
-  {-# INLINE fmap #-}
-
-instance Profunctor (CoprismRep a b) where
-  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
-  {-# INLINE lmap #-}
-
-  rmap = fmap
-  {-# INLINE rmap #-}
-
-instance Cochoice (CoprismRep a b) where
-  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
-  {-# INLINE unleft #-}
