@@ -61,6 +61,7 @@ import Data.Profunctor.Optic.Types
 -- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
 -- >>> import Data.Int.Instance ()
+-- >>> import Data.List.NonEmpty
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let catchFoo :: b -> Cxprism String (String + a) (String + b) a b; catchFoo b = kright $ \e k -> if e == "fooError" && k == mempty then Right b else Left e
@@ -121,6 +122,12 @@ clonePrism o = withPrism o prism
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
+-- >>> Just 1 :| [Just 2, Just 3] & just //~ sum
+-- Just 6
+--
+-- >>> Nothing :| [Just 2, Just 3] & just //~ sum
+-- Just 5
+--
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
@@ -148,6 +155,7 @@ only x = nearly x (x==)
 --
 -- >>> nearly [] null #^ ()
 -- []
+--
 -- >>> [1,2,3,4] ^? nearly [] null
 -- Nothing
 --

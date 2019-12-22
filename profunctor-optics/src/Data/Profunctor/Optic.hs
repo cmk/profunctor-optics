@@ -23,6 +23,7 @@ module Data.Profunctor.Optic (
   , module View
   , module Setter
   , module Zoom
+  , module Data.Profunctor.Optic 
 ) where
 
 import Data.Profunctor.Optic.Types            as Type

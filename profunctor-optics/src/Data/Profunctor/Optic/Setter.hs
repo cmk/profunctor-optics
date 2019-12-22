@@ -104,7 +104,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
 -- >>> import Data.Tuple (swap)
--- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 -- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
