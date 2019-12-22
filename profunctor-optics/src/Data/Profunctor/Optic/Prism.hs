@@ -126,7 +126,7 @@ clonePrism o = withPrism o prism
 -- Just 6
 --
 -- >>> Nothing :| [Just 2, Just 3] & just //~ sum
--- Just 5
+-- Nothing
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right

@@ -40,7 +40,7 @@ module Data.Profunctor.Optic.Property (
   , compose_traversal1
     -- * Cotraversal
   , Cotraversal
-  --, compose_cotraversal
+  , compose_cotraversal
     -- * Setter
   , Setter
   , id_setter
@@ -209,7 +209,7 @@ compose_traversal1 o f g s = lhs s == rhs s
 ---------------------------------------------------------------------
 -- 'Cotraversal'
 ---------------------------------------------------------------------
-{-
+
 -- | A 'Cotraversal' is a valid 'Resetter' with the following additional law:
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
@@ -226,7 +226,7 @@ compose_cotraversal :: Eq s => Coapplicative f => Coapplicative g => Cotraversal
 compose_cotraversal o f g = liftF2 (==) lhs rhs
   where lhs = withCotraversal o f . fmap (withCotraversal o g) 
         rhs = withCotraversal o (f . fmap g . getCompose) . Compose
--}
+
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------
