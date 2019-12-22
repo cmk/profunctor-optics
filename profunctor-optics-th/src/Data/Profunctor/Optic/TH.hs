@@ -907,9 +907,9 @@ data OpticType
   = ViewType
   | IsoType
   | LensType
-  | Traversal0Type
+  | AffineType
   | TraversalType
-  | Fold0Type
+  | OptionType
   | FoldType
   deriving Show
 
@@ -921,13 +921,13 @@ opticTypeName _typeChanging ViewType          = ''View
 opticTypeName typeChanging  LensType          = if typeChanging
                                                   then ''Lens
                                                   else ''Lens'
-opticTypeName typeChanging  Traversal0Type    = if typeChanging
-                                                  then ''Traversal0
-                                                  else ''Traversal0'
+opticTypeName typeChanging  AffineType    = if typeChanging
+                                                  then ''Affine
+                                                  else ''Affine'
 opticTypeName typeChanging  TraversalType     = if typeChanging
                                                   then ''Traversal
                                                   else ''Traversal'
-opticTypeName _typeChanging Fold0Type         = ''Fold0
+opticTypeName _typeChanging OptionType         = ''Option
 opticTypeName _typeChanging FoldType          = ''Fold
 
 -- Compute the positional location of the fields involved in
@@ -950,14 +950,14 @@ buildScaffold rules s cons defName =
          defType
            | Just (_,cx,a') <- prev forallt a =
                let optic | lensCase   = ViewType
-                        {-- | affineCase = Fold0Type --}
+                        {-- | affineCase = OptionType --}
                          | otherwise  = FoldType
                in OpticSa cx optic s' a'
 
            -- View and Fold are always simple
            | not (_allowUpdates rules) =
                let optic | lensCase   = ViewType
-                        {-- | affineCase = Fold0Type --}
+                        {-- | affineCase = OptionType --}
                          | otherwise  = FoldType
                in OpticSa [] optic s' a
 
@@ -965,7 +965,7 @@ buildScaffold rules s cons defName =
            | _simpleOptics rules || s' == t && a == b =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                        {-- | affineCase                  = Traversal0Type --}
+                        {-- | affineCase                  = AffineType --}
                          | otherwise                   = TraversalType
                in OpticSa [] optic s' a
 
@@ -973,7 +973,7 @@ buildScaffold rules s cons defName =
            | otherwise =
                let optic | isoCase && _allowIsos rules = IsoType
                          | lensCase                    = LensType
-                        {-- | affineCase                  = Traversal0Type --}
+                        {-- | affineCase                  = AffineType --}
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
@@ -1162,9 +1162,9 @@ makeFieldClause rules opticType cons =
     IsoType             -> makeIsoClause cons irref
     ViewType            -> makeViewClause cons
     LensType            -> makeLensClause cons irref
-    Traversal0Type      -> makeTraversal0Clause cons irref
+    AffineType      -> makeAffineClause cons irref
     TraversalType       -> makeTraversalClause cons irref
-    Fold0Type           -> makeFold0Clause cons
+    OptionType           -> makeOptionClause cons
     FoldType            -> makeFoldClause cons
   where
     irref = _lazyPatterns rules && length cons == 1
@@ -1265,17 +1265,17 @@ makeViewClause cons = do
               []
       _       -> error "View focuses on exactly one field"
 
-makeTraversal0Clause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
-makeTraversal0Clause cons irref = do
+makeAffineClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
+makeAffineClause cons irref = do
   point <- newName "point"
   f     <- newName "f"
   s     <- newName "s"
   clause
     []
     (normalB $ appsE
-      [ varE 'traversal0Vl
+      [ varE 'affineVl
       , lamE [varP point, varP f, varP s] $ caseE (varE s)
-        [ makeTraversal0Match point f conName fieldCount fields
+        [ makeAffineMatch point f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
         ]
       ])
@@ -1283,7 +1283,7 @@ makeTraversal0Clause cons irref = do
   where
     irrefP = if irref then tildeP else id
 
-    makeTraversal0Match point f conName fieldCount = \case
+    makeAffineMatch point f conName fieldCount = \case
       [] -> do
         xs <- newNames "x" fieldCount
         -- Con xfirst ... x_n -> point (Con xfirst .. x_n)
@@ -1291,7 +1291,7 @@ makeTraversal0Clause cons irref = do
               (normalB $ varE point `appE` appsE (conE conName : map varE xs))
               []
       [field] -> makeLensMatch irrefP f conName fieldCount [field]
-      _ -> error "Traversal0 traversal focuses on at most one field"
+      _ -> error "Affine traversal focuses on at most one field"
 
 makeTraversalClause :: [(Name, Int, [Int])] -> Bool -> ClauseQ
 makeTraversalClause cons irref = do
@@ -1340,21 +1340,21 @@ makeTraversalClause cons irref = do
                 (normalB body)
                 []
 
-makeFold0Clause :: [(Name, Int, [Int])] -> ClauseQ
-makeFold0Clause cons = do
+makeOptionClause :: [(Name, Int, [Int])] -> ClauseQ
+makeOptionClause cons = do
   s <- newName "s"
   clause
     []
     (normalB $ appsE
-      [ varE 'fold0
+      [ varE 'option
       , lamE [varP s] $ caseE (varE s)
-        [ makeFold0Match conName fieldCount fields
+        [ makeOptionMatch conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
         ]
       ])
     []
   where
-    makeFold0Match conName fieldCount fields = do
+    makeOptionMatch conName fieldCount fields = do
       xs <- newNames "x" $ length fields
 
       let args = foldr (\(i, x) -> set (ixat i) (varP x))
@@ -1366,7 +1366,7 @@ makeFold0Clause cons = do
             []  -> conE 'Nothing
             -- Con _ .. x_i .. _ -> Just x_i
             [x] -> conE 'Just `appE` varE x
-            _   -> error "Fold0 focuses on at most one field"
+            _   -> error "Option focuses on at most one field"
 
       match (conP conName args)
             (normalB body)

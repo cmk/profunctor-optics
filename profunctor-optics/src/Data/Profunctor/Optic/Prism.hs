@@ -38,13 +38,8 @@ module Data.Profunctor.Optic.Prism (
   , below
   , toPastroSum
   , toTambaraSum
-    -- * Carriers
-  , APrism
-  , APrism'
-  , PrismRep(..)
     -- * Classes
   , Choice(..)
-  , Cochoice(..)
 ) where
 
 import Control.Exception
@@ -54,6 +49,7 @@ import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix)
 import Data.Prd
 import Data.Profunctor.Choice
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Types
@@ -118,7 +114,6 @@ handling sca cbt = dimap sca cbt . right'
 --
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
-
 
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
@@ -225,15 +220,6 @@ kjust :: (k -> Maybe b) -> Cxprism k (Maybe a) (Maybe b) a b
 kjust kb = flip kprism Just $ maybe (Left kb) Right
 
 ---------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | Extract the two functions that characterize a 'Prism'.
---
-withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
-withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
-
----------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
@@ -287,36 +273,3 @@ toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswa
 --
 toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
-
----------------------------------------------------------------------
--- 'PrismRep'
----------------------------------------------------------------------
-
-type APrism s t a b = Optic (PrismRep a b) s t a b
-
-type APrism' s a = APrism s s a a
-
--- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
---
-data PrismRep a b s t = PrismRep (s -> t + a) (b -> t)
-
-instance Functor (PrismRep a b s) where
-  fmap f (PrismRep sta bt) = PrismRep (first f . sta) (f . bt)
-  {-# INLINE fmap #-}
-
-instance Profunctor (PrismRep a b) where
-  dimap f g (PrismRep sta bt) = PrismRep (first g . sta . f) (g . bt)
-  {-# INLINE dimap #-}
-
-  lmap f (PrismRep sta bt) = PrismRep (sta . f) bt
-  {-# INLINE lmap #-}
-
-  rmap = fmap
-  {-# INLINE rmap #-}
-
-instance Choice (PrismRep a b) where
-  left' (PrismRep sta bt) = PrismRep (either (first Left . sta) (Left . Right)) (Left . bt)
-  {-# INLINE left' #-}
-
-  right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
-  {-# INLINE right' #-}

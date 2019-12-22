@@ -60,10 +60,6 @@ module Data.Profunctor.Optic.Iso (
   , ala
     -- * Auxilliary Types
   , Re(..)
-    -- * Carriers
-  , AIso 
-  , AIso'
-  , IsoRep(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -71,6 +67,7 @@ import Data.Coerce
 import Data.Functor.Adjunction hiding (adjuncted)
 import Data.Group
 import Data.Maybe (fromMaybe)
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
@@ -406,11 +403,11 @@ anon a p = iso (fromMaybe a) go where
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Extract the two functions that characterize an 'Iso'.
---
-withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
-withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
-{-# INLINE withIso #-}
+--withIsoVl
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
 
 ---------------------------------------------------------------------
 -- Operators
@@ -506,33 +503,3 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
 ala = au . rewrapped'
 {-# INLINE ala #-}
-
----------------------------------------------------------------------
--- Carriers
----------------------------------------------------------------------
-
--- | The 'IsoRep' profunctor precisely characterizes an 'Iso'.
-data IsoRep a b s t = IsoRep (s -> a) (b -> t)
-
--- | When you see this as an argument to a function, it expects an 'Iso'.
-type AIso s t a b = Optic (IsoRep a b) s t a b
-
-type AIso' s a = AIso s s a a
-
-instance Functor (IsoRep a b s) where
-  fmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE fmap #-}
-
-instance Profunctor (IsoRep a b) where
-  dimap f g (IsoRep sa bt) = IsoRep (sa . f) (g . bt)
-  {-# INLINE dimap #-}
-  lmap f (IsoRep sa bt) = IsoRep (sa . f) bt
-  {-# INLINE lmap #-}
-  rmap f (IsoRep sa bt) = IsoRep sa (f . bt)
-  {-# INLINE rmap #-}
-
-instance Sieve (IsoRep a b) (Index a b) where
-  sieve (IsoRep sa bt) s = Index (sa s) bt
-
-instance Cosieve (IsoRep a b) (Coindex a b) where
-  cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)

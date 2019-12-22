@@ -33,4 +33,4 @@ import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
 import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tagged as Export
 import Data.Void as Export
-import Prelude as Export hiding (Num(..), Foldable(..), all, any, min, max, head, tail, elem, notElem, userError)
+import Prelude as Export hiding (Num(..), all, any, min, max, head, tail, elem, notElem, userError)

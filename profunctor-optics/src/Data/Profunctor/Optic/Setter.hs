@@ -64,11 +64,6 @@ module Data.Profunctor.Optic.Setter (
   , (##=)
   , (<>=)
   , (><=)
-    -- * Carriers
-  , AIxsetter
-  , AIxsetter'
-  , ACxsetter
-  , ACxsetter'
 ) where
 
 import Control.Applicative (liftA)
@@ -77,8 +72,10 @@ import Control.Exception (Exception(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Index (Index(..), Coindex(..), Conjoin(..), trivial)
+import Data.Profunctor.Optic.Index
+import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Types
 import Data.Semiring
 
@@ -106,18 +103,11 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
+-- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
-
-type AIxsetter i s t a b = IndexedOptic (->) i s t a b
-
-type AIxsetter' i s a = AIxsetter i s s a a
-
-type ACxsetter k s t a b = CoindexedOptic (->) k s t a b
-
-type ACxsetter' k t b = ACxsetter k t t b b
+-- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- Setter
@@ -209,7 +199,6 @@ resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f ->
 ksetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
 ksetter f = resetter $ \kab -> const . f (flip kab)
 {-# INLINE ksetter #-}
-
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -365,38 +354,22 @@ cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
 
 ---------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | TODO: Document
---
-withIxsetter :: IndexedOptic (->) i s t a b -> (i -> a -> b) -> i -> s -> t
-withIxsetter o = unConjoin #. corepn o .# Conjoin
-{-# INLINE withIxsetter #-}
-
--- | TODO: Document
---
-withCxsetter :: CoindexedOptic (->) k s t a b -> (k -> a -> b) -> k -> s -> t
-withCxsetter o = unConjoin #. repn o .# Conjoin
-{-# INLINE withCxsetter #-}
-
----------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 .~, ..~, %~, %%~, #~, ##~, <>~, ><~
+infixr 4 <>~, ><~
 
--- | Set all referenced fields to the given value.
+-- | Prefix variant of '.~'.
 --
 -- @ 'set' l y ('set' l x a) ≡ 'set' l y a @
 --
 set :: Optic (->) s t a b -> b -> s -> t
-set o b = over o (const b)
+set = (.~)
 {-# INLINE set #-}
 
--- | Set with index. Equivalent to 'iover' with the current value ignored.
+-- | Prefix alias of '%~'.
 --
--- When you do not need access to the index, then 'set' is more liberal in what it can accept.
+-- Equivalent to 'iover' with the current value ignored.
 --
 -- @
 -- 'set' o ≡ 'iset' o '.' 'const'
@@ -412,7 +385,7 @@ iset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
 iset o = iover o . (const .)
 {-# INLINE iset #-}
 
--- | Set with an index.
+-- | Prefix alias of '#~'.
 --
 -- Equivalent to 'kover' with the current value ignored.
 --
@@ -420,29 +393,7 @@ kset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t
 kset o kb = kover o $ flip (const kb)
 {-# INLINE kset #-}
 
--- | Infix variant of 'set'.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) = set
-{-# INLINE (.~) #-}
-
--- | Infix variant of 'iset'.
---
---  See also '#~'.
---
-(%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
-(%~) = iset
-{-# INLINE (%~) #-}
-
--- | Infix variant of 'kset'.
---
---  See also '%~'.
---
-(#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
-(#~) = kset
-{-# INLINE (#~) #-}
-
--- | Map over an optic.
+-- | Prefix alias of '..~'.
 --
 -- @
 -- 'over' o 'id' ≡ 'id' 
@@ -463,16 +414,11 @@ kset o kb = kover o $ flip (const kb)
 -- >>> over first' show (10,20)
 -- ("10",20)
 --
--- @
--- over :: Setter s t a b -> (a -> r) -> s -> r
--- over :: Monoid r => Fold s t a b -> (a -> r) -> s -> r
--- @
---
 over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 {-# INLINE over #-}
 
--- | Map over an indexed optic.
+-- | Prefix alias of '%%~'.
 --
 -- >>> iover (iat 1) (+) [1,2,3 :: Int]
 -- [1,3,3]
@@ -481,39 +427,14 @@ over = id
 -- [1,2,3]
 --
 iover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-iover o f = withIxsetter o f mempty
+iover = (%%~)
 {-# INLINE iover #-}
 
--- | Map over a coindexed optic.
+-- | Prefix alias of '##~'.
 --
 kover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-kover o f = withCxsetter o f mempty 
+kover = (##~)
 {-# INLINE kover #-}
-
--- | Infix variant of 'over'.
---
--- >>> Nothing & just ..~ (+1)
--- Nothing
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
--- | Infix variant of 'iover'.
---
--- See also '##~'.
---
-(%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = iover
-{-# INLINE (%%~) #-}
-
--- | Infix variant of 'kover'.
---
---  See also '%%~'.
---
-(##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-(##~) = kover
-{-# INLINE (##~) #-}
 
 -- | Modify the target by adding another value.
 --

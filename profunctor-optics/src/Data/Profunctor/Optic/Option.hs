@@ -5,20 +5,20 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Data.Profunctor.Optic.Fold0 (
-    -- * Fold0 & Ixfold0
-    Fold0
-  , fold0
-  , ifold0
+module Data.Profunctor.Optic.Option (
+    -- * Option & Ixoption
+    Option
+  , option
+  , ioption
   , failing
-  , toFold0
-  , fromFold0 
+  , toOption
+  , fromOption 
     -- * Optics
-  , folded0
+  , optioned
   , filtered
     -- * Primitive operators
-  , withFold0
-  , withIxfold0
+  , withOption
+  , withIxoption
     -- * Operators
   , (^?)
   , preview 
@@ -33,11 +33,6 @@ module Data.Profunctor.Optic.Fold0 (
   , catches_
   , handles
   , handles_
-    -- * Carriers
-  , Fold0Rep(..)
-  , AFold0
-  , AIxfold0
-  , Pre(..)
 ) where
 
 import Control.Exception (Exception)
@@ -46,9 +41,10 @@ import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (just, async)
-import Data.Profunctor.Optic.Traversal0 (traversal0Vl, itraversal0Vl, is)
+import Data.Profunctor.Optic.Affine (affineVl, iaffineVl, is)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View
 import qualified Control.Exception as Ex
@@ -69,104 +65,84 @@ import qualified Control.Exception as Ex
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> :load Data.Profunctor.Optic
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
+-- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
--- 'Fold0' & 'Ixfold0'
+-- 'Option' & 'Ixoption'
 ---------------------------------------------------------------------
 
-type AFold0 r s a = Optic' (Fold0Rep r) s a
-
-type AIxfold0 r i s a = IndexedOptic' (Fold0Rep r) i s a
-
--- | Obtain a 'Fold0' directly.
+-- | Obtain a 'Option' directly.
 --
 -- @
--- 'fold0' . 'preview' ≡ id
--- 'fold0' ('view' o) ≡ o . 'just'
+-- 'option' . 'preview' ≡ id
+-- 'option' ('view' o) ≡ o . 'just'
 -- @
 --
--- >>> preview (fold0 . preview $ selected even) (2, "yes")
+-- >>> preview (option . preview $ selected even) (2, "yes")
 -- Just "yes"
 --
--- >>> preview (fold0 . preview $ selected even) (3, "no")
+-- >>> preview (option . preview $ selected even) (3, "no")
 -- Nothing
 --
--- >>> preview (fold0 listToMaybe) "foo"
+-- >>> preview (option listToMaybe) "foo"
 -- Just 'f'
 --
-fold0 :: (s -> Maybe a) -> Fold0 s a
-fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
-{-# INLINE fold0 #-}
+option :: (s -> Maybe a) -> Option s a
+option f = to (\s -> maybe (Left s) Right (f s)) . right'
+{-# INLINE option #-}
 
--- | Obtain an 'Ixfold0' directly.
+-- | Obtain an 'Ixoption' directly.
 --
-ifold0 :: (s -> Maybe (i, a)) -> Ixfold0 i s a
-ifold0 g = itraversal0Vl (\point f s -> maybe (point s) (uncurry f) $ g s) . coercer
-{-# INLINE ifold0 #-}
+ioption :: (s -> Maybe (i, a)) -> Ixoption i s a
+ioption g = iaffineVl (\point f s -> maybe (point s) (uncurry f) $ g s) . coercer
+{-# INLINE ioption #-}
 
 infixl 3 `failing` -- Same as (<|>)
 
--- | If the first 'Fold0' has no focus then try the second one.
+-- | If the first 'Option' has no focus then try the second one.
 --
-failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
-failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
+failing :: AOption a s a -> AOption a s a -> Option s a
+failing a b = option $ \s -> maybe (preview b s) Just (preview a s)
 {-# INLINE failing #-}
 
--- | Obtain a 'Fold0' from a 'View'.
+-- | Obtain a 'Option' from a 'View'.
 --
 -- @
--- 'toFold0' o ≡ o . 'just'
--- 'toFold0' o ≡ 'fold0' ('view' o)
+-- 'toOption' o ≡ o . 'just'
+-- 'toOption' o ≡ 'option' ('view' o)
 -- @
 --
-toFold0 :: View s (Maybe a) -> Fold0 s a
-toFold0 = (. just)
-{-# INLINE toFold0 #-}
+toOption :: View s (Maybe a) -> Option s a
+toOption = (. just)
+{-# INLINE toOption #-}
 
--- | Obtain a 'View' from a 'Fold0' 
+-- | Obtain a 'View' from a 'Option' 
 --
-fromFold0 ::  AFold0 a s a -> View s (Maybe a)
-fromFold0 = to . preview
-{-# INLINE fromFold0 #-}
+fromOption ::  AOption a s a -> View s (Maybe a)
+fromOption = to . preview
+{-# INLINE fromOption #-}
 
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
 
--- | The canonical 'Fold0'. 
+-- | The canonical 'Option'. 
 --
--- >>> [Just 1, Nothing] ^.. folded . folded0
+-- >>> [Just 1, Nothing] ^.. folded . optioned
 -- [1]
 --
-folded0 :: Fold0 (Maybe a) a
-folded0 = fold0 id
-{-# INLINE folded0 #-}
+optioned :: Option (Maybe a) a
+optioned = option id
+{-# INLINE optioned #-}
 
 -- | Filter another optic.
 --
 -- >>> [1..10] ^.. folded . filtered even
 -- [2,4,6,8,10]
 --
-filtered :: (a -> Bool) -> Fold0 a a
-filtered p = traversal0Vl (\point f a -> if p a then f a else point a) . coercer
+filtered :: (a -> Bool) -> Option a a
+filtered p = affineVl (\point f a -> if p a then f a else point a) . coercer
 {-# INLINE filtered #-}
-
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | TODO: Document
---
-withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-withFold0 o = runFold0Rep #. o .# Fold0Rep
-{-# INLINE withFold0 #-}
-
--- | TODO: Document
---
-withIxfold0 :: Monoid i => AIxfold0 r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
-withIxfold0 o f = flip curry mempty $ withFold0 o (uncurry f)
-{-# INLINE withIxfold0 #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -174,7 +150,7 @@ withIxfold0 o f = flip curry mempty $ withFold0 o (uncurry f)
 
 infixl 8 ^?
 
--- | An infixvariant of 'preview''.
+-- | An infix alias for 'preview''.
 --
 -- @
 -- ('^?') ≡ 'flip' 'preview''
@@ -192,19 +168,19 @@ infixl 8 ^?
 -- >>> Right 4 ^? left'
 -- Nothing
 --
-(^?) :: s -> AFold0 a s a -> Maybe a
+(^?) :: s -> AOption a s a -> Maybe a
 (^?) = flip preview
 {-# INLINE (^?) #-}
 
 -- | TODO: Document
 --
-preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
-preview o = Reader.asks $ withFold0 o Just
+preview :: MonadReader s m => AOption a s a -> m (Maybe a)
+preview o = Reader.asks $ withOption o Just
 {-# INLINE preview #-}
 
 -- | TODO: Document
 --
-preuse :: MonadState s m => AFold0 a s a -> m (Maybe a)
+preuse :: MonadState s m => AOption a s a -> m (Maybe a)
 preuse o = State.gets $ preview o
 {-# INLINE preuse #-}
 
@@ -214,14 +190,14 @@ preuse o = State.gets $ preview o
 
 -- | TODO: Document 
 --
-ipreview :: Monoid i => AIxfold0 (i , a) i s a -> s -> Maybe (i , a)
+ipreview :: Monoid i => AIxoption (i , a) i s a -> s -> Maybe (i , a)
 ipreview o = ipreviews o (,)
 {-# INLINE ipreview #-}
 
 -- | TODO: Document 
 --
-ipreviews :: Monoid i => AIxfold0 r i s a -> (i -> a -> r) -> s -> Maybe r
-ipreviews o f = withIxfold0 o (\i -> Just . f i)
+ipreviews :: Monoid i => AIxoption r i s a -> (i -> a -> r) -> s -> Maybe r
+ipreviews o f = withIxoption o (\i -> Just . f i)
 {-# INLINE ipreviews #-}
 
 ------------------------------------------------------------------------------
@@ -234,18 +210,18 @@ ipreviews o f = withIxfold0 o (\i -> Just . f i)
 -- synchronously in order to preserve async behavior,
 -- 
 -- @
--- 'tries' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> m ('Either' e a)
+-- 'tries' :: 'MonadUnliftIO' m => 'AOption' e 'Ex.SomeException' e -> m a -> m ('Either' e a)
 -- 'tries' 'exception' :: 'MonadUnliftIO' m => 'Exception' e => m a -> m ('Either' e a)
 -- @
 --
-tries :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Either e a)
+tries :: MonadUnliftIO m => Exception ex => AOption e ex e -> m a -> m (Either e a)
 tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
   if is async e then throwM e else run $ maybe (throwM e) (return . Left) (preview o e)
 {-# INLINE tries #-}
 
 -- | A variant of 'tries' that returns synchronous exceptions.
 --
-tries_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Maybe a)
+tries_ :: MonadUnliftIO m => Exception ex => AOption e ex e -> m a -> m (Maybe a)
 tries_ o a = preview right' `liftM` tries o a
 {-# INLINE tries_ #-}
 
@@ -254,14 +230,14 @@ tries_ o a = preview right' `liftM` tries o a
 -- Rethrows async exceptions synchronously in order to preserve async behavior.
 --
 -- @
--- 'catches' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> (e -> m a) -> m a
+-- 'catches' :: 'MonadUnliftIO' m => 'AOption' e 'Ex.SomeException' e -> m a -> (e -> m a) -> m a
 -- 'catches' 'exception' :: 'MonadUnliftIO' m => Exception e => m a -> (e -> m a) -> m a
 -- @
 --
 -- >>> catches (only Overflow) (throwIO Overflow) (\_ -> return "caught")
 -- "caught"
 --
-catches :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> (e -> m a) -> m a
+catches :: MonadUnliftIO m => Exception ex => AOption e ex e -> m a -> (e -> m a) -> m a
 catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
   if is async e then throwM e else run $ maybe (throwM e) ea (preview o e)
 {-# INLINE catches #-}
@@ -271,7 +247,7 @@ catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
 -- >>> catches_ (only Overflow) (throwIO Overflow) (return "caught")
 -- "caught"
 --
-catches_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+catches_ :: MonadUnliftIO m => Exception ex => AOption e ex e -> m a -> m a -> m a
 catches_ o x y = catches o x $ const y
 {-# INLINE catches_ #-}
 
@@ -280,7 +256,7 @@ catches_ o x y = catches o x $ const y
 -- >>> handles (only Overflow) (\_ -> return "caught") $ throwIO Overflow
 -- "caught"
 --
-handles :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> (e -> m a) -> m a -> m a
+handles :: MonadUnliftIO m => Exception ex => AOption e ex e -> (e -> m a) -> m a -> m a
 handles o = flip $ catches o
 {-# INLINE handles #-}
 
@@ -289,54 +265,10 @@ handles o = flip $ catches o
 -- >>> handles_ (only Overflow) (return "caught") $ throwIO Overflow
 -- "caught"
 --
-handles_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+handles_ :: MonadUnliftIO m => Exception ex => AOption e ex e -> m a -> m a -> m a
 handles_ o = flip $ catches_ o
 {-# INLINE handles_ #-}
 
 throwM :: MonadIO m => Exception e => e -> m a
 throwM = liftIO . Ex.throwIO
 {-# INLINE throwM #-}
-
----------------------------------------------------------------------
--- Carriers
----------------------------------------------------------------------
-
-newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
-
---todo coerce
-instance Functor (Fold0Rep r a) where
-  fmap _ (Fold0Rep p) = Fold0Rep p
-
-instance Contravariant (Fold0Rep r a) where
-  contramap _ (Fold0Rep p) = Fold0Rep p
-
-instance Profunctor (Fold0Rep r) where
-  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
-
-instance Choice (Fold0Rep r) where
-  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
-  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
-
-instance Cochoice (Fold0Rep r) where
-  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
-  unright (Fold0Rep k) = Fold0Rep (k . Right)
-
-instance Strong (Fold0Rep r) where
-  first' (Fold0Rep p) = Fold0Rep (p . fst)
-  second' (Fold0Rep p) = Fold0Rep (p . snd)
-
-instance Sieve (Fold0Rep r) (Pre r) where
-  sieve = (Pre .) . runFold0Rep
-
-instance Representable (Fold0Rep r) where
-  type Rep (Fold0Rep r) = Pre r
-  tabulate = Fold0Rep . (getPre .)
-  {-# INLINE tabulate #-}
-
--- | 'Pre' is 'Maybe' with a phantom type variable.
---
-newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
-
-instance Functor (Pre a) where fmap _ (Pre p) = Pre p
-
-instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p

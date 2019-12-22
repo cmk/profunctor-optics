@@ -92,6 +92,7 @@ import Data.Foldable (Foldable, foldMap, traverse_)
 import Data.Function
 import Data.Maybe
 import Data.Monoid hiding (All(..), Any(..))
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.View
@@ -99,9 +100,9 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Fold0
+import Data.Profunctor.Optic.Option
 import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Traversal0
+import Data.Profunctor.Optic.Affine
 import Data.Prd (Prd, Minimal(..), Maximal(..))
 import Data.Prd.Lattice (Lattice(..))
 import Data.Semiring (Semiring(..), Prod(..))

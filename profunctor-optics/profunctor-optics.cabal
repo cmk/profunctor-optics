@@ -6,13 +6,13 @@ synopsis:       An optics library compatible with the typeclasses in 'profunctor
 description:  
   This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
   .
-  Full complement of isos, prisms, lenses, grates, traversals (affine, regular, and non-empty), folds (affine, regular, and non-empty), views, and setters. Many of these have categorical duals.
+  Full complement of isos, prisms, lenses, grates, affines, traversals, cotraversals, views, setters, folds, and more.
   .
-  Composable indexed and co-indexed variants of all of the above.
+  Composable indexed or co-indexed variants of most of the above.
   .
   Compact & straight-forward implementation. No inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery.
   .
-  Fully interoperable. All that is required to create optics (standard, idexable, or co-indexable) is the `profunctors` package, which is heavily used and seems likely to end up in `base` at some point. Optics compose with (.) from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  Fully interoperable. All that is required to create optics (standard, indexable, or co-indexable) is the `profunctors` package. Optics compose with (.) from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
   .
   Well-documented properties and exportable predicates for testing your own optics.
   .
@@ -49,22 +49,24 @@ library
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
-      Data.Profunctor.Optic.Iso
-      Data.Profunctor.Optic.View
-      Data.Profunctor.Optic.Setter
-      Data.Profunctor.Optic.Lens
-      Data.Profunctor.Optic.Prism
-      Data.Profunctor.Optic.Grate
-      Data.Profunctor.Optic.Fold
-      Data.Profunctor.Optic.Fold0
-      Data.Profunctor.Optic.Fold1
-      Data.Profunctor.Optic.Traversal
-      Data.Profunctor.Optic.Traversal0
-      Data.Profunctor.Optic.Traversal1
       Data.Profunctor.Optic.Property
+      Data.Profunctor.Optic.Carrier
+      Data.Profunctor.Optic.Operator
       Data.Profunctor.Optic.Index
+
+      Data.Profunctor.Optic.Iso
+      Data.Profunctor.Optic.Prism
+      Data.Profunctor.Optic.Lens
+      Data.Profunctor.Optic.Grate
+      Data.Profunctor.Optic.Affine
+      Data.Profunctor.Optic.Option
+      Data.Profunctor.Optic.Traversal
+      Data.Profunctor.Optic.Fold
+      Data.Profunctor.Optic.Cotraversal
+      Data.Profunctor.Optic.Setter
+      Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Zoom
-      
+
       Data.Profunctor.Optic.Prelude
 
   other-modules: Data.Profunctor.Optic.Import
@@ -104,7 +106,6 @@ library
     , tagged            >= 0.4.4    && < 1
     , transformers      >= 0.5.6.0  && < 0.6
     , unliftio-core     >= 0.1.2    && < 0.2
-    , writer-cps-mtl    >= 0.1.1.6  && < 0.2
     , adjunctions       >= 4.4      && < 5.0
 
 test-suite test

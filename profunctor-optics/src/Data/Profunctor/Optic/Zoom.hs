@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts       #-}
+{-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE QuantifiedConstraints  #-}
 {-# LANGUAGE RankNTypes             #-}
 {-# LANGUAGE MultiParamTypeClasses  #-}
@@ -9,34 +10,26 @@
 {-# LANGUAGE UndecidableInstances   #-}
 module Data.Profunctor.Optic.Zoom where
 
-import Control.Monad.RWS.CPS () -- orphan mtl instances
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Trans.State.Lazy as Lazy
 import Control.Monad.Trans.State.Strict as Strict
-import Control.Monad.Trans.Writer.Lazy as Lazy
-import Control.Monad.Trans.Writer.Strict as Strict
 import Control.Monad.Trans.RWS.Lazy as Lazy
 import Control.Monad.Trans.RWS.Strict as Strict
-import Control.Monad.Trans.RWS.CPS as CPS
 import Control.Monad.Trans.Identity
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Unsafe
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
+-- >>> :set -XFlexibleInstances
 -- >>> :set -XRankNTypes
 -- >>> import Control.Monad.State
 -- >>> :load Data.Profunctor.Optic
 
 infixr 2 `zoom`
-
-------------------------------------------------------------------------------
--- Zoomed
-------------------------------------------------------------------------------
 
 type family Zoomed (m :: * -> *) :: * -> * -> *
 
@@ -44,7 +37,6 @@ type instance Zoomed (IdentityT m)         = Zoomed m
 type instance Zoomed (ReaderT e m)         = Zoomed m
 type instance Zoomed (Strict.StateT s z)   = StateTRep z
 type instance Zoomed (Lazy.StateT s z)     = StateTRep z
-type instance Zoomed (CPS.RWST r w s z)    = RWSTRep w z
 type instance Zoomed (Strict.RWST r w s z) = RWSTRep w z
 type instance Zoomed (Lazy.RWST r w s z)   = RWSTRep w z
 
@@ -88,10 +80,6 @@ instance Monad z => Zoom (Strict.StateT s z) (Strict.StateT t z) s t where
 
 instance Monad z => Zoom (Lazy.StateT s z) (Lazy.StateT t z) s t where
   zoom o m = Lazy.StateT $ unStateTRep #. (runStar #. o .# Star) (StateTRep #. (Lazy.runStateT m))
-  {-# INLINE zoom #-}
-
-instance (Monoid w, Monad z) => Zoom (CPS.RWST r w s z) (CPS.RWST r w t z) s t where
-  zoom o m = CPS.rwsT $ \r -> unRWSTRep #. (runStar #. o .# Star) (RWSTRep #. (CPS.runRWST m r))
   {-# INLINE zoom #-}
 
 instance (Monoid w, Monad z) => Zoom (Strict.RWST r w s z) (Strict.RWST r w t z) s t where

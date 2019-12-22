@@ -17,60 +17,51 @@ module Data.Profunctor.Optic.Traversal (
   , itraversalVl
   , noix
   , ix
-    -- * Cotraversal & Cxtraversal
-  , Cotraversal
-  , Cotraversal'
-  , retraversing
-  , cotraversing
-  , cotraversalVl
-  , retraversing
+    -- * Traversal1
+  , Traversal1
+  , Traversal1'
+  , Ixtraversal1
+  , Ixtraversal1'
+  , traversing1
+  , traversal1Vl
+  , itraversal1Vl
     -- * Optics
   , traversed
+  , traversed1
   , itraversedRep
   , both
+  , both1
   , duplicated
+  , beside
   , bitraversed
-  , cotraversed
-    -- * Primitive operators
-  , withTraversal
-  , withCotraversal
+  , bitraversed1
+  , repeated 
+  , iterated
+  , cycled
     -- * Operators
+  , withTraversal
+  , withTraversal1
+    -- * Operators
+  , (*~)
+  , (**~)
   , sequences
-  , distributes 
-    -- * Carriers
-  , ATraversal
-  , ATraversal'
-  , ACotraversal
-  , ACotraversal'
+  , sequences1
 ) where
 
 import Control.Category
 import Control.Arrow
 import Data.Bitraversable
 import Data.List.NonEmpty as NonEmpty
-import Data.Profunctor.Optic.Grate
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Import hiding (id,(.))
 import Data.Profunctor.Optic.Types
-import Data.Semigroupoid
+import Data.Profunctor.Optic.Operator
+import Data.Semigroup.Bitraversable
 import Data.Semiring
 import Control.Monad.Trans.State
 import Prelude (Foldable(..), reverse)
 import qualified Data.Functor.Rep as F
-
-import Control.Applicative
-import Control.Comonad
-import Control.Monad.Reader.Class
-import Control.Monad.Fix
-import Control.Monad.Zip
-import Data.Distributive
-import Data.Foldable
-import Data.Profunctor.Closed
-import Data.Profunctor
-import Data.Profunctor.Sieve
-import Data.Profunctor.Rep as Profunctor
-import Data.Profunctor.Unsafe
-import Unsafe.Coerce
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -87,14 +78,6 @@ import Unsafe.Coerce
 -- >>> :load Data.Profunctor.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
-
-type ATraversal f s t a b = Applicative f => ARepn f s t a b
-
-type ATraversal' f s a = ATraversal f s s a a
-
-type ACotraversal f s t a b = Coapplicative f => ACorepn f s t a b
-
-type ACotraversal' f s a = ACotraversal f s s a a
 
 ---------------------------------------------------------------------
 -- 'Traversal' & 'Ixtraversal'
@@ -210,48 +193,62 @@ ix o = itraversalVl $ \f s ->
     Compose $ (f <$> get <*> pure a) <* modify (<> sunit) 
 
 ---------------------------------------------------------------------
--- 'Cotraversal' & 'Cxtraversal'
+-- 'Traversal1'
 ---------------------------------------------------------------------
 
--- | Obtain a 'Cotraversal' by embedding a continuation into a 'Distributive' functor. 
+-- | Obtain a 'Traversal' by lifting a lens getter and setter into a 'Traversable' functor.
 --
 -- @
---  'withGrate' o 'cotraversing' ≡ 'cotraversed' . o
+--  'withLens' o 'traversing' ≡ 'traversed' . o
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input function satisfies the following
--- properties:
+-- you must ensure that the input functions constitute a legal lens:
 --
--- * @sabt ($ s) ≡ s@
+-- * @sa (sbt s a) ≡ a@
 --
--- * @sabt (\k -> f (k . sabt)) ≡ sabt (\k -> f ($ k))@
+-- * @sbt s (sa s) ≡ s@
 --
-cotraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal (g s) (g t) a b
-cotraversing sabt = corepn cotraverse . grate sabt
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+-- The resulting optic can detect copies of the lens stucture inside
+-- any 'Traversable' container. For example:
+--
+-- >>> lists (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
+-- "foobar"
+--
+-- Compare 'Data.Profunctor.Optic.Fold.folding'.
+--
+traversing1 :: Traversable1 f => (s -> a) -> (s -> b -> t) -> Traversal1 (f s) (f t) a b
+traversing1 sa sbt = repn traverse1 . lens sa sbt
 
--- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
+-- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
+--
+-- /Caution/: In order for the generated family to be well-defined,
+-- you must ensure that the traversal1 law holds for the input function:
+--
+-- * @fmap (abst f) . abst g ≡ getCompose . abst (Compose . fmap f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+traversal1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Traversal1 s t a b
+traversal1Vl abst = tabulate . abst . sieve 
+
+-- | Lift an indexed VL traversal into an indexed profunctor traversal.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
 --
--- * @abst runIdentity ≡ runIdentity@
+-- * @iabst (const pure) ≡ pure@
 --
--- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose@
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-cotraversalVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversalVl abst = cotabulate . abst . cosieve 
-
--- | Obtain a 'Cotraversal' by embedding a reversed lens getter and setter into a 'Distributive' functor.
---
--- @
---  'withLens' ('re' o) 'cotraversing' ≡ 'cotraversed' . o
--- @
---
-retraversing :: Distributive g => (b -> t) -> (b -> s -> a) -> Cotraversal (g s) (g t) a b
-retraversing bsa bt = corepn cotraverse . (re $ lens bsa bt)
+itraversal1Vl :: (forall f. Apply f => (i -> a -> f b) -> s -> f t) -> Ixtraversal1 i s t a b
+itraversal1Vl f = traversal1Vl $ \iab -> f (curry iab) . snd
 
 ---------------------------------------------------------------------
 -- Optics
@@ -261,6 +258,12 @@ retraversing bsa bt = corepn cotraverse . (re $ lens bsa bt)
 --
 traversed :: Traversable f => Traversal (f a) (f b) a b
 traversed = traversalVl traverse
+
+-- | Obtain a 'Traversal1' from a 'Traversable1' functor.
+--
+traversed1 :: Traversable1 t => Traversal1 (t a) (t b) a b
+traversed1 = traversal1Vl traverse1
+{-# INLINE traversed1 #-}
 
 -- | TODO: Document
 --
@@ -275,6 +278,15 @@ itraversedRep = itraversalVl F.itraverseRep
 both :: Traversal (a , a) (b , b) a b
 both p = p **** p
 
+-- | TODO: Document
+--
+-- >>> withTraversal1 both1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
+-- (5,5)
+--
+both1 :: Traversal1 (a , a) (b , b) a b
+both1 p = tabulate $ \s -> liftF2 ($) (flip sieve s $ dimap fst (,) p) (flip sieve s $ lmap snd p)
+{-# INLINE both1 #-}
+
 -- | Duplicate the results of any 'Moore'. 
 --
 -- >>> lists (both . duplicated) ("hello","world")
@@ -282,6 +294,12 @@ both p = p **** p
 --
 duplicated :: Traversal a b a b
 duplicated p = pappend p p
+
+-- | TODO: Document
+--
+beside :: Bitraversable r => Traversal s1 t1 a b -> Traversal s2 t2 a b -> Traversal (r s1 s2) (r t1 t2) a b
+beside x y p = tabulate go where go rss = bitraverse (sieve $ x p) (sieve $ y p) rss
+    --go :: r s s' -> Rep p (r t t')
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -303,11 +321,61 @@ bitraversed :: Bitraversable f => Traversal (f a a) (f b b) a b
 bitraversed = repn $ \f -> bitraverse f f
 {-# INLINE bitraversed #-}
 
--- | TODO: Document
+-- | Traverse both parts of a 'Bitraversable1' container with matching types.
 --
-cotraversed :: Distributive f => Cotraversal (f a) (f b) a b 
-cotraversed = cotraversalVl cotraverse
-{-# INLINE cotraversed #-}
+-- >>> withTraversal1 bitraversed1 (pure . NE.length) ('h' :| "ello", 'w' :| "orld")
+-- (5,5)
+--
+bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
+bitraversed1 = repn $ \f -> bitraverse1 f f
+{-# INLINE bitraversed1 #-}
+
+-- | Obtain a 'Traversal1'' by repeating the input forever.
+--
+-- @
+-- 'repeat' ≡ 'lists' 'repeated'
+-- @
+--
+-- >>> take 5 $ 5 ^.. repeated
+-- [5,5,5,5,5]
+--
+-- @
+-- repeated :: Fold1 a a
+-- @
+--
+repeated :: Traversal1' a a
+repeated = repn $ \g a -> go g a where go g a = g a .> go g a
+{-# INLINE repeated #-}
+
+-- | @x '^.' 'iterated' f@ returns an infinite 'Traversal1'' of repeated applications of @f@ to @x@.
+--
+-- @
+-- 'lists' ('iterated' f) a ≡ 'iterate' f a
+-- @
+--
+-- >>> take 3 $ (1 :: Int) ^.. iterated (+1)
+-- [1,2,3]
+--
+-- @
+-- iterated :: (a -> a) -> 'Fold1' a a
+-- @
+--
+iterated :: (a -> a) -> Traversal1' a a
+iterated f = repn $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
+{-# INLINE iterated #-}
+
+-- | Transform a 'Traversal1'' into a 'Traversal1'' that loops over its elements repeatedly.
+--
+-- >>> take 7 $ (1 :| [2,3]) ^.. cycled traversed1
+-- [1,2,3,1,2,3,1]
+--
+-- @
+-- cycled :: 'Fold1' s a -> 'Fold1' s a
+-- @
+--
+cycled :: Apply f => ATraversal1' f s a -> ATraversal1' f s a
+cycled o = repn $ \g a -> go g a where go g a = (withTraversal1 o g) a .> go g a
+{-# INLINE cycled #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -317,29 +385,30 @@ cotraversed = cotraversalVl cotraverse
 --
 -- The traversal laws can be stated in terms of 'withTraversal':
 -- 
--- * @withTraversal t (pure . f) ≡  pure (fmap f)@
+-- * @withTraversal t (Identity . f) ≡ Identity (fmap f)@
 --
 -- * @Compose . fmap (withTraversal t f) . withTraversal t g ≡ withTraversal t (Compose . fmap f . g)@
 --
 withTraversal :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
-withTraversal o = runStar #. o .# Star
+withTraversal = withStar
+{-# INLINE withTraversal #-}
 
 -- |
 --
+-- The traversal laws can be stated in terms of 'withTraversal1':
+-- 
+-- * @withTraversal1 t (Identity . f) ≡  Identity (fmap f)@
+--
+-- * @Compose . fmap (withTraversal1 t f) . withTraversal1 t g ≡ withTraversal1 t (Compose . fmap f . g)@
+--
 -- @
--- 'withCotraversal' $ 'Data.Profuncto.Optic.Grate.grate' (flip 'Data.Distributive.cotraverse' id) ≡ 'Data.Distributive.cotraverse'
+-- withTraversal1 :: Functor f => Lens s t a b -> (a -> f b) -> s -> f t
+-- withTraversal1 :: Apply f => Traversal1 s t a b -> (a -> f b) -> s -> f t
 -- @
 --
--- The cotraversal laws can be restated in terms of 'withCotraversal':
---
--- * @withCotraversal o (f . runIdentity) ≡  fmap f . runIdentity@
---
--- * @withCotraversal o f . fmap (withCotraversal o g) == withCotraversal o (f . fmap g . getCompose) . Compose@
---
--- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
---
-withCotraversal :: Coapplicative f => ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
-withCotraversal o = runCokleisli #. o .# Cokleisli
+withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
+withTraversal1 = withStar
+{-# INLINE withTraversal1 #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -353,12 +422,6 @@ sequences o = withTraversal o id
 
 -- | TODO: Document
 --
--- >>> distributes left' (1, Left "foo")
--- Left (1,"foo")
---
--- >>> distributes left' (1, Right "foo")
--- Right "foo"
---
-distributes :: Coapplicative f => ACotraversal f s t a (f a) -> f s -> t
-distributes o = withCotraversal o id
-{-# INLINE distributes #-}
+sequences1 :: Apply f => ATraversal1 f s t (f a) a -> s -> f t
+sequences1 o = withTraversal1 o id
+{-# INLINE sequences1 #-}

@@ -17,7 +17,6 @@ module Data.Profunctor.Optic.Lens (
   , ilensVl
   , matching
   , cloneLens
-  , colens
     -- * Optics
   , united
   , voided
@@ -31,19 +30,12 @@ module Data.Profunctor.Optic.Lens (
     -- * Operators
   , toPastro
   , toTambara
-    -- * Carriers
-  , ALens
-  , ALens'
-  , AIxlens
-  , AIxlens'
-  , LensRep(..)
-  , IxlensRep(..)
     -- * Classes
   , Strong(..)
-  , Costrong(..)
 ) where
 
 import Data.Profunctor.Strong
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
@@ -156,41 +148,9 @@ matching sca cbt = dimap sca cbt . second'
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens o = withLens o lens 
 
--- | Obtain a 'Colens' from a getter and setter. 
---
--- @
--- 'colens' f g ≡ \\f g -> 're' ('lens' f g)
--- 'colens' bsia bt ≡ 'colensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
--- 'review' $ 'colens' f g ≡ f
--- 'set' . 're' $ 're' ('lens' f g) ≡ g
--- @
---
--- /Caution/: Colenses are recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
--- In addition to the normal optic laws, the input functions must have 
--- the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
---
--- For example, this is a perfectly valid 'Colens':
---
--- @
--- ct21 :: Colens a b (a, c) (b, c)
--- ct21 = flip colens fst $ \ ~(_,c) b -> (b,c)
--- @
---
--- However removing the annotation will result in a faulty optic.
--- 
--- See 'Data.Profunctor.Optic.Property'.
---
---colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
-
 ---------------------------------------------------------------------
 -- Primitive operators
 ---------------------------------------------------------------------
-
--- | Extract the two functions that characterize a 'Lens'.
---
-withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
-withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
 -- | Extract the higher order function that characterizes a 'Lens'.
 --
@@ -217,6 +177,26 @@ withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 -- Optics 
 ---------------------------------------------------------------------
 
+-- | There is a '()' in everything.
+--
+-- >>> "hello" ^. united
+-- ()
+-- >>> "hello" & united .~ ()
+-- "hello"
+--
+united :: Lens' a ()
+united = lens (const ()) const
+
+-- | There is everything in a 'Void'.
+--
+-- >>> [] & fmapped . voided <>~ "Void" 
+-- []
+-- >>> Nothing & fmapped . voided ..~ abs
+-- Nothing
+--
+voided :: Lens' Void a
+voided = lens absurd const
+
 -- | TODO: Document
 --
 -- >>> ilists (ix @Int traversed . ix first' . ix traversed) [("foo",1), ("bar",2)]
@@ -239,26 +219,6 @@ ifirst = lmap assocl . first'
 isecond :: Ixlens i (c , a) (c , b) a b
 isecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
--- | There is a '()' in everything.
---
--- >>> "hello" ^. united
--- ()
--- >>> "hello" & united .~ ()
--- "hello"
---
-united :: Lens' a ()
-united = lens (const ()) const
-
--- | There is everything in a 'Void'.
---
--- >>> [] & fmapped . voided <>~ "Void" 
--- []
--- >>> Nothing & fmapped . voided ..~ abs
--- Nothing
---
-voided :: Lens' Void a
-voided = lens absurd const
-
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -272,58 +232,3 @@ toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa 
 --
 toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
 toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
-
----------------------------------------------------------------------
--- LensRep
----------------------------------------------------------------------
-
--- | The `LensRep` profunctor precisely characterizes a 'Lens'.
---
-data LensRep a b s t = LensRep (s -> a) (s -> b -> t)
-
-type ALens s t a b = Optic (LensRep a b) s t a b
-
-type ALens' s a = ALens s s a a
-
-instance Profunctor (LensRep a b) where
-  dimap f g (LensRep sa sbt) = LensRep (sa . f) (\s -> g . sbt (f s))
-
-instance Strong (LensRep a b) where
-  first' (LensRep sa sbt) =
-    LensRep (\(a, _) -> sa a) (\(s, c) b -> (sbt s b, c))
-
-  second' (LensRep sa sbt) =
-    LensRep (\(_, a) -> sa a) (\(c, s) b -> (c, sbt s b))
-
-instance Sieve (LensRep a b) (Index a b) where
-  sieve (LensRep sa sbt) s = Index (sa s) (sbt s)
-
-instance Representable (LensRep a b) where
-  type Rep (LensRep a b) = Index a b
-
-  tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
-
----------------------------------------------------------------------
--- IxlensRep
----------------------------------------------------------------------
-
-data IxlensRep i a b s t = IxlensRep (s -> (i , a)) (s -> b -> t)
-
-type AIxlens i s t a b = IndexedOptic (IxlensRep i a b) i s t a b
-
-type AIxlens' i s a = AIxlens i s s a a
-
-instance Profunctor (IxlensRep i a b) where
-  dimap f g (IxlensRep sia sbt) = IxlensRep (sia . f) (\s -> g . sbt (f s))
-
-instance Strong (IxlensRep i a b) where
-  first' (IxlensRep sia sbt) =
-    IxlensRep (\(a, _) -> sia a) (\(s, c) b -> (sbt s b, c))
-
-  second' (IxlensRep sia sbt) =
-    IxlensRep (\(_, a) -> sia a) (\(c, s) b -> (c, sbt s b))
-
--- | Extract the two functions that characterize a 'Lens'.
---
-withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
-withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)

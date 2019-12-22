@@ -7,8 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeApplications      #-}
 {-# LANGUAGE DeriveGeneric         #-}
-module Data.Profunctor.Optic.Index where
-{- ( 
+module Data.Profunctor.Optic.Index ( 
     -- * Indexing
     (%)
   , iinit
@@ -40,11 +39,12 @@ module Data.Profunctor.Optic.Index where
   , noindex
   , coindex
   , (.#.)
+    -- * Coindex
+  , Conjoin(..)
 ) where
--}
 
 import Control.Arrow as Arrow
-import Control.Category
+import Control.Category (Category)
 import Control.Comonad
 import Control.Monad
 import Control.Monad.Fix
@@ -55,10 +55,12 @@ import Data.Profunctor.Sieve
 import Data.Bifunctor as B
 import Data.Foldable
 import Data.Semigroup
-import Data.Profunctor.Optic.Import hiding ((.),id)
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import GHC.Generics (Generic)
+
+import qualified Control.Category as C
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings

@@ -13,7 +13,6 @@ module Data.Profunctor.Optic.Grate  (
   , Cxgrate'
     -- * Constructors
   , grate
-  , kgrate
   , grateVl
   , kgrateVl
   , inverting
@@ -37,16 +36,14 @@ module Data.Profunctor.Optic.Grate  (
     -- * Operators
   , coview
   , zipsWith
+  , kzipsWith
   , zipsWith3
   , zipsWith4 
   , toClosure
   , toEnvironment
-    -- * Carriers
-  , AGrate
-  , AGrate'
-  , GrateRep(..)
     -- * Classes
   , Closed(..)
+  , Costrong(..)
 ) where
 
 import Control.Monad.Reader
@@ -56,11 +53,13 @@ import Data.Distributive
 import Data.Connection (Conn(..))
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Iso (tabulated)
-import Data.Profunctor.Rep (unfirstCorep)
+
+import qualified Data.Functor.Rep as F
 
 import qualified Data.Functor.Rep as F
 
@@ -72,6 +71,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Connection.Int
+-- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
 -- >>> :load Data.Profunctor.Optic
 
@@ -115,11 +115,6 @@ import qualified Data.Functor.Rep as F
 --
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
 grate sabt = dimap (flip ($)) sabt . closed
-
--- | TODO: Document
---
-kgrate :: (((s -> a) -> k -> b) -> t) -> Cxgrate k s t a b
-kgrate f = grate $ \sakb _ -> f sakb
 
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
@@ -264,12 +259,6 @@ ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
 -- Primitive operators
 ---------------------------------------------------------------------
 
--- | Extract the function that characterizes a 'Grate'.
---
-withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
-withGrate o sabtr = case o (GrateRep $ \f -> f id) of GrateRep sabt -> sabtr sabt
-{-# INLINE withGrate #-}
-
 -- | Extract the higher order function that characterizes a 'Grate'.
 --
 -- The grate laws can be stated in terms or 'withGrate':
@@ -310,6 +299,10 @@ zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipsWith o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
 {-# INLINE zipsWith #-}
 
+kzipsWith :: Monoid k => ACxgrate k s t a b -> (k -> a -> a -> b) -> s -> s -> t
+kzipsWith o kaab s1 s2 = withCxgrate o $ \sakbt -> sakbt $ \sa k -> kaab k (sa s1) (sa s2)
+{-# INLINE kzipsWith #-}
+
 -- | Zip over a 'Grate' with 3 arguments.
 --
 zipsWith3 :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
@@ -333,32 +326,3 @@ toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
 toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
 toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
 {-# INLINE toEnvironment #-}
-
----------------------------------------------------------------------
--- Carriers
----------------------------------------------------------------------
-
--- | The 'GrateRep' profunctor precisely characterizes 'Grate'.
---
-newtype GrateRep a b s t = GrateRep { unGrateRep :: ((s -> a) -> b) -> t }
-
-type AGrate s t a b = Optic (GrateRep a b) s t a b
-
-type AGrate' s a = AGrate s s a a
-
-instance Profunctor (GrateRep a b) where
-  dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (GrateRep a b) where
-  closed (GrateRep sabt) = GrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
-
-instance Costrong (GrateRep a b) where
-  unfirst = unfirstCorep
-
-instance Cosieve (GrateRep a b) (Coindex a b) where
-  cosieve (GrateRep f) (Coindex g) = f g
-
-instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Coindex a b
-
-  cotabulate f = GrateRep $ f . Coindex

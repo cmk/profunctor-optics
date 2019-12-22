@@ -51,13 +51,6 @@ module Data.Profunctor.Optic.View (
   , throws
   , throws_
   , throwsTo
-    -- * Carriers
-  , AView
-  , AIxview
-  , APrimView
-  , AReview
-  , ACxview
-  , APrimReview
 ) where
 
 import Control.Exception (Exception)
@@ -65,7 +58,9 @@ import Control.Monad.IO.Class
 import Control.Monad.Reader as Reader
 import Control.Monad.Writer as Writer hiding (Sum(..))
 import Control.Monad.State as State
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Import
 import GHC.Conc (ThreadId)
 import qualified Control.Exception as Ex
@@ -84,19 +79,7 @@ import qualified Data.Bifunctor as B
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
 -- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixtraversal0' Int [a] a; iat i = itraversal0' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
-
-type APrimView r s t a b = Optic (Star (Const r)) s t a b
-
-type AView s a = Optic' (Star (Const a)) s a
-
-type AIxview i s a = IndexedOptic' (Star (Const (Maybe i , a))) i s a
-
-type APrimReview s t a b = Optic Tagged s t a b
-
-type AReview t b = Optic' Tagged t b
-
-type ACxview k t b = CoindexedOptic' Tagged k t b
+-- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -241,68 +224,10 @@ fromSum l r = from (review l ||| review r)
 {-# INLINE fromSum #-}
 
 ---------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
--- | TODO: Document
---
-withPrimView :: APrimView r s t a b -> (a -> r) -> s -> r
-withPrimView o = (getConst #.) #. runStar #. o .# Star .# (Const #.)
-{-# INLINE withPrimView #-}
-
--- | TODO: Document
---
-withPrimReview :: APrimReview s t a b -> (t -> r) -> b -> r
-withPrimReview o f = f . unTagged #. o .# Tagged
-{-# INLINE withPrimReview #-}
-
----------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
-infixl 8 ^.
-
--- | An infixalias for 'view'. Dual to '#'.
---
--- Fixity and semantics are such that subsequent field accesses can be
--- performed with ('Prelude..').
---
--- >>> ("hello","world") ^. second'
--- "world"
---
--- >>> import Data.Complex
--- >>> ((0, 1 :+ 2), 3) ^. first' . second' . to magnitude
--- 2.23606797749979
---
--- @
--- ('^.') ::             s -> 'View' s a       -> a
--- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Fold.Fold' s m       -> m
--- ('^.') ::             s -> 'Data.Profunctor.Optic.Iso.Iso'' s a       -> a
--- ('^.') ::             s -> 'Data.Profunctor.Optic.Lens.Lens'' s a      -> a
--- ('^.') ::             s -> 'Data.Profunctor.Optic.Prism.Coprism'' s a   -> a
--- ('^.') :: 'Data.Monoid.Monoid' m => s -> 'Data.Profunctor.Optic.Traversal.Traversal'' s m -> m
--- @
---
-(^.) :: s -> AView s a -> a
-(^.) = flip view
-{-# INLINE ( ^. ) #-}
-
-infixl 8 ^%
-
--- | Bring the index and value of a indexed optic into the current environment as a pair.
---
--- This a flipped, infix variant of 'iview' and an indexed variant of '^.'.
---
--- The fiity and semantics are such that subsequent field accesses can be
--- performed with ('Prelude..').
---
--- The result probably doesn't have much meaning when applied to an 'Ixfold'.
---
-(^%) ::  Monoid i => s -> AIxview i s a -> (Maybe i , a)
-(^%) = flip iview 
-{-# INLINE (^%) #-}
-
--- | View the focus of an optic.
+-- | A prefix alias for '^.'.
 --
 -- @
 -- 'view' '.' 'to' ≡ 'id'
@@ -321,7 +246,7 @@ view :: MonadReader s m => AView s a -> m a
 view o = views o id
 {-# INLINE view #-}
 
--- | Bring the index and value of a indexed optic into the current environment as a pair.
+-- | A prefix alias for '^%'.
 --
 -- >>> iview ifirst ("foo", 42)
 -- (Just (),"foo")
@@ -329,7 +254,7 @@ view o = views o id
 -- >>> iview (iat 3 . ifirst) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r') :: (Int, Char)]
 -- (Just 3,3)
 --
--- In order to 'iview' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
+-- In order to 'iview' a 'Choice' optic (e.g. 'Ixaffine', 'Ixtraversal', 'Ixfold', etc),
 -- /a/ must have a 'Monoid' instance:
 --
 -- >>> iview (iat 0) ([] :: [Int])
@@ -379,7 +304,7 @@ views o f = asks $ withPrimView o f
 -- >>> iviews (iat 2) (-) ([0,1,2] :: [Int])
 -- 0
 --
--- In order to 'iviews' a 'Choice' optic (e.g. 'Ixtraversal0', 'Ixtraversal', 'Ixfold', etc),
+-- In order to 'iviews' a 'Choice' optic (e.g. 'Ixaffine', 'Ixtraversal', 'Ixfold', etc),
 -- /a/ must have a 'Monoid' instance (here from the 'rings' package):
 --
 -- >>> iviews (iat 3) (flip const) ([1] :: [Int])
@@ -431,33 +356,7 @@ uses l f = gets (views l f)
 iuses :: MonadState s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
 iuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
 
-infixr 8 #^
-
--- | An infixvariant of 'review'. Dual to '^.'.
---
--- @
--- 'from' f #^ x ≡ f x
--- o #^ x ≡ x '^.' 're' o
--- @
---
--- This is commonly used when using a 'Prism' as a smart constructor.
---
--- >>> left' #^ 4
--- Left 4
---
--- @
--- (#^) :: 'Iso''      s a -> a -> s
--- (#^) :: 'Prism''    s a -> a -> s
--- (#^) :: 'Colens''   s a -> a -> s
--- (#^) :: 'Review'    s a -> a -> s
--- (#^) :: 'Equality'' s a -> a -> s
--- @
---
-(#^) :: AReview t b -> b -> t
-o #^ b = review o b
-{-# INLINE (#^) #-}
-
--- | Turn an optic around and look through the other end.
+-- | A prefix alias of '#^'.
 --
 -- @
 -- 'review' ≡ 'view' '.' 're'
