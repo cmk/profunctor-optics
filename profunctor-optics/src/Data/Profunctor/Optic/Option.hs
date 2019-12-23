@@ -23,6 +23,8 @@ module Data.Profunctor.Optic.Option (
   , (^?)
   , preview 
   , preuse
+  , is
+  , isnt
     -- * Indexed operators
   , ipreview
   , ipreviews
@@ -44,7 +46,7 @@ import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Prism (just, async)
-import Data.Profunctor.Optic.Affine (affineVl, iaffineVl, is)
+import Data.Profunctor.Optic.Affine
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View
 import qualified Control.Exception as Ex
@@ -183,6 +185,24 @@ preview o = Reader.asks $ withOption o Just
 preuse :: MonadState s m => AOption a s a -> m (Maybe a)
 preuse o = State.gets $ preview o
 {-# INLINE preuse #-}
+
+-- | Check whether the optic is matched.
+--
+-- >>> is just Nothing
+-- False
+--
+is :: AOption a s a -> s -> Bool
+is o s = isJust (preview o s)
+{-# INLINE is #-}
+
+-- | Check whether the optic isn't matched.
+--
+-- >>> isnt just Nothing
+-- True
+--
+isnt :: AOption a s a -> s -> Bool
+isnt o s = not (isJust (preview o s))
+{-# INLINE isnt #-}
 
 ------------------------------------------------------------------------------
 -- Indexed operators

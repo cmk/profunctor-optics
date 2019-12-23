@@ -23,8 +23,6 @@ module Data.Profunctor.Optic.Affine (
     -- * Primitive operators
   , withAffine
     -- * Operators
-  , is
-  , isnt
   , matches
     -- * Classes
   , Strong(..)
@@ -128,24 +126,6 @@ selected p = affine (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k then 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
-
--- | Check whether the optic is matched.
---
--- >>> is just Nothing
--- False
---
-is :: AAffine s t a b -> s -> Bool
-is o = either (const False) (const True) . matches o
-{-# INLINE is #-}
-
--- | Check whether the optic isn't matched.
---
--- >>> isnt just Nothing
--- True
---
-isnt :: AAffine s t a b -> s -> Bool
-isnt o = either (const True) (const False) . matches o
-{-# INLINE isnt #-}
 
 -- | Test whether the optic matches or not.
 --

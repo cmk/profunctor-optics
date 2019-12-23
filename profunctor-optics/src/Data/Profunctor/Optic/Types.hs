@@ -351,8 +351,10 @@ catRights = foldr (either (const id) (:)) []
 instance (Coapplicative f, Coapplicative g) => Coapplicative (Compose f g) where
   copure (Compose a) = copure . fmap copure $ a
 
+#if MIN_VERSION_profunctors(5,4,0)
 instance Coapplicative f => Choice (Costar f) where
   left' (Costar f) = Costar $ either (Left . f) (Right . copure) . branch
+#endif
 
 -- | Can be used to rewrite
 --
