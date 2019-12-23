@@ -12,7 +12,6 @@ import Control.Arrow as Export ((|||),(&&&),(+++),(***))
 import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Category as Export hiding ((.), id)
 import Control.Monad as Export hiding (void, join)
-import Control.Comonad as Export
 import Data.Distributive as Export
 import Data.Function as Export ((&))
 import Data.Functor as Export hiding (void)

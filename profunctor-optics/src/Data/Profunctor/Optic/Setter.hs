@@ -29,7 +29,6 @@ module Data.Profunctor.Optic.Setter (
   , liftedM
   , forwarded
   , censored
-  , seeked
   , zipped
   , modded
   , cond
@@ -67,7 +66,6 @@ module Data.Profunctor.Optic.Setter (
 ) where
 
 import Control.Applicative (liftA)
-import Control.Comonad.Store.Class (ComonadStore, seeks)
 import Control.Exception (Exception(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
@@ -323,12 +321,6 @@ forwarded = setter withReaderT
 censored :: Writer.MonadWriter w m => Setter' (m a) w
 censored = setter Writer.censor
 {-# INLINE censored #-}
-
--- | 'Setter' on the 
---
-seeked :: ComonadStore a w => Setter' (w s) a
-seeked = setter seeks
-{-# INLINE seeked #-}
 
 -- | 'Setter' on the codomain of a zipping function.
 --

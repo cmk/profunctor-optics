@@ -45,7 +45,6 @@ module Data.Profunctor.Optic.Index (
 
 import Control.Arrow as Arrow
 import Control.Category (Category)
-import Control.Comonad
 import Control.Monad
 import Control.Monad.Fix
 import Data.Profunctor.Closed
