@@ -1,7 +1,7 @@
 cabal-version: >= 1.10
 
 name:           profunctor-optics
-version:        0.0.0.3
+version:        0.0.0.4
 synopsis:       An optics library compatible with the typeclasses in 'profunctors'.
 description:  
   This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
