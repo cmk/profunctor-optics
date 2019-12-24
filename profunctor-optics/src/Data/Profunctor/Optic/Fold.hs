@@ -14,7 +14,6 @@ module Data.Profunctor.Optic.Fold (
   , folding 
   , foldVl
   , ifoldVl
-  , toFold
   , afold
   , aifold
     -- * Fold1 & Ixfold1
@@ -23,14 +22,14 @@ module Data.Profunctor.Optic.Fold (
   , fold1_
   , folding1
   , fold1Vl
-  , toFold1
+  , ifold1Vl
   , afold1
+  , aifold1
     -- * Optics
   , folded
   , folded_
   , folded1 
   , folded1_
-  , ifoldedRep
   , unital
   , nonunital
   , presemiring
@@ -38,6 +37,12 @@ module Data.Profunctor.Optic.Fold (
   , summed1
   , multiplied
   , multiplied1
+    -- * Indexed optics
+  , ifolded
+  , ifoldedRep
+  , ifolded1
+  , aifolded
+  , aifolded1
     -- * Primitive operators
   , withFold
   , withIxfold
@@ -79,9 +84,9 @@ module Data.Profunctor.Optic.Fold (
 
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
-import Data.Bifunctor (Bifunctor(..))
 import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
+import Data.Key as K
 import Data.Monoid hiding (All(..), Any(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
@@ -155,31 +160,25 @@ foldVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
 foldVl f = coercer . traversalVl f . coercer
 {-# INLINE foldVl #-}
 
--- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
+-- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
 --
 ifoldVl :: (forall f. Applicative f => (i -> a -> f b) -> s -> f t) -> Ixfold i s a
 ifoldVl f = coercer . itraversalVl f . coercer
 {-# INLINE ifoldVl #-}
 
--- | Obtain a 'Fold' from a 'View' or 'AFold'.
---
-toFold :: AView s a -> Fold s a
-toFold = to . view
-{-# INLINE toFold #-}
-
 -- | TODO: Document
 --
 -- @
--- afold :: ((a -> r) -> s -> r) -> AFold r s a
+-- afold :: Monoid r => ((a -> r) -> s -> r) -> AFold r s a
 -- @
 --
-afold :: ((a -> r) -> s -> r) -> APrimView r s t a b
+afold :: Monoid r => ((a -> r) -> s -> r) -> APrimView r s t a b
 afold f = Star #. (Const #.) #. f .# (getConst #.) .# runStar
 {-# INLINE afold #-}
 
 -- | TODO: Document
 --
-aifold :: ((i -> a -> r) -> s -> r) -> AIxfold r i s a
+aifold :: Monoid r => ((i -> a -> r) -> s -> r) -> AIxfold r i s a
 aifold f = afold $ \iar s -> f (curry iar) $ snd s
 {-# INLINE aifold #-}
 
@@ -222,21 +221,27 @@ fold1Vl :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
 fold1Vl f = coercer . repn f . coercer
 {-# INLINE fold1Vl #-}
 
--- | Obtain a 'Fold1' from a 'View' or 'AFold1'.
+-- | Obtain a 'Ixfold1' from a Van Laarhoven 'Fold1'.
 --
-toFold1 :: AView s a -> Fold1 s a
-toFold1 = to . view
-{-# INLINE toFold1 #-}
+ifold1Vl :: (forall f. Apply f => (i -> a -> f b) -> s -> f t) -> Ixfold1 i s a
+ifold1Vl f = coercer . itraversal1Vl f . coercer
+{-# INLINE ifold1Vl #-}
 
 -- | TODO: Document
 --
 -- @
--- afold1 :: ((a -> r) -> s -> r) -> AFold1 r s a
+-- afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
 -- @
 --
-afold1 :: ((a -> r) -> s -> r) -> APrimView r s t a b
+afold1 :: Semigroup r => ((a -> r) -> s -> r) -> APrimView r s t a b
 afold1 f = Star #. (Const #.) #. f .# (getConst #.) .# runStar
 {-# INLINE afold1 #-}
+
+-- | TODO: Document
+--
+aifold1 :: Semigroup r => ((i -> a -> r) -> s -> r) -> AIxfold1 r i s a
+aifold1 f = afold1 $ \iar s -> f (curry iar) $ snd s
+{-# INLINE aifold1 #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -273,12 +278,6 @@ folded1 = folding1 id
 folded1_ :: Foldable1 f => Fold1 (f a) a
 folded1_ = fold1_ id
 {-# INLINE folded1_ #-}
-
--- | Obtain an 'Ixfold' from a 'F.Representable' functor.
---
-ifoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
-ifoldedRep = ifoldVl F.itraverseRep
-{-# INLINE ifoldedRep #-}
 
 -- | Expression in a unital semiring 
 --
@@ -354,7 +353,7 @@ summed = afold foldMap
 -- 10
 --
 summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
-summed1 = afold foldMap1
+summed1 = afold1 foldMap1
 {-# INLINE summed1 #-}
 
 -- | Semiring product of a foldable collection.
@@ -382,8 +381,46 @@ multiplied = afold Rng.product
 -- Just 120 
 --
 multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
-multiplied1 = afold Rng.product1
+multiplied1 = afold1 Rng.product1
 {-# INLINE multiplied1 #-}
+
+---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | Obtain an 'AIxfold' from a 'FoldableWithKey'.
+--
+-- @
+-- f '^%%' 'ifolded' ≡ 'toKeyedList' f
+-- @
+--
+ifolded :: FoldableWithKey f => Ixfold (Key f) (f a) a
+ifolded = ifoldVl K.traverseWithKey_
+{-# INLINE ifolded #-}
+
+-- | Obtain an 'Ixfold' from a 'F.Representable' functor.
+--
+ifoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
+ifoldedRep = ifoldVl F.itraverseRep
+{-# INLINE ifoldedRep #-}
+
+-- | Obtain an 'Ixfold1' from a 'FoldableWithKey1'.
+--
+ifolded1 :: FoldableWithKey1 f => Ixfold1 (Key f) (f a) a
+ifolded1 = ifold1Vl K.traverseWithKey1_
+{-# INLINE ifolded1 #-}
+
+-- | Obtain an 'AIxfold' from a 'FoldableWithKey'.
+--
+aifolded :: FoldableWithKey f => Monoid r => AIxfold r (Key f) (f a) a
+aifolded = aifold K.foldMapWithKey
+{-# INLINE aifolded #-}
+
+-- | Obtain an 'AIxfold1' from a 'FoldableWithKey1'.
+--
+aifolded1 :: FoldableWithKey1 f => Semigroup r => AIxfold1 r (Key f) (f a) a
+aifolded1 = aifold1 K.foldMapWithKey1
+{-# INLINE aifolded1 #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -587,6 +624,7 @@ foldsr o f r = (`appEndo` r) . withFold o (Endo . f)
 --
 -- @
 -- 'foldsr' o ≡ 'ifoldsr' o '.' 'const'
+-- 'foldrWithKey' f ≡ 'ifoldsr' 'ifolded' f
 -- @
 --
 -- >>> ifoldsr itraversed (\i a -> ((show i ++ ":" ++ show a ++ ", ") ++)) [] [1,3,5,7,9]
@@ -613,6 +651,11 @@ foldsl o f r = (`appEndo` r) . getDual . withFold o (Dual . Endo . flip f)
 
 -- | Left fold over an indexed optic.
 --
+-- @
+-- 'foldsl' o ≡ 'ifoldsl' o '.' 'const'
+-- 'foldlWithKey' f ≡ 'ifoldsl' 'ifolded' f
+-- @
+--
 ifoldsl :: Monoid i => AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
 ifoldsl o f = ifoldslFrom o f mempty
 {-# INLINE ifoldsl #-}
@@ -633,6 +676,11 @@ foldsr' l f z0 xs = foldsl l f' (Endo id) xs `appEndo` z0 where f' (Endo k) x = 
 {-# INLINE foldsr' #-}
 
 -- | Strict right fold over an indexed optic.
+--
+-- @
+-- 'foldsr'' o ≡ 'ifoldsr'' o '.' 'const'
+-- 'foldrWithKey'' f ≡ 'ifoldsr'' 'ifolded' f
+-- @
 --
 ifoldsr' :: Monoid i => AIxfold (Dual (Endo (r -> r))) i s a -> (i -> a -> r -> r) -> r -> s -> r
 ifoldsr' l f z0 xs = ifoldsl l f' id xs z0 where f' i k x z = k $! f i x z
@@ -658,6 +706,11 @@ foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo
 {-# INLINE foldsl' #-}
 
 -- | Strict left fold over an indexed optic.
+--
+-- @
+-- 'foldsl'' o ≡ 'ifoldsl'' o '.' 'const'
+-- 'foldlWithKey'' f ≡ 'ifoldsl'' 'ifolded' f
+-- @
 --
 ifoldsl' :: Monoid i => AIxfold (Endo (r -> r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
 ifoldsl' l f z0 xs = ifoldsr l f' id xs z0 where f' i x k z = k $! f i z x

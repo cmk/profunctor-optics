@@ -438,7 +438,11 @@ instance Corepresentable (GrateRep a b) where
 
 newtype CxgrateRep k a b s t = CxgrateRep { unCxgrateRep :: ((s -> a) -> k -> b) -> t }
 
---TODO Closed, Costrong
+instance Profunctor (CxgrateRep k a b) where
+  dimap f g (CxgrateRep z) = CxgrateRep $ \d -> g (z $ \k -> d (k . f))
+
+instance Closed (CxgrateRep k a b) where
+  closed (CxgrateRep sabt) = CxgrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
 
 ---------------------------------------------------------------------
 -- AffineRep

@@ -30,6 +30,7 @@ module Data.Profunctor.Optic.Grate  (
   , kclosed
   , kfirst
   , ksecond
+  , coindexed
     -- * Primitive operators
   , withGrate 
   , withGrateVl
@@ -58,8 +59,6 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Iso (tabulated)
-
-import qualified Data.Functor.Rep as F
 
 import qualified Data.Functor.Rep as F
 
@@ -254,6 +253,17 @@ kfirst = rmap (unfirst . uncurry . flip) . curry'
 ksecond :: Cxgrate k a b (c , a) (c , b)
 ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
 {-# INLINE ksecond #-}
+
+-- | Obtain a 'Cxgrate' from a representable functor.
+--
+-- >>> kzipsWith (coindexed @Complex) (\t -> if t then (<>) else (><)) (2 :+ 2) (3 :+ 4)
+-- 6 :+ 6
+--
+-- See also 'Data.Profunctor.Optic.Lens.indexed'.
+--
+coindexed :: F.Representable f => Monoid (F.Rep f) => Cxgrate (F.Rep f) (f a) (f b) a b
+coindexed = kgrateVl $ \iab s -> F.tabulate $ \i -> iab i (fmap (`F.index` i) s)
+{-# INLINE coindexed #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators

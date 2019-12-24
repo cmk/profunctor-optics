@@ -20,6 +20,7 @@ module Data.Profunctor.Optic.Lens (
     -- * Optics
   , united
   , voided
+  , indexed
     -- * Indexed optics
   , ifirst
   , isecond
@@ -40,6 +41,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
 import qualified Data.Bifunctor as B
+import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -196,6 +198,22 @@ united = lens (const ()) const
 --
 voided :: Lens' Void a
 voided = lens absurd const
+
+-- | Obtain a 'Lens' from a representable functor.
+--
+-- >>> V2 3 1 ^. indexed I21
+-- 3
+-- >>> V3 "foo" "bar" "baz" & indexed I32 .~ "bip"
+-- V3 "foo" "bip" "baz"
+--
+-- See also 'Data.Profunctor.Optic.Grate.coindexed'.
+--
+indexed :: F.Representable f => Eq (F.Rep f) => F.Rep f -> Lens' (f a) a
+indexed i = lens (flip F.index i) $ \s b -> F.tabulate (\j -> if i == j then b else F.index s j)
+
+---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
 
 -- | TODO: Document
 --

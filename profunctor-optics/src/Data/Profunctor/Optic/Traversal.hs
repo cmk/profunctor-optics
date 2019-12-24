@@ -28,7 +28,6 @@ module Data.Profunctor.Optic.Traversal (
     -- * Optics
   , traversed
   , traversed1
-  , itraversedRep
   , both
   , both1
   , duplicated
@@ -38,6 +37,10 @@ module Data.Profunctor.Optic.Traversal (
   , repeated 
   , iterated
   , cycled
+    -- * Indexed optics
+  , itraversed
+  , itraversed1
+  , itraversedRep
     -- * Operators
   , withTraversal
   , withTraversal1
@@ -51,6 +54,7 @@ module Data.Profunctor.Optic.Traversal (
 import Control.Category
 import Control.Arrow
 import Data.Bitraversable
+import Data.Key as K
 import Data.List.NonEmpty as NonEmpty
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Lens
@@ -267,11 +271,6 @@ traversed1 = traversal1Vl traverse1
 
 -- | TODO: Document
 --
-itraversedRep :: F.Representable f => Traversable f => Ixtraversal (F.Rep f) (f a) (f b) a b
-itraversedRep = itraversalVl F.itraverseRep
-
--- | TODO: Document
---
 -- >>> withTraversal both (pure . length) ("hello","world")
 -- (5,5)
 --
@@ -299,7 +298,6 @@ duplicated p = pappend p p
 --
 beside :: Bitraversable r => Traversal s1 t1 a b -> Traversal s2 t2 a b -> Traversal (r s1 s2) (r t1 t2) a b
 beside x y p = tabulate go where go rss = bitraverse (sieve $ x p) (sieve $ y p) rss
-    --go :: r s s' -> Rep p (r t t')
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
@@ -376,6 +374,25 @@ iterated f = repn $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 cycled :: Apply f => ATraversal1' f s a -> ATraversal1' f s a
 cycled o = repn $ \g a -> go g a where go g a = (withTraversal1 o g) a .> go g a
 {-# INLINE cycled #-}
+
+---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+itraversed :: TraversableWithKey f => Traversable f => Ixtraversal (Key f) (f a) (f b) a b
+itraversed = itraversalVl K.traverseWithKey
+
+-- | TODO: Document
+--
+itraversed1 :: TraversableWithKey1 f => Traversable1 f => Ixtraversal1 (Key f) (f a) (f b) a b
+itraversed1 = itraversal1Vl K.traverseWithKey1
+
+-- | TODO: Document
+--
+itraversedRep :: F.Representable f => Traversable f => Ixtraversal (F.Rep f) (f a) (f b) a b
+itraversedRep = itraversalVl F.itraverseRep
 
 ---------------------------------------------------------------------
 -- Primitive operators

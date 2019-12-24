@@ -22,9 +22,9 @@ module Data.Profunctor.Optic.Setter (
   , dom
   , bound 
   , fmapped
-  , imappedRep
   , contramapped
   , exmapped
+  , adjusted
   , liftedA
   , liftedM
   , forwarded
@@ -32,6 +32,9 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , cond
+    -- * Indexed optics
+  , imapped
+  , imappedRep
     -- * Primitive operators
   , withIxsetter
   , withCxsetter
@@ -70,6 +73,7 @@ import Control.Exception (Exception(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.Key as K
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
@@ -245,15 +249,6 @@ fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
 
--- | 'Ixsetter' on each value of a representable functor.
---
--- >>> 1 :+ 2 & imappedRep %~ bool 20 10
--- 20 :+ 10
---
-imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
-imappedRep = isetter F.imapRep
-{-# INLINE imappedRep #-}
-
 -- | 'Setter' on each value of a contravariant functor.
 --
 -- @
@@ -282,6 +277,12 @@ contramapped = setter contramap
 exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
 exmapped = setter Ex.mapException
 {-# INLINE exmapped #-}
+
+-- | 'Setter' on a particular value of an 'Adjustable' container.
+--
+adjusted :: Adjustable f => Key f -> Setter' (f a) a 
+adjusted i = setter $ \f -> K.adjust f i
+{-# INLINE adjusted #-}
 
 -- | 'Setter' on each value of an applicative.
 --
@@ -344,6 +345,25 @@ modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 cond :: (a -> Bool) -> Setter' a a
 cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
+
+---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | 'Ixsetter' on each value of a 'Keyed' container.
+--
+imapped :: Keyed f => Ixsetter (Key f) (f a) (f b) a b
+imapped = isetter K.mapWithKey
+{-# INLINE imapped #-}
+
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & imappedRep %~ bool 20 10
+-- 20 :+ 10
+--
+imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+imappedRep = isetter F.imapRep
+{-# INLINE imappedRep #-}
 
 ---------------------------------------------------------------------
 -- Operators
