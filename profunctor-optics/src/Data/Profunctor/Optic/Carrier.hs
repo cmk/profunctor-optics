@@ -31,8 +31,12 @@ module Data.Profunctor.Optic.Carrier (
   , AIxrepn'
   , ATraversal
   , ATraversal'
+  , AIxtraversal
+  , AIxtraversal'
   , ATraversal1
   , ATraversal1'
+  , AIxtraversal1
+  , AIxtraversal1'
   , AFold
   , AIxfold
   , AFold1
@@ -171,9 +175,17 @@ type ATraversal f s t a b = Applicative f => ARepn f s t a b
 
 type ATraversal' f s a = ATraversal f s s a a
 
+type AIxtraversal f i s t a b = Applicative f => AIxrepn f i s t a b
+
+type AIxtraversal' f i s a = AIxtraversal f i s s a a
+
 type ATraversal1 f s t a b = Apply f => ARepn f s t a b
 
 type ATraversal1' f s a = ATraversal1 f s s a a
+
+type AIxtraversal1 f i s t a b = Apply f => AIxrepn f i s t a b
+
+type AIxtraversal1' f i s a = AIxtraversal1 f i s s a a
 
 type AFold r s a = ARepn' (Const r) s a
 

@@ -86,7 +86,6 @@ import qualified GHC.Generics as G
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
--- >>> import Data.Sequence as Seq hiding (reverse)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types

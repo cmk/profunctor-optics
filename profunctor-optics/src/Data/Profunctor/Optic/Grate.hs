@@ -59,6 +59,7 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Iso (tabulated)
+import Data.Semiring.Module
 
 import qualified Data.Functor.Rep as F
 
@@ -69,9 +70,11 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XTupleSections
 -- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
+-- >>> import Data.Complex
 -- >>> import Data.Connection.Int
 -- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
+-- >>> import Data.Semiring
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -262,7 +265,7 @@ ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
 -- See also 'Data.Profunctor.Optic.Lens.indexed'.
 --
 coindexed :: F.Representable f => Monoid (F.Rep f) => Cxgrate (F.Rep f) (f a) (f b) a b
-coindexed = kgrateVl $ \iab s -> F.tabulate $ \i -> iab i (fmap (`F.index` i) s)
+coindexed = kgrateVl grateRep
 {-# INLINE coindexed #-}
 
 ---------------------------------------------------------------------

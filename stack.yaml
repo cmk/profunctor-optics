@@ -7,8 +7,10 @@ packages:
   - profunctor-optics-th
 
 extra-deps:
-  - connections-0.0.2.1@sha256:b3461b73d3b77ee8554d0c97c6c996e02f65d242435b16ac9a4612f29f0028b6
-  - rings-0.0.2.1@sha256:b3bff567890ad73c90e6c9b8166c6eef1bbc714e477a9ffdb6cf92e9c64ebe34
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7
-  - github: cmk/property
-    commit: 8c6527acfc44af301190a3bbbc7c36b33a9b4fc1
+  - github: cmk/lawz
+    commit: cb8d80e9e266ec2d8bc4773712f044d831a6331d
+  - github: cmk/connections
+    commit: 1594a3f16797b825a8c754ce6d8f6989218f74e7
+  - github: cmk/rings
+    commit: aa80804dffff03ceb13c98d5b92711707c0f9f44

@@ -40,6 +40,8 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
+import Data.Semiring.Module
+
 import qualified Data.Bifunctor as B
 import qualified Data.Functor.Rep as F
 
@@ -47,7 +49,9 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
--- >>> import Data.Int.Instance
+-- >>> import Data.Int.Instance ()
+-- >>> import Data.Semiring.V2
+-- >>> import Data.Semiring.V3
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -209,7 +213,7 @@ voided = lens absurd const
 -- See also 'Data.Profunctor.Optic.Grate.coindexed'.
 --
 indexed :: F.Representable f => Eq (F.Rep f) => F.Rep f -> Lens' (f a) a
-indexed i = lens (flip F.index i) $ \s b -> F.tabulate (\j -> if i == j then b else F.index s j)
+indexed i = lensVl $ lensRep i
 
 ---------------------------------------------------------------------
 -- Indexed optics 

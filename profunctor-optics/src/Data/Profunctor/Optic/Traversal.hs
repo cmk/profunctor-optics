@@ -41,9 +41,11 @@ module Data.Profunctor.Optic.Traversal (
   , itraversed
   , itraversed1
   , itraversedRep
-    -- * Operators
+    -- * Primitive operators
   , withTraversal
+  , withIxtraversal
   , withTraversal1
+  , withIxtraversal1
     -- * Operators
   , (*~)
   , (**~)
@@ -410,6 +412,12 @@ withTraversal :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
 withTraversal = withStar
 {-# INLINE withTraversal #-}
 
+-- | TODO: Document
+--
+withIxtraversal :: Applicative f => AIxtraversal f i s t a b -> (i -> a -> f b) -> i -> s -> f t
+withIxtraversal o f = curry $ withTraversal o (uncurry f)
+{-# INLINE withIxtraversal #-}
+
 -- |
 --
 -- The traversal laws can be stated in terms of 'withTraversal1':
@@ -426,6 +434,12 @@ withTraversal = withStar
 withTraversal1 :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
 withTraversal1 = withStar
 {-# INLINE withTraversal1 #-}
+
+-- | TODO: Document
+--
+withIxtraversal1 :: Apply f => AIxtraversal1 f i s t a b -> (i -> a -> f b) -> i -> s -> f t
+withIxtraversal1 o f = curry $ withTraversal1 o (uncurry f)
+{-# INLINE withIxtraversal1 #-}
 
 ---------------------------------------------------------------------
 -- Operators

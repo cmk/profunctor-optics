@@ -111,7 +111,6 @@ import qualified Data.List.NonEmpty as NEL
 -- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import qualified Data.List.NonEmpty as NE
--- >>> import Data.Map.NonEmpty as Map1
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
