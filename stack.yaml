@@ -4,13 +4,14 @@ flags: {}
 packages:
   - profunctor-arrows
   - profunctor-optics
-  - profunctor-optics-th
 
 extra-deps:
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7
   - github: cmk/lawz
-    commit: cb8d80e9e266ec2d8bc4773712f044d831a6331d
+    commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
   - github: cmk/connections
-    commit: 1594a3f16797b825a8c754ce6d8f6989218f74e7
+    commit: 1c3f32c61bc218f3a444004892a6679a718a10c6
   - github: cmk/rings
-    commit: aa80804dffff03ceb13c98d5b92711707c0f9f44
+    commit: 7e4425e08addcf98a9773cfedf15ff417447dd92
+  - github: cmk/magmas
+    commit: f86a7433ffa13407b939280523feb661143a800a

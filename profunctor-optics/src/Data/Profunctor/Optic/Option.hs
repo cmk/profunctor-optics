@@ -166,7 +166,6 @@ infixl 8 ^?
 --
 -- >>> Left 4 ^? left'
 -- Just 4
---
 -- >>> Right 4 ^? left'
 -- Nothing
 --
@@ -210,13 +209,13 @@ isnt o s = not (isJust (preview o s))
 
 -- | TODO: Document 
 --
-ipreview :: Monoid i => AIxoption (i , a) i s a -> s -> Maybe (i , a)
+ipreview :: (Additive-Monoid) i => AIxoption (i , a) i s a -> s -> Maybe (i , a)
 ipreview o = ipreviews o (,)
 {-# INLINE ipreview #-}
 
 -- | TODO: Document 
 --
-ipreviews :: Monoid i => AIxoption r i s a -> (i -> a -> r) -> s -> Maybe r
+ipreviews :: (Additive-Monoid) i => AIxoption r i s a -> (i -> a -> r) -> s -> Maybe r
 ipreviews o f = withIxoption o (\i -> Just . f i)
 {-# INLINE ipreviews #-}
 

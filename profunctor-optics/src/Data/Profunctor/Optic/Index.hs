@@ -54,27 +54,12 @@ import Data.Profunctor.Sieve
 import Data.Bifunctor as B
 import Data.Foldable
 import Data.Semigroup
-import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Import as I
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import GHC.Generics (Generic)
 
 import qualified Control.Category as C
-
--- $setup
--- >>> :set -XNoOverloadedStrings
--- >>> :set -XTypeApplications
--- >>> :set -XFlexibleContexts
--- >>> :set -XTupleSections
--- >>> :set -XRankNTypes
--- >>> import Data.Semigroup
--- >>> import Data.Semiring
--- >>> import Data.Int.Instance ()
--- >>> import Data.Map
--- >>> :load Data.Profunctor.Optic
--- >>> let itraversed :: Ord k => Ixtraversal k (Map k a) (Map k b) a b ; itraversed = itraversalVl traverseWithKey
--- >>> let foobar = fromList [(0::Int, fromList [(0,"foo"), (1,"bar")]), (1, fromList [(0,"baz"), (1,"bip")])]
--- >>> let exercises :: Map String (Map String Int); exercises = fromList [("Monday", fromList [("pushups", 10), ("crunches", 20)]), ("Wednesday", fromList [("pushups", 15), ("handstands", 3)]), ("Friday", fromList [("crunches", 25), ("handstands", 5)])] 
 
 ---------------------------------------------------------------------
 -- Indexing
@@ -82,50 +67,33 @@ import qualified Control.Category as C
 
 infixr 8 %
 
--- | Compose two indexed traversals, combining indices.
---
--- Its precedence is one lower than that of function composition, which allows /./ to be nested in /%/.
---
--- >>> ilists (itraversed . itraversed) exercises
--- [("crunches",25),("handstands",5),("crunches",20),("pushups",10),("handstands",3),("pushups",15)]
---
--- >>> ilists (itraversed % itraversed) exercises 
--- [("Fridaycrunches",25),("Fridayhandstands",5),("Mondaycrunches",20),("Mondaypushups",10),("Wednesdayhandstands",3),("Wednesdaypushups",15)]
---
--- If you only need the final index then use /./:
---
--- >>> ilists (itraversed . itraversed) foobar
--- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
---
--- This is identical to the more convoluted:
---
--- >>> ilistsFrom (ilast itraversed % ilast itraversed) (Last 0) foobar & fmapped . first' ..~ getLast
--- [(0,"foo"),(1,"bar"),(0,"baz"),(1,"bip")]
---
-(%) :: Semigroup i => Representable p => IndexedOptic p i b1 b2 a1 a2 -> IndexedOptic p i c1 c2 b1 b2 -> IndexedOptic p i c1 c2 a1 a2
+(%) :: (Additive-Semigroup) i => Representable p => IndexedOptic p i b1 b2 a1 a2 -> IndexedOptic p i c1 c2 b1 b2 -> IndexedOptic p i c1 c2 a1 a2
 f % g = repn $ \ia1a2 (ic,c1) -> 
           withIxrepn g ic c1 $ \ib b1 -> 
-            withIxrepn f ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
+            withIxrepn f ib b1 $ \ia a1 -> ia1a2 (ib I.+ ia, a1)
 {-# INLINE (%) #-}
 
+{-
+iadd :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Additive i) s t a b
+iadd = reix Additive unAdditive
+
+imul :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Multiplicative i) s t a b
+imul = reix Multiplicative unMultiplicative
+-}
 iinit :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (First i) s t a b
 iinit = reix First getFirst
 
 ilast :: Profunctor p => IndexedOptic p i s t a b -> IndexedOptic p (Last i) s t a b
 ilast = reix Last getLast
 
+
 -- | Map over the indices of an indexed optic.
---
--- >>> ilists (itraversed . reix (<>10) id itraversed) foobar
--- [(10,"foo"),(11,"bar"),(10,"baz"),(11,"bip")]
 --
 -- See also 'Data.Profunctor.Optic.Iso.reixed'.
 --
 reix :: Profunctor p => (i -> j) -> (j -> i) -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
 reix ij ji = (. lmap (first' ij)) . (lmap (first' ji) .)
 
--- >>> ilists (itraversed . imap head pure) [[1,2,3],[4,5,6]]
--- [(0,1),(1,4)]
 imap :: Profunctor p => (s -> a) -> (b -> t) -> IndexedOptic p i s t a b
 imap sa bt = dimap (fmap sa) bt
 
@@ -144,10 +112,10 @@ infixr 8 #
 --
 -- If you only need the final index then use /./.
 --
-(#) :: Semigroup k => Corepresentable p => CoindexedOptic p k b1 b2 a1 a2 -> CoindexedOptic p k c1 c2 b1 b2 -> CoindexedOptic p k c1 c2 a1 a2
+(#) :: (Additive-Semigroup) k => Corepresentable p => CoindexedOptic p k b1 b2 a1 a2 -> CoindexedOptic p k c1 c2 b1 b2 -> CoindexedOptic p k c1 c2 a1 a2
 f # g = corepn $ \a1ka2 c1 kc -> 
           withCxrepn g c1 kc $ \b1 kb -> 
-            withCxrepn f b1 kb $ \a1 ka -> a1ka2 a1 (kb <> ka)
+            withCxrepn f b1 kb $ \a1 ka -> a1ka2 a1 (kb I.+ ka)
 {-# INLINE (#) #-}
 
 kinit :: Profunctor p => CoindexedOptic p k s t a b -> CoindexedOptic p (First k) s t a b

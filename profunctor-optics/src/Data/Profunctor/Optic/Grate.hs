@@ -11,7 +11,6 @@ module Data.Profunctor.Optic.Grate  (
   , Grate'
   , Cxgrate
   , Cxgrate'
-    -- * Constructors
   , grate
   , grateVl
   , kgrateVl
@@ -59,8 +58,8 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Iso (tabulated)
-import Data.Semiring.Module
 
+import Prelude (IO)
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -74,7 +73,6 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.Connection.Int
 -- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
--- >>> import Data.Semiring
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -259,14 +257,18 @@ ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
 
 -- | Obtain a 'Cxgrate' from a representable functor.
 --
--- >>> kzipsWith (coindexed @Complex) (\t -> if t then (<>) else (><)) (2 :+ 2) (3 :+ 4)
+-- >>> kzipsWith (coindexed @Complex) (\t -> if t then (+) else (*)) (2 :+ 2) (3 :+ 4)
 -- 6 :+ 6
 --
 -- See also 'Data.Profunctor.Optic.Lens.indexed'.
 --
-coindexed :: F.Representable f => Monoid (F.Rep f) => Cxgrate (F.Rep f) (f a) (f b) a b
+coindexed :: F.Representable f => (Additive-Monoid) (F.Rep f) => Cxgrate (F.Rep f) (f a) (f b) a b
 coindexed = kgrateVl grateRep
 {-# INLINE coindexed #-}
+
+grateRep :: F.Representable f => forall g. Functor g => (F.Rep f -> g a1 -> a2) -> g (f a1) -> f a2
+grateRep iab s = F.tabulate $ \i -> iab i (fmap (`F.index` i) s)
+{-# INLINE grateRep #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -306,13 +308,13 @@ coview o b = withGrate o $ \sabt -> sabt (const b)
 
 -- | Zip over a 'Grate'. 
 --
--- @\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
+-- @\\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
 --
 zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipsWith o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
 {-# INLINE zipsWith #-}
 
-kzipsWith :: Monoid k => ACxgrate k s t a b -> (k -> a -> a -> b) -> s -> s -> t
+kzipsWith :: (Additive-Monoid) k => ACxgrate k s t a b -> (k -> a -> a -> b) -> s -> s -> t
 kzipsWith o kaab s1 s2 = withCxgrate o $ \sakbt -> sakbt $ \sa k -> kaab k (sa s1) (sa s2)
 {-# INLINE kzipsWith #-}
 

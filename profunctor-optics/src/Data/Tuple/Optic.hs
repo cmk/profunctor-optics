@@ -9,8 +9,6 @@ module Data.Tuple.Optic (
     curried
   , swapped
   , associated
-  , first
-  , second
   , t21
   , t22
   , t31
@@ -34,12 +32,6 @@ import Data.Profunctor.Optic.Lens
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
-
-first :: Lens (a , c) (b , c) a b
-first = first'
-
-second :: Lens (c , a) (c , b) a b
-second = second'
 
 t21 :: Lens (a,b) (a',b) a a'
 t21 = lensVl $ \f ~(a,b) -> (\a' -> (a',b)) <$> f a

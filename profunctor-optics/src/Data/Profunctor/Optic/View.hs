@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE FlexibleContexts      #-}
 module Data.Profunctor.Optic.View (
     -- * Types
     View
@@ -74,12 +75,9 @@ import qualified Data.Bifunctor as B
 -- >>> import Data.Either
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index as LI
 -- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -251,25 +249,8 @@ view o = views o id
 -- >>> iview ifirst ("foo", 42)
 -- (Just (),"foo")
 --
--- >>> iview (iat 3 . ifirst) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r') :: (Int, Char)]
--- (Just 3,3)
---
--- In order to 'iview' a 'Choice' optic (e.g. 'Ixaffine', 'Ixtraversal', 'Ixfold', etc),
--- /a/ must have a 'Monoid' instance:
---
--- >>> iview (iat 0) ([] :: [Int])
--- (Nothing,0)
--- >>> iview (iat 0) ([1] :: [Int])
--- (Just 0,1)
---
--- /Note/ when applied to a 'Ixtraversal' or 'Ixfold', then 'iview' will return a monoidal 
--- summary of the indices tupled with a monoidal summary of the values:
---
--- >>> (iview @_ @_ @Int @Int) itraversed [1,2,3,4]
--- (Just 6,10)
---
-iview :: MonadReader s m => Monoid i => AIxview i s a -> m (Maybe i , a)
-iview o = asks $ withPrimView o (B.first Just) . (mempty,)
+iview :: MonadReader s m => (Additive-Monoid) i => AIxview i s a -> m (Maybe i , a)
+iview o = asks $ withPrimView o (B.first Just) . (zero,)
 {-# INLINE iview #-}
 
 -- | Map each part of a structure viewed to a semantic editor combinator.
@@ -282,17 +263,6 @@ iview o = asks $ withPrimView o (B.first Just) . (mempty,)
 -- >>> views both id (["foo"], ["bar", "baz"])
 -- ["foo","bar","baz"]
 --
--- @
--- 'views' ::                'AView' s a       -> (a -> r) -> s -> r
--- 'views' ::                'Iso'' s a        -> (a -> r) -> s -> r
--- 'views' ::                'Lens'' s a       -> (a -> r) -> s -> r
--- 'views' ::                'Coprism'' s a    -> (a -> r) -> s -> r
--- 'views' :: 'Monoid' r    => 'Traversal'' s a  -> (a -> r) -> s -> r
--- 'views' :: 'Semigroup' r => 'Traversal1'' s a -> (a -> r) -> s -> r
--- 'views' :: 'Monoid' r    => 'Fold' s a        -> (a -> r) -> s -> r
--- 'views' :: 'Semigroup' r => 'Fold1' s a       -> (a -> r) -> s -> r
--- @
---
 views :: MonadReader s m => Optic' (Star (Const r)) s a -> (a -> r) -> m r
 views o f = asks $ withPrimView o f
 {-# INLINE views #-}
@@ -301,19 +271,10 @@ views o f = asks $ withPrimView o f
 --
 -- 'iviews' ≡ 'iwithFold'
 --
--- >>> iviews (iat 2) (-) ([0,1,2] :: [Int])
--- 0
+-- Use 'iview' if there is a need to disambiguate between 'zero' as a miss vs. as a return value.
 --
--- In order to 'iviews' a 'Choice' optic (e.g. 'Ixaffine', 'Ixtraversal', 'Ixfold', etc),
--- /a/ must have a 'Monoid' instance (here from the 'rings' package):
---
--- >>> iviews (iat 3) (flip const) ([1] :: [Int])
--- 0
---
--- Use 'iview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
---
-iviews :: MonadReader s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-iviews o f = asks $ withPrimView o (uncurry f) . (mempty,) 
+iviews :: MonadReader s m => (Additive-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iviews o f = asks $ withPrimView o (uncurry f) . (zero,) 
 
 -- | TODO: Document
 --
@@ -323,7 +284,7 @@ use o = gets (view o)
 
 -- | Bring the index and value of an indexed optic into the current environment as a pair.
 --
-iuse :: MonadState s m => Monoid i => AIxview i s a -> m (Maybe i , a)
+iuse :: MonadState s m => (Additive-Monoid) i => AIxview i s a -> m (Maybe i , a)
 iuse o = gets (iview o)
 
 -- | Use the target of a 'Lens', 'Data.Profunctor.Optic.Iso.Iso' or
@@ -334,27 +295,14 @@ iuse o = gets (iview o)
 -- >>> evalState (uses first' length) ("hello","world!")
 -- 5
 --
--- @
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Iso.Iso'' s a       -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.View.View' s a     -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Lens.Lens'' s a      -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m             => 'Data.Profunctor.Optic.Prism.Coprism'' s a      -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Traversal.Traversal'' s a -> (a -> r) -> m r
--- 'uses' :: 'MonadState' s m => 'Data.Monoid.Monoid' r => 'Data.Profunctor.Optic.Fold.Fold' s a       -> (a -> r) -> m r
--- @
---
--- @
--- 'uses' :: 'MonadState' s m => 'Getting' r s t a b -> (a -> r) -> m r
--- @
---
 uses :: MonadState s m => Optic' (Star (Const r)) s a -> (a -> r) -> m r
 uses l f = gets (views l f)
 {-# INLINE uses #-}
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
-iuses :: MonadState s m => Monoid i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
-iuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
+iuses :: MonadState s m => (Additive-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iuses o f = gets $ withPrimView o (uncurry f) . (zero,)
 
 -- | A prefix alias of '#^'.
 --
@@ -365,12 +313,6 @@ iuses o f = gets $ withPrimView o (uncurry f) . (mempty,)
 --
 -- >>> review (from succ) 5
 -- 6
---
--- @
--- 'review' :: 'Iso'' s a   -> a -> s
--- 'review' :: 'Prism'' s a -> a -> s
--- 'review' :: 'Colens'' s a -> a -> s
--- @
 --
 review :: MonadReader b m => AReview t b -> m t
 review o = reviews o id
@@ -394,12 +336,6 @@ kview o = kviews o id
 --
 -- >>> reviews (from succ) (*2) 3
 -- 8
---
--- @
--- 'reviews' :: 'Iso'' t b -> (t -> r) -> b -> r
--- 'reviews' :: 'Prism'' t b -> (t -> r) -> b -> r
--- 'reviews' :: 'Colens'' t b -> (t -> r) -> b -> r
--- @
 --
 reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
 reviews o f = asks $ withPrimReview o f
@@ -427,12 +363,6 @@ kviews o f = asks $ withPrimReview o f . const
 -- >>> evalState (reuse (from succ)) 5
 -- 6
 --
--- @
--- 'reuse' :: 'MonadState' a m => 'Iso'' s a   -> m s
--- 'reuse' :: 'MonadState' a m => 'Prism'' s a -> m s
--- 'reuse' :: 'MonadState' a m => 'Colens'' s a -> m s
--- @
---
 reuse :: MonadState b m => AReview t b -> m t
 reuse o = gets (unTagged #. o .# Tagged)
 {-# INLINE reuse #-}
@@ -452,12 +382,6 @@ kuse o = gets (kview o)
 --
 -- >>> evalState (reuses left' isLeft) (5 :: Int)
 -- True
---
--- @
--- 'reuses' :: 'MonadState' a m => 'Iso'' s a   -> (s -> r) -> m r
--- 'reuses' :: 'MonadState' a m => 'Prism'' s a -> (s -> r) -> m r
--- 'reuses' :: 'MonadState' a m => 'Prism'' s a -> (s -> r) -> m r
--- @
 --
 reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
 reuses o tr = gets (tr . unTagged #. o .# Tagged)

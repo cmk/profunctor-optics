@@ -48,8 +48,6 @@ import Data.Profunctor.Optic.Types hiding (branch)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Affine' & 'Ixaffine'

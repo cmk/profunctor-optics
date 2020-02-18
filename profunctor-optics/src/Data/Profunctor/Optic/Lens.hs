@@ -40,18 +40,15 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
-import Data.Semiring.Module
 
-import qualified Data.Bifunctor as B
 import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
--- >>> import Data.Int.Instance ()
--- >>> import Data.Semiring.V2
--- >>> import Data.Semiring.V3
+-- >>> import Data.Semimodule.Free
+-- >>> import Data.Semimodule.Basis
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -120,9 +117,7 @@ lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap)
 
 -- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
 --
--- An 'Ixlens' is a valid 'Lens' and a valid 'IxTraversal'. 
---
--- Compare 'lensVl' & 'Data.Profunctor.Optic.Traversal.itraversalVl'.
+-- An 'Ixlens' is a valid 'Ixtraversal'. Compare 'Data.Profunctor.Optic.Traversal.itraversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -205,15 +200,19 @@ voided = lens absurd const
 
 -- | Obtain a 'Lens' from a representable functor.
 --
--- >>> V2 3 1 ^. indexed I21
+-- >>> V2 3 1 ^. indexed E21
 -- 3
--- >>> V3 "foo" "bar" "baz" & indexed I32 .~ "bip"
+-- >>> V3 "foo" "bar" "baz" & indexed E32 .~ "bip"
 -- V3 "foo" "bip" "baz"
 --
--- See also 'Data.Profunctor.Optic.Grate.coindexed'.
---
 indexed :: F.Representable f => Eq (F.Rep f) => F.Rep f -> Lens' (f a) a
-indexed i = lensVl $ lensRep i
+indexed i = lensVl $ lensRep i 
+
+lensRep :: F.Representable f => Eq (F.Rep f) => F.Rep f -> forall g. Functor g => (a -> g a) -> f a -> g (f a) 
+lensRep i f s = setter s <$> f (getter s)
+  where getter = flip F.index i
+        setter s' b = F.tabulate $ \j -> bool (F.index s' j) b (i == j)
+{-# INLINE lensRep #-}
 
 ---------------------------------------------------------------------
 -- Indexed optics 
@@ -221,15 +220,8 @@ indexed i = lensVl $ lensRep i
 
 -- | TODO: Document
 --
--- >>> ilists (ix @Int traversed . ix first' . ix traversed) [("foo",1), ("bar",2)]
--- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
---
 -- >>> ilists (ix @Int traversed . ifirst . ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
---
--- >>> ilists (ix @Int traversed % ix first' % ix traversed) [("foo",1), ("bar",2)]
--- [(0,'f'),(1,'o'),(2,'o'),(1,'b'),(2,'a'),(3,'r')]
---
 -- >>> ilists (ix @Int traversed % ifirst % ix traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
 --

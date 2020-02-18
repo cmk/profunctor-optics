@@ -12,7 +12,6 @@ module Data.Profunctor.Optic.Iso (
   , Equality'
   , Iso
   , Iso'
-    -- * Constructors
   , iso
   , isoVl
   , imapping
@@ -73,7 +72,6 @@ import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 
-
 import qualified Data.Functor.Rep as F
 import qualified Control.Monad as M (join)
 import qualified GHC.Generics as G
@@ -83,14 +81,12 @@ import qualified GHC.Generics as G
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> import Data.Monoid
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types
 -- >>> :load Data.Profunctor.Optic
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Iso' 
@@ -136,9 +132,6 @@ isoVl abst = iso f g
 
 -- | Lift an 'Iso' into an indexed version. 
 --
--- >>> ilists (itraversed . imapping swapped) [(40,'f'),(41,'o'),(42,'o')]
--- [(0,('f',40)),(1,('o',41)),(2,('o',42))]
---
 imapping :: Profunctor p => AIso s t a b -> IndexedOptic p i s t a b
 imapping o = withIso o imap
 {-# INLINE imapping #-}
@@ -166,8 +159,6 @@ contramapping f = withIso f $ \sa bt -> iso (contramap sa) (contramap bt)
 {-# INLINE contramapping #-}
 
 -- | Lift a pair of 'Iso's into a pair of profunctors. 
---
---
 --
 dimapping :: Profunctor p => Profunctor q => AIso s1 t1 a1 b1 -> AIso s2 t2 a2 b2 -> Iso (p a1 s2) (q b1 t2) (p s1 a2) (q t1 b2)
 dimapping f g = withIso f $ \sa1 bt1 -> withIso g $ \sa2 bt2 -> iso (dimap sa1 sa2) (dimap bt1 bt2)

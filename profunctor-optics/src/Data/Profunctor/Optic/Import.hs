@@ -18,6 +18,8 @@ import Data.Functor as Export hiding (void)
 import Data.Functor.Apply as Export
 import Data.Semigroup.Foldable as Export
 import Data.Semigroup.Traversable as Export
+import Data.Semiring as Export (type (-), Additive(..), Multiplicative(..))
+import Data.Foldable as Export (foldr)
 import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export
@@ -32,4 +34,4 @@ import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
 import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tagged as Export
 import Data.Void as Export
-import Prelude as Export hiding (Num(..), all, any, min, max, head, tail, elem, notElem, userError)
+import Numeric.Prelude as Export

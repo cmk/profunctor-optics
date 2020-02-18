@@ -89,6 +89,7 @@ import Data.Profunctor.Optic.Import
 import Foreign.C.Types
 import GHC.IO.Exception (IOErrorType)
 import System.IO
+import Prelude (String)
 import qualified Control.Exception as Ex 
 import qualified GHC.IO.Exception as Ghc
 

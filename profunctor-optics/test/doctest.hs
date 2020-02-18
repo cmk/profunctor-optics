@@ -1,5 +1,8 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+
 import Test.DocTest
+import Prelude (IO)
 
 main :: IO ()
 main = doctest 

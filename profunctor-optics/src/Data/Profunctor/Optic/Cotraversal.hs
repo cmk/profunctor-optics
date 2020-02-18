@@ -15,8 +15,6 @@ module Data.Profunctor.Optic.Cotraversal (
     -- * Optics
   , cotraversed
     -- * Operators
-  , (/~)
-  , (//~)
   , withCotraversal
   , distributes 
 ) where
@@ -51,12 +49,10 @@ import Data.List.NonEmpty as L1
 -- >>> :set -XTupleSections
 -- >>> :set -XRankNTypes
 -- >>> import Data.Maybe
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
 
 ---------------------------------------------------------------------
 -- 'Cotraversal'

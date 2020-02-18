@@ -52,7 +52,6 @@ module Data.Profunctor.Optic.Setter (
   , (%%~)
   , (##~)
   , (<>~)
-  , (><~)
     -- * mtl
   , locally
   , scribe
@@ -65,7 +64,6 @@ module Data.Profunctor.Optic.Setter (
   , (%%=)
   , (##=)
   , (<>=)
-  , (><=)
 ) where
 
 import Control.Applicative (liftA)
@@ -79,7 +77,6 @@ import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Operator
 import Data.Profunctor.Optic.Types
-import Data.Semiring
 
 import qualified Control.Exception as Ex
 import qualified Data.Functor.Rep as F
@@ -96,20 +93,17 @@ import qualified Data.Functor.Rep as F
 -- >>> import Control.Monad.Reader
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Bool (bool)
--- >>> import Data.Bool.Instance ()
 -- >>> import Data.Complex
 -- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
 -- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
 -- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
+
 
 ---------------------------------------------------------------------
 -- Setter
@@ -369,7 +363,7 @@ imappedRep = isetter F.imapRep
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 <>~, ><~
+infixr 4 <>~ 
 
 -- | Prefix variant of '.~'.
 --
@@ -389,11 +383,10 @@ set = (.~)
 --
 -- >>> iset (iat 2) (2-) [1,2,3 :: Int]
 -- [1,2,0]
---
 -- >>> iset (iat 5) (const 0) [1,2,3 :: Int]
 -- [1,2,3]
 --
-iset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+iset :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> b) -> s -> t
 iset o = iover o . (const .)
 {-# INLINE iset #-}
 
@@ -401,7 +394,7 @@ iset o = iover o . (const .)
 --
 -- Equivalent to 'kover' with the current value ignored.
 --
-kset :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
+kset :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 kset o kb = kover o $ flip (const kb)
 {-# INLINE kset #-}
 
@@ -416,13 +409,10 @@ kset o kb = kover o $ flip (const kb)
 --
 -- >>> over fmapped (+1) (Just 1)
 -- Just 2
---
 -- >>> over fmapped (*10) [1,2,3]
 -- [10,20,30]
---
 -- >>> over first' (+1) (1,2)
 -- (2,2)
---
 -- >>> over first' show (10,20)
 -- ("10",20)
 --
@@ -434,24 +424,20 @@ over = id
 --
 -- >>> iover (iat 1) (+) [1,2,3 :: Int]
 -- [1,3,3]
---
 -- >>> iover (iat 5) (+) [1,2,3 :: Int]
 -- [1,2,3]
 --
-iover :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+iover :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 iover = (%%~)
 {-# INLINE iover #-}
 
 -- | Prefix alias of '##~'.
 --
-kover :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
+kover :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
 kover = (##~)
 {-# INLINE kover #-}
 
 -- | Modify the target by adding another value.
---
--- >>> both <>~ True $ (False,True)
--- (True,True)
 --
 -- >>> both <>~ "!" $ ("bar","baz")
 -- ("bar!","baz!")
@@ -459,18 +445,6 @@ kover = (##~)
 (<>~) :: Semigroup a => Optic (->) s t a a -> a -> s -> t
 l <>~ n = over l (<> n)
 {-# INLINE (<>~) #-}
-
--- | Modify the target by multiplying by another value.
---
--- >>> both ><~ False $ (False,True)
--- (False,False)
---
--- >>> both ><~ ["!"] $ (["bar","baz"], [])
--- (["bar!","baz!"],[])
---
-(><~) :: Semiring a => Optic (->) s t a a -> a -> s -> t
-l ><~ n = over l (>< n)
-{-# INLINE (><~) #-}
 
 ---------------------------------------------------------------------
 -- Mtl
@@ -485,7 +459,6 @@ l ><~ n = over l (>< n)
 --
 -- >>> (1,1) & locally first' (+1) (uncurry (+))
 -- 3
---
 -- >>> "," & locally (setter ($)) ("Hello" <>) (<> " world!")
 -- "Hello, world!"
 --
@@ -501,7 +474,7 @@ scribe :: MonadWriter w m => Monoid b => Optic (->) s w a b -> s -> m ()
 scribe o s = Writer.tell $ set o mempty s
 {-# INLINE scribe #-}
 
-infix 4 .=, ..=, %=, %%=, #=, ##=, <>=, ><=
+infix 4 .=, ..=, %=, %%=, #=, ##=, <>=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
@@ -521,7 +494,6 @@ modifies o f = State.modify (over o f)
 --
 -- >>> execState (do first' .= 1; second' .= 2) (3,4)
 -- (1,2)
---
 -- >>> execState (both .= 3) (1,2)
 -- (3,3)
 --
@@ -531,13 +503,13 @@ o .= b = State.modify (o .~ b)
 
 -- | TODO: Document 
 --
-(%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> b) -> m ()
+(%=) :: MonadState s m => (Additive-Monoid) i => AIxsetter i s s a b -> (i -> b) -> m ()
 o %= b = State.modify (o %~ b)
 {-# INLINE (%=) #-}
 
 -- | TODO: Document 
 --
-(#=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> b) -> m ()
+(#=) :: MonadState s m => (Additive-Monoid) k => ACxsetter k s s a b -> (k -> b) -> m ()
 o #= f = State.modify (o #~ f)
 {-# INLINE (#=) #-}
 
@@ -547,10 +519,8 @@ o #= f = State.modify (o #~ f)
 --
 -- >>> execState (do just ..= (+1) ) Nothing
 -- Nothing
---
 -- >>> execState (do first' ..= (+1) ;second' ..= (+2)) (1,2)
 -- (2,4)
---
 -- >>> execState (do both ..= (+1)) (1,2)
 -- (2,3)
 --
@@ -560,20 +530,17 @@ o ..= f = State.modify (o ..~ f)
 
 -- | TODO: Document 
 --
-(%%=) :: MonadState s m => Monoid i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
+(%%=) :: MonadState s m => (Additive-Monoid) i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
 o %%= f = State.modify (o %%~ f)
 {-# INLINE (%%=) #-}
 
 -- | TODO: Document 
 --
-(##=) :: MonadState s m => Monoid k => ACxsetter k s s a b -> (k -> a -> b) -> m () 
+(##=) :: MonadState s m => (Additive-Monoid) k => ACxsetter k s s a b -> (k -> a -> b) -> m () 
 o ##= f = State.modify (o ##~ f)
 {-# INLINE (##=) #-}
 
 -- | Modify the target(s) of a settable optic by adding a value.
---
--- >>> execState (both <>= False) (False,True)
--- (False,True)
 --
 -- >>> execState (both <>= "!!!") ("hello","world")
 -- ("hello!!!","world!!!")
@@ -581,12 +548,3 @@ o ##= f = State.modify (o ##~ f)
 (<>=) :: MonadState s m => Semigroup a => Optic' (->) s a -> a -> m ()
 o <>= a = State.modify (o <>~ a)
 {-# INLINE (<>=) #-}
-
--- | Modify the target(s) of a settable optic by mulitiplying by a value.
---
--- >>> execState (both ><= False) (False,True)
--- (False,False)
---
-(><=) :: MonadState s m => Semiring a => Optic' (->) s a -> a -> m ()
-o ><= a = State.modify (o ><~ a)
-{-# INLINE (><=) #-}

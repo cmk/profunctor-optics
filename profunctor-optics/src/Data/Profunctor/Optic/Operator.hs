@@ -14,10 +14,6 @@ module Data.Profunctor.Optic.Operator (
   , (#^)
   , (..~)
   , (.~)
-  , (**~)
-  , (*~)
-  , (//~)
-  , (/~)
   , (%%~)
   , (%~)
   , (##~)
@@ -38,13 +34,11 @@ import qualified Data.Bifunctor as B
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XRankNTypes
 -- >>> import Data.List.Index as LI
--- >>> import Data.Int.Instance ()
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> :load Data.Profunctor.Optic
--- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
-infixr 4 .~, ..~, *~, **~, /~, //~, %~, %%~, #~, ##~
+infixr 4 .~, ..~, %~, %%~, #~, ##~
 
 infixl 8 ^., ^%
 
@@ -74,20 +68,8 @@ infixr 8 #^
 -- >>> ("foo", 42) ^% ifirst
 -- (Just (),"foo")
 --
--- >>> [(0,'f'),(1,'o'),(2,'o') :: (Int, Char)] ^% iat 2 . ifirst
--- (Just 2,2)
---
--- In order to 'iview' a 'Choice' optic (e.g. 'Ixaffine', 'Ixtraversal', 'Ixfold', etc),
--- /a/ must have a 'Monoid' instance:
---
--- >>> ([] :: [Int]) ^% iat 0
--- (Nothing,0)
---
--- >>> ([1] :: [Int]) ^% iat 0
--- (Just 0,1)
---
-(^%) :: Monoid i => s -> AIxview i s a -> (Maybe i, a)
-(^%) s o = withPrimView o (B.first Just) . (mempty,) $ s
+(^%) :: (Additive-Monoid) i => s -> AIxview i s a -> (Maybe i, a)
+(^%) s o = withPrimView o (B.first Just) . (zero,) $ s
 {-# INLINE (^%) #-}
 
 -- | Dual to '^.'.
@@ -133,36 +115,12 @@ o #^ b = withPrimReview o id b
 (.~) o b = o (const b)
 {-# INLINE (.~) #-}
 
--- | Map over a representable optic.
---
-(**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-(**~) = withStar
-{-# INLINE (**~) #-}
-
--- | Set the focus of a representable optic.
---
-(*~) :: Optic (Star f) s t a b -> f b -> s -> f t
-(*~) o b = withStar o (const b)
-{-# INLINE (*~) #-}
-
--- | Map over a co-representable optic.
---
-(//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
-(//~) = withCostar
-{-# INLINE (//~) #-}
-
--- | Set the focus of a co-representable optic.
---
-(/~) :: Optic (Costar f) s t a b -> b -> f s -> t
-(/~) o b = withCostar o (const b)
-{-# INLINE (/~) #-}
-
 -- | Map over an indexed optic.
 --
 -- See also '##~'.
 --
-(%%~) :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-(%%~) o f = withIxsetter o f mempty
+(%%~) :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+(%%~) o f = withIxsetter o f zero
 {-# INLINE (%%~) #-}
 
 -- | Set the focus of an indexed optic.
@@ -171,7 +129,7 @@ o #^ b = withPrimReview o id b
 --
 -- /Note/ if you're looking for the infix 'over' it is '..~'.
 --
-(%~) :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+(%~) :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> b) -> s -> t
 (%~) o = (%%~) o . (const .)
 {-# INLINE (%~) #-}
 
@@ -181,14 +139,14 @@ o #^ b = withPrimReview o id b
 --
 --  See also '%%~'.
 --
-(##~) :: Monoid k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-(##~) o f = withCxsetter o f mempty
+(##~) :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
+(##~) o f = withCxsetter o f zero
 {-# INLINE (##~) #-}
 
 -- | Set the focus of a coindexed optic.
 --
 --  See also '%~'.
 --
-(#~) :: Monoid k => ACxsetter k s t a b -> (k -> b) -> s -> t 
+(#~) :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> b) -> s -> t 
 (#~) o kb = o ##~ flip (const kb) 
 {-# INLINE (#~) #-}

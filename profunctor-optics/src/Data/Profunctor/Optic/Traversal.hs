@@ -47,8 +47,6 @@ module Data.Profunctor.Optic.Traversal (
   , withTraversal1
   , withIxtraversal1
     -- * Operators
-  , (*~)
-  , (**~)
   , sequences
   , sequences1
 ) where
@@ -76,14 +74,12 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XTupleSections
 -- >>> :set -XRankNTypes
 -- >>> import Data.Maybe
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
+-- >>> let itraversed :: Ixtraversal Int Int [a] [b] a b ; itraversed = itraversalVl itraverse
 
 ---------------------------------------------------------------------
 -- 'Traversal' & 'Ixtraversal'
@@ -135,8 +131,8 @@ traversing sa sbt = repn traverse . lens sa sbt
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-itraversing :: Monoid i => Traversable f => (s -> (i , a)) -> (s -> b -> t) -> Ixtraversal i (f s) (f t) a b
-itraversing sia sbt = repn (\iab -> traverse (curry iab mempty) . snd) . ilens sia sbt 
+itraversing :: (Additive-Monoid) i => Traversable f => (s -> (i , a)) -> (s -> b -> t) -> Ixtraversal i (f s) (f t) a b
+itraversing sia sbt = repn (\iab -> traverse (curry iab zero) . snd) . ilens sia sbt 
 
 -- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --
@@ -172,31 +168,27 @@ itraversalVl f = traversalVl $ \iab -> f (curry iab) . snd
 --
 -- >>> ilists (noix traversed . itraversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
---
 -- >>> ilists (itraversed . noix traversed) ["foo", "bar"]
 -- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
 --
-noix :: Monoid i => Traversal s t a b -> Ixtraversal i s t a b
-noix o = itraversalVl $ \iab s -> flip runStar s . o . Star $ iab mempty
+noix :: (Additive-Monoid) i => Traversal s t a b -> Ixtraversal i s t a b
+noix o = itraversalVl $ \iab s -> flip runStar s . o . Star $ iab zero
 
 -- | Index a traversal with a 'Data.Semiring'.
 --
 -- >>> ilists (ix traversed . ix traversed) ["foo", "bar"]
 -- [((),'f'),((),'o'),((),'o'),((),'b'),((),'a'),((),'r')]
---
 -- >>> ilists (ix @Int traversed . ix traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
---
 -- >>> ilists (ix @[()] traversed . ix traversed) ["foo", "bar"]
 -- [([],'f'),([()],'o'),([(),()],'o'),([],'b'),([()],'a'),([(),()],'r')]
---
 -- >>> ilists (ix @[()] traversed % ix traversed) ["foo", "bar"]
 -- [([],'f'),([()],'o'),([(),()],'o'),([()],'b'),([(),()],'a'),([(),(),()],'r')]
 --
-ix :: Monoid i => Semiring i => Traversal s t a b -> Ixtraversal i s t a b
+ix :: Semiring i => Traversal s t a b -> Ixtraversal i s t a b
 ix o = itraversalVl $ \f s ->
-  flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
-    Compose $ (f <$> get <*> pure a) <* modify (<> sunit) 
+  flip evalState zero . getCompose . flip runStar s . o . Star $ \a ->
+    Compose $ (f <$> get <*> pure a) <* modify (+ one) 
 
 ---------------------------------------------------------------------
 -- 'Traversal1'

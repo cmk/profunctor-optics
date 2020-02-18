@@ -69,49 +69,10 @@ import Data.Profunctor.Rep
 import Data.Profunctor.Sieve
 import Data.Tuple (swap)
 import Data.Void
+import Test.Logic
 import Prelude
 import qualified Control.Category as C (id)
 import qualified Control.Monad as M (join)
-
-infixr 5 +
-
-type (+) = Either
-
-rgt :: (a -> b) -> a + b -> b
-rgt f = either f id
-{-# INLINE rgt #-}
-
-rgt' :: Void + b -> b
-rgt' = rgt absurd 
-{-# INLINE rgt' #-}
-
-lft :: (b -> a) -> a + b -> a
-lft f = either id f
-{-# INLINE lft #-}
-
-lft' :: a + Void -> a
-lft' = lft absurd
-{-# INLINE lft' #-}
-
-eswap :: (a1 + a2) -> (a2 + a1)
-eswap = Right ||| Left
-{-# INLINE eswap #-}
-
-fork :: a -> (a , a)
-fork = M.join (,)
-{-# INLINE fork #-}
-
-join :: (a + a) -> a
-join = M.join either id
-{-# INLINE join #-}
-
-eval :: (a , a -> b) -> b
-eval = uncurry $ flip id
-{-# INLINE eval #-}
-
-apply :: (b -> a , b) -> a
-apply = uncurry id
-{-# INLINE apply #-}
 
 coeval :: b -> (b -> a) + a -> a
 coeval b = either ($ b) id

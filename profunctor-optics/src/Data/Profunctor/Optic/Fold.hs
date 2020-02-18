@@ -30,13 +30,6 @@ module Data.Profunctor.Optic.Fold (
   , folded_
   , folded1 
   , folded1_
-  , unital
-  , nonunital
-  , presemiring
-  , summed
-  , summed1
-  , multiplied
-  , multiplied1
     -- * Indexed optics
   , ifolded
   , ifoldedRep
@@ -59,8 +52,6 @@ module Data.Profunctor.Optic.Fold (
   , ifolds
   , folds1
   , foldsa
-  , foldsp
-  , folds1p
   , foldsr
   , ifoldsr
   , ifoldsrFrom
@@ -78,26 +69,23 @@ module Data.Profunctor.Optic.Fold (
   , traverses_
   , itraverses_
     -- * Auxilliary Types
-  , All, Any
   , Nedl(..)
 ) where
 
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
-import Data.Bool.Instance () -- Semigroup / Monoid / Semiring instances
 import Data.Foldable (Foldable, foldMap, traverse_)
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Key as K
-import Data.Monoid hiding (All(..), Any(..))
+import Data.Monoid
+import Data.Semiring as Rng
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View
-import Data.Semiring (Semiring(..), Prod(..))
 
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Functor.Rep as F
-import qualified Data.Semiring as Rng
 import qualified Data.List.NonEmpty as NEL
 
 -- $setup
@@ -108,16 +96,14 @@ import qualified Data.List.NonEmpty as NEL
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index as LI
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> import qualified Data.List.NonEmpty as NE
+-- >>> import Data.Int
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
--- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
 -- >>> :load Data.Profunctor.Optic
 -- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- 'Fold' & 'Ixfold'
@@ -229,16 +215,16 @@ ifold1Vl f = coercer . itraversal1Vl f . coercer
 -- | TODO: Document
 --
 -- @
--- afold1 :: Semigroup r => ((a -> r) -> s -> r) -> AFold1 r s a
+-- afold1 :: ((a -> r) -> s -> r) -> AFold1 r s a
 -- @
 --
-afold1 :: Semigroup r => ((a -> r) -> s -> r) -> APrimView r s t a b
+afold1 :: ((a -> r) -> s -> r) -> APrimView r s t a b
 afold1 f = Star #. (Const #.) #. f .# (getConst #.) .# runStar
 {-# INLINE afold1 #-}
 
 -- | TODO: Document
 --
-aifold1 :: Semigroup r => ((i -> a -> r) -> s -> r) -> AIxfold1 r i s a
+aifold1 :: ((i -> a -> r) -> s -> r) -> AIxfold1 r i s a
 aifold1 f = afold1 $ \iar s -> f (curry iar) $ snd s
 {-# INLINE aifold1 #-}
 
@@ -277,111 +263,6 @@ folded1 = folding1 id
 folded1_ :: Foldable1 f => Fold1 (f a) a
 folded1_ = fold1_ id
 {-# INLINE folded1_ #-}
-
--- | Expression in a unital semiring 
---
--- @ 
--- 'unital' ≡ 'summed' . 'multiplied'
--- @
---
--- >>> folds unital [[1,2], [3,4 :: Int]]
--- 14
---
--- For semirings without a multiplicative unit this is 
--- equivalent to @const mempty@:
---
--- >>> folds unital $ (fmap . fmap) Just [[1,2], [3,4 :: Int]]
--- Just 0
---
--- In this situation you most likely want to use 'nonunital'.
---
-unital :: Foldable f => Foldable g => Monoid r => Semiring r => AFold r (f (g a)) a
-unital = summed . multiplied
-{-# INLINE unital #-}
-
--- | Expression in a semiring expression with no multiplicative unit.
---
--- @ 
--- 'nonunital' ≡ 'summed' . 'multiplied1'
--- @
---
--- >>> folds1 nonunital $ (fmap . fmap) Just [1 :| [2], 3 :| [4 :: Int]]
--- Just 14
---
-nonunital :: Foldable f => Foldable1 g => Monoid r => Semiring r => AFold r (f (g a)) a
-nonunital = summed . multiplied1
-{-# INLINE nonunital #-}
-
--- | Expression in a semiring with no additive or multiplicative unit.
---
--- @ 
--- 'presemiring' ≡ 'summed1' . 'multiplied1'
--- @
---
-presemiring :: Foldable1 f => Foldable1 g => Semiring r => AFold1 r (f (g a)) a
-presemiring = summed1 . multiplied1
-{-# INLINE presemiring #-}
-
--- | Monoidal sum of a foldable collection.
---
--- >>> 1 <> 2 <> 3 <> 4 :: Int
--- 10
--- >>> folds summed [1,2,3,4 :: Int]
--- 10
---
--- 'summed' and 'multiplied' compose just as they do in arithmetic:
---
--- >>> 1 >< 2 <> 3 >< 4 :: Int
--- 14
--- >>> folds (summed . multiplied) [[1,2], [3,4 :: Int]]
--- 14
--- >>> (1 <> 2) >< (3 <> 4) :: Int
--- 21
--- >>> folds (multiplied . summed) [[1,2], [3,4 :: Int]]
--- 21
---
-summed :: Foldable f => Monoid r => AFold r (f a) a
-summed = afold foldMap
-{-# INLINE summed #-}
-
--- | Semigroup sum of a non-empty foldable collection.
---
--- >>> 1 <> 2 <> 3 <> 4 :: Int
--- 10
--- >>> folds1 summed1 $ 1 :| [2,3,4 :: Int]
--- 10
---
-summed1 :: Foldable1 f => Semigroup r => AFold1 r (f a) a
-summed1 = afold1 foldMap1
-{-# INLINE summed1 #-}
-
--- | Semiring product of a foldable collection.
---
--- >>> 1 >< 2 >< 3 >< 4 :: Int
--- 24
--- >>> folds multiplied [1,2,3,4 :: Int]
--- 24
---
--- For semirings without a multiplicative unit this is 
--- equivalent to @const mempty@:
---
--- >>> folds multiplied $ fmap Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'multiplied1'.
---
-multiplied :: Foldable f => Monoid r => Semiring r => AFold r (f a) a
-multiplied = afold Rng.product
-{-# INLINE multiplied #-}
-
--- | Semiring product of a non-empty foldable collection. 
---
--- >>> folds1 multiplied1 $ fmap Just (1 :| [2..(5 :: Int)])
--- Just 120 
---
-multiplied1 :: Foldable1 f => Semiring r => AFold1 r (f a) a
-multiplied1 = afold1 Rng.product1
-{-# INLINE multiplied1 #-}
 
 ---------------------------------------------------------------------
 -- Indexed optics 
@@ -428,7 +309,7 @@ aifolded1 = aifold1 K.foldMapWithKey1
 -- | Map an optic to a monoid and combine the results.
 --
 -- @
--- 'Data.Foldable.foldMap' = 'withFold' 'folded_''
+-- 'Data.Foldable.foldMap' = 'withFold' 'folded_'
 -- @
 --
 -- >>> withFold both id (["foo"], ["bar", "baz"])
@@ -450,10 +331,6 @@ withFold = withPrimView
 --
 -- Note that most indexed optics do not use their output index:
 --
--- >>> withIxfold itraversed const 100 [1..5]
--- 10
--- >>> withIxfold itraversed const 100 []
--- 0
 --
 withIxfold :: Monoid r => AIxfold r i s a -> (i -> a -> r) -> i -> s -> r
 withIxfold o f = curry $ withFold o (uncurry f)
@@ -502,11 +379,11 @@ infixl 8 ^..
 -- ('^..') ≡ 'flip' 'lists'
 -- @
 --
--- >>> [[1,2], [3 :: Int]] ^.. id
+-- >>> [[1,2], [3 :: Int64]] ^.. id
 -- [[[1,2],[3]]]
--- >>> [[1,2], [3 :: Int]] ^.. traversed
+-- >>> [[1,2], [3 :: Int64]] ^.. traversed
 -- [[1,2],[3]]
--- >>> [[1,2], [3 :: Int]] ^.. traversed . traversed
+-- >>> [[1,2], [3 :: Int64]] ^.. traversed . traversed
 -- [1,2,3]
 --
 -- >>> (1,2) ^.. bitraversed
@@ -541,7 +418,10 @@ ilistsFrom o i = ifoldsrFrom o (\i a -> ((i,a):)) i []
 -- 'lists' l ≡ 'map' 'snd' '.' 'ilists' l
 -- @
 --
-ilists :: Monoid i => AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
+-- >>> ilists (itraversed . imapping swapped) [(40,'f'),(41,'o'),(42,'o')]
+-- [(0,('f',40)),(1,('o',41)),(2,('o',42))]
+--
+ilists :: (Additive-Monoid) i => AIxfold (Endo [(i, a)]) i s a -> s -> [(i, a)]
 ilists o = ifoldsr o (\i a -> ((i,a):)) []
 {-# INLINE ilists #-}
 
@@ -549,7 +429,7 @@ infixl 8 ^%%
 
 -- | Infix version of 'ilists'.
 --
-(^%%) :: Monoid i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
+(^%%) :: (Additive-Monoid) i => s -> AIxfold (Endo [(i, a)]) i s a -> [(i, a)]
 (^%%) = flip ilists
 {-# INLINE (^%%) #-}
 
@@ -570,8 +450,8 @@ folds = flip withFold id
 
 -- | TODO: Document
 --
-ifolds :: Monoid i => Monoid a => AIxfold (i, a) i s a -> s -> (i, a)
-ifolds o = withIxfold o (,) mempty
+ifolds :: (Additive-Monoid) i => Monoid a => AIxfold (Additive i, a) i s a -> s -> (i, a)
+ifolds o = first unAdditive . withIxfold o (\i a -> (Additive i, a)) zero
 {-# INLINE ifolds #-}
 
 -- | TODO: Document
@@ -591,28 +471,9 @@ foldsa :: Applicative f => Monoid (f a) => AFold (f a) s a -> s -> f a
 foldsa = flip withFold pure
 {-# INLINE foldsa #-}
 
--- | Compute the semiring product of the foci of an optic.
---
--- For semirings without a multiplicative unit this is equivalent to @const mempty@:
---
--- >>> foldsp folded Just [1..(5 :: Int)]
--- Just 0
---
--- In this situation you most likely want to use 'folds1p'.
---
-foldsp :: Monoid r => Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-foldsp o p = getProd . withFold o (Prod . p)
-{-# INLINE foldsp #-}
-
--- | Compute the semiring product of the foci of an optic.
---
-folds1p :: Semiring r => AFold (Prod r) s a -> (a -> r) -> s -> r
-folds1p o p = getProd . withFold1 o (Prod . p)
-{-# INLINE folds1p #-}
-
 -- | Right fold over an optic.
 --
--- >>> foldsr folded (<>) 0 [1..5::Int]
+-- >>> foldsr folded (+) 0 [1..5::Int64]
 -- 15
 --
 foldsr :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
@@ -629,8 +490,8 @@ foldsr o f r = (`appEndo` r) . withFold o (Endo . f)
 -- >>> ifoldsr itraversed (\i a -> ((show i ++ ":" ++ show a ++ ", ") ++)) [] [1,3,5,7,9]
 -- "0:1, 1:3, 2:5, 3:7, 4:9, "
 --
-ifoldsr :: Monoid i => AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> r -> s -> r
-ifoldsr o f = ifoldsrFrom o f mempty
+ifoldsr :: (Additive-Monoid) i => AIxfold (Endo r) i s a -> (i -> a -> r -> r) -> r -> s -> r
+ifoldsr o f = ifoldsrFrom o f zero
 {-# INLINE ifoldsr #-}
 
 -- | Indexed right fold over an indexed optic, using an initial index value.
@@ -644,7 +505,7 @@ ifoldsrFrom o f i r = (`appEndo` r) . withIxfold o (\j -> Endo . f j) i
 
 -- | Left fold over an optic.
 --
-foldsl :: AFold (Dual (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
+foldsl :: AFold ((Endo-Dual) r) s a -> (r -> a -> r) -> r -> s -> r
 foldsl o f r = (`appEndo` r) . getDual . withFold o (Dual . Endo . flip f)
 {-# INLINE foldsl #-}
 
@@ -655,8 +516,8 @@ foldsl o f r = (`appEndo` r) . getDual . withFold o (Dual . Endo . flip f)
 -- 'foldlWithKey' f ≡ 'ifoldsl' 'ifolded' f
 -- @
 --
-ifoldsl :: Monoid i => AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
-ifoldsl o f = ifoldslFrom o f mempty
+ifoldsl :: (Additive-Monoid) i => AIxfold ((Endo-Dual) r) i s a -> (i -> r -> a -> r) -> r -> s -> r
+ifoldsl o f = ifoldslFrom o f zero
 {-# INLINE ifoldsl #-}
 
 -- | Left fold over an indexed optic, using an initial index value.
@@ -664,13 +525,13 @@ ifoldsl o f = ifoldslFrom o f mempty
 -- This is only for use with the few indexed optics that don't ignore their 
 -- output index. You most likely want to use 'ifoldsl'.
 --
-ifoldslFrom :: AIxfold (Dual (Endo r)) i s a -> (i -> r -> a -> r) -> i -> r -> s -> r
+ifoldslFrom :: AIxfold ((Endo-Dual) r) i s a -> (i -> r -> a -> r) -> i -> r -> s -> r
 ifoldslFrom o f i r = (`appEndo` r) . getDual . withIxfold o (\i -> Dual . Endo . flip (f i)) i
 {-# INLINE ifoldslFrom #-}
 
 -- | Strict right fold over an optic.
 --
-foldsr' :: AFold (Dual (Endo (Endo r))) s a -> (a -> r -> r) -> r -> s -> r
+foldsr' :: AFold ((Endo-Dual) (Endo r)) s a -> (a -> r -> r) -> r -> s -> r
 foldsr' l f z0 xs = foldsl l f' (Endo id) xs `appEndo` z0 where f' (Endo k) x = Endo $ \ z -> k $! f x z
 {-# INLINE foldsr' #-}
 
@@ -681,7 +542,7 @@ foldsr' l f z0 xs = foldsl l f' (Endo id) xs `appEndo` z0 where f' (Endo k) x = 
 -- 'foldrWithKey'' f ≡ 'ifoldsr'' 'ifolded' f
 -- @
 --
-ifoldsr' :: Monoid i => AIxfold (Dual (Endo (r -> r))) i s a -> (i -> a -> r -> r) -> r -> s -> r
+ifoldsr' :: (Additive-Monoid) i => AIxfold ((Endo-Dual) (r -> r)) i s a -> (i -> a -> r -> r) -> r -> s -> r
 ifoldsr' l f z0 xs = ifoldsl l f' id xs z0 where f' i k x z = k $! f i x z
 {-# INLINE ifoldsr' #-}
 
@@ -700,7 +561,7 @@ ifoldsr' l f z0 xs = ifoldsl l f' id xs z0 where f' i k x z = k $! f i x z
 -- 'foldsl'' :: 'Affine'' s a -> (c -> a -> c) -> c -> s -> c
 -- @
 --
-foldsl' :: AFold (Endo (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
+foldsl' :: AFold ((Endo-Endo) r) s a -> (r -> a -> r) -> r -> s -> r
 foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo $ \z -> k $! f z x
 {-# INLINE foldsl' #-}
 
@@ -711,13 +572,13 @@ foldsl' o f r s = foldsr o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo
 -- 'foldlWithKey'' f ≡ 'ifoldsl'' 'ifolded' f
 -- @
 --
-ifoldsl' :: Monoid i => AIxfold (Endo (r -> r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
+ifoldsl' :: (Additive-Monoid) i => AIxfold (Endo (r -> r)) i s a -> (i -> r -> a -> r) -> r -> s -> r
 ifoldsl' l f z0 xs = ifoldsr l f' id xs z0 where f' i x k z = k $! f i z x
 {-# INLINE ifoldsl' #-}
 
 -- | Monadic right fold over an optic.
 --
-foldsrM :: Monad m => AFold (Dual (Endo (r -> m r))) s a -> (a -> r -> m r) -> r -> s -> m r
+foldsrM :: Monad m => AFold ((Endo-Dual) (r -> m r)) s a -> (a -> r -> m r) -> r -> s -> m r
 foldsrM l f z0 xs = foldsl l f' return xs z0 where f' k x z = f x z >>= k
 {-# INLINE foldsrM #-}
 
@@ -727,7 +588,7 @@ foldsrM l f z0 xs = foldsl l f' return xs z0 where f' k x z = f x z >>= k
 -- 'foldsrM' ≡ 'ifoldrM' '.' 'const'
 -- @
 --
-ifoldsrM :: Monoid i => Monad m => AIxfold (Dual (Endo (r -> m r))) i s a -> (i -> a -> r -> m r) -> r -> s -> m r
+ifoldsrM :: (Additive-Monoid) i => Monad m => AIxfold ((Endo-Dual) (r -> m r)) i s a -> (i -> a -> r -> m r) -> r -> s -> m r
 ifoldsrM o f z0 xs = ifoldsl o f' return xs z0 where f' i k x z = f i x z >>= k
 {-# INLINE ifoldsrM #-}
 
@@ -743,7 +604,7 @@ foldslM o f z0 xs = foldsr o f' return xs z0 where f' x k z = f z x >>= k
 -- 'foldslM' ≡ 'ifoldslM' '.' 'const'
 -- @
 --
-ifoldslM :: Monoid i => Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> r -> s -> m r
+ifoldslM :: (Additive-Monoid) i => Monad m => AIxfold (Endo (r -> m r)) i s a -> (i -> r -> a -> m r) -> r -> s -> m r
 ifoldslM o f z0 xs = ifoldsr o f' return xs z0 where f' i x k z = f i z x >>= k
 {-# INLINE ifoldslM #-}
 
@@ -763,17 +624,13 @@ traverses_ p f = foldsr p (\a fu -> void (f a) *> fu) (pure ())
 
 -- | Applicative fold over an indexed optic.
 --
-itraverses_ :: Monoid i => Applicative f => AIxfold (Endo (f ())) i s a -> (i -> a -> f r) -> s -> f ()
+itraverses_ :: (Additive-Monoid) i => Applicative f => AIxfold (Endo (f ())) i s a -> (i -> a -> f r) -> s -> f ()
 itraverses_ p f = ifoldsr p (\i a fu -> void (f i a) *> fu) (pure ())
 {-# INLINE itraverses_ #-}
 
 ------------------------------------------------------------------------------
 -- Auxilliary Types
 ------------------------------------------------------------------------------
-
-type All = Prod Bool
-
-type Any = Bool
 
 -- A non-empty difference list.
 newtype Nedl a = Nedl { getNedl :: [a] -> NEL.NonEmpty a }

@@ -114,14 +114,11 @@ import qualified Data.Bifunctor as B
 -- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
 -- >>> import Data.List.Index as LI
--- >>> import Data.Int.Instance ()
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
 -- >>> :load Data.Profunctor.Optic
--- >>> let itraversed :: Ixtraversal Int [a] [b] a b ; itraversed = itraversalVl itraverse
--- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
 
 ---------------------------------------------------------------------
 -- Carriers
@@ -261,8 +258,8 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
 -- | Extract the two functions that characterize a 'Lens'.
 --
-withIxlens :: Monoid i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
-withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
+withIxlens :: (Additive-Monoid) i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
+withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (zero,)) (\s b -> y (zero, s) b)
 
 -- | Extract the function that characterizes a 'Grate'.
 --
@@ -270,8 +267,8 @@ withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
 {-# INLINE withGrate #-}
 
-withCxgrate :: Monoid k => ACxgrate k s t a b -> ((((s -> a) -> k -> b) -> t) -> r) -> r
-withCxgrate o sakbtr = case o (CxgrateRep $ \f -> f id) of CxgrateRep sakbt -> sakbtr $ flip sakbt mempty
+withCxgrate :: (Additive-Monoid) k => ACxgrate k s t a b -> ((((s -> a) -> k -> b) -> t) -> r) -> r
+withCxgrate o sakbtr = case o (CxgrateRep $ \f -> f id) of CxgrateRep sakbt -> sakbtr $ flip sakbt zero
 
 -- | TODO: Document
 --
@@ -291,8 +288,8 @@ withOption o = runOptionRep #. o .# OptionRep
 
 -- | TODO: Document
 --
-withIxoption :: Monoid i => AIxoption r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
-withIxoption o f = flip curry mempty $ withOption o (uncurry f)
+withIxoption :: (Additive-Monoid) i => AIxoption r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
+withIxoption o f = flip curry zero $ withOption o (uncurry f)
 {-# INLINE withIxoption #-}
 
 -- | TODO: Document
@@ -561,7 +558,7 @@ instance Representable (OptionRep r) where
 
 -- | 'Pre' is 'Maybe' with a phantom type variable.
 --
-newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Ord, Show)
+newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Show)
 
 instance Functor (Pre a) where fmap _ (Pre p) = Pre p
 

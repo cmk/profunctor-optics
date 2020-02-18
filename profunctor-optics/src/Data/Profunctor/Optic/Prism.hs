@@ -13,13 +13,10 @@ module Data.Profunctor.Optic.Prism (
   , Cxprism'
   , prism
   , prism'
-  , kprism
   , handling
   , clonePrism
     -- * Optics
-  , kright
   , just
-  , kjust
   , nothing
   , compared
   , prefixed
@@ -46,7 +43,7 @@ import Control.Exception
 import Control.Monad (guard)
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
-import Data.List (stripPrefix)
+import Data.List (stripPrefix,(++))
 import Data.Prd
 import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Carrier
@@ -60,11 +57,8 @@ import Data.Profunctor.Optic.Types
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
--- >>> import Data.Int.Instance ()
 -- >>> import Data.List.NonEmpty
 -- >>> :load Data.Profunctor.Optic
--- >>> let catchOn :: Int -> Cxprism' Int (Maybe String) String ; catchOn n = kjust $ \k -> if k==n then Just "caught" else Nothing
--- >>> let catchFoo :: b -> Cxprism String (String + a) (String + b) a b; catchFoo b = kright $ \e k -> if e == "fooError" && k == mempty then Right b else Left e
 
 ---------------------------------------------------------------------
 -- 'Prism' & 'Cxprism'
@@ -99,11 +93,6 @@ prism sta bt = dimap sta (id ||| bt) . right'
 prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 
--- | Obtain a 'Cxprism'' from a reviewer and a matcher function that returns either a match or a failure handler.
---
-kprism :: (s -> (k -> t) + a) -> (b -> t) -> Cxprism k s t a b
-kprism skta bt = prism skta (bt .)
-
 -- | Obtain a 'Prism' from its free tensor representation.
 --
 -- Useful for constructing prisms from try and handle functions.
@@ -122,10 +111,10 @@ clonePrism o = withPrism o prism
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
--- >>> Just 1 :| [Just 2, Just 3] & just //~ sum
+-- >>> Just 1 :| [Just 2, Just 3] & withCostar just sum
 -- Just 6
 --
--- >>> Nothing :| [Just 2, Just 3] & just //~ sum
+-- >>> Nothing :| [Just 2, Just 3] & withCostar just sum
 -- Nothing
 --
 just :: Prism (Maybe a) (Maybe b) a b
@@ -138,7 +127,7 @@ nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
 
 -- | Focus on comparability to a given element of a partial order.
 --
-compared :: Eq a => Prd a => a -> Prism' a Ordering
+compared :: Prd a => a -> Prism' a Ordering
 compared x = flip prism' (const x) (pcompare x)
 
 -- | Focus on the remainder of a list with a given prefix.
@@ -198,34 +187,6 @@ exception = prism' fromException toException
 asyncException :: Exception e => Prism' SomeException e
 asyncException = prism' asyncExceptionFromException asyncExceptionToException
 
----------------------------------------------------------------------
--- Coindexed optics
----------------------------------------------------------------------
-
--- | Coindexed prism into the `Right` constructor of `Either`.
---
--- >>> kset (catchFoo "Caught foo") id $ Left "fooError"
--- Right "Caught foo"
---
--- >>> kset (catchFoo "Caught foo") id $ Left "barError"
--- Left "barError"
---
-kright :: (e -> k -> e + b) -> Cxprism k (e + a) (e + b) a b
-kright ekeb = flip kprism Right $ either (Left . ekeb) Right
-
--- | Coindexed prism into the `Just` constructor of `Maybe`.
---
--- >>> Just "foo" & catchOn 1 ##~ (\k msg -> show k ++ ": " ++ msg)
--- Just "0: foo"
---
--- >>> Nothing & catchOn 1 ##~ (\k msg -> show k ++ ": " ++ msg)
--- Nothing
---
--- >>> Nothing & catchOn 0 ##~ (\k msg -> show k ++ ": " ++ msg)
--- Just "caught"
---
-kjust :: (k -> Maybe b) -> Cxprism k (Maybe a) (Maybe b) a b
-kjust kb = flip kprism Just $ maybe (Left kb) Right
 
 ---------------------------------------------------------------------
 -- Operators
