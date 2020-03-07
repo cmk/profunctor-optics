@@ -9,25 +9,17 @@ module Data.Profunctor.Optic.Lens (
     -- * Lens & Ixlens
     Lens
   , Lens'
-  , Ixlens
-  , Ixlens'
   , lens
-  , ilens
   , lensVl
-  , ilensVl
   , matching
   , cloneLens
     -- * Optics
   , united
   , voided
   , indexed
-    -- * Indexed optics
-  , ifirst
-  , isecond
     -- * Primitive operators
   , withLens
   , withLensVl
-  , withIxlens
     -- * Operators
   , toPastro
   , toTambara
@@ -37,18 +29,17 @@ module Data.Profunctor.Optic.Lens (
 
 import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
-
 import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
--- >>> import Data.Semimodule.Free
--- >>> import Data.Semimodule.Basis
+-- >>> import Data.Complex
+-- >>> import Data.Int
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -73,26 +64,6 @@ lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
 lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 {-# INLINE lens #-}
 
--- | Obtain an indexed 'Lens' from an indexed getter and a setter.
---
--- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.itraversal'.
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input functions constitute a legal 
--- indexed lens:
---
--- * @snd . sia (sbt s a) ≡ a@
---
--- * @sbt s (snd $ sia s) ≡ s@
---
--- * @sbt (sbt s a1) a2 ≡ sbt s a2@
---
--- See 'Data.Profunctor.Optic.Property'.
---
-ilens :: (s -> (i , a)) -> (s -> b -> t) -> Ixlens i s t a b
-ilens sia sbt = ilensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
-{-# INLINE ilens #-}
-
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
 -- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
@@ -114,30 +85,6 @@ ilens sia sbt = ilensVl $ \iab s -> sbt s <$> uncurry iab (sia s)
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
-
--- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
---
--- An 'Ixlens' is a valid 'Ixtraversal'. Compare 'Data.Profunctor.Optic.Traversal.itraversalVl'.
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input satisfies the following properties:
---
--- * @iabst (const Identity) ≡ Identity@
---
--- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
---
--- More generally, a profunctor optic must be monoidal as a natural 
--- transformation:
--- 
--- * @o id ≡ id@
---
--- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
---
--- See 'Data.Profunctor.Optic.Property'.
---
-ilensVl :: (forall f. Functor f => (i -> a -> f b) -> s -> f t) -> Ixlens i s t a b
-ilensVl f = lensVl $ \iab -> f (curry iab) . snd
-{-# INLINE ilensVl #-}
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --
@@ -200,10 +147,8 @@ voided = lens absurd const
 
 -- | Obtain a 'Lens' from a representable functor.
 --
--- >>> V2 3 1 ^. indexed E21
--- 3
--- >>> V3 "foo" "bar" "baz" & indexed E32 .~ "bip"
--- V3 "foo" "bip" "baz"
+-- >>> (0 :+ 1) ^. indexed True :: Int8
+-- 1
 --
 indexed :: F.Representable f => Eq (F.Rep f) => F.Rep f -> Lens' (f a) a
 indexed i = lensVl $ lensRep i 
@@ -212,26 +157,6 @@ lensRep :: F.Representable f => Eq (F.Rep f) => F.Rep f -> forall g. Functor g =
 lensRep i f s = setter s <$> f (getter s)
   where getter = flip F.index i
         setter s' b = F.tabulate $ \j -> bool (F.index s' j) b (i == j)
-{-# INLINE lensRep #-}
-
----------------------------------------------------------------------
--- Indexed optics 
----------------------------------------------------------------------
-
--- | TODO: Document
---
--- >>> ilists (ix @Int traversed . ifirst . ix traversed) [("foo",1), ("bar",2)]
--- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> ilists (ix @Int traversed % ifirst % ix traversed) [("foo",1), ("bar",2)]
--- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
---
-ifirst :: Ixlens i (a , c) (b , c) a b
-ifirst = lmap assocl . first'
-
--- | TODO: Document
---
-isecond :: Ixlens i (c , a) (c , b) a b
-isecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
 
 ---------------------------------------------------------------------
 -- Operators

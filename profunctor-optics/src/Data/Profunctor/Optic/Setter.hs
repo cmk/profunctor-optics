@@ -10,21 +10,17 @@ module Data.Profunctor.Optic.Setter (
     Setter
   , Setter'
   , setter
-  , isetter
   , closing
     -- * Resetter
   , Resetter
   , Resetter'
   , resetter
-  , ksetter
     -- * Optics
   , cod
   , dom
   , bound 
   , fmapped
   , contramapped
-  , exmapped
-  , adjusted
   , liftedA
   , liftedM
   , forwarded
@@ -32,25 +28,11 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , cond
-    -- * Indexed optics
-  , imapped
-  , imappedRep
-    -- * Primitive operators
-  , withIxsetter
-  , withCxsetter
     -- * Operators
   , set
-  , iset
-  , kset
-  , (.~)
-  , (%~)
-  , (#~)
   , over
-  , iover
-  , kover
+  , (.~)
   , (..~)
-  , (%%~)
-  , (##~)
   , (<>~)
     -- * mtl
   , locally
@@ -58,28 +40,18 @@ module Data.Profunctor.Optic.Setter (
   , assigns
   , modifies
   , (.=)
-  , (%=)
-  , (#=)
   , (..=)
-  , (%%=)
-  , (##=)
   , (<>=)
 ) where
 
 import Control.Applicative (liftA)
-import Control.Exception (Exception(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.Key as K
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Index
-import Data.Profunctor.Optic.Operator
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
-
-import qualified Control.Exception as Ex
-import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -88,7 +60,6 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XRankNTypes
 -- >>> import Control.Category ((>>>))
 -- >>> import Control.Arrow (Kleisli(..))
--- >>> import Control.Exception
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Reader
 -- >>> import Control.Monad.Writer
@@ -97,13 +68,10 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
--- >>> import Data.List.Index as LI
 -- >>> import Data.IntSet as IntSet
 -- >>> import Data.Set as Set
 -- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic
--- >>> let iat :: Int -> Ixaffine' Int [a] a; iat i = iaffine' (\s -> flip LI.ifind s $ \n _ -> n==i) (\s a -> LI.modifyAt i (const a) s) 
-
 
 ---------------------------------------------------------------------
 -- Setter
@@ -137,26 +105,6 @@ setter :: ((a -> b) -> s -> t) -> Setter s t a b
 setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 {-# INLINE setter #-}
 
--- | Build an 'Ixsetter' from an indexed function.
---
--- @
--- 'isetter' '.' 'iover' ≡ 'id'
--- 'iover' '.' 'isetter' ≡ 'id'
--- @
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input satisfies the following properties:
---
--- * @iabst (const id) ≡ id@
---
--- * @fmap (iabst $ const f) . (iabst $ const g) ≡ iabst (const $ f . g)@
---
--- See 'Data.Profunctor.Optic.Property'.
---
-isetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
-isetter f = setter $ \iab -> f (curry iab) . snd 
-{-# INLINE isetter #-}
-
 -- | Every valid 'Grate' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
@@ -180,21 +128,6 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
 resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
-
--- | TODO: Document
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input satisfies the following properties:
---
--- * @kabst (const id) ≡ id@
---
--- * @fmap (kabst $ const f) . (kabst $ const g) ≡ kabst (const $ f . g)@
---
--- See 'Data.Profunctor.Optic.Property'.
---
-ksetter :: ((k -> a -> t) -> s -> t) -> Cxsetter k s t a t
-ksetter f = resetter $ \kab -> const . f (flip kab)
-{-# INLINE ksetter #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -259,25 +192,6 @@ contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
 
--- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
---
--- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped ..~ \ (AssertionFailed _) -> Overflow)
--- "caught"
---
--- @
--- exmapped :: Exception e => Setter s s SomeException e
--- @
---
-exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
-exmapped = setter Ex.mapException
-{-# INLINE exmapped #-}
-
--- | 'Setter' on a particular value of an 'Adjustable' container.
---
-adjusted :: Adjustable f => Key f -> Setter' (f a) a 
-adjusted i = setter $ \f -> K.adjust f i
-{-# INLINE adjusted #-}
-
 -- | 'Setter' on each value of an applicative.
 --
 -- @
@@ -334,30 +248,11 @@ modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 
 -- | Apply a function only when the given condition holds.
 --
--- See also 'Data.Profunctor.Optic.Affine.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
+-- See also 'Data.Profunctor.Optic.Traversal0.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
 --
 cond :: (a -> Bool) -> Setter' a a
 cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
-
----------------------------------------------------------------------
--- Indexed optics 
----------------------------------------------------------------------
-
--- | 'Ixsetter' on each value of a 'Keyed' container.
---
-imapped :: Keyed f => Ixsetter (Key f) (f a) (f b) a b
-imapped = isetter K.mapWithKey
-{-# INLINE imapped #-}
-
--- | 'Ixsetter' on each value of a representable functor.
---
--- >>> 1 :+ 2 & imappedRep %~ bool 20 10
--- 20 :+ 10
---
-imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
-imappedRep = isetter F.imapRep
-{-# INLINE imappedRep #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -372,31 +267,6 @@ infixr 4 <>~
 set :: Optic (->) s t a b -> b -> s -> t
 set = (.~)
 {-# INLINE set #-}
-
--- | Prefix alias of '%~'.
---
--- Equivalent to 'iover' with the current value ignored.
---
--- @
--- 'set' o ≡ 'iset' o '.' 'const'
--- @
---
--- >>> iset (iat 2) (2-) [1,2,3 :: Int]
--- [1,2,0]
--- >>> iset (iat 5) (const 0) [1,2,3 :: Int]
--- [1,2,3]
---
-iset :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> b) -> s -> t
-iset o = iover o . (const .)
-{-# INLINE iset #-}
-
--- | Prefix alias of '#~'.
---
--- Equivalent to 'kover' with the current value ignored.
---
-kset :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> b) -> s -> t 
-kset o kb = kover o $ flip (const kb)
-{-# INLINE kset #-}
 
 -- | Prefix alias of '..~'.
 --
@@ -420,22 +290,34 @@ over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 {-# INLINE over #-}
 
--- | Prefix alias of '%%~'.
---
--- >>> iover (iat 1) (+) [1,2,3 :: Int]
--- [1,3,3]
--- >>> iover (iat 5) (+) [1,2,3 :: Int]
--- [1,2,3]
---
-iover :: (Additive-Monoid) i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-iover = (%%~)
-{-# INLINE iover #-}
+infixr 4 .~, ..~
 
--- | Prefix alias of '##~'.
+-- | Set all referenced fields to the given value.
 --
-kover :: (Additive-Monoid) k => ACxsetter k s t a b -> (k -> a -> b) -> s -> t 
-kover = (##~)
-{-# INLINE kover #-}
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Map over an optic.
+--
+-- >>> Just 1 & just ..~ (+1)
+-- Just 2
+--
+-- >>> Nothing & just ..~ (+1)
+-- Nothing
+--
+-- >>> [1,2,3] & fmapped ..~ (*10)
+-- [10,20,30]
+--
+-- >>> (1,2) & first' ..~ (+1) 
+-- (2,2)
+--
+-- >>> (10,20) & first' ..~ show 
+-- ("10",20)
+--
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) = id
+{-# INLINE (..~) #-}
 
 -- | Modify the target by adding another value.
 --
@@ -474,7 +356,7 @@ scribe :: MonadWriter w m => Monoid b => Optic (->) s w a b -> s -> m ()
 scribe o s = Writer.tell $ set o mempty s
 {-# INLINE scribe #-}
 
-infix 4 .=, ..=, %=, %%=, #=, ##=, <>=
+infix 4 .=, ..=, <>=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
@@ -501,18 +383,6 @@ modifies o f = State.modify (over o f)
 o .= b = State.modify (o .~ b)
 {-# INLINE (.=) #-}
 
--- | TODO: Document 
---
-(%=) :: MonadState s m => (Additive-Monoid) i => AIxsetter i s s a b -> (i -> b) -> m ()
-o %= b = State.modify (o %~ b)
-{-# INLINE (%=) #-}
-
--- | TODO: Document 
---
-(#=) :: MonadState s m => (Additive-Monoid) k => ACxsetter k s s a b -> (k -> b) -> m ()
-o #= f = State.modify (o #~ f)
-{-# INLINE (#=) #-}
-
 -- | Map over the target(s) of a 'Setter' in a monadic state.
 --
 -- This is an infixversion of 'modifies'.
@@ -527,18 +397,6 @@ o #= f = State.modify (o #~ f)
 (..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 o ..= f = State.modify (o ..~ f)
 {-# INLINE (..=) #-}
-
--- | TODO: Document 
---
-(%%=) :: MonadState s m => (Additive-Monoid) i => AIxsetter i s s a b -> (i -> a -> b) -> m () 
-o %%= f = State.modify (o %%~ f)
-{-# INLINE (%%=) #-}
-
--- | TODO: Document 
---
-(##=) :: MonadState s m => (Additive-Monoid) k => ACxsetter k s s a b -> (k -> a -> b) -> m () 
-o ##= f = State.modify (o ##~ f)
-{-# INLINE (##=) #-}
 
 -- | Modify the target(s) of a settable optic by adding a value.
 --

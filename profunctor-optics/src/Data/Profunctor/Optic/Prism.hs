@@ -9,8 +9,6 @@ module Data.Profunctor.Optic.Prism (
     -- * Prism & Cxprism
     Prism
   , Prism'
-  , Cxprism
-  , Cxprism'
   , prism
   , prism'
   , handling
@@ -18,15 +16,10 @@ module Data.Profunctor.Optic.Prism (
     -- * Optics
   , just
   , nothing
-  , compared
   , prefixed
   , only
   , nearly
   , nthbit
-  , sync
-  , async
-  , exception
-  , asyncException
     -- * Primitive operators
   , withPrism
     -- * Operators
@@ -39,15 +32,12 @@ module Data.Profunctor.Optic.Prism (
   , Choice(..)
 ) where
 
-import Control.Exception
 import Control.Monad (guard)
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix,(++))
-import Data.Prd
 import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Types
 
@@ -113,7 +103,6 @@ clonePrism o = withPrism o prism
 --
 -- >>> Just 1 :| [Just 2, Just 3] & withCostar just sum
 -- Just 6
---
 -- >>> Nothing :| [Just 2, Just 3] & withCostar just sum
 -- Nothing
 --
@@ -124,11 +113,6 @@ just = flip prism Just $ maybe (Left Nothing) Right
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
-
--- | Focus on comparability to a given element of a partial order.
---
-compared :: Prd a => a -> Prism' a Ordering
-compared x = flip prism' (const x) (pcompare x)
 
 -- | Focus on the remainder of a list with a given prefix.
 --
@@ -142,9 +126,8 @@ only x = nearly x (x==)
 
 -- | Create a 'Prism' from a value and a predicate.
 --
--- >>> nearly [] null #^ ()
+-- >>> review (nearly [] null) ()
 -- []
---
 -- >>> [1,2,3,4] ^? nearly [] null
 -- Nothing
 --
@@ -160,33 +143,6 @@ nearly x f = prism' (guard . f) (const x)
 --
 nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
-
--- | Focus on whether an exception is synchronous.
---
-sync :: Exception e => Prism' e e 
-sync = filterOn $ \e -> case fromException (toException e) of
-  Just (SomeAsyncException _) -> False
-  Nothing -> True
-  where filterOn f = iso (branch' f) join . right'
-
--- | Focus on whether an exception is asynchronous.
---
-async :: Exception e => Prism' e e 
-async = filterOn $ \e -> case fromException (toException e) of
-  Just (SomeAsyncException _) -> True
-  Nothing -> False
-  where filterOn f = iso (branch' f) join . right'
-
--- | Focus on whether a given exception has occurred.
---
-exception :: Exception e => Prism' SomeException e
-exception = prism' fromException toException
-
--- | Focus on whether a given asynchronous exception has occurred.
---
-asyncException :: Exception e => Prism' SomeException e
-asyncException = prism' asyncExceptionFromException asyncExceptionToException
-
 
 ---------------------------------------------------------------------
 -- Operators
@@ -220,7 +176,6 @@ without k =
 --
 -- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right'
 -- []
---
 -- >>> [Right "hail hydra!", Right "foo", Right "blah", Right "woot"] ^.. below right'
 -- [["hail hydra!","foo","blah","woot"]]
 --

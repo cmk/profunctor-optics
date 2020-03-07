@@ -9,34 +9,23 @@ module Data.Profunctor.Optic.Grate  (
     -- * Grate & Cxgrate
     Grate
   , Grate'
-  , Cxgrate
-  , Cxgrate'
   , grate
   , grateVl
-  , kgrateVl
   , inverting
   , cloneGrate
     -- * Optics
   , represented
   , distributed
   , endomorphed
-  , connected
   , continued
   , continuedT
   , calledCC
-  , unlifted
-    -- * Indexed optics
-  , kclosed
-  , kfirst
-  , ksecond
-  , coindexed
     -- * Primitive operators
   , withGrate 
   , withGrateVl
     -- * Operators
-  , coview
-  , zipsWith
-  , kzipsWith
+  , zipsWith0
+  , zipsWith2
   , zipsWith3
   , zipsWith4 
   , toClosure
@@ -48,18 +37,14 @@ module Data.Profunctor.Optic.Grate  (
 
 import Control.Monad.Reader
 import Control.Monad.Cont
-import Control.Monad.IO.Unlift
 import Data.Distributive
-import Data.Connection (Conn(..))
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Iso (tabulated)
 
-import Prelude (IO)
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -67,7 +52,6 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTupleSections
--- >>> import Control.Exception
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Complex
 -- >>> import Data.Connection.Int
@@ -132,11 +116,6 @@ grate sabt = dimap (flip ($)) sabt . closed
 grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
 grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 
--- | TODO: Document
---
-kgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
-kgrateVl f = grateVl $ \kab -> const . f (flip kab) 
-
 -- | Construct a 'Grate' from a pair of inverses.
 --
 inverting :: (s -> a) -> (b -> t) -> Grate s t a b
@@ -165,33 +144,17 @@ distributed = grate (`cotraverse` id)
 
 -- | Obtain a 'Grate' from an endomorphism. 
 --
--- >>> flip appEndo 2 $ zipsWith endomorphed (+) (Endo (*3)) (Endo (*4))
+-- >>> flip appEndo 2 $ zipsWith2 endomorphed (+) (Endo (*3)) (Endo (*4))
 -- 14
 --
 endomorphed :: Grate' (Endo a) a
 endomorphed = dimap appEndo Endo . closed
 {-# INLINE endomorphed #-}
 
--- | Obtain a 'Grate' from a Galois connection.
---
--- Useful for giving precise semantics to numerical computations.
---
--- This is an example of a 'Grate' that would not be a legal 'Iso',
--- as Galois connections are not in general inverses.
---
--- >>> zipsWith (connected i08i16) (+) 126 1
--- 127
--- >>> zipsWith (connected i08i16) (+) 126 2
--- 127
---
-connected :: Conn s a -> Grate' s a
-connected (Conn f g) = inverting f g
-{-# INLINE connected #-}
-
 -- | Obtain a 'Grate' from a continuation.
 --
 -- @
--- 'zipsWith' 'continued' :: (r -> r -> r) -> s -> s -> 'Cont' r s
+-- 'zipsWith2' 'continued' :: (r -> r -> r) -> s -> s -> 'Cont' r s
 -- @
 --
 continued :: Grate a (Cont r a) r r
@@ -201,7 +164,7 @@ continued = grate cont
 -- | Obtain a 'Grate' from a continuation.
 --
 -- @
--- 'zipsWith' 'continued' :: (m r -> m r -> m r) -> s -> s -> 'ContT' r m s 
+-- 'zipsWith2' 'continued' :: (m r -> m r -> m r) -> s -> s -> 'ContT' r m s 
 -- @
 --
 continuedT :: Grate a (ContT r m a) (m r) (m r)
@@ -211,64 +174,12 @@ continuedT = grate ContT
 -- | Lift the current continuation into the calling context.
 --
 -- @
--- 'zipsWith' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
+-- 'zipsWith2' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
 -- @
 --
 calledCC :: MonadCont m => Grate a (m a) (m b) (m a)
 calledCC = grate callCC
 {-# INLINE calledCC #-}
-
--- | Unlift an action into an 'IO' context.
---
--- @
--- 'liftIO' ≡ 'coview' 'unlifted'
--- @
---
--- >>> let catchA = catch @ArithException
--- >>> zipsWith unlifted (flip catchA . const) (throwIO Overflow) (print "caught") 
--- "caught" 
---
-unlifted :: MonadUnliftIO m => Grate (m a) (m b) (IO a) (IO b)
-unlifted = grate withRunInIO
-{-# INLINE unlifted #-}
-
----------------------------------------------------------------------
--- Indexed optics
----------------------------------------------------------------------
-
--- >>> kover kclosed (,) (*2) 5
--- ((),10)
---
-kclosed :: Cxgrate k (c -> a) (c -> b) a b
-kclosed = rmap flip . closed
-{-# INLINE kclosed #-}
-
--- | TODO: Document
---
-kfirst :: Cxgrate k a b (a , c) (b , c)
-kfirst = rmap (unfirst . uncurry . flip) . curry'
-{-# INLINE kfirst #-}
-
--- | TODO: Document
---
-ksecond :: Cxgrate k a b (c , a) (c , b)
-ksecond = rmap (unsecond . uncurry) . curry' . lmap swap
-{-# INLINE ksecond #-}
-
--- | Obtain a 'Cxgrate' from a representable functor.
---
--- >>> kzipsWith (coindexed @Complex) (\t -> if t then (+) else (*)) (2 :+ 2) (3 :+ 4)
--- 6 :+ 6
---
--- See also 'Data.Profunctor.Optic.Lens.indexed'.
---
-coindexed :: F.Representable f => (Additive-Monoid) (F.Rep f) => Cxgrate (F.Rep f) (f a) (f b) a b
-coindexed = kgrateVl grateRep
-{-# INLINE coindexed #-}
-
-grateRep :: F.Representable f => forall g. Functor g => (F.Rep f -> g a1 -> a2) -> g (f a1) -> f a2
-grateRep iab s = F.tabulate $ \i -> iab i (fmap (`F.index` i) s)
-{-# INLINE grateRep #-}
 
 ---------------------------------------------------------------------
 -- Primitive operators
@@ -302,21 +213,17 @@ withGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
 --
 -- This is essentially a restricted variant of 'Data.Profunctor.Optic.View.review'.
 --
-coview :: AGrate s t a b -> b -> t
-coview o b = withGrate o $ \sabt -> sabt (const b)
-{-# INLINE coview #-}
+zipsWith0 :: AGrate s t a b -> b -> t
+zipsWith0 o b = withGrate o $ \sabt -> sabt (const b)
+{-# INLINE zipsWith0 #-}
 
 -- | Zip over a 'Grate'. 
 --
--- @\\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
+-- @\\f -> 'zipsWith2' 'closed' ('zipsWith2' 'closed' f) ≡ 'zipsWith2' ('closed' . 'closed')@
 --
-zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
-zipsWith o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
-{-# INLINE zipsWith #-}
-
-kzipsWith :: (Additive-Monoid) k => ACxgrate k s t a b -> (k -> a -> a -> b) -> s -> s -> t
-kzipsWith o kaab s1 s2 = withCxgrate o $ \sakbt -> sakbt $ \sa k -> kaab k (sa s1) (sa s2)
-{-# INLINE kzipsWith #-}
+zipsWith2 :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
+zipsWith2 o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
+{-# INLINE zipsWith2 #-}
 
 -- | Zip over a 'Grate' with 3 arguments.
 --

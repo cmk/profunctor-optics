@@ -2,15 +2,14 @@ resolver: lts-14.18
 flags: {}
 
 packages:
-  - profunctor-arrows
   - profunctor-optics
 
 extra-deps:
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7
   - github: cmk/lawz
     commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
-  - github: cmk/connections
-    commit: 1c3f32c61bc218f3a444004892a6679a718a10c6
+  - github: cmk/coapplicative
+    commit: 9ef7978e44887246cc8b7bb54c8b292c246130aa
   - github: cmk/rings
     commit: 7e4425e08addcf98a9773cfedf15ff417447dd92
   - github: cmk/magmas

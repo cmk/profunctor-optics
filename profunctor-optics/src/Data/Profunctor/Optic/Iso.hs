@@ -14,8 +14,6 @@ module Data.Profunctor.Optic.Iso (
   , Iso'
   , iso
   , isoVl
-  , imapping
-  , kmapping
   , fmapping
   , contramapping
   , dimapping
@@ -41,18 +39,15 @@ module Data.Profunctor.Optic.Iso (
   , coswapped 
   , associated 
   , coassociated
-  , involuted 
-  , added 
-  , subtracted
-  , non 
+  , involuted
+  , added
   , anon
+  , non 
     -- * Primitive operators
   , withIso
     -- * Operators
   , invert
   , reover
-  , reixed
-  , recxed
   , op
   , au 
   , aup
@@ -64,11 +59,10 @@ module Data.Profunctor.Optic.Iso (
 import Control.Newtype.Generics (Newtype(..), op)
 import Data.Coerce
 import Data.Functor.Adjunction hiding (adjuncted)
-import Data.Group
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 
@@ -80,12 +74,14 @@ import qualified GHC.Generics as G
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
+-- >>> :set -XNoImplicitPrelude
 -- >>> import Data.Monoid
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types
+-- >>> import Prelude hiding ((-),(+))
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -129,18 +125,6 @@ isoVl abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
 {-# INLINE isoVl #-}
-
--- | Lift an 'Iso' into an indexed version. 
---
-imapping :: Profunctor p => AIso s t a b -> IndexedOptic p i s t a b
-imapping o = withIso o imap
-{-# INLINE imapping #-}
-
--- | Lift an 'Iso' into a coindexed version. 
---
-kmapping :: Profunctor p => AIso s t a b -> CoindexedOptic p k s t a b
-kmapping o = withIso o kmap
-{-# INLINE kmapping #-}
 
 -- | Lift an 'Iso' into a pair of functors.
 --
@@ -347,37 +331,9 @@ involuted = M.join iso
 
 -- | The group isomorphism defined by an element's action.
 --
-added :: Group a => a -> Iso' a a
-added n = iso (<> n) (<< n)
+added :: Ring a => a -> Iso' a a
+added a = iso (\x -> x+a) (\x -> x-a)
 {-# INLINE added #-}
-
--- | The group isomorphism defined by an element's inverse action.
---
--- @
--- 'subtracted' n = 're' ('added' n)
--- @
---
-subtracted :: Group a => a -> Iso' a a
-subtracted n = iso (<< n) (<> n)
-{-# INLINE subtracted #-}
-
--- | Remove a single value from a type.
---
--- @
--- 'non' ≡ 'non'' '.' 'only'
--- @
---
--- >>> non 0 #^ rem 10 4
--- Just 2
---
--- >>> non 0 #^ rem 10 5
--- Nothing
---
-non :: Eq a => a -> Iso' (Maybe a) a
-non def = iso (fromMaybe def) g
-  where g a | a == def  = Nothing
-            | otherwise = Just a
-{-# INLINE non #-}
 
 -- | Generalize @'non' a@ to take any value and a predicate.
 --
@@ -389,15 +345,18 @@ anon a p = iso (fromMaybe a) go where
        | otherwise = Just b
 {-# INLINE anon #-}
 
----------------------------------------------------------------------
--- Primitive operators
----------------------------------------------------------------------
-
---withIsoVl
-
----------------------------------------------------------------------
--- Operators
----------------------------------------------------------------------
+-- | Remove a single value from a type.
+--
+-- >>> review (non "foo") "foo"
+-- Nothing
+-- >>> review (non "foo") "foobar"
+-- Just "foobar"
+--
+non :: Eq a => a -> Iso' (Maybe a) a
+non def = iso (fromMaybe def) g
+  where g a | a == def  = Nothing
+            | otherwise = Just a
+{-# INLINE non #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -425,18 +384,6 @@ reover :: AIso s t a b -> (t -> s) -> b -> a
 reover o = withIso o $ \sa bt ts -> sa . ts . bt
 {-# INLINE reover #-}
 
--- | Remap the indices of an indexed optic.
---
-reixed :: Profunctor p => AIso' i j -> IndexedOptic p i s t a b -> IndexedOptic p j s t a b
-reixed o = withIso o reix
-{-# INLINE reixed #-}
-
--- | Remap the indices of a coindexed optic.
---
-recxed :: Profunctor p => AIso' k l -> CoindexedOptic p k s t a b -> CoindexedOptic p l s t a b
-recxed o = withIso o recx
-{-# INLINE recxed #-}
-
 -- | Based on /ala/ from Conor McBride's work on Epigram.
 --
 -- This version is generalized to accept any 'Iso', not just a @newtype@.
@@ -447,7 +394,7 @@ recxed o = withIso o recx
 -- You may want to think of this combinator as having the following, simpler type:
 --
 -- @
--- au :: AnIso s t a b -> ((b -> t) -> e -> s) -> e -> a
+-- 'au' :: 'AIso' s t a b -> ((b -> t) -> e -> s) -> e -> a
 -- @
 --
 au :: Functor f => AIso s t a b -> ((b -> t) -> f s) -> f a
@@ -456,9 +403,9 @@ au k = withIso k $ \ sa bt f -> fmap sa (f bt)
 
 -- | Variant of 'au' for profunctors. 
 --
--- >>> :t flip aup runStar
--- flip aup runStar
---   :: Functor f => AIso s t a (f a) -> Star f c s -> c -> t
+-- @
+-- 'flip' 'aup' 'runStar' :: Functor f => AIso s t a (f a) -> Star f c s -> c -> t
+-- @
 --
 aup :: Profunctor p => Functor f => AIso s t a b -> (p c a -> f b) -> p c s -> f t
 aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
@@ -470,24 +417,19 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 --
 -- >>> ala Sum foldMap [1,2,3,4]
 -- 10
---
 -- >>> ala All foldMap [True,True]
 -- True
---
 -- >>> ala All foldMap [True,False]
 -- False
---
 -- >>> ala Any foldMap [False,False]
 -- False
---
 -- >>> ala Any foldMap [True,False]
 -- True
---
 -- >>> ala Product foldMap [1,2,3,4]
 -- 24
 --
 -- @
--- ala :: Newtype s => Newtype t => (O s -> s) -> ((O t -> t) -> e -> s) -> e -> O s
+-- 'ala' :: 'Newtype' s => 'Newtype' t => ('O' s -> s) -> (('O' t -> t) -> e -> s) -> e -> O s
 -- @
 --
 ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 

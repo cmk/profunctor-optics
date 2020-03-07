@@ -2,17 +2,15 @@ cabal-version: >= 1.10
 
 name:           profunctor-optics
 version:        0.0.1
-synopsis:       An optics library compatible with the typeclasses in 'profunctors'.
+synopsis:       A compact optics library compatible with the typeclasses in profunctors.
 description:  
   This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
   .
-  Full complement of isos, prisms, lenses, grates, affines, traversals, cotraversals, views, setters, folds, and more.
+  Full complement of isos, prisms, lenses, grates, traversals, cotraversals, views, setters, folds, and more.
   .
-  Composable indexed or co-indexed variants of most of the above.
+  Compact & straight-forward implementation.
   .
-  Compact & straight-forward implementation. No inscrutable internal modules, lawless or otherwise ancillary typeclasses, or heavy type-level machinery.
-  .
-  Fully interoperable. All that is required to create optics (standard, indexable, or co-indexable) is the `profunctors` package. Optics compose with (.) from `Prelude` as is typical. If you want to provide profunctor optics for your own types in your own libraries, you can do so without incurring a dependency on this package. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  Fully interoperable. All that is required to create optics is the `profunctors` package. Optics compose with (.) from `Prelude` as is typical. Conversions to & from the Van Laarhoven representations are provided for each optic type.
   .
   Well-documented properties and exportable predicates for testing your own optics.
   .
@@ -37,32 +35,25 @@ source-repository head
 
 library
   exposed-modules:
-      Control.Exception.Optic
-
-      Data.Either.Optic
       Data.Tuple.Optic
+      Data.Either.Optic
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
       Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Carrier
-      Data.Profunctor.Optic.Operator
-      Data.Profunctor.Optic.Index
+      Data.Profunctor.Optic.Combinator
 
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Prism
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Grate
-      Data.Profunctor.Optic.Affine
-      Data.Profunctor.Optic.Option
       Data.Profunctor.Optic.Traversal
-      Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Cotraversal
+      Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Zoom
-
-      Data.Profunctor.Optic.Prelude
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -90,36 +81,16 @@ library
   build-depends:
       base              >= 4.9      && < 5.0
     , adjunctions       >= 4.4      && < 5.0
-    , connections       >= 0.0.3    && < 0.1
+    , coapplicative     >= 0.0.1    && < 1
     , distributive      >= 0.3      && < 1
-    , keys              >= 3.12     && < 3.13
+    , lawz              >= 0.1.1    && < 0.2
     , mtl               >= 2.0.1    && < 2.3
     , newtype-generics  >= 0.5.3    && < 0.6
-    , profunctor-arrows >= 0.0.0.3  && < 0.0.1
     , profunctors       >= 5.4      && < 6
     , rings             >= 0.0.3.1  && < 0.0.4
-    , magmas            >= 0.0.1    && < 0.1
     , semigroupoids     >= 5        && < 6
     , tagged            >= 0.4.4    && < 1
     , transformers      >= 0.5      && < 0.6
-    , unliftio-core     >= 0.1.2    && < 0.2
-
-test-suite test
-  type:              exitcode-stdio-1.0
-  main-is:           test.hs
-  ghc-options:       -Wall -threaded
-  hs-source-dirs:    test
-  default-language:  Haskell2010
-  other-modules:     Test.Data.Connection.Optic.Int
-  build-depends:       
-      base == 4.*
-    , connections
-    , profunctor-optics 
-    , hedgehog
-  default-extensions:
-      ScopedTypeVariables,
-      TypeApplications
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
 
 executable doctest
   main-is:           doctest.hs
@@ -131,10 +102,7 @@ executable doctest
   build-depends:
       base
     , adjunctions
-    , containers
-    , connections
     , doctest >= 0.8
-    , ilist
     , mtl
     , profunctor-optics
 

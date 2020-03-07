@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE DeriveGeneric         #-}
 module Data.Profunctor.Optic.Carrier (
     -- * Carrier types
     AIso
@@ -13,44 +14,24 @@ module Data.Profunctor.Optic.Carrier (
   , APrism'
   , ALens
   , ALens'
-  , AIxlens
-  , AIxlens'
-  , AGrate
-  , AGrate'
-  , ACxgrate
-  , ACxgrate'
-  , AAffine
-  , AAffine'
-  , AOption
-  , AIxoption
-  , AGrism
-  , AGrism'
   , ARepn
   , ARepn'
-  , AIxrepn
-  , AIxrepn'
-  , ATraversal
-  , ATraversal'
-  , AIxtraversal
-  , AIxtraversal'
-  , ATraversal1
-  , ATraversal1'
-  , AIxtraversal1
-  , AIxtraversal1'
-  , AFold
-  , AIxfold
-  , AFold1
-  , AIxfold1
-  , APrimView
-  , AView
-  , AIxview
-  , AIxsetter
-  , AIxsetter'
+  , AGrate
+  , AGrate'
   , ACorepn
   , ACorepn'
-  , ACxrepn'
+  , ATraversal0
+  , ATraversal0'
+  , ATraversal
+  , ATraversal'
+  , ATraversal1
+  , ATraversal1'
+  , ACotraversal0
+  , ACotraversal0'
   , ACotraversal
   , ACotraversal'
+  , ACotraversal1
+  , ACotraversal1'
   , AList
   , AList'
   , AList1
@@ -59,65 +40,75 @@ module Data.Profunctor.Optic.Carrier (
   , AScope'
   , AScope1
   , AScope1'
-  , APrimReview
+  , AFold0
+  , AFold
+  , AFold1
+  , ACofold
+  , AView
   , AReview
-  , ACxview
-  , ACxsetter
-  , ACxsetter'
     -- * Primitive operators
   , withIso
   , withPrism
   , withLens
-  , withIxlens
   , withGrate
-  , withCxgrate
   , withAffine
-  , withGrism
-  , withOption
-  , withIxoption
   , withStar
+  , withCoaffine
   , withCostar
-  , withPrimView
-  , withPrimReview
-  , withIxsetter
-  , withCxsetter
+  , withFold0
+  , withFold
+  , withFold1
+  , withCofold
+  , withView
+  , withReview
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
+  , Cotraversal0Rep(..)
   , LensRep(..)
-  , IxlensRep(..)
   , GrateRep(..)
-  , CxgrateRep(..)
-  , AffineRep(..)
-  , GrismRep(..)
-  , OptionRep(..)
+  , Traversal0Rep(..)
+  , Fold0Rep(..)
   , Star(..)
   , Costar(..)
   , Tagged(..)
+    -- * Index
+  , Index(..)
+  , vals
+  , info
+    -- * Coindex
+  , Coindex(..)
+  , trivial
+  , noindex
+  , coindex
+  , (.#.)
+    -- * Conjoin
+  , Conjoin(..)
 ) where
 
+import Control.Category (Category)
+import Control.Monad.Fix (MonadFix(..))
 import Data.Profunctor.Types as Export (Star(..), Costar(..))
 import Data.Bifunctor as B
 import Data.Function
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Index
-import Data.Profunctor.Extra as Extra
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Rep (unfirstCorep)
+import GHC.Generics (Generic)
 
-import qualified Data.Bifunctor as B
+import qualified Control.Arrow as A
+import qualified Control.Category as C
+
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XRankNTypes
--- >>> import Control.Exception hiding (catches)
 -- >>> import Data.Functor.Identity
--- >>> import Data.List.Index as LI
 -- >>> import Data.Map as Map
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
--- >>> import Data.Semiring hiding (unital,nonunital,presemiring)
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -136,83 +127,49 @@ type ALens s t a b = Optic (LensRep a b) s t a b
 
 type ALens' s a = ALens s s a a
 
-type AIxlens i s t a b = IndexedOptic (IxlensRep i a b) i s t a b
+type ARepn f s t a b = Optic (Star f) s t a b
 
-type AIxlens' i s a = AIxlens i s s a a
+type ARepn' f s a = ARepn f s s a a
 
 type AGrate s t a b = Optic (GrateRep a b) s t a b
 
 type AGrate' s a = AGrate s s a a
 
-type ACxgrate k s t a b = CoindexedOptic (CxgrateRep k a b) k s t a b
+type ACorepn f s t a b = Optic (Costar f) s t a b
 
-type ACxgrate' k s a = ACxgrate k s s a a
+type ACorepn' f t b = ACorepn f t t b b
 
-type AAffine s t a b = Optic (AffineRep a b) s t a b
+type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
 
-type AAffine' s a = AAffine s s a a
-
-type AOption r s a = Optic' (OptionRep r) s a
-
-type AIxoption r i s a = IndexedOptic' (OptionRep r) i s a
-
-type AGrism s t a b = Optic (GrismRep a b) s t a b
-
-type AGrism' s a = AGrism s s a a
-
-type ARepn f s t a b = Optic (Star f) s t a b
-
-type ARepn' f s a = ARepn f s s a a
-
-type AIxrepn f i s t a b = IndexedOptic (Star f) i s t a b
-
-type AIxrepn' f i s a = AIxrepn f i s s a a
+type ATraversal0' s a = ATraversal0 s s a a
 
 type ATraversal f s t a b = Applicative f => ARepn f s t a b
 
 type ATraversal' f s a = ATraversal f s s a a
 
-type AIxtraversal f i s t a b = Applicative f => AIxrepn f i s t a b
-
-type AIxtraversal' f i s a = AIxtraversal f i s s a a
-
 type ATraversal1 f s t a b = Apply f => ARepn f s t a b
 
 type ATraversal1' f s a = ATraversal1 f s s a a
 
-type AIxtraversal1 f i s t a b = Apply f => AIxrepn f i s t a b
+type ACotraversal0 s t a b = Optic (Cotraversal0Rep a b) s t a b
 
-type AIxtraversal1' f i s a = AIxtraversal1 f i s s a a
-
-type AFold r s a = ARepn' (Const r) s a
-
-type AIxfold r i s a = AIxrepn' (Const r) i s a
-
-type AFold1 r s a = ARepn' (Const r) s a
-
-type AIxfold1 r i s a = AIxrepn' (Const r) i s a
-
-type APrimView r s t a b = ARepn (Const r) s t a b
-
-type AView s a = ARepn' (Const a) s a
-
-type AIxview i s a = AIxrepn' (Const (Maybe i , a)) i s a
-
-type AIxsetter i s t a b = IndexedOptic (->) i s t a b
-
-type AIxsetter' i s a = AIxsetter i s s a a
-
-type ACorepn f s t a b = Optic (Costar f) s t a b
-
-type ACorepn' f t b = ACorepn f t t b b
-
-type ACxrepn f k s t a b = CoindexedOptic (Costar f) k s t a b
-
-type ACxrepn' f k t b = ACxrepn f k t t b b
+type ACotraversal0' s a = ACotraversal0 s s a a
 
 type ACotraversal f s t a b = Coapplicative f => ACorepn f s t a b
 
 type ACotraversal' f s a = ACotraversal f s s a a
+
+type ACotraversal1 f s t a b = Coapply f => ACorepn f s t a b
+
+type ACotraversal1' f s a = ACotraversal1 f s s a a
+
+type AFold0 r s a = Optic' (Fold0Rep r) s a
+
+type AFold r s a = Monoid r => ARepn' (Const r) s a
+
+type AFold1 r s a = Semigroup r => ARepn' (Const r) s a
+
+type ACofold r t b = ACorepn' (Const r) t b
 
 type AList f s t a b = Foldable f => ACorepn f s t a b
 
@@ -230,15 +187,9 @@ type AScope1 f s t a b = Traversable1 f => ACorepn f s t a b
 
 type AScope1' f s a = AScope1 f s s a a
 
-type APrimReview s t a b = Optic Tagged s t a b
+type AView r s a = ARepn' (Const r) s a
 
 type AReview t b = Optic' Tagged t b
-
-type ACxview k t b = CoindexedOptic' Tagged k t b
-
-type ACxsetter k s t a b = CoindexedOptic (->) k s t a b
-
-type ACxsetter' k t b = ACxsetter k t t b b
 
 -- | Extract the two functions that characterize an 'Iso'.
 --
@@ -250,16 +201,13 @@ withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 --
 withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
+{-# INLINE withPrism #-}
 
 -- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
-
--- | Extract the two functions that characterize a 'Lens'.
---
-withIxlens :: (Additive-Monoid) i => AIxlens i s t a b -> ((s -> (i , a)) -> (s -> b -> t) -> r) -> r
-withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (zero,)) (\s b -> y (zero, s) b)
+{-# INLINE withLens #-}
 
 -- | Extract the function that characterizes a 'Grate'.
 --
@@ -267,30 +215,11 @@ withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
 {-# INLINE withGrate #-}
 
-withCxgrate :: (Additive-Monoid) k => ACxgrate k s t a b -> ((((s -> a) -> k -> b) -> t) -> r) -> r
-withCxgrate o sakbtr = case o (CxgrateRep $ \f -> f id) of CxgrateRep sakbt -> sakbtr $ flip sakbt zero
-
 -- | TODO: Document
 --
-withAffine :: AAffine s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
-withAffine o k = case o (AffineRep Right $ const id) of AffineRep x y -> k x y
-
--- | TODO: Document
---
-withGrism :: AGrism s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
-withGrism o k = case o (GrismRep $ \f -> f Right) of GrismRep g -> k g
-
--- | TODO: Document
---
-withOption :: Optic (OptionRep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-withOption o = runOptionRep #. o .# OptionRep
-{-# INLINE withOption #-}
-
--- | TODO: Document
---
-withIxoption :: (Additive-Monoid) i => AIxoption r i s a -> (i -> a -> Maybe r) -> s -> Maybe r
-withIxoption o f = flip curry zero $ withOption o (uncurry f)
-{-# INLINE withIxoption #-}
+withAffine :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
+withAffine o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
+{-# INLINE withAffine #-}
 
 -- | TODO: Document
 --
@@ -300,33 +229,66 @@ withStar o = runStar #. o .# Star
 
 -- | TODO: Document
 --
+withCoaffine :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
+withCoaffine o k = case o (Cotraversal0Rep $ \f -> f Right) of Cotraversal0Rep g -> k g
+{-# INLINE withCoaffine #-}
+
+-- | TODO: Document
+--
 withCostar :: ACorepn f s t a b -> (f a -> b) -> (f s -> t)
 withCostar o = runCostar #. o .# Costar
 {-# INLINE withCostar #-}
 
 -- | TODO: Document
 --
-withPrimView :: APrimView r s t a b -> (a -> r) -> s -> r
-withPrimView o = (getConst #.) #. withStar o .# (Const #.)
-{-# INLINE withPrimView #-}
+withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
+withFold0 o = runFold0Rep #. o .# Fold0Rep
+{-# INLINE withFold0 #-}
+
+-- | Map an optic to a monoid and combine the results.
+--
+-- @
+-- 'Data.Foldable.foldMap' = 'withFold' 'folded_'
+-- @
+--
+-- >>> withFold both id (["foo"], ["bar", "baz"])
+-- ["foo","bar","baz"]
+-- >>> :t withFold traversed
+-- withFold traversed
+--   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
+--
+withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
+withFold o = (getConst #.) #. withStar o .# (Const #.)
+{-# INLINE withFold #-}
+
+-- | Map an optic to a semigroup and combine the results.
+--
+withFold1 :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
+withFold1 o = (getConst #.) #. withStar o .# (Const #.)
+{-# INLINE withFold1 #-}
 
 -- | TODO: Document
 --
-withPrimReview :: APrimReview s t a b -> (t -> r) -> b -> r
-withPrimReview o f = f . unTagged #. o .# Tagged
-{-# INLINE withPrimReview #-}
+-- >>> withCofold1 (from succ) (*2) 3
+-- 7
+--
+-- Compare 'Data.Profunctor.Optic.View.withReview'.
+--
+withCofold :: ACofold r t b -> (r -> b) -> r -> t
+withCofold o = (.# Const) #. withCostar o .# (.# getConst) 
+{-# INLINE withCofold #-}
 
 -- | TODO: Document
 --
-withIxsetter :: IndexedOptic (->) i s t a b -> (i -> a -> b) -> i -> s -> t
-withIxsetter o = unConjoin #. corepn o .# Conjoin
-{-# INLINE withIxsetter #-}
+withView :: AView r s a -> (a -> r) -> s -> r
+withView o = (getConst #.) #. withStar o .# (Const #.)
+{-# INLINE withView #-}
 
 -- | TODO: Document
 --
-withCxsetter :: CoindexedOptic (->) k s t a b -> (k -> a -> b) -> k -> s -> t
-withCxsetter o = unConjoin #. repn o .# Conjoin
-{-# INLINE withCxsetter #-}
+withReview :: AReview t b -> (t -> r) -> b -> r
+withReview o f = f . unTagged #. o .# Tagged
+{-# INLINE withReview #-}
 
 ---------------------------------------------------------------------
 -- IsoRep
@@ -401,22 +363,6 @@ instance Representable (LensRep a b) where
   tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
 
 ---------------------------------------------------------------------
--- IxlensRep
----------------------------------------------------------------------
-
-data IxlensRep i a b s t = IxlensRep (s -> (i , a)) (s -> b -> t)
-
-instance Profunctor (IxlensRep i a b) where
-  dimap f g (IxlensRep sia sbt) = IxlensRep (sia . f) (\s -> g . sbt (f s))
-
-instance Strong (IxlensRep i a b) where
-  first' (IxlensRep sia sbt) =
-    IxlensRep (\(a, _) -> sia a) (\(s, c) b -> (sbt s b, c))
-
-  second' (IxlensRep sia sbt) =
-    IxlensRep (\(_, a) -> sia a) (\(c, s) b -> (c, sbt s b))
-
----------------------------------------------------------------------
 -- GrateRep
 ---------------------------------------------------------------------
 
@@ -442,118 +388,105 @@ instance Corepresentable (GrateRep a b) where
   cotabulate f = GrateRep $ f . Coindex
 
 ---------------------------------------------------------------------
--- CxgrateRep
+-- Traversal0Rep
 ---------------------------------------------------------------------
 
-newtype CxgrateRep k a b s t = CxgrateRep { unCxgrateRep :: ((s -> a) -> k -> b) -> t }
+-- | The `Traversal0Rep` profunctor precisely characterizes an 'Traversal0'.
+data Traversal0Rep a b s t = Traversal0Rep (s -> t + a) (s -> b -> t)
 
-instance Profunctor (CxgrateRep k a b) where
-  dimap f g (CxgrateRep z) = CxgrateRep $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (CxgrateRep k a b) where
-  closed (CxgrateRep sabt) = CxgrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
-
----------------------------------------------------------------------
--- AffineRep
----------------------------------------------------------------------
-
--- | The `AffineRep` profunctor precisely characterizes an 'Affine'.
-data AffineRep a b s t = AffineRep (s -> t + a) (s -> b -> t)
-
-instance Profunctor (AffineRep a b) where
-  dimap f g (AffineRep sta sbt) = AffineRep
+instance Profunctor (Traversal0Rep a b) where
+  dimap f g (Traversal0Rep sta sbt) = Traversal0Rep
       (\a -> first g $ sta (f a))
       (\a v -> g (sbt (f a) v))
 
-instance Strong (AffineRep a b) where
-  first' (AffineRep sta sbt) = AffineRep
+instance Strong (Traversal0Rep a b) where
+  first' (Traversal0Rep sta sbt) = Traversal0Rep
       (\(a, c) -> first (,c) $ sta a)
       (\(a, c) v -> (sbt a v, c))
 
-instance Choice (AffineRep a b) where
-  right' (AffineRep sta sbt) = AffineRep
+instance Choice (Traversal0Rep a b) where
+  right' (Traversal0Rep sta sbt) = Traversal0Rep
       (\eca -> eassocl (second sta eca))
       (\eca v -> second (`sbt` v) eca)
 
-instance Sieve (AffineRep a b) (IndexA a b) where
-  sieve (AffineRep sta sbt) s = IndexA (sta s) (sbt s)
+instance Sieve (Traversal0Rep a b) (Index0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Index0 (sta s) (sbt s)
 
-instance Representable (AffineRep a b) where
-  type Rep (AffineRep a b) = IndexA a b
+instance Representable (Traversal0Rep a b) where
+  type Rep (Traversal0Rep a b) = Index0 a b
 
-  tabulate f = AffineRep (info0 . f) (values0 . f)
+  tabulate f = Traversal0Rep (info0 . f) (values0 . f)
 
-data IndexA a b r = IndexA (r + a) (b -> r)
+data Index0 a b r = Index0 (r + a) (b -> r)
 
-values0 :: IndexA a b r -> b -> r
-values0 (IndexA _ br) = br
+values0 :: Index0 a b r -> b -> r
+values0 (Index0 _ br) = br
 
-info0 :: IndexA a b r -> r + a
-info0 (IndexA a _) = a
+info0 :: Index0 a b r -> r + a
+info0 (Index0 a _) = a
 
-instance Functor (IndexA a b) where
-  fmap f (IndexA ra br) = IndexA (first f ra) (f . br)
+instance Functor (Index0 a b) where
+  fmap f (Index0 ra br) = Index0 (first f ra) (f . br)
 
-instance Applicative (IndexA a b) where
-  pure r = IndexA (Left r) (const r)
-  liftA2 f (IndexA ra1 br1) (IndexA ra2 br2) = IndexA (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
+instance Applicative (Index0 a b) where
+  pure r = Index0 (Left r) (const r)
+  liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
 
 ---------------------------------------------------------------------
--- 'GrismRep'
+-- Cotraversal0Rep
 ---------------------------------------------------------------------
 
 --TODO: Corepresentable, Coapplicative (Corep)
 
--- | The 'GrismRep' profunctor precisely characterizes 'Grism'.
+-- | The 'Cotraversal0Rep' profunctor precisely characterizes 'Cotraversal0'.
 --
-newtype GrismRep a b s t = GrismRep { unGrismRep :: ((s -> t + a) -> b) -> t }
+newtype Cotraversal0Rep a b s t = Cotraversal0Rep { unCotraversal0Rep :: ((s -> t + a) -> b) -> t }
 
-instance Profunctor (GrismRep a b) where
-  dimap us tv (GrismRep stabt) =
-    GrismRep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
+instance Profunctor (Cotraversal0Rep a b) where
+  dimap us tv (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
 
-instance Closed (GrismRep a b) where
-  closed (GrismRep stabt) =
-    GrismRep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+instance Closed (Cotraversal0Rep a b) where
+  closed (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
 
-instance Choice (GrismRep a b) where
-  left' (GrismRep stabt) =
-    GrismRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
+instance Choice (Cotraversal0Rep a b) where
+  left' (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
 
 ---------------------------------------------------------------------
--- OptionRep
+-- Fold0Rep
 ---------------------------------------------------------------------
 
-newtype OptionRep r a b = OptionRep { runOptionRep :: a -> Maybe r }
+newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
 
---todo coerce
-instance Functor (OptionRep r a) where
-  fmap _ (OptionRep p) = OptionRep p
+instance Functor (Fold0Rep r a) where
+  fmap _ (Fold0Rep p) = Fold0Rep p
 
-instance Contravariant (OptionRep r a) where
-  contramap _ (OptionRep p) = OptionRep p
+instance Contravariant (Fold0Rep r a) where
+  contramap _ (Fold0Rep p) = Fold0Rep p
 
-instance Profunctor (OptionRep r) where
-  dimap f _ (OptionRep p) = OptionRep (p . f)
+instance Profunctor (Fold0Rep r) where
+  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
 
-instance Choice (OptionRep r) where
-  left' (OptionRep p) = OptionRep (either p (const Nothing))
-  right' (OptionRep p) = OptionRep (either (const Nothing) p)
+instance Choice (Fold0Rep r) where
+  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
+  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
 
-instance Cochoice (OptionRep r) where
-  unleft  (OptionRep k) = OptionRep (k . Left)
-  unright (OptionRep k) = OptionRep (k . Right)
+instance Cochoice (Fold0Rep r) where
+  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
+  unright (Fold0Rep k) = Fold0Rep (k . Right)
 
-instance Strong (OptionRep r) where
-  first' (OptionRep p) = OptionRep (p . fst)
-  second' (OptionRep p) = OptionRep (p . snd)
+instance Strong (Fold0Rep r) where
+  first' (Fold0Rep p) = Fold0Rep (p . fst)
+  second' (Fold0Rep p) = Fold0Rep (p . snd)
 
-instance Sieve (OptionRep r) (Pre r) where
-  sieve = (Pre .) . runOptionRep
+instance Sieve (Fold0Rep r) (Pre r) where
+  sieve = (Pre .) . runFold0Rep
 
-instance Representable (OptionRep r) where
-  type Rep (OptionRep r) = Pre r
-  tabulate = OptionRep . (getPre .)
+instance Representable (Fold0Rep r) where
+  type Rep (Fold0Rep r) = Pre r
+  tabulate = Fold0Rep . (getPre .)
   {-# INLINE tabulate #-}
 
 -- | 'Pre' is 'Maybe' with a phantom type variable.
@@ -563,3 +496,218 @@ newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Show)
 instance Functor (Pre a) where fmap _ (Pre p) = Pre p
 
 instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p
+
+
+---------------------------------------------------------------------
+-- Index
+---------------------------------------------------------------------
+
+-- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
+--
+-- @'Index' a b s ≡ forall f. 'Functor' f => (a -> f b) -> f s@,
+--
+-- See also 'Data.Profunctor.Optic.Lens.withLensVl'.
+--
+data Index a b s = Index a (b -> s) deriving Generic
+
+vals :: Index a b s -> b -> s
+vals (Index _ bs) = bs
+{-# INLINE vals #-}
+
+info :: Index a b s -> a
+info (Index a _) = a
+{-# INLINE info #-}
+
+instance Functor (Index a b) where
+  fmap f (Index a bs) = Index a (f . bs)
+  {-# INLINE fmap #-}
+
+instance Profunctor (Index a) where
+  dimap f g (Index a bs) = Index a (g . bs . f)
+  {-# INLINE dimap #-}
+
+instance a ~ b => Foldable (Index a b) where
+  foldMap f (Index b bs) = f . bs $ b
+
+---------------------------------------------------------------------
+-- Coindex
+---------------------------------------------------------------------
+
+-- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
+--
+-- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@,
+--
+-- See also 'Data.Profunctor.Optic.Grate.withGrateVl'.
+--
+-- 'Coindex' can also be used to compose indexed maps, folds, or traversals directly.
+--
+-- For example, using the @containers@ library:
+--
+-- @
+--  Coindex mapWithKey :: Coindex (a -> b) (Map k a -> Map k b) k
+--  Coindex foldMapWithKey :: Monoid m => Coindex (a -> m) (Map k a -> m) k
+--  Coindex traverseWithKey :: Applicative t => Coindex (a -> t b) (Map k a -> t (Map k b)) k
+-- @
+--
+newtype Coindex a b s = Coindex { runCoindex :: (s -> a) -> b } deriving Generic
+
+instance Functor (Coindex a b) where
+  fmap sl (Coindex ab) = Coindex $ \la -> ab (la . sl)
+
+instance a ~ b => Apply (Coindex a b) where
+  (Coindex slab) <.> (Coindex ab) = Coindex $ \la -> slab $ \sl -> ab (la . sl) 
+
+instance a ~ b => Applicative (Coindex a b) where
+  pure s = Coindex ($s)
+  (<*>) = (<.>)
+
+trivial :: Coindex a b a -> b
+trivial (Coindex f) = f id
+{-# INLINE trivial #-}
+
+-- | Lift a regular function into a coindexed function.
+--
+-- For example, to traverse two layers, keeping only the first index:
+--
+-- @
+--  Coindex 'Data.Map.mapWithKey' .#. noindex 'Data.Map.map'
+--    :: Monoid k =>
+--       Coindex (a -> b) (Map k (Map j a) -> Map k (Map j b)) k
+-- @
+--
+noindex :: Monoid s => (a -> b) -> Coindex a b s
+noindex f = Coindex $ \a -> f (a mempty)
+
+coindex :: Functor f => s -> (a -> b) -> Coindex (f a) (f b) s
+coindex s ab = Coindex $ \sfa -> fmap ab (sfa s)
+{-# INLINE coindex #-}
+
+infixr 9 .#.
+
+-- | Compose two coindexes.
+--
+-- When /s/ is a 'Monoid', 'Coindex' can be used to compose indexed traversals, folds, etc.
+--
+-- For example, to keep track of only the first index seen, use @Data.Monoid.First@:
+--
+-- @
+--  fmap (First . pure) :: Coindex a b c -> Coindex a b (First c)
+-- @
+--
+-- or keep track of all indices using a list:
+--
+-- @
+--  fmap (:[]) :: Coindex a b c -> Coindex a b [c]
+-- @
+--
+(.#.) :: Semigroup s => Coindex b c s -> Coindex a b s -> Coindex a c s
+Coindex f .#. Coindex g = Coindex $ \b -> f $ \s1 -> g $ \s2 -> b (s1 <> s2)
+
+---------------------------------------------------------------------
+-- Conjoin
+---------------------------------------------------------------------
+
+-- '(->)' is simultaneously both indexed and co-indexed.
+newtype Conjoin j a b = Conjoin { unConjoin :: j -> a -> b }
+
+instance Functor (Conjoin j a) where
+  fmap g (Conjoin f) = Conjoin $ \j a -> g (f j a)
+  {-# INLINE fmap #-}
+
+instance Apply (Conjoin j a) where
+  Conjoin f <.> Conjoin g = Conjoin $ \j a -> f j a (g j a)
+  {-# INLINE (<.>) #-}
+
+instance Applicative (Conjoin j a) where
+  pure b = Conjoin $ \_ _ -> b
+  {-# INLINE pure #-}
+  Conjoin f <*> Conjoin g = Conjoin $ \j a -> f j a (g j a)
+  {-# INLINE (<*>) #-}
+
+instance Monad (Conjoin j a) where
+  return = pure
+  {-# INLINE return #-}
+  Conjoin f >>= k = Conjoin $ \j a -> unConjoin (k (f j a)) j a
+  {-# INLINE (>>=) #-}
+
+instance MonadFix (Conjoin j a) where
+  mfix f = Conjoin $ \ j a -> let o = unConjoin (f o) j a in o
+  {-# INLINE mfix #-}
+
+instance Profunctor (Conjoin j) where
+  dimap ab cd jbc = Conjoin $ \j -> cd . unConjoin jbc j . ab
+  {-# INLINE dimap #-}
+  lmap ab jbc = Conjoin $ \j -> unConjoin jbc j . ab
+  {-# INLINE lmap #-}
+  rmap bc jab = Conjoin $ \j -> bc . unConjoin jab j
+  {-# INLINE rmap #-}
+
+instance Closed (Conjoin j) where
+  closed (Conjoin jab) = Conjoin $ \j xa x -> jab j (xa x)
+
+instance Costrong (Conjoin j) where
+  unfirst (Conjoin jadbd) = Conjoin $ \j a -> let
+      (b, d) = jadbd j (a, d)
+    in b
+
+instance Sieve (Conjoin j) ((->) j) where
+  sieve = flip . unConjoin
+  {-# INLINE sieve #-}
+
+instance Representable (Conjoin j) where
+  type Rep (Conjoin j) = (->) j
+  tabulate = Conjoin . flip
+  {-# INLINE tabulate #-}
+
+instance Cosieve (Conjoin j) ((,) j) where
+  cosieve = uncurry . unConjoin
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (Conjoin j) where
+  type Corep (Conjoin j) = (,) j
+  cotabulate = Conjoin . curry
+  {-# INLINE cotabulate #-}
+
+instance Choice (Conjoin j) where
+  right' = A.right
+  {-# INLINE right' #-}
+
+instance Strong (Conjoin j) where
+  second' = A.second
+  {-# INLINE second' #-}
+
+instance Category (Conjoin j) where
+  id = Conjoin (const id)
+  {-# INLINE id #-}
+  Conjoin f . Conjoin g = Conjoin $ \j -> f j . g j
+  {-# INLINE (.) #-}
+
+instance A.Arrow (Conjoin j) where
+  arr f = Conjoin (\_ -> f)
+  {-# INLINE arr #-}
+  first f = Conjoin (A.first . unConjoin f)
+  {-# INLINE first #-}
+  second f = Conjoin (A.second . unConjoin f)
+  {-# INLINE second #-}
+  Conjoin f *** Conjoin g = Conjoin $ \j -> f j A.*** g j
+  {-# INLINE (***) #-}
+  Conjoin f &&& Conjoin g = Conjoin $ \j -> f j A.&&& g j
+  {-# INLINE (&&&) #-}
+
+instance A.ArrowChoice (Conjoin j) where
+  left f = Conjoin (A.left . unConjoin f)
+  {-# INLINE left #-}
+  right f = Conjoin (A.right . unConjoin f)
+  {-# INLINE right #-}
+  Conjoin f +++ Conjoin g = Conjoin $ \j -> f j A.+++ g j
+  {-# INLINE (+++)  #-}
+  Conjoin f ||| Conjoin g = Conjoin $ \j -> f j A.||| g j
+  {-# INLINE (|||) #-}
+
+instance A.ArrowApply (Conjoin j) where
+  app = Conjoin $ \i (f, b) -> unConjoin f i b
+  {-# INLINE app #-}
+
+instance A.ArrowLoop (Conjoin j) where
+  loop (Conjoin f) = Conjoin $ \j b -> let (c,d) = f j (b, d) in c
+  {-# INLINE loop #-}
