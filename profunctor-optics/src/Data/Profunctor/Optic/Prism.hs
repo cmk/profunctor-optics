@@ -9,12 +9,19 @@ module Data.Profunctor.Optic.Prism (
     -- * Prism & Cxprism
     Prism
   , Prism'
+  , Coprism
+  , Coprism'
   , prism
   , prism'
   , handling
   , clonePrism
+  , coprism
+  , coprism'
+  , rehandling
+  , cloneCoprism
     -- * Optics
   , just
+  , cojust
   , nothing
   , prefixed
   , only
@@ -95,6 +102,44 @@ handling sca cbt = dimap sca cbt . right'
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
 
+-- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
+--
+-- @
+-- coprism f g ≡ \f g -> re (prism f g)
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions satisfy the following
+-- properties:
+--
+-- * @bat (bt b) ≡ Right b@
+--
+-- * @(id ||| bt) (bat b) ≡ b@
+--
+-- * @left bat (bat b) ≡ left Left (bat b)@
+--
+-- A 'Coprism' is a 'View', so you can specialise types to obtain:
+--
+-- @ view :: 'Coprism'' s a -> s -> a @
+--
+coprism :: (s -> a) -> (b -> a + t) -> Coprism s t a b
+coprism sa bat = unright . dimap (id ||| sa) bat
+
+-- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
+--
+coprism' :: (s -> a) -> (a -> Maybe s) -> Coprism' s a
+coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
+
+-- | Obtain a 'Coprism' from its free tensor representation.
+--
+rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
+rehandling csa bct = unright . dimap csa bct
+
+-- | TODO: Document
+--
+cloneCoprism :: ACoprism s t a b -> Coprism s t a b
+cloneCoprism o = withCoprism o coprism
+
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
@@ -108,6 +153,11 @@ clonePrism o = withPrism o prism
 --
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
+
+-- | Unfocus on the `Just` constructor of `Maybe`.
+--
+cojust :: Coprism a b (Maybe a) (Maybe b)
+cojust = coprism Just $ maybe (Left Nothing) Right
 
 -- | Focus on the `Nothing` constructor of `Maybe`.
 --

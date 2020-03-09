@@ -54,8 +54,6 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Setter
-import Data.Profunctor.Optic.Lens
-import Data.Profunctor.Optic.Grate
 import Test.Function.Invertible
 
 ---------------------------------------------------------------------

@@ -12,8 +12,12 @@ module Data.Profunctor.Optic.Carrier (
   , AIso'
   , APrism
   , APrism'
+  , ACoprism
+  , ACoprism'
   , ALens
   , ALens'
+  , AColens
+  , AColens'
   , ARepn
   , ARepn'
   , AGrate
@@ -49,8 +53,12 @@ module Data.Profunctor.Optic.Carrier (
     -- * Primitive operators
   , withIso
   , withPrism
+  , withCoprism
   , withLens
+  , withColens
+  , withLensVl
   , withGrate
+  , withGrateVl
   , withAffine
   , withStar
   , withCoaffine
@@ -64,8 +72,10 @@ module Data.Profunctor.Optic.Carrier (
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
+  , CoprismRep(..)
   , Cotraversal0Rep(..)
   , LensRep(..)
+  , ColensRep(..)
   , GrateRep(..)
   , Traversal0Rep(..)
   , Fold0Rep(..)
@@ -123,17 +133,25 @@ type APrism s t a b = Optic (PrismRep a b) s t a b
 
 type APrism' s a = APrism s s a a
 
+type ACoprism s t a b = Optic (CoprismRep a b) s t a b
+
+type ACoprism' s a = ACoprism s s a a
+
 type ALens s t a b = Optic (LensRep a b) s t a b
 
 type ALens' s a = ALens s s a a
 
-type ARepn f s t a b = Optic (Star f) s t a b
+type AColens s t a b = Optic (ColensRep a b) s t a b
 
-type ARepn' f s a = ARepn f s s a a
+type AColens' s a = AColens s s a a 
 
 type AGrate s t a b = Optic (GrateRep a b) s t a b
 
 type AGrate' s a = AGrate s s a a
+
+type ARepn f s t a b = Optic (Star f) s t a b
+
+type ARepn' f s a = ARepn f s s a a
 
 type ACorepn f s t a b = Optic (Costar f) s t a b
 
@@ -203,17 +221,68 @@ withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 {-# INLINE withPrism #-}
 
+-- | Extract the two functions that characterize a 'Coprism'.
+--
+withCoprism :: ACoprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
+withCoprism o f = case o (CoprismRep id Right) of CoprismRep g h -> f g h
+
 -- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 {-# INLINE withLens #-}
 
+-- | Extract the two functions that characterize a 'Colens'.
+--
+withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
+withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
+
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- withLensVl o Identity ≡ Identity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (withLensVl o f) . withLensVl o g ≡ withLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+withLensVl :: Functor f => ALens s t a b -> (a -> f b) -> s -> f t
+withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+
 -- | Extract the function that characterizes a 'Grate'.
 --
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
 {-# INLINE withGrate #-}
+
+-- | Extract the higher order function that characterizes a 'Grate'.
+--
+-- The grate laws can be stated in terms or 'withGrate':
+-- 
+-- Identity:
+-- 
+-- @
+-- withGrateVl o runIdentity ≡ runIdentity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- withGrateVl o f . fmap (withGrateVl o g) ≡ withGrateVl o (f . fmap g . getCompose) . Compose
+-- @
+--
+withGrateVl :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
+withGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
+{-# INLINE withGrateVl #-}
 
 -- | TODO: Document
 --
@@ -269,7 +338,7 @@ withFold1 o = (getConst #.) #. withStar o .# (Const #.)
 
 -- | TODO: Document
 --
--- >>> withCofold1 (from succ) (*2) 3
+-- >>> withCofold (from succ) (*2) 3
 -- 7
 --
 -- Compare 'Data.Profunctor.Optic.View.withReview'.
@@ -336,6 +405,23 @@ instance Choice (PrismRep a b) where
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
 
+data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
+
+instance Functor (CoprismRep a b s) where
+  fmap f (CoprismRep sa bat) = CoprismRep sa (second f . bat)
+  {-# INLINE fmap #-}
+
+instance Profunctor (CoprismRep a b) where
+  lmap f (CoprismRep sa bat) = CoprismRep (sa . f) bat
+  {-# INLINE lmap #-}
+
+  rmap = fmap
+  {-# INLINE rmap #-}
+
+instance Cochoice (CoprismRep a b) where
+  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  {-# INLINE unleft #-}
+
 ---------------------------------------------------------------------
 -- LensRep
 ---------------------------------------------------------------------
@@ -361,6 +447,22 @@ instance Representable (LensRep a b) where
   type Rep (LensRep a b) = Index a b
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
+
+---------------------------------------------------------------------
+-- ColensRep
+---------------------------------------------------------------------
+
+data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
+
+instance Profunctor (ColensRep a b) where
+  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
+
+{-
+instance Costrong (ColensRep a b) where
+  unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
+    where foo = uncurry baca . shuffle . B.second bbc --_ . swap --TODO: B.second bbc
+          shuffle (x,(y,z)) = (y,(x,z))
+-}
 
 ---------------------------------------------------------------------
 -- GrateRep

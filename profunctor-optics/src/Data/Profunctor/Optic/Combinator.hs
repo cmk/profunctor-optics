@@ -27,6 +27,10 @@ module Data.Profunctor.Optic.Combinator (
   , assocr'
   , eassocl
   , eassocr
+  , forget1
+  , forget2
+  , forgetl
+  , forgetr
     -- * Operations on arbitrary profunctors
   , constl
   , constr
@@ -116,11 +120,6 @@ eassocr (Left (Right b)) = Right (Left b)
 eassocr (Right c)        = Right (Right c)
 {-# INLINE eassocr #-}
 
-{-
-eassocr' :: (a -> b) + c -> a -> b + c
-eassocr' abc a = either (\ab -> Left $ ab a) Right abc
-{-# INLINE eassocr' #-}
-
 forget1 :: ((c, a) -> (c, b)) -> a -> b
 forget1 f a = b where (c, b) = f (c, a)
 {-# INLINE forget1 #-}
@@ -136,7 +135,6 @@ forgetl f = go . Right where go = either (go . Left) id . f
 forgetr :: (a + c -> b + c) -> a -> b
 forgetr f = go . Left where go = either id (go . Right) . f
 {-# INLINE forgetr #-}
--}
 
 ---------------------------------------------------------------------
 -- Operations on arbitrary profunctors

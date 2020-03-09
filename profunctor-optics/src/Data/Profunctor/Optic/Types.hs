@@ -2,6 +2,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
@@ -30,25 +31,26 @@ module Data.Profunctor.Optic.Types (
     -- * Iso
   , Iso, Iso'
     -- * Prism
-  , Prism, Prism'
+  , Prism, Coprism
+  , Prism', Coprism'
     -- * Lens
-  , Lens, Lens'
+  , Lens, Colens
+  , Lens', Colens'
     -- * Grate
   , Grate, Grate'
-    -- * Traversal0, Traversal, Traversal1
-  , Traversal0, Traversal, Traversal1
-  , Traversal0', Traversal', Traversal1'
-    -- * Cotraversal0, Cotraversal, Cotraversal1
-  , Cotraversal0, Cotraversal, Cotraversal1
-  , Cotraversal0', Cotraversal', Cotraversal1'
-    -- * Fold0, Fold, & Fold1
+    -- * Traversal
+  , Traversal0, Cotraversal0
+  , Traversal, Cotraversal
+  , Traversal1, Cotraversal1
+  , Traversal0', Cotraversal0'
+  , Traversal', Cotraversal'
+  , Traversal1', Cotraversal1'
+    -- * Fold
   , Fold0, Fold, Fold1
-    -- * Cofold0, Cofold & Cofold1
-  , Cofold0, Cofold, Cofold1
-    -- * Setter & Resetter
+    -- * Setter
   , Setter, Resetter
   , Setter', Resetter'
-    -- * View & Review
+    -- * View
   , View, Review
     -- * 'Re'
   , Re(..), re
@@ -130,7 +132,13 @@ type Iso' s a = Iso s s a a
 --
 type Prism s t a b = forall p. Choice p => Optic p s t a b
 
+-- | \( \mathsf{Prism}\;S\;A = \exists D, S + D \cong A \)
+--
+type Coprism s t a b = forall p. Cochoice p => Optic p s t a b
+
 type Prism' s a = Prism s s a a
+
+type Coprism' t b = Coprism t t b b
 
 ---------------------------------------------------------------------
 -- Lens
@@ -140,64 +148,70 @@ type Prism' s a = Prism s s a a
 --
 type Lens s t a b = forall p. Strong p => Optic p s t a b
 
-type Lens' s a = Lens s s a a
-
----------------------------------------------------------------------
--- Grate
----------------------------------------------------------------------
+-- | \( \mathsf{Lens}\;S\;A  = \exists C, S \times C \cong A \)
+--
+type Colens s t a b = forall p. Costrong p => Optic p s t a b
 
 -- | \( \mathsf{Grate}\;S\;A = \exists I, S \cong I \to A \)
 --
 type Grate s t a b = forall p. Closed p => Optic p s t a b 
 
+type Lens' s a = Lens s s a a
+
+type Colens' t b = Lens t t b b
+
 type Grate' s a = Grate s s a a
 
 ---------------------------------------------------------------------
--- Traversal0, Traversal, Traversal1
+-- Traversal0
 ---------------------------------------------------------------------
 
 -- | \( \mathsf{Traversal0}\;S\;A = \exists C, D, S \cong D + C \times A \)
 --
 type Traversal0 s t a b = forall p. Affine p => Optic p s t a b 
 
--- | \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
---
-type Traversal s t a b = forall p. (Affine p, Traversing p) => Optic p s t a b
-
--- | \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
---
-type Traversal1 s t a b = forall p. (Strong p, Traversing1 p) => Optic p s t a b 
-
-type Traversal0' s a = Traversal0 s s a a
-
-type Traversal' s a = Traversal s s a a
-
-type Traversal1' s a = Traversal1 s s a a
-
----------------------------------------------------------------------
--- Cotraversal0, Cotraversal, Cotraversal1
----------------------------------------------------------------------
-
 -- | \( \mathsf{Cotraversal0}\;S\;A = \exists D, I, S \cong I \to D + A \)
 --
 type Cotraversal0 s t a b = forall p. Coaffine p => Optic p s t a b
+
+type Traversal0' s a = Traversal0 s s a a
+
+type Cotraversal0' t b = Cotraversal0 t t b b
+
+---------------------------------------------------------------------
+-- Traversal
+---------------------------------------------------------------------
+
+-- | \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
+--
+type Traversal s t a b = forall p. (Affine p, Traversing p) => Optic p s t a b
 
 -- | \( \mathsf{Cotraversal}\;S\;A = \exists F : \mathsf{Distributive}, S \equiv F\,A \)
 --
 type Cotraversal s t a b = forall p. (Coaffine p, Cotraversing p) => Optic p s t a b
 
+type Traversal' s a = Traversal s s a a
+
+type Cotraversal' t b = Cotraversal t t b b
+
+---------------------------------------------------------------------
+-- Traversal1
+---------------------------------------------------------------------
+
+-- | \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
+--
+type Traversal1 s t a b = forall p. (Strong p, Traversing1 p) => Optic p s t a b 
+
 -- | \( \mathsf{Cotraversal1}\;S\;A = \exists F : \mathsf{Distributive1}, S \equiv F\,A \)
 --
 type Cotraversal1 s t a b = forall p. (Closed p, Cotraversing1 p) => Optic p s t a b
 
-type Cotraversal0' t b = Cotraversal0 t t b b
-
-type Cotraversal' t b = Cotraversal t t b b
+type Traversal1' s a = Traversal1 s s a a
 
 type Cotraversal1' t b = Cotraversal1 t t b b
 
 ---------------------------------------------------------------------
--- Fold0, Fold, & Fold1
+-- Fold
 ---------------------------------------------------------------------
 
 type Fold0 s a = forall p. (Affine p, CoerceR p) => Optic' p s a 
@@ -207,17 +221,7 @@ type Fold s a = forall p. (Affine p, Traversing p, CoerceR p) => Optic' p s a
 type Fold1 s a = forall p. (Strong p, Traversing1 p, CoerceR p) => Optic' p s a 
 
 ---------------------------------------------------------------------
--- Cofold0, Cofold, & Cofold1
----------------------------------------------------------------------
-
-type Cofold0 t b = forall p. (Coaffine p, CoerceL p) => Optic' p t b 
-
-type Cofold t b = forall p. (Coaffine p, Cotraversing p, CoerceL p) => Optic' p t b
-
-type Cofold1 t b = forall p. (Closed p, Cotraversing1 p, CoerceL p) => Optic' p t b
-
----------------------------------------------------------------------
--- View & Review
+-- View
 ---------------------------------------------------------------------
 
 type View s a = forall p. (Strong p, CoerceR p) => Optic' p s a 
@@ -225,7 +229,7 @@ type View s a = forall p. (Strong p, CoerceR p) => Optic' p s a
 type Review t b = forall p. (Closed p, CoerceL p) => Optic' p t b
 
 ---------------------------------------------------------------------
--- Setter & Resetter
+-- Setter
 ---------------------------------------------------------------------
 
 -- | \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
@@ -258,12 +262,6 @@ between f g = (f .) . (. g)
 
 -- | Reverse an optic to obtain its dual.
 --
--- >>> 5 ^. re left'
--- Left 5
---
--- >>> 6 ^. re (left' . from succ)
--- Left 7
---
 -- @
 -- 're' . 're'  ≡ id
 -- @
@@ -272,7 +270,12 @@ between f g = (f .) . (. g)
 -- 're' :: 'Iso' s t a b   -> 'Iso' b a t s
 -- 're' :: 'Lens' s t a b  -> 'Colens' b a t s
 -- 're' :: 'Prism' s t a b -> 'Coprism' b a t s
+-- 're' :: 'Traversal' s t a b  -> 'Cotraversal' b a t s
+-- 're' :: 'View' s t a b  -> 'Review' b a t s
 -- @
+--
+-- >>> 5 ^. re left'
+-- Left 5
 --
 re :: Optic (Re p a b) s t a b -> Optic p b a t s
 re o = (between runRe Re) o id
@@ -282,6 +285,7 @@ re o = (between runRe Re) o id
 --
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
+-- TODO: Closed, Representable, Corepresentable instances
 instance Profunctor p => Profunctor (Re p s t) where
   dimap f g (Re p) = Re (p . dimap g f)
 

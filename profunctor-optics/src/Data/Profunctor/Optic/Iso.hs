@@ -40,7 +40,6 @@ module Data.Profunctor.Optic.Iso (
   , associated 
   , coassociated
   , involuted
-  , added
   , anon
   , non 
     -- * Primitive operators
@@ -74,14 +73,12 @@ import qualified GHC.Generics as G
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
--- >>> :set -XNoImplicitPrelude
 -- >>> import Data.Monoid
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types
--- >>> import Prelude hiding ((-),(+))
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -328,12 +325,6 @@ coassociated = iso eassocl eassocr
 involuted :: (s -> a) -> Iso s a a s
 involuted = M.join iso
 {-# INLINE involuted #-}
-
--- | The group isomorphism defined by an element's action.
---
-added :: Ring a => a -> Iso' a a
-added a = iso (\x -> x+a) (\x -> x-a)
-{-# INLINE added #-}
 
 -- | Generalize @'non' a@ to take any value and a predicate.
 --

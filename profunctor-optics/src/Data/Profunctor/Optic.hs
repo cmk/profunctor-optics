@@ -12,9 +12,7 @@ module Data.Profunctor.Optic (
   , module Iso
   , module Prism
   , module Lens
-  , module Grate
   , module Traversal
-  , module Cotraversal
   , module Fold
   , module View
   , module Setter
@@ -24,13 +22,11 @@ module Data.Profunctor.Optic (
 
 import Data.Profunctor.Optic.Types            as Types
 import Data.Profunctor.Optic.Carrier          as Carrier
-import Data.Profunctor.Optic.Combinator         as Operator
+import Data.Profunctor.Optic.Combinator       as Operator
 import Data.Profunctor.Optic.Iso              as Iso
 import Data.Profunctor.Optic.Prism            as Prism
 import Data.Profunctor.Optic.Lens             as Lens
-import Data.Profunctor.Optic.Grate            as Grate
 import Data.Profunctor.Optic.Traversal        as Traversal
-import Data.Profunctor.Optic.Cotraversal      as Cotraversal
 import Data.Profunctor.Optic.Fold             as Fold
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter

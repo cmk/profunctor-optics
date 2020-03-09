@@ -11,6 +11,6 @@ extra-deps:
   - github: cmk/coapplicative
     commit: 9ef7978e44887246cc8b7bb54c8b292c246130aa
   - github: cmk/rings
-    commit: 7e4425e08addcf98a9773cfedf15ff417447dd92
+    commit: 8f933f7f1b41408c78360122632465533a6b5b70
   - github: cmk/magmas
     commit: f86a7433ffa13407b939280523feb661143a800a

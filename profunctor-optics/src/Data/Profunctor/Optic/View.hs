@@ -80,7 +80,7 @@ to f = coercer . lmap f
 -- 'from' ≡ 're' . 'to'
 -- @
 --
--- >>> (from Prelude.length) .^ [1,2,3]
+-- >>> review (from Prelude.length) [1,2,3]
 -- 3
 --
 -- @

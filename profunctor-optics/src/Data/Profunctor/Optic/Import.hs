@@ -40,4 +40,4 @@ import Data.Tuple as Export
 import Data.Tagged as Export
 import Data.Void as Export
 import Test.Logic as Export
-import Prelude as Export hiding (Num(..),sum,product,(^))
+import Prelude as Export hiding (Num(..),subtract,sum,product,(^))
