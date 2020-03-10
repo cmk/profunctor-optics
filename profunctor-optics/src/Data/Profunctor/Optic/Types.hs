@@ -158,7 +158,7 @@ type Grate s t a b = forall p. Closed p => Optic p s t a b
 
 type Lens' s a = Lens s s a a
 
-type Colens' t b = Lens t t b b
+type Colens' t b = Colens t t b b
 
 type Grate' s a = Grate s s a a
 

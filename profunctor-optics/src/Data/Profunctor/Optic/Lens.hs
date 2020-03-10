@@ -31,6 +31,7 @@ module Data.Profunctor.Optic.Lens (
   , voided
   , represented
   , distributed
+  , distributed1
   , endomorphed
   , precomposed
   , dotted
@@ -104,7 +105,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
--- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
+-- Compare 'grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -296,6 +297,12 @@ represented = tabulated . closed
 distributed :: Distributive f => Grate (f a) (f b) a b
 distributed = grate (`cotraverse` id)
 {-# INLINE distributed #-}
+
+-- | Obtain a 'Grate' from a partially distributive functor.
+--
+distributed1 :: Monoid (f a) => Distributive1 f => Grate (f a) (f b) a b
+distributed1 = grate (`cotraverse1` id)
+{-# INLINE distributed1 #-}
 
 -- | Obtain a 'Grate' from an endomorphism. 
 --

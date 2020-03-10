@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic (
     module Types
+  , module Module
   , module Carrier
   , module Operator
   , module Iso
@@ -21,6 +22,7 @@ module Data.Profunctor.Optic (
 ) where
 
 import Data.Profunctor.Optic.Types            as Types
+import Data.Profunctor.Optic.Module           as Module
 import Data.Profunctor.Optic.Carrier          as Carrier
 import Data.Profunctor.Optic.Combinator       as Operator
 import Data.Profunctor.Optic.Iso              as Iso

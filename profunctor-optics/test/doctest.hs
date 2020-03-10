@@ -6,6 +6,7 @@ import Prelude (IO)
 main :: IO ()
 main = doctest 
   [ "-isrc" 
+  , "src/Data/Profunctor/Optic/Module.hs"
   , "src/Data/Profunctor/Optic/Carrier.hs"
   , "src/Data/Profunctor/Optic/Combinator.hs"
   , "src/Data/Profunctor/Optic/Fold.hs"

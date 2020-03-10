@@ -36,8 +36,7 @@ module Data.Profunctor.Optic.Fold (
   , (^?)
   , preview 
   , preuse
-  , is
-  , isnt
+  , fits
   , lists
   , (^..)
   , nelists
@@ -60,8 +59,7 @@ module Data.Profunctor.Optic.Fold (
   , endo
   , endoM
   , finds
-  , has
-  , hasnt 
+  , exists
   , contains
     -- * Auxilliary Types
   , Nedl(..)
@@ -128,7 +126,7 @@ fold0 f = to (\s -> maybe (Left s) Right (f s)) . right'
 
 infixl 3 `failing`
 
--- | If the first 'Fold0' has no focus then try the second one.
+-- | If the first 'Fold0' exists no focus then try the second one.
 --
 failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
 failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
@@ -335,23 +333,14 @@ preuse :: MonadState s m => AFold0 a s a -> m (Maybe a)
 preuse o = State.gets $ preview o
 {-# INLINE preuse #-}
 
--- | Check whether the optic is matched.
+-- | Check whether the optic fits.
 --
--- >>> is just Nothing
+-- >>> fits just Nothing
 -- False
 --
-is :: AFold0 a s a -> s -> Bool
-is o s = isJust (preview o s)
-{-# INLINE is #-}
-
--- | Check whether the optic isn't matched.
---
--- >>> isnt just Nothing
--- True
---
-isnt :: AFold0 a s a -> s -> Bool
-isnt o s = not (isJust (preview o s))
-{-# INLINE isnt #-}
+fits :: AFold0 a s a -> s -> Bool
+fits o s = isJust (preview o s)
+{-# INLINE fits #-}
 
 -- | Collect the foci of an optic into a list.
 --
@@ -566,17 +555,11 @@ finds :: AFold ((Maybe-Endo) a) s a -> (a -> Bool) -> s -> Maybe a
 finds o f = foldsr o (\a y -> if f a then Just a else y) Nothing
 {-# INLINE finds #-}
 
--- | Determine whether an optic has at least one focus.
+-- | Determine whether an optic exists at least one focus.
 --
-has :: AFold (Additive Bool) s a -> s -> Bool
-has o s = unAdditive $ withFold o (const $ Additive True) s
-{-# INLINE has #-}
-
--- | Determine whether an optic does not have a focus.
---
-hasnt :: AFold (Multiplicative Bool) s a -> s -> Bool
-hasnt o s = unMultiplicative $ withFold o (const $ Multiplicative False) s
-{-# INLINE hasnt #-}
+exists :: AFold (Additive Bool) s a -> s -> Bool
+exists o s = unAdditive $ withFold o (const $ Additive True) s
+{-# INLINE exists #-}
 
 -- | Determine whether the targets of a `Fold` contain a given element.
 --

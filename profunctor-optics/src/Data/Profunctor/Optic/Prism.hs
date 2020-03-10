@@ -17,7 +17,7 @@ module Data.Profunctor.Optic.Prism (
   , clonePrism
   , coprism
   , coprism'
-  , rehandling
+  , cohandling
   , cloneCoprism
     -- * Optics
   , just
@@ -132,8 +132,8 @@ coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
 
 -- | Obtain a 'Coprism' from its free tensor representation.
 --
-rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
-rehandling csa bct = unright . dimap csa bct
+cohandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
+cohandling csa bct = unright . dimap csa bct
 
 -- | TODO: Document
 --

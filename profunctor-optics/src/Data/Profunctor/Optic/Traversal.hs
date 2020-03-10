@@ -224,11 +224,12 @@ cotraversing sabt = corepn cotraverse . grate sabt
 -- | Obtain a 'Cotraversal' by embedding a reversed lens getter and setter into a 'Distributive' functor.
 --
 -- @
---  'withLens' ('re' o) 'cotraversing' ≡ 'cotraversed' . o
+--  'withColens' o 'retraversing' ≡ 'cotraversed' . o
+--  'withLens' ('re' o) $ 'flip' 'retraversing' ≡ 'cotraversed' . o
 -- @
 --
-retraversing :: Distributive g => (b -> t) -> (b -> s -> a) -> Cotraversal (g s) (g t) a b
-retraversing bsa bt = corepn cotraverse . (re $ lens bsa bt)
+retraversing :: Distributive g => (b -> s -> a) -> (b -> t) -> Cotraversal (g s) (g t) a b
+retraversing bsa bt = corepn cotraverse . colens bsa bt
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
@@ -316,11 +317,12 @@ cotraversing1 sabt = corepn cotraverse1 . grate sabt
 -- | Obtain a 'Cotraversal1' by embedding a reversed lens getter and setter into a 'Distributive1' functor.
 --
 -- @
---  'withLens' ('re' o) 'cotraversing' ≡ 'cotraversed' . o
+--  'withColens' o 'retraversing1' ≡ 'cotraversed1' . o
+--  'withLens' ('re' o) $ 'flip' 'retraversing1'  ≡ 'cotraversed1' . o
 -- @
 --
-retraversing1 :: Distributive1 g => (b -> t) -> (b -> s -> a) -> Cotraversal1 (g s) (g t) a b
-retraversing1 bsa bt = corepn cotraverse1 . (re $ lens bsa bt)
+retraversing1 :: Distributive1 g => (b -> s -> a) -> (b -> t) -> Cotraversal1 (g s) (g t) a b
+retraversing1 bsa bt = corepn cotraverse1 . colens bsa bt 
 
 -- | Obtain a profunctor 'Cotraversal1' from a Van Laarhoven 'Cotraversal1'.
 --
