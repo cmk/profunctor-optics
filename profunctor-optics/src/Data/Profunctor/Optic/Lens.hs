@@ -13,57 +13,68 @@ module Data.Profunctor.Optic.Lens (
   , Colens'
   , lens
   , lensVl
-  , matching
-  , cloneLens
   , colens
+  , relens
   , colensVl
-  , comatching
-  , cloneColens
-    -- * Grate
-  , Grate
-  , Grate'
-  , grate
-  , grateVl
+  , relensVl
+  , matching
   , inverting
-  , cloneGrate
-    -- * Optics
-  , united
-  , voided
-  , represented
-  , distributed
-  , endomorphed
-  , precomposed
-  , dotted
-  , continued
-  , continuedT
-  , calledCC
-    -- * Operators
-  , zipsWith0
-  , zipsWith2
-  , zipsWith3
-  , zipsWith4 
-  , zipsWithF
+  , comatching
+  , cloneLens
+  , cloneLensVl
+  , cloneColens
+  , cloneColensVl
+  , inside
   , toPastro
   , toTambara
   , toClosure
   , toEnvironment
+    -- * Optics
+  , strong
+  , costrong
+  , united
+  , voided
+  , first
+  , cofirst
+  , second
+  , cosecond
+  , finite
+  , morphed
+  , unsplit
+  , indexed
+  , coindexed
+  , represented
+  , distributed
+  , called
+  , masked
+  , unlifted
+    -- * Operators
+  , coview
+  , zipsWith
+  , zipsWith3
+  , zipsWith4 
+  , zipsWithF
     -- * Classes
   , Strong(..)
-  , Costrong(..)
   , Closed(..)
 ) where
 
 import Control.Monad.Cont
+import Control.Monad.IO.Unlift
+import Data.Bits (FiniteBits, Bits, (.|.), bit, finiteBitSize, testBit, zeroBits)
+import Data.Proxy (asProxyTypeOf)
 import Data.Distributive
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
-import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Strong
-import Data.Semimodule.Free
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator 
+import Data.Profunctor.Strong hiding (strong)
+import qualified Control.Exception as Ex
+import qualified Data.Foldable as F (foldr)
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -72,12 +83,18 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XTypeFamilies
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTupleSections
--- >>> import Control.Arrow
+-- >>> import Control.Arrow ((&&&))
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Int
 -- >>> import Data.Complex
+-- >>> import Data.Tuple (swap)
+-- >>> import Data.Function ((&))
 -- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
+-- >>> import Data.Semigroup
+-- >>> import qualified Data.Bifunctor as B
+-- >>> import qualified Data.ByteString as B
+-- >>> import qualified Data.ByteString.Char8 as C
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -104,7 +121,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
--- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
+-- Compare 'Data.Profunctor.Optic.Lens.colensVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -124,86 +141,12 @@ lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
 
--- | Obtain a 'Lens' from its free tensor representation.
---
-matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
-matching sca cbt = dimap sca cbt . second'
-
--- | TODO: Document
---
-cloneLens :: ALens s t a b -> Lens s t a b
-cloneLens o = withLens o lens 
-
--- | Obtain a 'Colens' from a getter and setter. 
---
--- @
--- 'colens' f g ≡ \\f g -> 're' ('lens' f g)
--- 'colens' bsia bt ≡ 'colensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
--- 'review' $ 'colens' f g ≡ f
--- 'set' . 're' $ 're' ('lens' f g) ≡ g
--- @
---
--- /Caution/: Colenses are recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
--- In addition to the normal optic laws, the input functions must have 
--- the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
---
--- For example, this is a perfectly valid 'Colens':
---
--- @
--- ct21 :: Colens a b (a, c) (b, c)
--- ct21 = flip colens fst $ \ ~(_,c) b -> (b,c)
--- @
---
--- However removing the annotation will result in a faulty optic.
--- 
--- See 'Data.Profunctor.Optic.Property'.
---
-colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
-
--- | Transform a Van Laarhoven colens into a profunctor colens.
---
--- Compare 'grateVl'.
---
--- /Caution/: In addition to the normal optic laws, the input functions
--- must have the correct laziness annotations.
---
--- For example, this is a perfectly valid 'Colens':
---
--- @
--- ct21 :: Colens a b (a, c) (b, c)
--- ct21 = colensVl $ \f ~(a,b) -> (,b) <$> f a
--- @
---
--- However removing the annotation will result in a faulty optic.
--- 
-colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
-
--- | Obtain a 'Colens' from its free tensor representation.
---
--- >>> fib = comatching (uncurry L.take . swap) (id &&& L.reverse) --fib :: Colens Int [Int] [Int] [Int]
--- >>> 10 & fib ..~ \xs -> 1 : 1 : Prelude.zipWith (+) xs (Prelude.tail xs)
--- [89,55,34,21,13,8,5,3,2,1,1]
---
-comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
-comatching csa bct = unsecond . dimap csa bct
-
--- | TODO: Document
---
-cloneColens :: AColens s t a b -> Colens s t a b
-cloneColens o = withColens o colens 
-
----------------------------------------------------------------------
--- 'Grate'
----------------------------------------------------------------------
-
--- | Obtain a 'Grate' from a nested continuation.
+-- | Obtain a 'Colens' from a nested continuation.
 --
 -- The resulting optic is the corepresentable counterpart to 'Lens', 
 -- and sits between 'Iso' and 'Setter'.
 --
--- A 'Grate' lets you lift a profunctor through any representable 
+-- A 'Colens' lets you lift a profunctor through any representable 
 -- functor (aka Naperian container). In the special case where the 
 -- indexing type is finitary (e.g. 'Bool') then the tabulated type is 
 -- isomorphic to a fied length vector (e.g. 'V2 a').
@@ -212,8 +155,8 @@ cloneColens o = withColens o colens
 -- are closed under composition.
 --
 -- See <https://www.cs.ox.ac.uk/jeremy.gibbons/publications/proyo.pdf>
--- section 4.6 for more background on 'Grate's, and compare to the 
--- /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#t:Grate version>.
+-- section 4.6 for more background on 'Colens's, and compare to the 
+-- /lens-family/ <http://hackage.haskell.org/package/lens-family-2.0.0/docs/Lens-Family2.html#t:Colens version>.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input function satisfies the following
@@ -232,10 +175,38 @@ cloneColens o = withColens o colens
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-grate :: (((s -> a) -> b) -> t) -> Grate s t a b
-grate sabt = dimap (flip ($)) sabt . closed
+colens :: (((s -> a) -> b) -> t) -> Colens s t a b
+colens f = dimap (flip ($)) f . closed
+{-# INLINE colens #-}
 
--- | Transform a Van Laarhoven grate into a profunctor grate.
+-- | Obtain a 'Colens' from a getter and setter. 
+--
+-- @
+-- 'relens' f g ≡ \\f g -> 're' ('lens' f g)
+-- 'relens' bsia bt ≡ 'relensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
+-- 'review' $ 'relens' f g ≡ f
+-- 'set' . 're' $ 're' ('lens' f g) ≡ g
+-- @
+--
+-- /Caution/: This function is inherently recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
+-- In addition to the normal optic laws, the input functions must have 
+-- the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
+--
+-- For example, this is a perfectly valid 'Colens':
+--
+-- @
+-- ct21 :: Colens a b (a, c) (b, c)
+-- ct21 = flip relens fst $ \ ~(_,c) b -> (b,c)
+-- @
+--
+-- However removing the annotation will result in a faulty optic.
+-- 
+-- See 'Data.Profunctor.Optic.Property'.
+--
+relens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
+relens bsa bt = cosecond . dimap (uncurry bsa) (id &&& bt)
+
+-- | Transform a Van Laarhoven colens into a profunctor colens.
 --
 -- Compare 'Data.Profunctor.Optic.Lens.lensVl' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
@@ -248,22 +219,158 @@ grate sabt = dimap (flip ($)) sabt . closed
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
-grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
+colensVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Colens s t a b 
+colensVl f = dimap (curry eval) (f trivial . Coindex) . closed
+{-# INLINE colensVl #-}
 
--- | Construct a 'Grate' from a pair of inverses.
+-- | Transform a Van Laarhoven relens into a profunctor relens.
 --
-inverting :: (s -> a) -> (b -> t) -> Grate s t a b
-inverting sa bt = grate $ \sab -> bt (sab sa)
+-- Compare 'colensVl'.
+--
+-- /Caution/: In addition to the normal optic laws, the input functions
+-- must have the correct laziness annotations.
+--
+-- For example, this is a perfectly valid 'Colens':
+--
+-- @
+-- ct21 :: Colens a b (a, c) (b, c)
+-- ct21 = relensVl $ \f ~(a,b) -> (,b) <$> f a
+-- @
+--
+-- However removing the annotation will result in a faulty optic.
+-- 
+-- @since 0.0.3
+relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
+relensVl f = cofirst . dimap (uncurry id . swap) ((info &&& vals) . f (flip Index id))
+
+-- | Obtain a 'Lens' from its free tensor representation.
+--
+matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
+matching sca cbt = dimap sca cbt . second'
+
+-- | Construct a 'Colens' from a pair of inverses.
+--
+inverting :: (s -> a) -> (b -> t) -> Colens s t a b
+inverting sa bt = colens $ \sab -> bt (sab sa)
+{-# INLINE inverting #-}
+
+-- | Obtain a 'Colens' from its free tensor representation.
+--
+-- >>> fib = comatching (uncurry L.take . swap) (id &&& L.reverse) --fib :: Colens Int [Int] [Int] [Int]
+-- >>> 10 & fib ..~ \xs -> 1 : 1 : Prelude.zipWith (+) xs (Prelude.tail xs)
+-- [89,55,34,21,13,8,5,3,2,1,1]
+--
+comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
+comatching csa bct = cosecond . dimap csa bct
 
 -- | TODO: Document
 --
-cloneGrate :: AGrate s t a b -> Grate s t a b
-cloneGrate k = withGrate k grate
+cloneLens :: ALens s t a b -> Lens s t a b
+cloneLens o = withLens o lens 
+
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- cloneLensVl o Identity ≡ Identity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (cloneLensVl o f) . cloneLensVl o g ≡ cloneLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
+cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+{-# INLINE cloneLensVl #-}
+
+-- | TODO: Document
+--
+cloneColens :: AColens s t a b -> Colens s t a b
+cloneColens k = withColens k colens
+{-# INLINE cloneColens #-}
+
+-- | Extract the higher order function that characterizes a 'Colens'.
+--
+-- The colens laws can be stated in terms or 'withColens':
+-- 
+-- Identity:
+-- 
+-- @
+-- cloneColensVl o runIdentity ≡ runIdentity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- cloneColensVl o f . fmap (cloneColensVl o g) ≡ cloneColensVl o (f . fmap g . getCompose) . Compose
+-- @
+--
+cloneColensVl :: AColens s t a b -> (forall f . Functor f => (f a -> b) -> f s -> t)
+cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
+{-# INLINE cloneColensVl #-}
+
+-- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
+--
+-- @
+-- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
+-- @
+--
+-- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
+-- 4
+--
+inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
+inside l = lensVl $ \f es -> o es <$> f (k es)
+  where
+    k es = cotabulate $ \ e -> info $ cloneLensVl l (flip Index id) (cosieve es e)
+    o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l (flip Index id) (cosieve es e)
+{-# INLINE inside #-}
+
+-- | Use a 'Lens' to construct a 'Pastro'.
+--
+toPastro :: ALens s t a b -> p a b -> Pastro p s t
+toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
+{-# INLINE toPastro #-}
+
+-- | Use a 'Lens' to construct a 'Tambara'.
+--
+toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
+toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
+{-# INLINE toTambara #-}
+
+-- | Use a 'Colens' to construct a 'Closure'.
+--
+toClosure :: Closed p => AColens s t a b -> p a b -> Closure p s t
+toClosure o p = withColens o $ \sabt -> Closure (closed . colens sabt $ p)
+{-# INLINE toClosure #-}
+
+-- | Use a 'Colens' to construct an 'Environment'.
+--
+toEnvironment :: Closed p => AColens s t a b -> p a b -> Environment p s t
+toEnvironment o p = withColens o $ \sabt -> Environment sabt p (curry eval)
+{-# INLINE toEnvironment #-}
 
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
+
+-- | The identity for 'Strong' optics.
+--
+strong :: Lens a b a b
+strong = lens id $ flip const
+{-# INLINE strong #-}
+
+-- | The identity for 'Costrong' optics.
+--
+costrong :: Colens a b a b
+costrong = colens ($ id)
+{-# INLINE costrong #-}
 
 -- | There is a '()' in everything.
 --
@@ -274,79 +381,127 @@ cloneGrate k = withGrate k grate
 --
 united :: Lens' a ()
 united = lens (const ()) const
+{-# INLINE united #-}
 
 -- | There is everything in a 'Void'.
 --
--- >>> [] & fmapped . voided <>~ "Void" 
--- []
 -- >>> Nothing & fmapped . voided ..~ abs
 -- Nothing
 --
 voided :: Lens' Void a
 voided = lens absurd const
+{-# INLINE voided #-}
 
--- | Obtain a 'Grate' from a 'F.Representable' functor.
+-- | TODO: Document
 --
-represented :: F.Representable f => Grate (f a) (f b) a b
-represented = tabulated . closed
-{-# INLINE represented #-}
+first :: Lens (a, c) (b, c) a b
+first = first'
+{-# INLINE first #-}
 
--- | Obtain a 'Grate' from a distributive functor.
+-- | TODO: Document
 --
-distributed :: Distributive f => Grate (f a) (f b) a b
-distributed = grate (`cotraverse` id)
-{-# INLINE distributed #-}
+cofirst :: Colens a b (a, c) (b, c) 
+cofirst = cloneColens unfirstCorep
+{-# INLINE cofirst #-}
 
--- | Obtain a 'Grate' from an endomorphism. 
+-- | TODO: Document
 --
--- >>> flip appEndo 2 $ zipsWith2 endomorphed (+) (Endo (*3)) (Endo (*4))
+second :: Lens (c, a) (c, b) a b
+second = second'
+{-# INLINE second #-}
+
+-- | TODO: Document
+--
+cosecond :: Colens a b (c, a) (c, b)
+cosecond = cloneColens unsecondCorep
+{-# INLINE cosecond #-}
+
+-- | A 'Colens' into the bits of a 'Data.Bits.FiniteBits' type.
+--
+-- >>> coview finite True :: Word8
+-- 255
+-- >>> zipsWith finite (||) 7 7 :: Word8
+-- 7
+-- >>> zipsWith finite (||) 7 8 :: Word8
+-- 15
+-- 
+finite :: FiniteBits a => Colens' a Bool
+finite = colensVl vl 
+  where 
+    test i s = flip testBit i <$> s
+    mask i p = if p then bit i else zeroBits
+    vl f s = let b = b `asProxyTypeOf` s in F.foldr (.|.) zeroBits [mask i . f $ test i s | i <- [0..finiteBitSize b-1]]
+{-# INLINE finite #-}
+
+-- | Obtain a 'Colens' from an endomorphism. 
+--
+-- >>> flip appEndo 2 $ zipsWith morphed (+) (Endo (*3)) (Endo (*4))
 -- 14
 --
-endomorphed :: Grate' (Endo a) a
-endomorphed = dimap appEndo Endo . closed
-{-# INLINE endomorphed #-}
+morphed :: Colens' (Endo a) a
+morphed = dimap appEndo Endo . closed
+{-# INLINE morphed #-}
 
--- | Obtain a 'Grate' from a linear map.
+-- | TODO: Document
 --
-precomposed :: Grate (Lin a b1 c) (Lin a b2 c) (Vec a b1) (Vec a b2)
-precomposed = dimap runLin Lin . closed . dimap Vec runVec
-{-# INLINE precomposed #-}
+-- >>> (1, 2) ^. unsplit
+-- 2
+--
+unsplit :: Adjunction f u => Lens (f a) (f b) a b
+unsplit = matching (swap . splitL) (uncurry $ flip unsplitL)
+{-# INLINE unsplit #-}
 
--- | Obtain a 'Grate' from a linear functional.
+-- | TODO: Document
 --
-dotted :: Grate c (Cov a c) a a
-dotted = grate Cov
-{-# INLINE dotted #-}
+indexed :: Lens (Index a b t) t a b
+indexed = lens info vals
+{-# INLINE indexed #-}
 
--- | Obtain a 'Grate' from a continuation.
+-- | TODO: Document
 --
--- @
--- 'zipsWith2' 'continued' :: (a -> a -> a) -> c -> c -> 'Cont' a c
--- @
---
-continued :: Grate c (Cont a c) a a
-continued = grate cont
-{-# INLINE continued #-}
+coindexed :: Colens s (Coindex a b s) a b
+coindexed = dimap (curry eval) (F.index Coindex) . closed
+{-# INLINE coindexed #-}
 
--- | Obtain a 'Grate' from a continuation.
+-- | Obtain a 'Colens' from a 'F.Representable' functor.
 --
--- @
--- 'zipsWith2' 'continued' :: (m a -> m a -> m a) -> c -> c -> 'ContT' a m c 
--- @
---
-continuedT :: Grate c (ContT a m c) (m a) (m a)
-continuedT = grate ContT
-{-# INLINE continuedT #-}
+represented :: F.Representable f => Colens (f a) (f b) a b
+represented = dimap F.index F.tabulate . closed
+{-# INLINE represented #-}
 
--- | Lift the current continuation into the calling context.
+-- | Obtain a 'Colens' from a distributive functor.
+--
+distributed :: Distributive f => Colens (f a) (f b) a b
+distributed = colens (\f -> fmap f . distribute $ id)
+{-# INLINE distributed #-}
+
+-- | Lift an action into a 'Control.Monad.Cont.callCC'.
+--
+called :: MonadCont m => Colens a (m a) (m b) (m a)
+called = colens callCC
+{-# INLINE called #-}
+
+-- | Mask actions in an unlifted context.
+--
+masked :: MonadUnliftIO m => Colens (m a) (m b) (m a) (m b)
+masked = colens o
+  where
+    o f = withRunInIO $ \run -> Ex.mask $ \unmask -> run $ f $ liftIO . unmask . run
+{-# INLINE masked #-}
+
+-- | Unlift an action into an 'IO' context.
 --
 -- @
--- 'zipsWith2' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
+-- 'liftIO' ≡ 'coview' 'unlifted'
 -- @
 --
-calledCC :: MonadCont m => Grate a (m a) (m b) (m a)
-calledCC = grate callCC
-{-# INLINE calledCC #-}
+-- >>> let catchA = catch @ArithException
+-- >>> zipsWith unlifted (flip catchA . const) (throwIO Overflow) (print "caught") 
+-- "caught" 
+--
+unlifted :: MonadUnliftIO m => Colens (m a) (m b) (IO a) (IO b)
+unlifted = colens withRunInIO
+{-# INLINE unlifted #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -354,35 +509,35 @@ calledCC = grate callCC
 
 -- | Set all fields to the given value.
 --
--- This is essentially a restricted variant of 'Data.Profunctor.Optic.View.review'.
+-- Compare 'Data.Profunctor.Optic.View.review'.
 --
-zipsWith0 :: AGrate s t a b -> b -> t
-zipsWith0 o b = withGrate o $ \sabt -> sabt (const b)
-{-# INLINE zipsWith0 #-}
+coview :: AColens s t a b -> b -> t
+coview o b = withColens o $ \sabt -> sabt (const b)
+{-# INLINE coview #-}
 
--- | Zip over a 'Grate'. 
+-- | Zip over a 'Colens'. 
 --
--- @\\f -> 'zipsWith2' 'closed' ('zipsWith2' 'closed' f) ≡ 'zipsWith2' ('closed' . 'closed')@
+-- @\\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
 --
-zipsWith2 :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
-zipsWith2 o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
-{-# INLINE zipsWith2 #-}
+zipsWith :: AColens s t a b -> (a -> a -> b) -> s -> s -> t
+zipsWith o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
+{-# INLINE zipsWith #-}
 
--- | Zip over a 'Grate' with 3 arguments.
+-- | Zip over a 'Colens' with 3 arguments.
 --
-zipsWith3 :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
-zipsWith3 o aaab s1 s2 s3 = withGrate o $ \sabt -> sabt $ \sa -> aaab (sa s1) (sa s2) (sa s3)
+zipsWith3 :: AColens s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
+zipsWith3 o f s1 s2 s3 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2) (sa s3)
 {-# INLINE zipsWith3 #-}
 
--- | Zip over a 'Grate' with 4 arguments.
+-- | Zip over a 'Colens' with 4 arguments.
 --
-zipsWith4 :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
-zipsWith4 o aaaab s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> aaaab (sa s1) (sa s2) (sa s3) (sa s4)
+zipsWith4 :: AColens s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
+zipsWith4 o f s1 s2 s3 s4 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2) (sa s3) (sa s4)
 {-# INLINE zipsWith4 #-}
 
--- | Extract the higher order function that characterizes a 'Grate'.
+-- | Extract the higher order function that characterizes a 'Colens'.
 --
--- The grate laws can be stated in terms or 'withGrate':
+-- The colens laws can be stated in terms or 'withColens':
 -- 
 -- Identity:
 -- 
@@ -396,28 +551,6 @@ zipsWith4 o aaaab s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> aaaab (sa s
 -- zipsWithF o f . fmap (zipsWithF o g) ≡ zipsWithF o (f . fmap g . getCompose) . Compose
 -- @
 --
-zipsWithF :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
-zipsWithF = withGrateVl
+zipsWithF :: Functor f => AColens s t a b -> (f a -> b) -> f s -> t
+zipsWithF = cloneColensVl
 {-# INLINE zipsWithF #-}
-
--- | Use a 'Lens' to construct a 'Pastro'.
---
-toPastro :: ALens s t a b -> p a b -> Pastro p s t
-toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
-
--- | Use a 'Lens' to construct a 'Tambara'.
---
-toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
-toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
-
--- | Use a 'Grate' to construct a 'Closure'.
---
-toClosure :: Closed p => AGrate s t a b -> p a b -> Closure p s t
-toClosure o p = withGrate o $ \sabt -> Closure (closed . grate sabt $ p)
-{-# INLINE toClosure #-}
-
--- | Use a 'Grate' to construct an 'Environment'.
---
-toEnvironment :: Closed p => AGrate s t a b -> p a b -> Environment p s t
-toEnvironment o p = withGrate o $ \sabt -> Environment sabt p (curry eval)
-{-# INLINE toEnvironment #-}

@@ -18,70 +18,51 @@ module Data.Profunctor.Optic.Carrier (
   , ALens'
   , AColens
   , AColens'
-  , ARepn
-  , ARepn'
-  , AGrate
-  , AGrate'
-  , ACorepn
-  , ACorepn'
   , ATraversal0
   , ATraversal0'
   , ATraversal
   , ATraversal'
-  , ATraversal1
-  , ATraversal1'
   , ACotraversal0
   , ACotraversal0'
   , ACotraversal
   , ACotraversal'
-  , ACotraversal1
-  , ACotraversal1'
-  , AList
-  , AList'
-  , AList1
-  , AList1'
-  , AScope
-  , AScope'
-  , AScope1
-  , AScope1'
   , AFold0
   , AFold
-  , AFold1
   , ACofold
+  , ACoscan
+  , ACoscan'
+  , ACoscan1
+  , ACoscan1'
   , AView
   , AReview
-    -- * Primitive operators
+    -- * Carrier operators
   , withIso
   , withPrism
   , withCoprism
   , withLens
   , withColens
-  , withLensVl
-  , withGrate
-  , withGrateVl
+  , withColens
   , withAffine
-  , withStar
+  , withAffine'
   , withCoaffine
-  , withCostar
-  , withFold0
-  , withFold
-  , withFold1
-  , withCofold
-  , withView
-  , withReview
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
   , CoprismRep(..)
-  , Cotraversal0Rep(..)
   , LensRep(..)
   , ColensRep(..)
-  , GrateRep(..)
-  , Traversal0Rep(..)
-  , Fold0Rep(..)
+  , ColensRep(..)
+  , AffineRep(..)
+  , CoaffineRep(..)
   , Star(..)
   , Costar(..)
   , Tagged(..)
+    -- * Paired
+  , Paired(..)
+  , paired
+    -- * Split
+  , Split(..)
+  , split
     -- * Index
   , Index(..)
   , vals
@@ -89,9 +70,6 @@ module Data.Profunctor.Optic.Carrier (
     -- * Coindex
   , Coindex(..)
   , trivial
-  , noindex
-  , coindex
-  , (.#.)
     -- * Conjoin
   , Conjoin(..)
 ) where
@@ -101,14 +79,20 @@ import Control.Monad.Fix (MonadFix(..))
 import Data.Profunctor.Types as Export (Star(..), Costar(..))
 import Data.Bifunctor as B
 import Data.Function
-import Data.Profunctor.Optic.Types
+import Data.Monoid(Alt(..))
+import Data.Profunctor.Choice
+import Data.Profunctor.Strong
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Combinator
-import Data.Profunctor.Rep (unfirstCorep)
+import Data.Profunctor.Rep
 import GHC.Generics (Generic)
-
 import qualified Control.Arrow as A
 import qualified Control.Category as C
+import qualified Data.Profunctor.Rep.Fold as L
+import qualified Data.Profunctor.Rep.Fold1 as L1
+import qualified Data.Foldable as F
+import qualified Prelude as P
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -143,71 +127,47 @@ type ALens' s a = ALens s s a a
 
 type AColens s t a b = Optic (ColensRep a b) s t a b
 
-type AColens' s a = AColens s s a a 
+type AColens' t b = AColens t t b b
 
-type AGrate s t a b = Optic (GrateRep a b) s t a b
-
-type AGrate' s a = AGrate s s a a
-
-type ARepn f s t a b = Optic (Star f) s t a b
-
-type ARepn' f s a = ARepn f s s a a
-
-type ACorepn f s t a b = Optic (Costar f) s t a b
-
-type ACorepn' f t b = ACorepn f t t b b
-
-type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
+type ATraversal0 s t a b = Optic (AffineRep a b) s t a b
 
 type ATraversal0' s a = ATraversal0 s s a a
 
-type ATraversal f s t a b = Applicative f => ARepn f s t a b
+type ATraversal f s t a b = StarLike f s t a b
 
-type ATraversal' f s a = ATraversal f s s a a
+type ATraversal' f s a = StarLike f s s a a
 
-type ATraversal1 f s t a b = Apply f => ARepn f s t a b
-
-type ATraversal1' f s a = ATraversal1 f s s a a
-
-type ACotraversal0 s t a b = Optic (Cotraversal0Rep a b) s t a b
+type ACotraversal0 s t a b = Optic (CoaffineRep a b) s t a b
 
 type ACotraversal0' s a = ACotraversal0 s s a a
 
-type ACotraversal f s t a b = Coapplicative f => ACorepn f s t a b
+type ACotraversal f s t a b = CostarLike f s t a b
 
-type ACotraversal' f s a = ACotraversal f s s a a
+type ACotraversal' f t b = CostarLike f t t b b
 
-type ACotraversal1 f s t a b = Coapply f => ACorepn f s t a b
+type AFold0 r s a = AFold ((Alt Maybe r)) s a
 
-type ACotraversal1' f s a = ACotraversal1 f s s a a
+type AFold r s a = StarLike' (Const r) s a
 
-type AFold0 r s a = Optic' (Fold0Rep r) s a
+type ACofold r t b = CostarLike' (Const r) t b
 
-type AFold r s a = Monoid r => ARepn' (Const r) s a
+--type ACoscan s t a b = Optic L.Fold s t a b
+type ACoscan s t a b = CostarLike L.Free s t a b
 
-type AFold1 r s a = Semigroup r => ARepn' (Const r) s a
+type ACoscan' s a = ACoscan s s a a
 
-type ACofold r t b = ACorepn' (Const r) t b
+type ACoscan1 s t a b = CostarLike L1.Free1 s t a b
+--type ACoscan1 s t a b = Optic L1.Scan s t a b
 
-type AList f s t a b = Foldable f => ACorepn f s t a b
+type ACoscan1' s a = ACoscan1 s s a a
 
-type AList' f s a = AList f s s a a
-
-type AList1 f s t a b = Foldable1 f => ACorepn f s t a b
-
-type AList1' f s a = AList1 f s s a a
-
-type AScope f s t a b = Traversable f => ACorepn f s t a b
-
-type AScope' f s a = AScope f s s a a
-
-type AScope1 f s t a b = Traversable1 f => ACorepn f s t a b
-
-type AScope1' f s a = AScope1 f s s a a
-
-type AView r s a = ARepn' (Const r) s a
+type AView r s a = ATraversal' (Const r) s a
 
 type AReview t b = Optic' Tagged t b
+
+---------------------------------------------------------------------
+-- Carriers
+---------------------------------------------------------------------
 
 -- | Extract the two functions that characterize an 'Iso'.
 --
@@ -232,132 +192,29 @@ withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 {-# INLINE withLens #-}
 
--- | Extract the two functions that characterize a 'Colens'.
+-- | Extract the function that characterizes a 'Colens'.
 --
-withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
-withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
-
--- | Extract the higher order function that characterizes a 'Lens'.
---
--- The lens laws can be stated in terms of 'withLens':
--- 
--- Identity:
--- 
--- @
--- withLensVl o Identity ≡ Identity
--- @
--- 
--- Composition:
--- 
--- @ 
--- Compose . fmap (withLensVl o f) . withLensVl o g ≡ withLensVl o (Compose . fmap f . g)
--- @
---
--- See 'Data.Profunctor.Optic.Property'.
---
-withLensVl :: Functor f => ALens s t a b -> (a -> f b) -> s -> f t
-withLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
-
--- | Extract the function that characterizes a 'Grate'.
---
-withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
-withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
-{-# INLINE withGrate #-}
-
--- | Extract the higher order function that characterizes a 'Grate'.
---
--- The grate laws can be stated in terms or 'withGrate':
--- 
--- Identity:
--- 
--- @
--- withGrateVl o runIdentity ≡ runIdentity
--- @
--- 
--- Composition:
--- 
--- @ 
--- withGrateVl o f . fmap (withGrateVl o g) ≡ withGrateVl o (f . fmap g . getCompose) . Compose
--- @
---
-withGrateVl :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
-withGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
-{-# INLINE withGrateVl #-}
+withColens :: AColens s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
+withColens o f = case o (ColensRep $ \k -> k id) of ColensRep sabt -> f sabt
+{-# INLINE withColens #-}
 
 -- | TODO: Document
 --
 withAffine :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
-withAffine o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
+withAffine o k = case o (AffineRep Right $ const id) of AffineRep x y -> k x y
 {-# INLINE withAffine #-}
 
 -- | TODO: Document
 --
-withStar :: ARepn f s t a b -> (a -> f b) -> s -> f t
-withStar o = runStar #. o .# Star
-{-# INLINE withStar #-}
+withAffine' :: ATraversal0 s s a b -> ((s -> Maybe a) -> (s -> b -> s) -> r) -> r
+withAffine' o k = case o (AffineRep Right $ const id) of AffineRep x y -> k (either (const Nothing) Just . x) y
+{-# INLINE withAffine' #-}
 
 -- | TODO: Document
 --
 withCoaffine :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
-withCoaffine o k = case o (Cotraversal0Rep $ \f -> f Right) of Cotraversal0Rep g -> k g
+withCoaffine o k = case o (CoaffineRep $ \f -> f Right) of CoaffineRep g -> k g
 {-# INLINE withCoaffine #-}
-
--- | TODO: Document
---
-withCostar :: ACorepn f s t a b -> (f a -> b) -> (f s -> t)
-withCostar o = runCostar #. o .# Costar
-{-# INLINE withCostar #-}
-
--- | TODO: Document
---
-withFold0 :: Optic (Fold0Rep r) s t a b -> (a -> Maybe r) -> s -> Maybe r
-withFold0 o = runFold0Rep #. o .# Fold0Rep
-{-# INLINE withFold0 #-}
-
--- | Map an optic to a monoid and combine the results.
---
--- @
--- 'Data.Foldable.foldMap' = 'withFold' 'folded_'
--- @
---
--- >>> withFold both id (["foo"], ["bar", "baz"])
--- ["foo","bar","baz"]
--- >>> :t withFold traversed
--- withFold traversed
---   :: (Monoid r, Traversable f) => (a -> r) -> f a -> r
---
-withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
-withFold o = (getConst #.) #. withStar o .# (Const #.)
-{-# INLINE withFold #-}
-
--- | Map an optic to a semigroup and combine the results.
---
-withFold1 :: Semigroup r => AFold1 r s a -> (a -> r) -> s -> r
-withFold1 o = (getConst #.) #. withStar o .# (Const #.)
-{-# INLINE withFold1 #-}
-
--- | TODO: Document
---
--- >>> withCofold (from succ) (*2) 3
--- 7
---
--- Compare 'Data.Profunctor.Optic.View.withReview'.
---
-withCofold :: ACofold r t b -> (r -> b) -> r -> t
-withCofold o = (.# Const) #. withCostar o .# (.# getConst) 
-{-# INLINE withCofold #-}
-
--- | TODO: Document
---
-withView :: AView r s a -> (a -> r) -> s -> r
-withView o = (getConst #.) #. withStar o .# (Const #.)
-{-# INLINE withView #-}
-
--- | TODO: Document
---
-withReview :: AReview t b -> (t -> r) -> b -> r
-withReview o f = f . unTagged #. o .# Tagged
-{-# INLINE withReview #-}
 
 ---------------------------------------------------------------------
 -- IsoRep
@@ -405,6 +262,10 @@ instance Choice (PrismRep a b) where
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
 
+---------------------------------------------------------------------
+-- CoprismRep
+---------------------------------------------------------------------
+
 data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
 
 instance Functor (CoprismRep a b s) where
@@ -419,7 +280,7 @@ instance Profunctor (CoprismRep a b) where
   {-# INLINE rmap #-}
 
 instance Cochoice (CoprismRep a b) where
-  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  unleft (CoprismRep sa bat) = CoprismRep (sa . Left) (forgetr $ either (eassocl . bat) Right)
   {-# INLINE unleft #-}
 
 ---------------------------------------------------------------------
@@ -452,72 +313,56 @@ instance Representable (LensRep a b) where
 -- ColensRep
 ---------------------------------------------------------------------
 
-data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
+-- | The 'ColensRep' profunctor precisely characterizes 'Colens'.
+--
+newtype ColensRep a b s t = ColensRep { unColensRep :: ((s -> a) -> b) -> t }
 
 instance Profunctor (ColensRep a b) where
-  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
+  dimap f g (ColensRep z) = ColensRep $ \d -> g (z $ \k -> d (k . f))
 
-{-
+instance Closed (ColensRep a b) where
+  closed (ColensRep sabt) = ColensRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
+
 instance Costrong (ColensRep a b) where
-  unfirst (ColensRep baca bbc) = ColensRep (curry foo) (forget2 $ bbc . fst)
-    where foo = uncurry baca . shuffle . B.second bbc --_ . swap --TODO: B.second bbc
-          shuffle (x,(y,z)) = (y,(x,z))
--}
-
----------------------------------------------------------------------
--- GrateRep
----------------------------------------------------------------------
-
--- | The 'GrateRep' profunctor precisely characterizes 'Grate'.
---
-newtype GrateRep a b s t = GrateRep { unGrateRep :: ((s -> a) -> b) -> t }
-
-instance Profunctor (GrateRep a b) where
-  dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (GrateRep a b) where
-  closed (GrateRep sabt) = GrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
-
-instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (Coindex a b) where
-  cosieve (GrateRep f) (Coindex g) = f g
+instance Cosieve (ColensRep a b) (Coindex a b) where
+  cosieve (ColensRep f) (Coindex g) = f g
 
-instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Coindex a b
+instance Corepresentable (ColensRep a b) where
+  type Corep (ColensRep a b) = Coindex a b
 
-  cotabulate f = GrateRep $ f . Coindex
+  cotabulate f = ColensRep $ f . Coindex
 
 ---------------------------------------------------------------------
--- Traversal0Rep
+-- AffineRep
 ---------------------------------------------------------------------
 
--- | The `Traversal0Rep` profunctor precisely characterizes an 'Traversal0'.
-data Traversal0Rep a b s t = Traversal0Rep (s -> t + a) (s -> b -> t)
+-- | The `AffineRep` profunctor precisely characterizes an 'Traversal0'.
+data AffineRep a b s t = AffineRep (s -> t + a) (s -> b -> t)
 
-instance Profunctor (Traversal0Rep a b) where
-  dimap f g (Traversal0Rep sta sbt) = Traversal0Rep
+instance Profunctor (AffineRep a b) where
+  dimap f g (AffineRep sta sbt) = AffineRep
       (\a -> first g $ sta (f a))
       (\a v -> g (sbt (f a) v))
 
-instance Strong (Traversal0Rep a b) where
-  first' (Traversal0Rep sta sbt) = Traversal0Rep
+instance Strong (AffineRep a b) where
+  first' (AffineRep sta sbt) = AffineRep
       (\(a, c) -> first (,c) $ sta a)
       (\(a, c) v -> (sbt a v, c))
 
-instance Choice (Traversal0Rep a b) where
-  right' (Traversal0Rep sta sbt) = Traversal0Rep
+instance Choice (AffineRep a b) where
+  right' (AffineRep sta sbt) = AffineRep
       (\eca -> eassocl (second sta eca))
       (\eca v -> second (`sbt` v) eca)
 
-instance Sieve (Traversal0Rep a b) (Index0 a b) where
-  sieve (Traversal0Rep sta sbt) s = Index0 (sta s) (sbt s)
+instance Sieve (AffineRep a b) (Index0 a b) where
+  sieve (AffineRep sta sbt) s = Index0 (sta s) (sbt s)
 
-instance Representable (Traversal0Rep a b) where
-  type Rep (Traversal0Rep a b) = Index0 a b
+instance Representable (AffineRep a b) where
+  type Rep (AffineRep a b) = Index0 a b
 
-  tabulate f = Traversal0Rep (info0 . f) (values0 . f)
+  tabulate f = AffineRep (info0 . f) (values0 . f)
 
 data Index0 a b r = Index0 (r + a) (b -> r)
 
@@ -535,70 +380,85 @@ instance Applicative (Index0 a b) where
   liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
 
 ---------------------------------------------------------------------
--- Cotraversal0Rep
+-- CoaffineRep
 ---------------------------------------------------------------------
-
 --TODO: Corepresentable, Coapplicative (Corep)
 
--- | The 'Cotraversal0Rep' profunctor precisely characterizes 'Cotraversal0'.
+-- | The 'CoaffineRep' profunctor precisely characterizes 'Cotraversal0'.
 --
-newtype Cotraversal0Rep a b s t = Cotraversal0Rep { unCotraversal0Rep :: ((s -> t + a) -> b) -> t }
+newtype CoaffineRep a b s t = CoaffineRep { unCoaffineRep :: ((s -> t + a) -> b) -> t }
 
-instance Profunctor (Cotraversal0Rep a b) where
-  dimap us tv (Cotraversal0Rep stabt) =
-    Cotraversal0Rep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
+instance Profunctor (CoaffineRep a b) where
+  dimap us tv (CoaffineRep stabt) =
+    CoaffineRep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
 
-instance Closed (Cotraversal0Rep a b) where
-  closed (Cotraversal0Rep stabt) =
-    Cotraversal0Rep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+instance Closed (CoaffineRep a b) where
+  closed (CoaffineRep stabt) =
+    CoaffineRep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
 
-instance Choice (Cotraversal0Rep a b) where
-  left' (Cotraversal0Rep stabt) =
-    Cotraversal0Rep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
+instance Choice (CoaffineRep a b) where
+  left' (CoaffineRep stabt) =
+    CoaffineRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
 
 ---------------------------------------------------------------------
--- Fold0Rep
+-- 'Paired'
 ---------------------------------------------------------------------
 
-newtype Fold0Rep r a b = Fold0Rep { runFold0Rep :: a -> Maybe r }
+newtype Paired p c d a b = Paired { runPaired :: p (c , a) (d , b) }
 
-instance Functor (Fold0Rep r a) where
-  fmap _ (Fold0Rep p) = Fold0Rep p
+fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
+fromTambara = Paired . dimap swap swap . runTambara
 
-instance Contravariant (Fold0Rep r a) where
-  contramap _ (Fold0Rep p) = Fold0Rep p
+instance Profunctor p => Profunctor (Paired p c d) where
+  dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
 
-instance Profunctor (Fold0Rep r) where
-  dimap f _ (Fold0Rep p) = Fold0Rep (p . f)
+instance Strong p => Strong (Paired p c d) where
+  second' (Paired pab) = Paired . dimap shuffle shuffle . second' $ pab
+   where
+    shuffle (x,(y,z)) = (y,(x,z))
 
-instance Choice (Fold0Rep r) where
-  left' (Fold0Rep p) = Fold0Rep (either p (const Nothing))
-  right' (Fold0Rep p) = Fold0Rep (either (const Nothing) p)
-
-instance Cochoice (Fold0Rep r) where
-  unleft  (Fold0Rep k) = Fold0Rep (k . Left)
-  unright (Fold0Rep k) = Fold0Rep (k . Right)
-
-instance Strong (Fold0Rep r) where
-  first' (Fold0Rep p) = Fold0Rep (p . fst)
-  second' (Fold0Rep p) = Fold0Rep (p . snd)
-
-instance Sieve (Fold0Rep r) (Pre r) where
-  sieve = (Pre .) . runFold0Rep
-
-instance Representable (Fold0Rep r) where
-  type Rep (Fold0Rep r) = Pre r
-  tabulate = Fold0Rep . (getPre .)
-  {-# INLINE tabulate #-}
-
--- | 'Pre' is 'Maybe' with a phantom type variable.
+-- ^ @
+-- paired :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
+-- paired :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+-- @
 --
-newtype Pre a b = Pre { getPre :: Maybe a } deriving (Eq, Show)
+paired 
+  :: Profunctor p 
+  => Optic (Paired p s2 t2) s1 t1 a1 b1 
+  -> Optic (Paired p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
+paired x y = 
+  dimap swap swap . runPaired . x . Paired . dimap swap swap . runPaired . y . Paired
 
-instance Functor (Pre a) where fmap _ (Pre p) = Pre p
+---------------------------------------------------------------------
+-- 'Split'
+---------------------------------------------------------------------
 
-instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p
+newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
+fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
+fromTambaraSum = Split . dimap eswap eswap . runTambaraSum
+
+instance Profunctor p => Profunctor (Split p c d) where
+  dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
+
+instance Choice p => Choice (Split p c d) where
+  right' (Split pab) = Split . dimap shuffle shuffle . right' $ pab
+   where
+    shuffle = Right . Left ||| (Left ||| Right . Right)
+
+-- ^ @
+-- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: View s t a b -> View s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- @
+split 
+  :: Profunctor p
+  => Optic (Split p s2 t2) s1 t1 a1 b1 
+  -> Optic (Split p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2)
+split x y = 
+  dimap eswap eswap . runSplit . x . Split . dimap eswap eswap . runSplit . y . Split
 
 ---------------------------------------------------------------------
 -- Index
@@ -608,7 +468,7 @@ instance Contravariant (Pre a) where contramap _ (Pre p) = Pre p
 --
 -- @'Index' a b s ≡ forall f. 'Functor' f => (a -> f b) -> f s@,
 --
--- See also 'Data.Profunctor.Optic.Lens.withLensVl'.
+-- See also 'Data.Profunctor.Optic.Lens.cloneLensVl'.
 --
 data Index a b s = Index a (b -> s) deriving Generic
 
@@ -628,18 +488,28 @@ instance Profunctor (Index a) where
   dimap f g (Index a bs) = Index a (g . bs . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (Index a b) where
+instance a ~ b => F.Foldable (Index a b) where
   foldMap f (Index b bs) = f . bs $ b
+
+--coapp f = either (Left . const) (Right . const) $ f b
+
+instance a ~ b => Coapply (Index a b) where
+  coapply (Index b bs) = bimap f g $ bs b
+    where f = (Index b) . const
+          g = (Index b) . const
+
+instance a ~ b => Coapplicative (Index a b) where
+  copure (Index b bs) = bs b
 
 ---------------------------------------------------------------------
 -- Coindex
 ---------------------------------------------------------------------
 
--- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Grate.Grate'
+-- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Lens.Colens'
 --
 -- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@,
 --
--- See also 'Data.Profunctor.Optic.Grate.withGrateVl'.
+-- See also 'Data.Profunctor.Optic.Lens.cloneColensVl'.
 --
 -- 'Coindex' can also be used to compose indexed maps, folds, or traversals directly.
 --
@@ -659,13 +529,24 @@ instance Functor (Coindex a b) where
 instance a ~ b => Apply (Coindex a b) where
   (Coindex slab) <.> (Coindex ab) = Coindex $ \la -> slab $ \sl -> ab (la . sl) 
 
+--TODO helpful to use grate ops w/ cotraverse1
+--instance a ~ b => Coapply (Coindex a b) where
+--  coapply (Coindex eab) = undefined 
+
 instance a ~ b => Applicative (Coindex a b) where
   pure s = Coindex ($s)
   (<*>) = (<.>)
 
-trivial :: Coindex a b a -> b
+trivial :: Coindex b a b -> a
 trivial (Coindex f) = f id
 {-# INLINE trivial #-}
+
+{-
+env :: F.Representable f => p a b -> Environment p (f a) (f b)
+env p = Environment F.tabulate p F.index
+
+coindexRep :: F.Representable f => Coindex a (f a) (Rep f)
+coindexRep = Coindex F.tabulate
 
 -- | Lift a regular function into a coindexed function.
 --
@@ -677,10 +558,10 @@ trivial (Coindex f) = f id
 --       Coindex (a -> b) (Map k (Map j a) -> Map k (Map j b)) k
 -- @
 --
-noindex :: Monoid s => (a -> b) -> Coindex a b s
+noindex :: Monoid s => (b -> a) -> Coindex a b s
 noindex f = Coindex $ \a -> f (a mempty)
 
-coindex :: Functor f => s -> (a -> b) -> Coindex (f a) (f b) s
+coindex :: Functor f => s -> (b -> a) -> Coindex (f a) (f b) s
 coindex s ab = Coindex $ \sfa -> fmap ab (sfa s)
 {-# INLINE coindex #-}
 
@@ -702,8 +583,9 @@ infixr 9 .#.
 --  fmap (:[]) :: Coindex a b c -> Coindex a b [c]
 -- @
 --
-(.#.) :: Semigroup s => Coindex b c s -> Coindex a b s -> Coindex a c s
+(.#.) :: Semigroup s => Coindex c b s -> Coindex b a s -> Coindex c a s
 Coindex f .#. Coindex g = Coindex $ \b -> f $ \s1 -> g $ \s2 -> b (s1 <> s2)
+-}
 
 ---------------------------------------------------------------------
 -- Conjoin

@@ -21,11 +21,11 @@ module Data.Profunctor.Optic.Property (
   , tofrom_lens
   , fromto_lens
   , idempotent_lens
-    -- * Grate
-  , Grate
-  , id_grate
-  , const_grate
-  , compose_grate
+    -- * Colens
+  , Colens
+  , id_colens
+  , const_colens
+  , compose_colens
     -- * Traversal0
   , Traversal0
   , tofrom_traversal0
@@ -41,8 +41,8 @@ module Data.Profunctor.Optic.Property (
     -- * Cotraversal
   , Cotraversal
   --, compose_cotraversal
-    -- * Setter
-  , Setter
+    -- * Adjoint
+  , Adjoint
   , id_setter
   , compose_setter
   , idempotent_setter
@@ -51,10 +51,41 @@ module Data.Profunctor.Optic.Property (
 import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
-import Test.Function.Invertible
+import Data.Profunctor.Optic.Lens
+
+xor :: Bool -> Bool -> Bool
+xor a b = (a || b) && not (a && b)
+
+xor3 :: Bool -> Bool -> Bool -> Bool
+xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
+
+infixr 0 ==>
+
+(==>) :: Bool -> Bool -> Bool
+(==>) a b = not a || b
+
+iff :: Bool -> Bool -> Bool
+iff a b = a ==> b && b ==> a
+
+infixr 1 <==>
+
+(<==>) :: Bool -> Bool -> Bool
+(<==>) = iff
+
+-- | \( \forall a: f (g a) \equiv a \)
+--
+invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)
+invertible = invertible_on (==)
+
+-- | \( \forall a: f (g a) \doteq a \)
+--
+invertible_on :: (s -> s -> b) -> (s -> r) -> (r -> s) -> (s -> b)
+invertible_on (~~) f g a = g (f a) ~~ a
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -100,9 +131,9 @@ idempotent_prism o s = withPrism o $ \sta _ -> left' sta (sta s) == left' Left (
 ---------------------------------------------------------------------
 
 -- A 'Lens' is a valid 'Traversal' with the following additional laws:
-
+--
 id_lens :: Eq s => Lens' s a -> s -> Bool
-id_lens o = M.join invertible $ runIdentity . withLensVl o Identity 
+id_lens o = M.join invertible $ runIdentity . cloneLensVl o Identity 
 
 -- | You get back what you put in.
 --
@@ -126,25 +157,25 @@ idempotent_lens :: Eq s => Lens' s a -> s -> a -> a -> Bool
 idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 
 ---------------------------------------------------------------------
--- 'Grate'
+-- 'Colens'
 ---------------------------------------------------------------------
 
--- The 'Grate' laws are that of an algebra for the parameterised continuation 'Coindex'.
+-- The 'Colens' laws are that of an algebra for the parameterised continuation 'Coindex'.
 
-id_grate :: Eq s => Grate' s a -> s -> Bool
-id_grate o = M.join invertible $ withGrateVl o runIdentity . Identity 
+id_colens :: Eq s => Colens' s a -> s -> Bool
+id_colens o = M.join invertible $ cloneColensVl o runIdentity . Identity 
 
 -- |
 --
 -- * @sabt ($ s) ≡ s@
 --
-const_grate :: Eq s => Grate' s a -> s -> Bool
-const_grate o s = withGrate o $ \sabt -> sabt ($ s) == s
+const_colens :: Eq s => Colens' s a -> s -> Bool
+const_colens o s = withColens o $ \sabt -> sabt ($ s) == s
 
-compose_grate :: Eq s => Functor f => Functor g => Grate' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
-compose_grate o f g = liftA2 (==) lhs rhs
-  where lhs = withGrateVl o f . fmap (withGrateVl o g) 
-        rhs = withGrateVl o (f . fmap g . getCompose) . Compose
+compose_colens :: Eq s => Functor f => Functor g => Colens' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+compose_colens o f g = liftA2 (==) lhs rhs
+  where lhs = cloneColensVl o f . fmap (cloneColensVl o g) 
+        rhs = cloneColensVl o (f . fmap g . getCompose) . Compose
 
 ---------------------------------------------------------------------
 -- 'Traversal0'
@@ -175,26 +206,26 @@ idempotent_traversal0 o s a1 a2 = withAffine o $ \_ sbt -> sbt (sbt s a1) a2 == 
 -- 'Traversal'
 ---------------------------------------------------------------------
 
--- A 'Traversal' is a valid 'Setter' with the following additional laws:
+-- A 'Traversal' is a valid 'Adjoint' with the following additional laws:
 
 id_traversal :: Eq s => Traversal' s a -> s -> Bool
-id_traversal o = M.join invertible $ runIdentity . withStar o Identity 
+id_traversal o = M.join invertible $ runIdentity . stars o Identity 
 
 id_traversal1 :: Eq s => Traversal1' s a -> s -> Bool
-id_traversal1 o = M.join invertible $ runIdentity . withStar o Identity 
+id_traversal1 o = M.join invertible $ runIdentity . stars o Identity 
 
 pure_traversal :: Eq (f s) => Applicative f => ATraversal' f s a -> s -> Bool
-pure_traversal o = liftA2 (==) (withStar o pure) pure
+pure_traversal o = liftA2 (==) (stars o pure) pure
 
 compose_traversal :: Eq (f (g s)) => Applicative' f => Applicative' g => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal o f g = liftA2 (==) lhs rhs
-  where lhs = fmap (withStar o f) . withStar o g
-        rhs = getCompose . withStar o (Compose . fmap f . g)
+  where lhs = fmap (stars o f) . stars o g
+        rhs = getCompose . stars o (Compose . fmap f . g)
 
 compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal1 o f g s = lhs s == rhs s
-  where lhs = fmap (withStar o f) . withStar o g
-        rhs = getCompose . withStar o (Compose . fmap f . g)
+  where lhs = fmap (stars o f) . stars o g
+        rhs = getCompose . stars o (Compose . fmap f . g)
 
 ---------------------------------------------------------------------
 -- 'Cotraversal'
@@ -204,40 +235,40 @@ compose_traversal1 o f g s = lhs s == rhs s
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- The cotraversal laws can be restated in terms of 'cowithStar1':
+-- The cotraversal laws can be restated in terms of 'costars1':
 --
--- * @withCostar o (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @costars o (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @withCostar o f . fmap (withCostar o g) == withCostar o (f . fmap g . getCompose) . Compose@
+-- * @costars o f . fmap (costars o g) == costars o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
 compose_cotraversal :: Eq s => Coapplicative f => Coapplicative g => Cotraversal' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
 compose_cotraversal o f g = liftF2 (==) lhs rhs
-  where lhs = withCostar o f . fmap (withCostar o g) 
-        rhs = withCostar o (f . fmap g . getCompose) . Compose
+  where lhs = costars o f . fmap (costars o g) 
+        rhs = costars o (f . fmap g . getCompose) . Compose
 -}
 ---------------------------------------------------------------------
--- 'Setter'
+-- 'Adjoint'
 ---------------------------------------------------------------------
 
 -- |
 --
 -- * @over o id ≡ id@
 --
-id_setter :: Eq s => Setter' s a -> s -> Bool
+id_setter :: Eq s => Adjoint' s a -> s -> Bool
 id_setter o s = over o id s == s
 
 -- |
 --
 -- * @over o f . over o g ≡ over o (f . g)@
 --
-compose_setter :: Eq s => Setter' s a -> (a -> a) -> (a -> a) -> s -> Bool
+compose_setter :: Eq s => Adjoint' s a -> (a -> a) -> (a -> a) -> s -> Bool
 compose_setter o f g s = (over o f . over o g) s == over o (f . g) s
 
 -- |
 --
 -- * @set o y (set o x a) ≡ set o y a@
 --
-idempotent_setter :: Eq s => Setter' s a -> s -> a -> a -> Bool
+idempotent_setter :: Eq s => Adjoint' s a -> s -> a -> a -> Bool
 idempotent_setter o s a b = set o b (set o a s) == set o b s
