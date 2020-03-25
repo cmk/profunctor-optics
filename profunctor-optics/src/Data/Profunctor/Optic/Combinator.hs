@@ -6,33 +6,8 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Combinator (
-    type (+)
-  , (&)
-    -- * Operations on (->) profunctors
-  , rgt
-  , rgt'
-  , lft
-  , lft'
-  , swap
-  , eswap
-  , fork
-  , join
-  , eval
-  , apply
-  , branch
-  , branch'
-  , assocl
-  , assocr
-  , assocl' 
-  , assocr'
-  , eassocl
-  , eassocr
-  , forget1
-  , forget2
-  , forgetl
-  , forgetr
     -- * Operations on arbitrary profunctors
-  , constl
+    constl
   , constr
   , shiftl
   , shiftr
@@ -56,8 +31,8 @@ module Data.Profunctor.Optic.Combinator (
   , cosieve'
   , tabulate' 
   , cotabulate'
-  , repn
-  , corepn
+  , represent
+  , corepresent
   , pure'
   , copure'
   , pappend
@@ -81,60 +56,17 @@ module Data.Profunctor.Optic.Combinator (
 
 import Data.Function
 import Data.Profunctor.Closed
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 
-branch :: (a -> Bool) -> b -> c -> a -> b + c
-branch f y z x = if f x then Right z else Left y
-{-# INLINE branch #-}
-
-branch' :: (a -> Bool) -> a -> a + a
-branch' f x = branch f x x x
-{-# INLINE branch' #-}
-
-assocl :: (a , (b , c)) -> ((a , b) , c)
-assocl (a, (b, c)) = ((a, b), c)
-{-# INLINE assocl #-}
-
-assocr :: ((a , b) , c) -> (a , (b , c))
-assocr ((a, b), c) = (a, (b, c))
-{-# INLINE assocr #-}
-
-assocl' :: (a , b + c) -> (a , b) + c
-assocl' = eswap . traverse eswap
-{-# INLINE assocl' #-}
-
-assocr' :: (a + b , c) -> a + (b , c)
-assocr' (f, b) = fmap (,b) f
-{-# INLINE assocr' #-}
-
-eassocl :: a + (b + c) -> (a + b) + c
-eassocl (Left a)          = Left (Left a)
-eassocl (Right (Left b))  = Left (Right b)
-eassocl (Right (Right c)) = Right c
-{-# INLINE eassocl #-}
-
-eassocr :: (a + b) + c -> a + (b + c)
-eassocr (Left (Left a))  = Left a
-eassocr (Left (Right b)) = Right (Left b)
-eassocr (Right c)        = Right (Right c)
-{-# INLINE eassocr #-}
-
-forget1 :: ((c, a) -> (c, b)) -> a -> b
-forget1 f a = b where (c, b) = f (c, a)
-{-# INLINE forget1 #-}
-
-forget2 :: ((a, c) -> (b, c)) -> a -> b
-forget2 f a = b where (b, c) = f (a, c)
-{-# INLINE forget2 #-}
-
-forgetl :: (c + a -> c + b) -> a -> b
-forgetl f = go . Right where go = either (go . Left) id . f
-{-# INLINE forgetl #-}
-
-forgetr :: (a + c -> b + c) -> a -> b
-forgetr f = go . Left where go = either id (go . Right) . f
-{-# INLINE forgetr #-}
+-- $setup
+-- >>> :set -XNoOverloadedStrings
+-- >>> :set -XTypeApplications
+-- >>> :set -XFlexibleContexts
+-- >>> :set -XRankNTypes
+-- >>> import Data.Function ((&))
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- Operations on arbitrary profunctors
@@ -236,13 +168,13 @@ cotabulate' :: Corepresentable p => Costar (Corep p) a b -> p a b
 cotabulate' = cotabulate . runCostar
 {-# INLINE cotabulate' #-}
 
-repn :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
-repn f = tabulate . f . sieve
-{-# INLINE repn #-}
+represent :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> p a b -> p s t
+represent f = tabulate . f . sieve
+{-# INLINE represent #-}
 
-corepn :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
-corepn f = cotabulate . f . cosieve
-{-# INLINE corepn #-}
+corepresent :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> p a b -> p s t
+corepresent f = cotabulate . f . cosieve
+{-# INLINE corepresent #-}
 
 pure' :: Traversing p => (a -> b) -> p a b 
 pure' = tabulate . (pure .)
@@ -259,6 +191,8 @@ pappend = divide fork
 liftR2 :: Traversing1 p => (b -> c -> d) -> p a b -> p a c -> p a d
 liftR2 f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
 {-# INLINE liftR2 #-}
+
+
 
 ---------------------------------------------------------------------
 -- Arrow-style combinators

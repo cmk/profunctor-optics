@@ -27,14 +27,14 @@ module Data.Profunctor.Optic.Prism (
   , only
   , nearly
   , nthbit
-    -- * Primitive operators
-  , withPrism
     -- * Operators
   , aside
   , without
   , below
   , toPastroSum
   , toTambaraSum
+  , withPrism
+  , withCoprism
     -- * Classes
   , Choice(..)
 ) where
@@ -54,6 +54,7 @@ import Data.Profunctor.Optic.Types
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTypeOperators
 -- >>> :set -XRankNTypes
+-- >>> import Data.Function ((&))
 -- >>> import Data.List.NonEmpty
 -- >>> :load Data.Profunctor.Optic
 
@@ -146,9 +147,9 @@ cloneCoprism o = withCoprism o coprism
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
--- >>> Just 1 :| [Just 2, Just 3] & withCostar just sum
+-- >>> Just 1 :| [Just 2, Just 3] & cotraverses just sum
 -- Just 6
--- >>> Nothing :| [Just 2, Just 3] & withCostar just sum
+-- >>> Nothing :| [Just 2, Just 3] & cotraverses just sum
 -- Nothing
 --
 just :: Prism (Maybe a) (Maybe b) a b

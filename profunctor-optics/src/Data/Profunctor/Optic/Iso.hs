@@ -14,11 +14,12 @@ module Data.Profunctor.Optic.Iso (
   , Iso'
   , iso
   , isoVl
-  , fmapping
+  , mapping
   , contramapping
   , dimapping
   , toYoneda 
   , toCoyoneda
+  , invert
   , cloneIso
     -- * Optics
   , equaled
@@ -30,29 +31,29 @@ module Data.Profunctor.Optic.Iso (
   , generic1
   , adjuncted
   , tabulated
-  , transposed
+  , involuted
   , flipped 
   , curried
+  , excised
   , unzipped
   , cozipped
   , swapped 
   , coswapped 
   , associated 
   , coassociated
-  , involuted
-  , anon
-  , non 
-    -- * Primitive operators
-  , withIso
+  , sieved
+  , cosieved
     -- * Operators
-  , invert
   , reover
   , op
   , au 
   , aup
   , ala
+  , withIso
     -- * Auxilliary Types
   , Re(..)
+    -- * Classes
+  , Profunctor(..)
 ) where
 
 import Control.Newtype.Generics (Newtype(..), op)
@@ -61,7 +62,6 @@ import Data.Functor.Adjunction hiding (adjuncted)
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 
@@ -76,6 +76,7 @@ import qualified GHC.Generics as G
 -- >>> import Data.Monoid
 -- >>> import Data.List.Index
 -- >>> import Data.Semiring
+-- >>> import Data.Function ((&))
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types
@@ -125,9 +126,9 @@ isoVl abst = iso f g
 
 -- | Lift an 'Iso' into a pair of functors.
 --
-fmapping :: Functor f => Functor g => AIso s t a b -> Iso (f s) (g t) (f a) (g b)
-fmapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
-{-# INLINE fmapping #-}
+mapping :: Functor f => Functor g => AIso s t a b -> Iso (f s) (g t) (f a) (g b)
+mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
+{-# INLINE mapping #-}
 
 -- | Lift an 'Iso' into a pair of 'Contravariant' functors.
 --
@@ -156,6 +157,16 @@ toYoneda o p = withIso o $ \sa bt -> Yoneda $ \f g -> dimap (sa . f) (g . bt) p
 toCoyoneda :: Iso s t a b -> p a b -> Coyoneda p s t
 toCoyoneda o p = withIso o $ \sa bt -> Coyoneda sa bt p
 {-# INLINE toCoyoneda #-}
+
+-- | Invert an isomorphism.
+--
+-- @
+-- 'invert' ('invert' o) ≡ o
+-- @
+--
+invert :: AIso s t a b -> Iso b a t s
+invert o = withIso o $ \sa bt -> iso bt sa
+{-# INLINE invert #-}
 
 -- | Convert from 'AIso' back to any 'Iso'.
 --
@@ -250,11 +261,21 @@ tabulated :: F.Representable f => F.Representable g => Iso (f a) (g b) (F.Rep f 
 tabulated = iso F.index F.tabulate
 {-# INLINE tabulated #-}
 
--- | TODO: Document
+-- | Obtain an 'Iso' from a function that is its own inverse.
 --
-transposed :: Functor f => Distributive g => Iso (f (g a)) (g (f a)) (g (f a)) (f (g a))
-transposed = involuted distribute
-{-# INLINE transposed #-}
+-- @
+-- 'involuted' ≡ 'Control.Monad.join' 'iso'
+-- @
+--
+-- >>> "live" ^. involuted reverse
+-- "evil"
+--
+-- >>> involuted reverse ..~ ('d':) $ "live"
+-- "lived"
+--
+involuted :: (s -> a) -> Iso s a a s
+involuted = M.join iso
+{-# INLINE involuted #-}
 
 -- | Flip two arguments of a function.
 --
@@ -273,6 +294,19 @@ flipped = iso flip flip
 curried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
 curried = iso uncurry curry
 {-# INLINE curried #-}
+
+-- | Excise a single value from a type.
+--
+-- >>> review (excised "foo") "foo"
+-- Nothing
+-- >>> review (excised "foo") "foobar"
+-- Just "foobar"
+--
+excised :: Eq a => a -> Iso' (Maybe a) a
+excised a = iso (fromMaybe a) g
+  where g a1 | a1 == a = Nothing
+             | otherwise = Just a1
+{-# INLINE excised #-}
 
 -- | A right adjoint admits an intrinsic notion of zipping.
 --
@@ -310,58 +344,21 @@ coassociated :: Iso (a + (b + c)) (d + (e + f)) ((a + b) + c) ((d + e) + f)
 coassociated = iso eassocl eassocr
 {-# INLINE coassociated #-}
 
--- | Obtain an 'Iso' from a function that is its own inverse.
+-- | TODO: Document
 --
--- @
--- 'involuted' ≡ 'Control.Monad.join' 'iso'
--- @
---
--- >>> "live" ^. involuted reverse
--- "evil"
---
--- >>> involuted reverse ..~ ('d':) $ "live"
--- "lived"
---
-involuted :: (s -> a) -> Iso s a a s
-involuted = M.join iso
-{-# INLINE involuted #-}
+sieved :: ((a -> b) -> s -> t) -> Iso s t (Index s x x) (Index s a b)
+sieved abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) 
+{-# INLINE sieved #-}
 
--- | Generalize @'non' a@ to take any value and a predicate.
+-- | TODO: Document
 --
--- Assumes that @p a@ holds @'True'@ and generates an isomorphism between @'Maybe' (a | 'not' (p a))@ and @a@.
---
-anon :: a -> (a -> Bool) -> Iso' (Maybe a) a
-anon a p = iso (fromMaybe a) go where
-  go b | p b       = Nothing
-       | otherwise = Just b
-{-# INLINE anon #-}
-
--- | Remove a single value from a type.
---
--- >>> review (non "foo") "foo"
--- Nothing
--- >>> review (non "foo") "foobar"
--- Just "foobar"
---
-non :: Eq a => a -> Iso' (Maybe a) a
-non def = iso (fromMaybe def) g
-  where g a | a == def  = Nothing
-            | otherwise = Just a
-{-# INLINE non #-}
+cosieved :: ((a -> b) -> s -> t) -> Iso s t (Coindex t b a) (Coindex t x x)
+cosieved abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial
+{-# INLINE cosieved #-}
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
-
--- | Invert an isomorphism.
---
--- @
--- 'invert' ('invert' o) ≡ o
--- @
---
-invert :: AIso s t a b -> Iso b a t s
-invert o = withIso o $ \sa bt -> iso bt sa
-{-# INLINE invert #-}
 
 -- | Given a conversion on one side of an 'Iso', recover the other.
 --

@@ -9,42 +9,54 @@ module Data.Profunctor.Optic.Setter (
     -- * Setter
     Setter
   , Setter'
-  , setter
-  , closing
-    -- * Resetter
   , Resetter
   , Resetter'
+  , setter
+  , closing
   , resetter
+  , asetter
+  , aresetter
+    -- * Setter1
+  , Setter1
+  , Setter1'
+  , Resetter1
+  , Resetter1'
+  , setter1
+  , resetter1
     -- * Optics
   , cod
   , dom
   , bound 
   , fmapped
   , contramapped
-  , liftedA
   , liftedM
+  , liftedA
+  , reliftedA
+  , zipListed
+  , reliftedF
   , forwarded
   , censored
   , zipped
   , modded
   , cond
     -- * Operators
-  , set
   , over
   , (.~)
   , (..~)
-  , (<>~)
+  , set
+  , sets
+  , reset
+  , resets
     -- * mtl
-  , locally
-  , scribe
-  , assigns
-  , modifies
   , (.=)
   , (..=)
-  , (<>=)
+  , assigns
+  , modifies
+  , locally
+  , scribe
 ) where
 
-import Control.Applicative (liftA)
+import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
@@ -52,6 +64,8 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Iso (sieved,cosieved)
+import Data.Profunctor.Optic.Traversal
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -65,6 +79,7 @@ import Data.Profunctor.Optic.Types
 -- >>> import Control.Monad.Writer
 -- >>> import Data.Bool (bool)
 -- >>> import Data.Complex
+-- >>> import Data.Function ((&))
 -- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
@@ -102,7 +117,7 @@ import Data.Profunctor.Optic.Types
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
+setter abst = sieved abst . represent (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
 -- | Every valid 'Grate' is a 'Setter'.
@@ -110,10 +125,6 @@ setter abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) . repn collect
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 {-# INLINE closing #-}
-
----------------------------------------------------------------------
--- Resetter
----------------------------------------------------------------------
 
 -- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
@@ -126,20 +137,48 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- * @abst f . abst g ≡ abst (f . g)@
 --
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial . corepn (\f -> fmap f . sequenceA)
+resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
+
+-- | TODO: Document
+--
+asetter :: ((a -> f b) -> s -> f t) -> ASetter f s t a b
+asetter = atraversal
+{-# INLINE asetter #-}
+
+-- | TODO: Document
+--
+aresetter :: ((f a -> b) -> f s -> t) -> AResetter f s t a b
+aresetter = acotraversal
+{-# INLINE aresetter #-}
+
+---------------------------------------------------------------------
+-- Setter1
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
+setter1 abst = sieved abst . represent (\f -> distribute1 . fmap f)
+{-# INLINE setter1 #-}
+
+-- | TODO: Document
+--
+resetter1 :: ((a -> t) -> s -> t) -> Resetter1 s t a t
+resetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
+{-# INLINE resetter1 #-}
 
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
 
--- | Map covariantly over the output of a 'Profunctor'.
+-- | Map covariantly over the output of a profunctor.
 --
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
 -- (dom ..~ f) g x ≡ f (g x)
--- cod @(->) ≡ 'Data.Profunctor.Optic.Grate.withGrate' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
+-- cod @(->) ≡ 'Data.Profunctor.Optic.Lens.withGrate' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
 -- @
 --
 -- >>> (cod ..~ show) length [1,2,3]
@@ -149,12 +188,12 @@ cod :: Profunctor p => Setter (p r a) (p r b) a b
 cod = setter rmap
 {-# INLINE cod #-}
 
--- | Map contravariantly over the input of a 'Profunctor'.
+-- | Map contravariantly over the input of a profunctor.
 --
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- (dom ..~ f) g x ≡ g (f x)
+-- ('dom' '..~' f) g x ≡ g (f x)
 -- @
 --
 -- >>> (dom ..~ show) length [1,2,3]
@@ -179,12 +218,11 @@ fmapped = setter fmap
 -- | 'Setter' on each value of a contravariant functor.
 --
 -- @
--- 'contramap' ≡ 'over' 'contramapped'
+-- 'Data.Functor.Contravariant.contramap' ≡ 'over' 'contramapped'
 -- @
 --
 -- >>> getPredicate (over contramapped (*2) (Predicate even)) 5
 -- True
---
 -- >>> getOp (over contramapped (*5) (Op show)) 100
 -- "500"
 --
@@ -192,15 +230,20 @@ contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
 
+-- | 'Setter' on each value of a monad.
+--
+liftedM :: Monad m => Setter (m a) (m b) a b
+liftedM = setter liftM
+{-# INLINE liftedM #-}
+
 -- | 'Setter' on each value of an applicative.
 --
 -- @
--- 'liftA' ≡ 'setter' 'liftedA'
+-- 'Control.Applicative.liftA' ≡ 'setter' 'liftedA'
 -- @
 --
 -- >>> setter liftedA Identity [1,2,3]
 -- [Identity 1,Identity 2,Identity 3]
---
 -- >>> set liftedA 2 (Just 1)
 -- Just 2
 --
@@ -208,11 +251,25 @@ liftedA :: Applicative f => Setter (f a) (f b) a b
 liftedA = setter liftA
 {-# INLINE liftedA #-}
 
--- | 'Setter' on each value of a monad.
+-- | TODO: Document
 --
-liftedM :: Monad m => Setter (m a) (m b) a b
-liftedM = setter liftM
-{-# INLINE liftedM #-}
+reliftedA :: Applicative f => Resetter (f a) (f b) a b
+reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
+{-# INLINE reliftedA #-}
+
+-- | Variant of 'reliftedA' specialized to zip-lists.
+--
+-- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
+--
+zipListed :: Resetter [a] [b] a b
+zipListed = dimap ZipList getZipList . reliftedA
+{-# INLINE zipListed #-}
+
+-- | TODO: Document
+--
+reliftedF :: Apply f => Resetter1 (f a) (f b) a b
+reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
+{-# INLINE reliftedF #-}
 
 -- | 'Setter' on the local environment of a 'Reader'. 
 --
@@ -258,17 +315,7 @@ cond p = setter $ \f a -> if p a then f a else a
 -- Operators
 ---------------------------------------------------------------------
 
-infixr 4 <>~ 
-
--- | Prefix variant of '.~'.
---
--- @ 'set' l y ('set' l x a) ≡ 'set' l y a @
---
-set :: Optic (->) s t a b -> b -> s -> t
-set = (.~)
-{-# INLINE set #-}
-
--- | Prefix alias of '..~'.
+-- | Map over a setter.
 --
 -- @
 -- 'over' o 'id' ≡ 'id' 
@@ -292,83 +339,59 @@ over = id
 
 infixr 4 .~, ..~
 
--- | Set all referenced fields to the given value.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
 -- | Map over an optic.
---
--- >>> Just 1 & just ..~ (+1)
--- Just 2
---
--- >>> Nothing & just ..~ (+1)
--- Nothing
---
--- >>> [1,2,3] & fmapped ..~ (*10)
--- [10,20,30]
---
--- >>> (1,2) & first' ..~ (+1) 
--- (2,2)
 --
 -- >>> (10,20) & first' ..~ show 
 -- ("10",20)
 --
 (..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = id
+(..~) = over
 {-# INLINE (..~) #-}
 
--- | Modify the target by adding another value.
+-- | Set the focus of a /->/ optic.
 --
--- >>> both <>~ "!" $ ("bar","baz")
--- ("bar!","baz!")
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Set the focus of a 'Setter'.
 --
-(<>~) :: Semigroup a => Optic (->) s t a a -> a -> s -> t
-l <>~ n = over l (<> n)
-{-# INLINE (<>~) #-}
+-- @ 
+-- 'set' o y ('set' o x a) ≡ 'set' o y a
+-- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)
+-- @
+--
+set :: ASetter Identity s t a b -> b -> s -> t
+set o b = sets o $ const b
+{-# INLINE set #-}
+
+-- | TODO: Document
+--
+sets ::  ASetter Identity s t a b -> (a -> b) -> s -> t
+sets o = (runIdentity #.) #. traverses o .# (Identity #.)
+{-# INLINE sets #-}
+
+-- | Set the focus of a 'Resetter'.
+--
+-- @
+-- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'
+-- @
+--
+reset :: AResetter Identity s t a b -> b -> s -> t
+reset o b = resets o $ const b
+
+-- | TODO: Document
+--
+resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
+resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
+{-# INLINE resets #-}
+
 
 ---------------------------------------------------------------------
 -- Mtl
 ---------------------------------------------------------------------
 
--- | Modify the value of a 'Reader' environment.
---
--- @
--- 'locally' l 'id' a ≡ a
--- 'locally' l f '.' locally l g ≡ 'locally' l (f '.' g)
--- @
---
--- >>> (1,1) & locally first' (+1) (uncurry (+))
--- 3
--- >>> "," & locally (setter ($)) ("Hello" <>) (<> " world!")
--- "Hello, world!"
---
--- Compare 'forwarded'.
---
-locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
-locally o f = Reader.local $ o ..~ f
-{-# INLINE locally #-}
-
--- | Write to a fragment of a larger 'Writer' format.
---
-scribe :: MonadWriter w m => Monoid b => Optic (->) s w a b -> s -> m ()
-scribe o s = Writer.tell $ set o mempty s
-{-# INLINE scribe #-}
-
-infix 4 .=, ..=, <>=
-
--- | Replace the target(s) of a settable in a monadic state.
---
-assigns :: MonadState s m => Optic (->) s s a b -> b -> m ()
-assigns o b = State.modify (set o b)
-{-# INLINE assigns #-}
-
--- | Map over the target(s) of a 'Setter' in a monadic state.
---
-modifies :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
-modifies o f = State.modify (over o f)
-{-# INLINE modifies #-}
+infix 4 .=, ..=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
@@ -398,11 +421,38 @@ o .= b = State.modify (o .~ b)
 o ..= f = State.modify (o ..~ f)
 {-# INLINE (..=) #-}
 
--- | Modify the target(s) of a settable optic by adding a value.
+-- | A prefix alias for '.='.
 --
--- >>> execState (both <>= "!!!") ("hello","world")
--- ("hello!!!","world!!!")
+assigns :: MonadState s m => Optic (->) s s a b -> b -> m ()
+assigns = (.=)
+{-# INLINE assigns #-}
+
+-- | A prefix alias for '..='
 --
-(<>=) :: MonadState s m => Semigroup a => Optic' (->) s a -> a -> m ()
-o <>= a = State.modify (o <>~ a)
-{-# INLINE (<>=) #-}
+modifies :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
+modifies = (..=)
+{-# INLINE modifies #-}
+
+-- | Modify the value of a 'Reader' environment.
+--
+-- @
+-- 'locally' l 'id' a ≡ a
+-- 'locally' l f '.' locally l g ≡ 'locally' l (f '.' g)
+-- @
+--
+-- >>> (1,1) & locally first' (+1) (uncurry (+))
+-- 3
+-- >>> "," & locally (setter ($)) ("Hello" <>) (<> " world!")
+-- "Hello, world!"
+--
+-- Compare 'forwarded'.
+--
+locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
+locally o f = Reader.local $ o ..~ f
+{-# INLINE locally #-}
+
+-- | Write to a fragment of a larger 'Writer' format.
+--
+scribe :: MonadWriter w m => Monoid s => Optic (->) s w a b -> b -> m ()
+scribe o b = Writer.tell (mempty & o .~ b)
+{-# INLINE scribe #-}
