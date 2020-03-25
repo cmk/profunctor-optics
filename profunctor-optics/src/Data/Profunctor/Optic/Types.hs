@@ -19,13 +19,15 @@
 module Data.Profunctor.Optic.Types (
     -- * Optic
     Optic, Optic'
+  , IndexedOptic, IndexedOptic'
+  , CoindexedOptic, CoindexedOptic'
     -- * Constraints
+  , CoerceL, CoerceR
   , Affine, Coaffine
   , Traversing, Cotraversing
   , Traversing1, Cotraversing1
-  , CoerceL, CoerceR
-  , Mapping, Comapping
-  , Mapping1, Comapping1
+  , Mapping, Remapping
+  , Mapping1, Remapping1
     -- * Equality
   , Equality, Equality'
     -- * Iso
@@ -45,11 +47,17 @@ module Data.Profunctor.Optic.Types (
   , Traversal0', Cotraversal0'
   , Traversal', Cotraversal'
   , Traversal1', Cotraversal1'
+    -- * Machine
+  , Moore, Mealy
+  , Moore', Mealy'
     -- * Fold
   , Fold0, Fold, Fold1
+  , Cofold0, Cofold, Cofold1
     -- * Setter
   , Setter, Resetter
   , Setter', Resetter'
+  , Setter1, Resetter1
+  , Setter1', Resetter1'
     -- * View
   , View, Review
     -- * 'Re'
@@ -72,29 +80,29 @@ import Data.Profunctor.Types as Export
 -- Constraints
 ---------------------------------------------------------------------
 
-type Affine p = (Choice p, Strong p)
-
-type Coaffine p = (Choice p, Closed p)
-
-type Traversing p = (Representable p, Applicative' (Rep p))
-
-type Cotraversing p = (Corepresentable p, Coapplicative (Corep p))
-
-type Traversing1 p = (Representable p, Apply (Rep p))
-
-type Cotraversing1 p = (Corepresentable p, Coapply (Corep p))
-
 type CoerceL p = (Bifunctor p)
 
 type CoerceR p = (forall x. Contravariant (p x))
 
+type Affine p = (Strong p, Choice p)
+
+type Coaffine p = (Closed p, Choice p)
+
+type Traversing p = (Representable p, Applicative' (Rep p))
+
+type Cotraversing p = (Closed p, Corepresentable p, Coapplicative (Corep p))
+
+type Traversing1 p = (Representable p, Apply (Rep p))
+
+type Cotraversing1 p = (Closed p, Corepresentable p, Coapply (Corep p))
+
 type Mapping p = (Representable p, Distributive (Rep p))
+
+type Remapping p = (Corepresentable p, Traversable (Corep p))
 
 type Mapping1 p = (Representable p, Distributive1 (Rep p))
 
-type Comapping p = (Corepresentable p, Traversable (Corep p))
-
-type Comapping1 p = (Corepresentable p, Traversable1 (Corep p))
+type Remapping1 p = (Corepresentable p, Traversable1 (Corep p))
 
 ---------------------------------------------------------------------
 -- Optic
@@ -103,6 +111,14 @@ type Comapping1 p = (Corepresentable p, Traversable1 (Corep p))
 type Optic p s t a b = p a b -> p s t
 
 type Optic' p s a = Optic p s s a a
+
+type IndexedOptic p i s t a b = p (i , a) b -> p (i , s) t
+
+type IndexedOptic' p i s a = IndexedOptic p i s s a a
+
+type CoindexedOptic p k s t a b = p a (k -> b) -> p s (k -> t)
+
+type CoindexedOptic' p k t b = CoindexedOptic p k t t b b
 
 ---------------------------------------------------------------------
 -- Equality
@@ -211,6 +227,22 @@ type Traversal1' s a = Traversal1 s s a a
 type Cotraversal1' t b = Cotraversal1 t t b b
 
 ---------------------------------------------------------------------
+-- Machine
+---------------------------------------------------------------------
+
+-- | A < https://en.wikipedia.org/wiki/Moore_machine Moore machine >
+--
+type Moore s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Optic p s t a b
+
+type Moore' t b = Moore t t b b
+
+-- | A < https://en.wikipedia.org/wiki/Mealy_machine Mealy machine >
+--
+type Mealy s t a b = forall p. (Coaffine p, Cotraversing p, Foldable1 (Corep p)) => Optic p s t a b
+
+type Mealy' t b = Mealy t t b b
+
+---------------------------------------------------------------------
 -- Fold
 ---------------------------------------------------------------------
 
@@ -219,6 +251,12 @@ type Fold0 s a = forall p. (Affine p, CoerceR p) => Optic' p s a
 type Fold s a = forall p. (Affine p, Traversing p, CoerceR p) => Optic' p s a
 
 type Fold1 s a = forall p. (Strong p, Traversing1 p, CoerceR p) => Optic' p s a 
+
+type Cofold0 t b = forall p. (Coaffine p, CoerceL p) => Optic' p t b 
+
+type Cofold t b = forall p. (Affine p, Cotraversing p, CoerceL p) => Optic' p t b
+
+type Cofold1 t b = forall p. (Choice p, Cotraversing1 p, CoerceL p) => Optic' p t b 
 
 ---------------------------------------------------------------------
 -- View
@@ -232,17 +270,31 @@ type Review t b = forall p. (Closed p, CoerceL p) => Optic' p t b
 -- Setter
 ---------------------------------------------------------------------
 
--- | \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
+-- | \( \mathsf{Functor}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
 type Setter s t a b = forall p. (Affine p, Traversing p, Mapping p) => Optic p s t a b
 
--- | \( \mathsf{Setter}\;S\;A = \exists F : \mathsf{Functor}, F\,S \equiv A \)
+-- | \( \quad \mathsf{Resetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
 --
-type Resetter s t a b = forall p. (Coaffine p, Cotraversing p, Comapping p) => Optic p s t a b 
+-- See also section 3 on Kaleidoscopes < https://cs.ttu.ee/events/nwpt2019/abstracts/paper14.pdf here >.
+--
+type Resetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b 
 
 type Setter' s a = Setter s s a a
 
 type Resetter' s a = Resetter s s a a
+
+---------------------------------------------------------------------
+-- Setter1
+---------------------------------------------------------------------
+
+type Setter1 s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Optic p s t a b
+
+type Resetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b 
+
+type Setter1' s a = Setter1 s s a a
+
+type Resetter1' s a = Resetter1 s s a a
 
 ---------------------------------------------------------------------
 -- 'Re' 
@@ -337,11 +389,9 @@ instance Coapplicative f => Choice (Costar f) where
   left' (Costar f) = Costar $ either (Left . f) (Right . copure) . coapply
 #endif
 
-{-
 #if !(MIN_VERSION_profunctors(5,5,0))
 instance Cochoice (Forget r) where 
   unleft (Forget f) = Forget $ f . Left
 
   unright (Forget f) = Forget $ f . Right
 #endif
--}

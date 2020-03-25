@@ -23,6 +23,7 @@ module Data.Profunctor.Optic.View (
   , views
   , use
   , uses
+  , (.^)
   , review
   , reviews
   , reuse
@@ -35,6 +36,7 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Fold
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -44,7 +46,7 @@ import Data.Profunctor.Optic.Import
 -- >>> import Data.Either
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
--- >>> :load Data.Profunctor.Optic Data.Either.Optic Data.Tuple.Optic
+-- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
@@ -169,7 +171,7 @@ fromSum l r = from (review l ||| review r)
 
 infixl 8 ^.
 
--- | View the focus of an optic.
+-- | An infix alias for 'view'.
 --
 -- Fixity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
@@ -185,10 +187,10 @@ infixl 8 ^.
 -- 2.23606797749979
 --
 (^.) :: s -> AView a s a -> a
-(^.) s o = withView o id s
+(^.) = flip view
 {-# INLINE ( ^. ) #-}
 
--- | A prefix alias for '^.'.
+-- | View the focus of an optic.
 --
 -- @
 -- 'view' '.' 'to' ≡ 'id'
@@ -210,7 +212,7 @@ view o = views o id
 -- | Map each part of a structure viewed to a semantic editor combinator.
 --
 -- @
--- 'views o f ≡ withFold o f'
+-- 'views o f ≡ withForget o f'
 -- 'Data.Foldable.foldMap' = 'views' 'folding''
 -- @
 --
@@ -218,7 +220,7 @@ view o = views o id
 -- ["foo","bar","baz"]
 --
 views :: MonadReader s m => AView r s a -> (a -> r) -> m r
-views o f = asks $ withView o f
+views o f = asks $ folds o f
 {-# INLINE views #-}
 
 -- | TODO: Document
@@ -235,11 +237,22 @@ use o = gets (view o)
 -- >>> evalState (uses first' length) ("hello","world!")
 -- 5
 --
-uses :: MonadState s m => Optic' (Star (Const r)) s a -> (a -> r) -> m r
+uses :: MonadState s m => AFold r s a -> (a -> r) -> m r
 uses l f = gets (views l f)
 {-# INLINE uses #-}
 
--- | A prefix alias of '.^'.
+infixr 8 .^
+
+-- | An infix alias of 'review'.
+--
+-- >>> from succ .^ 5
+-- 6
+--
+(.^) :: AReview t b -> b -> t
+(.^) = review
+{-# INLINE (.^) #-}
+
+-- | Review the focus of an optic.
 --
 -- @
 -- 'review' ≡ 'view' '.' 're'
@@ -248,11 +261,9 @@ uses l f = gets (views l f)
 --
 -- >>> review left' 4
 -- Left 4
--- >>> review (from succ) 5
--- 6
 --
 review :: MonadReader b m => AReview t b -> m t
-review o = reviews o id
+review o = asks $ reviews o id
 {-# INLINE review #-}
 
 -- | Turn an optic around and look through the other end, applying a function.
@@ -268,8 +279,8 @@ review o = reviews o id
 -- >>> reviews (from succ) (*2) 3
 -- 8
 --
-reviews :: MonadReader b m => AReview t b -> (t -> r) -> m r
-reviews o f = asks $ withReview o f
+reviews :: AReview t b -> (t -> r) -> b -> r
+reviews o f = f . unTagged #. o .# Tagged
 {-# INLINE reviews #-}
 
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.

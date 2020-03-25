@@ -15,6 +15,7 @@ module Data.Profunctor.Optic.Lens (
   , lensVl
   , matching
   , cloneLens
+  , cloneLensVl
   , colens
   , colensVl
   , comatching
@@ -26,6 +27,7 @@ module Data.Profunctor.Optic.Lens (
   , grateVl
   , inverting
   , cloneGrate
+  , cloneGrateVl
     -- * Optics
   , united
   , voided
@@ -47,6 +49,9 @@ module Data.Profunctor.Optic.Lens (
   , toTambara
   , toClosure
   , toEnvironment
+  , withLens
+  , withColens
+  , withGrate
     -- * Classes
   , Strong(..)
   , Costrong(..)
@@ -58,7 +63,6 @@ import Data.Distributive
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Types
@@ -76,6 +80,8 @@ import qualified Data.Functor.Rep as F
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Int
 -- >>> import Data.Complex
+-- >>> import Data.Tuple (swap)
+-- >>> import Data.Function ((&))
 -- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
 -- >>> :load Data.Profunctor.Optic
@@ -104,7 +110,7 @@ lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
--- Compare 'Data.Profunctor.Optic.Grate.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
+-- Compare 'Data.Profunctor.Optic.Lens.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -133,6 +139,28 @@ matching sca cbt = dimap sca cbt . second'
 --
 cloneLens :: ALens s t a b -> Lens s t a b
 cloneLens o = withLens o lens 
+
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- cloneLensVl o Identity ≡ Identity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (cloneLensVl o f) . cloneLensVl o g ≡ cloneLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
+cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+{-# INLINE cloneLensVl #-}
 
 -- | Obtain a 'Colens' from a getter and setter. 
 --
@@ -261,6 +289,26 @@ inverting sa bt = grate $ \sab -> bt (sab sa)
 cloneGrate :: AGrate s t a b -> Grate s t a b
 cloneGrate k = withGrate k grate
 
+-- | Extract the higher order function that characterizes a 'Grate'.
+--
+-- The grate laws can be stated in terms or 'withGrate':
+-- 
+-- Identity:
+-- 
+-- @
+-- cloneGrateVl o runIdentity ≡ runIdentity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- cloneGrateVl o f . fmap (cloneGrateVl o g) ≡ cloneGrateVl o (f . fmap g . getCompose) . Compose
+-- @
+--
+cloneGrateVl :: AGrate s t a b -> (forall f . Functor f => (f a -> b) -> f s -> t)
+cloneGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
+{-# INLINE cloneGrateVl #-}
+
 ---------------------------------------------------------------------
 -- Optics 
 ---------------------------------------------------------------------
@@ -277,8 +325,6 @@ united = lens (const ()) const
 
 -- | There is everything in a 'Void'.
 --
--- >>> [] & fmapped . voided <>~ "Void" 
--- []
 -- >>> Nothing & fmapped . voided ..~ abs
 -- Nothing
 --
@@ -397,7 +443,7 @@ zipsWith4 o aaaab s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> aaaab (sa s
 -- @
 --
 zipsWithF :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
-zipsWithF = withGrateVl
+zipsWithF = cloneGrateVl
 {-# INLINE zipsWithF #-}
 
 -- | Use a 'Lens' to construct a 'Pastro'.
