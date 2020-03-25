@@ -192,8 +192,6 @@ liftR2 :: Traversing1 p => (b -> c -> d) -> p a b -> p a c -> p a d
 liftR2 f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
 {-# INLINE liftR2 #-}
 
-
-
 ---------------------------------------------------------------------
 -- Arrow-style combinators
 ---------------------------------------------------------------------

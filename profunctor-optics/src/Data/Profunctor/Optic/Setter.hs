@@ -12,6 +12,7 @@ module Data.Profunctor.Optic.Setter (
   , Resetter
   , Resetter'
   , setter
+  , isetter
   , closing
   , resetter
   , asetter
@@ -39,6 +40,9 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , cond
+    -- * Indexed optics
+  , imapped
+  , imappedRep
     -- * Operators
   , over
   , (.~)
@@ -47,6 +51,10 @@ module Data.Profunctor.Optic.Setter (
   , sets
   , reset
   , resets
+    -- * Indexed operators
+  , iover
+  , iset
+  , isets
     -- * mtl
   , (.=)
   , (..=)
@@ -60,12 +68,15 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.Key as K
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (sieved,cosieved)
 import Data.Profunctor.Optic.Traversal
+
+import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -120,6 +131,26 @@ setter :: ((a -> b) -> s -> t) -> Setter s t a b
 setter abst = sieved abst . represent (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
+-- | Build an 'Ixsetter' from an indexed function.
+--
+-- @
+-- 'isetter' '.' 'isets' ≡ 'id'
+-- 'isets' '.' 'isetter' ≡ 'id'
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const id) ≡ id@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ iabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+isetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
+isetter f = setter $ \iab -> f (curry iab) . snd 
+{-# INLINE isetter #-}
+
 -- | Every valid 'Grate' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
@@ -142,13 +173,13 @@ resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 
 -- | TODO: Document
 --
-asetter :: ((a -> f b) -> s -> f t) -> ASetter f s t a b
+asetter :: ((a -> Identity b) -> s -> Identity t) -> ASetter s t a b
 asetter = atraversal
 {-# INLINE asetter #-}
 
 -- | TODO: Document
 --
-aresetter :: ((f a -> b) -> f s -> t) -> AResetter f s t a b
+aresetter :: ((Identity a -> b) -> Identity s -> t) -> AResetter s t a b
 aresetter = acotraversal
 {-# INLINE aresetter #-}
 
@@ -312,8 +343,44 @@ cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
 
 ---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | 'Ixsetter' on each value of a 'Keyed' container.
+--
+imapped :: Keyed f => Ixsetter (Key f) (f a) (f b) a b
+imapped = isetter K.mapWithKey
+{-# INLINE imapped #-}
+
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & imappedRep %~ bool 20 10
+-- 20 :+ 10
+--
+imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+imappedRep = isetter F.imapRep
+{-# INLINE imappedRep #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
+
+infixr 4 .~, ..~
+
+-- | Set the focus of a /->/ optic.
+--
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Map over an optic.
+--
+-- >>> (10,20) & first' ..~ show 
+-- ("10",20)
+--
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) = over
+{-# INLINE (..~) #-}
 
 -- | Map over a setter.
 --
@@ -337,23 +404,6 @@ over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 {-# INLINE over #-}
 
-infixr 4 .~, ..~
-
--- | Map over an optic.
---
--- >>> (10,20) & first' ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
--- | Set the focus of a /->/ optic.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
 -- | Set the focus of a 'Setter'.
 --
 -- @ 
@@ -361,13 +411,13 @@ infixr 4 .~, ..~
 -- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)
 -- @
 --
-set :: ASetter Identity s t a b -> b -> s -> t
+set :: ASetter s t a b -> b -> s -> t
 set o b = sets o $ const b
 {-# INLINE set #-}
 
 -- | TODO: Document
 --
-sets ::  ASetter Identity s t a b -> (a -> b) -> s -> t
+sets ::  ASetter s t a b -> (a -> b) -> s -> t
 sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 {-# INLINE sets #-}
 
@@ -377,15 +427,52 @@ sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 -- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'
 -- @
 --
-reset :: AResetter Identity s t a b -> b -> s -> t
+reset :: AResetter s t a b -> b -> s -> t
 reset o b = resets o $ const b
 
 -- | TODO: Document
 --
-resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
+resets :: AResetter s t a b -> (a -> b) -> s -> t
 resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
 {-# INLINE resets #-}
 
+---------------------------------------------------------------------
+-- Indexed operators
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+iover :: IndexedOptic (->) i s t a b -> (i -> a -> b) -> i -> s -> t
+iover o = unConjoin #. corepresent o .# Conjoin
+{-# INLINE iover #-}
+
+-- | Prefix alias of '%~'.
+--
+-- Equivalent to 'isets' with the current value ignored.
+--
+-- @
+-- 'set' o ≡ 'iset' o '.' 'const'
+-- @
+--
+-- >>> iset (iat 2) (+4) [1,2,3 :: Int]
+-- [1,2,6]
+-- >>> iset (iat 5) (const 0) [1,2,3 :: Int]
+-- [1,2,3]
+--
+iset :: (Sum-Monoid) i => AIxsetter i s t a b -> (i -> b) -> s -> t
+iset o = isets o . (const .)
+{-# INLINE iset #-}
+
+-- | Prefix alias of '%%~'.
+--
+-- >>> isets (iat 1) (+) [1,2,3 :: Int]
+-- [1,3,3]
+-- >>> isets (iat 5) (+) [1,2,3 :: Int]
+-- [1,2,3]
+--
+isets :: (Sum-Monoid) i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+isets o f = curry (sets o $ uncurry f) zero
+{-# INLINE isets #-}
 
 ---------------------------------------------------------------------
 -- Mtl

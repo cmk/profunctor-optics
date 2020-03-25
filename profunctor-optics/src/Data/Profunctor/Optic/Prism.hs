@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Prism (
-    -- * Prism & Cxprism
+    -- * Prism & Jxprism
     Prism
   , Prism'
   , Coprism
@@ -59,7 +59,7 @@ import Data.Profunctor.Optic.Types
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
--- 'Prism' & 'Cxprism'
+-- 'Prism' & 'Jxprism'
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Prism' from a constructor and a matcher function.

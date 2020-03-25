@@ -20,7 +20,6 @@ module Data.Profunctor.Optic.Types (
     -- * Optic
     Optic, Optic'
   , IndexedOptic, IndexedOptic'
-  , CoindexedOptic, CoindexedOptic'
     -- * Constraints
   , Affine, Coaffine
   , Traversing, Cotraversing
@@ -36,36 +35,54 @@ module Data.Profunctor.Optic.Types (
   , Prism, Coprism
   , Prism', Coprism'
     -- * Lens
-  , Lens, Colens
-  , Lens', Colens'
-    -- * Grate
-  , Grate, Grate'
+  , Lens, Colens, Grate
+  , Ixlens
+  , Lens', Colens', Grate'
+  , Ixlens'
     -- * Traversal
   , Traversal0, Cotraversal0
   , Traversal, Cotraversal
   , Traversal1, Cotraversal1
+  , Ixtraversal0
+  , Ixtraversal
+  , Ixtraversal1
   , Traversal0', Cotraversal0'
   , Traversal', Cotraversal'
   , Traversal1', Cotraversal1'
-    -- * Machine
-  , Moore, Mealy
-  , Moore', Mealy'
+  , Ixtraversal0'
+  , Ixtraversal'
+  , Ixtraversal1'
     -- * Fold
-  , Fold0, Fold, Fold1
-  , Cofold0, Cofold, Cofold1
+  , Fold0, Cofold0
+  , Fold, Cofold
+  , Fold1, Cofold1
+  , Ixfold0
+  , Ixfold
+  , Ixfold1
+    -- * Machine
+  , Moore, Ixmoore --, Jxmoore
+  , Mealy, Ixmealy -- Jxmealy
+  , Moore', Mealy'
+  , Ixmoore', Ixmealy'
     -- * Setter
   , Setter, Resetter
-  , Setter', Resetter'
   , Setter1, Resetter1
+  , Ixsetter
+  , Ixsetter1
+  , Setter', Resetter'
   , Setter1', Resetter1'
+  , Ixsetter'
+  , Ixsetter1'
     -- * View
   , View, Review
+  , Ixview
     -- * 'Re'
   , Re(..), re
   , between
   , module Export
 ) where
 
+import Data.Key
 import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
@@ -110,15 +127,11 @@ type CoercingR p = (forall x. Contravariant (p x))
 
 type Optic p s t a b = p a b -> p s t
 
-type Optic' p s a = Optic p s s a a
-
 type IndexedOptic p i s t a b = p (i , a) b -> p (i , s) t
 
+type Optic' p s a = Optic p s s a a
+
 type IndexedOptic' p i s a = IndexedOptic p i s s a a
-
-type CoindexedOptic p k s t a b = p a (k -> b) -> p s (k -> t)
-
-type CoindexedOptic' p k t b = CoindexedOptic p k t t b b
 
 ---------------------------------------------------------------------
 -- Equality
@@ -172,14 +185,18 @@ type Colens s t a b = forall p. Costrong p => Optic p s t a b
 --
 type Grate s t a b = forall p. Closed p => Optic p s t a b 
 
+type Ixlens i s t a b = forall p. Strong p => IndexedOptic p i s t a b 
+
 type Lens' s a = Lens s s a a
 
 type Colens' t b = Lens t t b b
 
 type Grate' s a = Grate s s a a
 
+type Ixlens' i s a = Ixlens i s s a a 
+
 ---------------------------------------------------------------------
--- Traversal0
+-- Traversal
 ---------------------------------------------------------------------
 
 -- | \( \mathsf{Traversal0}\;S\;A = \exists C, D, S \cong D + C \times A \)
@@ -190,14 +207,6 @@ type Traversal0 s t a b = forall p. Affine p => Optic p s t a b
 --
 type Cotraversal0 s t a b = forall p. Coaffine p => Optic p s t a b
 
-type Traversal0' s a = Traversal0 s s a a
-
-type Cotraversal0' t b = Cotraversal0 t t b b
-
----------------------------------------------------------------------
--- Traversal
----------------------------------------------------------------------
-
 -- | \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
 --
 type Traversal s t a b = forall p. (Affine p, Traversing p) => Optic p s t a b
@@ -205,14 +214,6 @@ type Traversal s t a b = forall p. (Affine p, Traversing p) => Optic p s t a b
 -- | \( \mathsf{Cotraversal}\;S\;A = \exists F : \mathsf{Distributive}, S \equiv F\,A \)
 --
 type Cotraversal s t a b = forall p. (Coaffine p, Cotraversing p) => Optic p s t a b
-
-type Traversal' s a = Traversal s s a a
-
-type Cotraversal' t b = Cotraversal t t b b
-
----------------------------------------------------------------------
--- Traversal1
----------------------------------------------------------------------
 
 -- | \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
@@ -222,25 +223,29 @@ type Traversal1 s t a b = forall p. (Strong p, Traversing1 p) => Optic p s t a b
 --
 type Cotraversal1 s t a b = forall p. (Closed p, Cotraversing1 p) => Optic p s t a b
 
+type Ixtraversal0 i s t a b = forall p. Affine p => IndexedOptic p i s t a b 
+
+type Ixtraversal i s t a b = forall p. (Affine p, Traversing p) => IndexedOptic p i s t a b
+
+type Ixtraversal1 i s t a b = forall p. (Strong p, Traversing1 p) => IndexedOptic p i s t a b
+
+type Traversal0' s a = Traversal0 s s a a
+
+type Cotraversal0' t b = Cotraversal0 t t b b
+
+type Ixtraversal0' i s a = Ixtraversal0 i s s a a 
+
+type Traversal' s a = Traversal s s a a
+
+type Cotraversal' t b = Cotraversal t t b b
+
+type Ixtraversal' i s a = Ixtraversal i s s a a
+
 type Traversal1' s a = Traversal1 s s a a
 
 type Cotraversal1' t b = Cotraversal1 t t b b
 
----------------------------------------------------------------------
--- Machine
----------------------------------------------------------------------
-
--- | A < https://en.wikipedia.org/wiki/Moore_machine Moore machine >
---
-type Moore s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Optic p s t a b
-
-type Moore' t b = Moore t t b b
-
--- | A < https://en.wikipedia.org/wiki/Mealy_machine Mealy machine >
---
-type Mealy s t a b = forall p. (Coaffine p, Cotraversing p, Foldable1 (Corep p)) => Optic p s t a b
-
-type Mealy' t b = Mealy t t b b
+type Ixtraversal1' i s a = Ixtraversal1 i s s a a
 
 ---------------------------------------------------------------------
 -- Fold
@@ -258,13 +263,35 @@ type Cofold t b = forall p. (Affine p, Cotraversing p, CoercingL p) => Optic' p 
 
 type Cofold1 t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Optic' p t b 
 
+type Ixfold0 i s a = forall p. (Affine p, CoercingR p) => IndexedOptic' p i s a 
+
+type Ixfold i s a = forall p. (Affine p, Traversing p, CoercingR p) => IndexedOptic' p i s a
+
+type Ixfold1 i s a = forall p. (Strong p, Traversing1 p, CoercingR p) => IndexedOptic' p i s a 
+
 ---------------------------------------------------------------------
--- View
+-- Machine
 ---------------------------------------------------------------------
 
-type View s a = forall p. (Strong p, CoercingR p) => Optic' p s a 
+-- | A < https://en.wikipedia.org/wiki/Moore_machine Moore machine >
+--
+type Moore s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Optic p s t a b
 
-type Review t b = forall p. (Closed p, CoercingL p) => Optic' p t b
+-- | A < https://en.wikipedia.org/wiki/Mealy_machine Mealy machine >
+--
+type Mealy s t a b = forall p. (Coaffine p, Cotraversing p, Foldable1 (Corep p)) => Optic p s t a b
+
+type Moore' t b = Moore t t b b
+
+type Mealy' t b = Mealy t t b b
+
+type Ixmoore i s t a b = forall p. (Closed p, Cotraversing1 p, FoldableWithKey (Corep p)) => IndexedOptic p i s t a b
+
+type Ixmealy i s t a b = forall p. (Coaffine p, Cotraversing p, FoldableWithKey1 (Corep p)) => IndexedOptic p i s t a b
+
+type Ixmoore' i t b = Ixmoore i t t b b
+
+type Ixmealy' i t b = Ixmealy i t t b b
 
 ---------------------------------------------------------------------
 -- Setter
@@ -280,21 +307,35 @@ type Setter s t a b = forall p. (Affine p, Traversing p, Mapping p) => Optic p s
 --
 type Resetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b 
 
-type Setter' s a = Setter s s a a
-
-type Resetter' s a = Resetter s s a a
-
----------------------------------------------------------------------
--- Setter1
----------------------------------------------------------------------
-
 type Setter1 s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Optic p s t a b
 
 type Resetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b 
 
+type Ixsetter i s t a b = forall p. (Affine p, Traversing p, Mapping p) => IndexedOptic p i s t a b
+
+type Ixsetter1 i s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => IndexedOptic p i s t a b
+
+type Setter' s a = Setter s s a a
+
+type Resetter' s a = Resetter s s a a
+
 type Setter1' s a = Setter1 s s a a
 
 type Resetter1' s a = Resetter1 s s a a
+
+type Ixsetter' i s a = Ixsetter i s s a a 
+
+type Ixsetter1' i s a = Ixsetter1 i s s a a 
+
+---------------------------------------------------------------------
+-- View
+---------------------------------------------------------------------
+
+type View s a = forall p. (Strong p, CoercingR p) => Optic' p s a 
+
+type Review t b = forall p. (Closed p, CoercingL p) => Optic' p t b
+
+type Ixview i s a = forall p. (Strong p, CoercingR p) => IndexedOptic' p i s a
 
 ---------------------------------------------------------------------
 -- 'Re' 

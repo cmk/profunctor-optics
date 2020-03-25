@@ -6,10 +6,8 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Machine (
-    -- * Types
+    -- * Moore
     Moore
-  , Mealy
-    -- * Fold
   , moore
   , listing
   , foldingr
@@ -18,6 +16,7 @@ module Data.Profunctor.Optic.Machine (
   , foldinglM
   , foldMapping
     -- * Mealy 
+  , Mealy
   , mealy
   , listing1
   , foldingr1
@@ -49,9 +48,11 @@ module Data.Profunctor.Optic.Machine (
 ) where
 
 import Data.List.NonEmpty as NonEmpty
+import Data.Key as K
 import Data.Monoid
 import Data.Semigroup
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Semigroup.Foldable as F1
@@ -74,10 +75,10 @@ import qualified Data.Profunctor.Rep.Foldl1 as L1
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
--- 'Foldl' & 'Foldl1'
+-- 'Moore'
 ---------------------------------------------------------------------
 
--- | Obtain a 'Foldl' directly.
+-- | Obtain a 'Moore' directly.
 --
 moore :: (s -> a) -> (forall f. Foldable f => f s -> b -> t) -> Moore s t a b
 moore sa sbt p = cotabulate $ \s -> sbt s (cosieve p . fmap sa $ s)
@@ -120,7 +121,7 @@ foldMapping sa sr rbt = moore sa $ rbt . F.foldMap sr
 {-# INLINE foldMapping #-}
 
 ---------------------------------------------------------------------
--- 'Foldl1'
+-- 'Mealy'
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Foldl1' directly.
@@ -248,36 +249,21 @@ maximizedByDef :: (s -> s -> Ordering) -> t -> Lens s t a b -> Moore s t a b
 maximizedByDef cmp t o = withLens o $ \sa sbt -> moore sa $ \fs b -> maybe t (flip sbt b) $ maximumByMay cmp fs 
 {-# INLINE maximizedByDef #-}
 
-{-
--- | TODO: Document
---
-prefiltered :: (a -> Bool) -> AFoldl a b a b
-prefiltered = L.prefilter
-{-# INLINE prefiltered #-}
-
-
--- requires latest version of foldl
-dropped :: Natural -> AFoldl' a b
-dropped = L.drop
-
--- requires latest version of foldl
-predroppedWhile :: (a -> Bool) -> AFoldl' a b
-predroppedWhile = L.predropWhile
--}
-
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
 -- | TODO: Document
 --
--- A left-hand, optic version of the < http://hackage.haskell.org/package/base-4.12.0.0/docs/src/GHC.Base.html#build /build/ > in 'GHC.Base'.
---
 -- >>> buildsl (foldMapped second') (++) [] id [(Sum 1,"one"),(Sum 2,"two")]
 -- (Sum {getSum = 3},"onetwo")
 -- 
+-- This is left-hand, optic version of the /build/ function from < http://hackage.haskell.org/package/base-4.12.0.0/docs/src/GHC.Base.html#build base >.
+--
+-- See also < https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/deforestation-short-cut.pdf A Short Cut to Deforestation.>
+--
 buildsl :: Foldable f => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> f s -> t
-buildsl o h z k s = flip L.fold s . o $ L.Fold h z k
+buildsl o h z k s = flip L.foldl s . o $ L.Fold h z k
 {-# INLINE buildsl #-}
 
 -- | TODO: Document
@@ -291,13 +277,15 @@ buildsl1 o h z k s = flip L1.foldl1 s . o $ L1.Foldl1 h z k
 
 -- | TODO: Document
 --
--- > 'listsl' id = 'Control.Foldl.fold' 'Control.Foldl.list' = 'Data.Foldable.toList'
+-- @
+-- 'listsl' id = 'Control.Foldl.fold' 'Control.Foldl.list' = 'Data.Foldable.toList'
+-- @
 --
 -- >>> listsl closed [("foo: "++) . show, ("bar: "++) . show] 42
 -- ["foo: 42","bar: 42"]
 --
 listsl :: Foldable f => AFoldl s t a [a] -> f s -> t
-listsl o s = flip L.fold s . o $ L.list
+listsl o s = flip L.foldl s . o $ L.list
 {-# INLINE listsl #-}
 
 -- | TODO: Document
@@ -309,7 +297,7 @@ listsl1 o s = flip L1.foldl1 s . o $ L1.list1
 -- | TODO: Document
 --
 mconcatsl :: Foldable f => Monoid m => AFoldl s t m m -> f s -> t
-mconcatsl o s = flip L.fold s . o $ L.mconcat
+mconcatsl o s = flip L.foldl s . o $ L.mconcat
 {-# INLINE mconcatsl #-}
 
 -- | TODO: Document
@@ -321,7 +309,7 @@ sconcatsl o s = flip L1.foldl1 s . o $ L1.sconcat
 -- | TODO: Document
 --
 foldMapsl :: Foldable f => Monoid m => AFoldl s t a b -> (a -> m) -> (m -> b) -> f s -> t
-foldMapsl o f g s = flip L.fold s . o $ L.foldMap f g
+foldMapsl o f g s = flip L.foldl s . o $ L.foldMap f g
 {-# INLINE foldMapsl #-}
 
 -- | TODO: Document

@@ -4,11 +4,12 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 module Data.Profunctor.Optic.View (
-    -- * Types
-    View
+    -- * View
+    View, Ixview
   , Review
     -- * Constructors
   , to
+  , ito
   , from
   , cloneView
   , cloneReview
@@ -17,6 +18,8 @@ module Data.Profunctor.Optic.View (
   , relike
   , toProduct
   , fromSum
+    -- * Indexed optics
+  , ilike
     -- * Operators
   , (^.)
   , view
@@ -28,6 +31,12 @@ module Data.Profunctor.Optic.View (
   , reviews
   , reuse
   , reuses
+    -- * Indexed operators
+  , (^%)
+  , iview
+  , iviews
+  , iuse
+  , iuses
 ) where
 
 import Control.Monad.Reader as Reader
@@ -75,6 +84,12 @@ import Data.Profunctor.Optic.Fold
 to :: (s -> a) -> View s a
 to f = coercer . lmap f
 {-# INLINE to #-}
+
+-- | TODO: Document
+--
+ito :: (s -> (i , a)) -> Ixview i s a
+ito f = coercer . lmap (f . snd)
+{-# INLINE ito #-}
 
 -- | Obtain a 'Review' from an arbitrary function.
 --
@@ -164,6 +179,16 @@ toProduct l r = to (view l &&& view r)
 fromSum :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
 fromSum l r = from (review l ||| review r)
 {-# INLINE fromSum #-}
+
+---------------------------------------------------------------------
+-- Indexed optics
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+ilike :: i -> a -> Ixview i s a
+ilike i a = ito (const (i, a))
+{-# INLINE ilike #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -313,3 +338,49 @@ reuse o = gets (unTagged #. o .# Tagged)
 reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
 reuses o tr = gets (tr . unTagged #. o .# Tagged)
 {-# INLINE reuses #-}
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+infixl 8 ^%
+
+-- | View the focus of an indexed optic along with its index.
+--
+-- >>> ("foo", 42) ^% ifirst
+-- (Just 0,"foo")
+--
+(^%) :: (Sum-Monoid) i => s -> AIxview i s a -> (Maybe i, a)
+(^%) = flip iview
+{-# INLINE (^%) #-}
+
+-- | A prefix alias for '^%'.
+--
+-- >>> iview ifirst ("foo", 42)
+-- (Just 0,"foo")
+--
+iview :: MonadReader s m => (Sum-Monoid) i => AIxview i s a -> m (Maybe i , a)
+iview o = iviews o $ \i a -> (Just i, a)
+{-# INLINE iview #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+-- 'iviews' ≡ 'ifolds'
+--
+-- Use 'iview' if there is a need to disambiguate between 'zero' as a miss vs. as a return value.
+--
+iviews :: MonadReader s m => (Sum-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iviews o f = asks $ ifolds o f
+{-# INLINE iviews #-}
+
+-- | Bring the index and value of an indexed optic into the current environment as a pair.
+--
+iuse :: MonadState s m => (Sum-Monoid) i => AIxview i s a -> m (Maybe i , a)
+iuse o = gets (iview o)
+{-# INLINE iuse #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+iuses :: MonadState s m => (Sum-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+iuses o f = gets $ iviews o f
+{-# INLINE iuses #-}

@@ -1,3 +1,4 @@
+{-# LANGUAGE ConstraintKinds  #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
 {-# LANGUAGE TypeFamilies     #-}
@@ -7,12 +8,14 @@
 {-# LANGUAGE PolyKinds #-}
 
 module Data.Profunctor.Optic.Import (
-    type (+)
+    type (-)
+  , type (+)
   , (&)
   , (+)
   , (*)
   , zero
   , one
+  , Semiring
     -- * Operations on (->) profunctors
   , rgt
   , rgt'
@@ -74,6 +77,8 @@ import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
 
 -- | Hyphenation operator.
 type (g - f) a = f (g a)
+
+type Semiring a = ((Sum-Monoid) a,(Product-Monoid) a)
 
 infixl 6 +
 
