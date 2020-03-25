@@ -22,12 +22,12 @@ module Data.Profunctor.Optic.Types (
   , IndexedOptic, IndexedOptic'
   , CoindexedOptic, CoindexedOptic'
     -- * Constraints
-  , CoerceL, CoerceR
   , Affine, Coaffine
   , Traversing, Cotraversing
   , Traversing1, Cotraversing1
   , Mapping, Remapping
   , Mapping1, Remapping1
+  , CoercingL, CoercingR
     -- * Equality
   , Equality, Equality'
     -- * Iso
@@ -80,10 +80,6 @@ import Data.Profunctor.Types as Export
 -- Constraints
 ---------------------------------------------------------------------
 
-type CoerceL p = (Bifunctor p)
-
-type CoerceR p = (forall x. Contravariant (p x))
-
 type Affine p = (Strong p, Choice p)
 
 type Coaffine p = (Closed p, Choice p)
@@ -103,6 +99,10 @@ type Remapping p = (Corepresentable p, Traversable (Corep p))
 type Mapping1 p = (Representable p, Distributive1 (Rep p))
 
 type Remapping1 p = (Corepresentable p, Traversable1 (Corep p))
+
+type CoercingL p = (Bifunctor p)
+
+type CoercingR p = (forall x. Contravariant (p x))
 
 ---------------------------------------------------------------------
 -- Optic
@@ -246,25 +246,25 @@ type Mealy' t b = Mealy t t b b
 -- Fold
 ---------------------------------------------------------------------
 
-type Fold0 s a = forall p. (Affine p, CoerceR p) => Optic' p s a 
+type Fold0 s a = forall p. (Affine p, CoercingR p) => Optic' p s a 
 
-type Fold s a = forall p. (Affine p, Traversing p, CoerceR p) => Optic' p s a
+type Fold s a = forall p. (Affine p, Traversing p, CoercingR p) => Optic' p s a
 
-type Fold1 s a = forall p. (Strong p, Traversing1 p, CoerceR p) => Optic' p s a 
+type Fold1 s a = forall p. (Strong p, Traversing1 p, CoercingR p) => Optic' p s a 
 
-type Cofold0 t b = forall p. (Coaffine p, CoerceL p) => Optic' p t b 
+type Cofold0 t b = forall p. (Coaffine p, CoercingL p) => Optic' p t b 
 
-type Cofold t b = forall p. (Affine p, Cotraversing p, CoerceL p) => Optic' p t b
+type Cofold t b = forall p. (Affine p, Cotraversing p, CoercingL p) => Optic' p t b
 
-type Cofold1 t b = forall p. (Choice p, Cotraversing1 p, CoerceL p) => Optic' p t b 
+type Cofold1 t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Optic' p t b 
 
 ---------------------------------------------------------------------
 -- View
 ---------------------------------------------------------------------
 
-type View s a = forall p. (Strong p, CoerceR p) => Optic' p s a 
+type View s a = forall p. (Strong p, CoercingR p) => Optic' p s a 
 
-type Review t b = forall p. (Closed p, CoerceL p) => Optic' p t b
+type Review t b = forall p. (Closed p, CoercingL p) => Optic' p t b
 
 ---------------------------------------------------------------------
 -- Setter

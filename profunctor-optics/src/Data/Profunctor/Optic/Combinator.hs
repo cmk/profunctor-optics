@@ -88,11 +88,11 @@ shiftr :: Profunctor p => p b (c , d) -> p (a , b) c
 shiftr = dimap snd fst
 {-# INLINE shiftr #-}
 
-coercel :: Profunctor p => CoerceL p => p a b -> p c b
+coercel :: Profunctor p => CoercingL p => p a b -> p c b
 coercel = first absurd . lmap absurd
 {-# INLINE coercel #-}
 
-coercer :: Profunctor p => CoerceR p => p a b -> p a c
+coercer :: Profunctor p => CoercingR p => p a b -> p a c
 coercer = rmap absurd . contramap absurd
 {-# INLINE coercer #-}
 

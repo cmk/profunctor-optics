@@ -4,10 +4,15 @@
 {-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds #-}
 
 module Data.Profunctor.Optic.Import (
     type (+)
   , (&)
+  , (+)
+  , (*)
+  , zero
+  , one
     -- * Operations on (->) profunctors
   , rgt
   , rgt'
@@ -49,11 +54,11 @@ import Data.Functor.Apply as Export
 import Data.Functor.Coapply as Export hiding (apply, branch)
 import Data.Semigroup.Foldable as Export
 import Data.Semigroup.Traversable as Export
-import Data.Semiring as Export hiding (eval)
 import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export
 import Data.Functor.Identity as Export
+import Data.Monoid as Export
 import Data.Profunctor.Unsafe as Export
 import Data.Profunctor.Types as Export
 import Data.Profunctor.Strong as Export (Strong(..), Costrong(..))
@@ -66,6 +71,43 @@ import Data.Tagged as Export
 import Data.Void as Export
 import Test.Logic
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
+
+-- | Hyphenation operator.
+type (g - f) a = f (g a)
+
+infixl 6 +
+
+-- | Additive semigroup operation on a semiring.
+--
+-- >>> Dual [2] + Dual [3] :: Dual [Int]
+-- Dual {getDual = [3,2]}
+--
+(+) :: (Sum-Semigroup) a => a -> a -> a
+a + b = getSum (Sum a <> Sum b)
+{-# INLINE (+) #-}
+
+infixl 7 *
+
+-- | Multiplicative semigroup operation on a semiring.
+--
+-- >>> Dual [2] * Dual [3] :: Dual [Int]
+-- Dual {getDual = [5]}
+--
+(*) :: (Product-Semigroup) a => a -> a -> a
+a * b = getProduct (Product a <> Product b)
+{-# INLINE (*) #-}
+
+-- | Additive unit of a semiring.
+--
+zero :: (Sum-Monoid) a => a
+zero = getSum mempty
+{-# INLINE zero #-}
+
+-- | Multiplicative unit of a semiring.
+--
+one :: (Product-Monoid) a => a
+one = getProduct mempty
+{-# INLINE one #-}
 
 branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y
