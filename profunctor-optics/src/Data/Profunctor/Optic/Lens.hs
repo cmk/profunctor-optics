@@ -14,6 +14,7 @@ module Data.Profunctor.Optic.Lens (
   , lens
   , lensVl
   , matching
+  , inside
   , cloneLens
   , cloneLensVl
   , colens
@@ -31,20 +32,28 @@ module Data.Profunctor.Optic.Lens (
     -- * Optics
   , united
   , voided
+  , first
+  , second
+  , cofirst
+  , cosecond
+  , contained
   , represented
   , distributed
   , endomorphed
-  , precomposed
-  , dotted
   , continued
   , continuedT
   , calledCC
     -- * Operators
-  , zipsWith0
-  , zipsWith2
+  , ozips
+  , coview
+  , zipsWith
   , zipsWith3
   , zipsWith4 
   , zipsWithF
+  , ozipsWith
+  , intersectsMap
+  , differencesMap
+  , intersectsWithMap
   , toPastro
   , toTambara
   , toClosure
@@ -59,7 +68,9 @@ module Data.Profunctor.Optic.Lens (
 ) where
 
 import Control.Monad.Cont
+import Data.Containers as C hiding (unions)
 import Data.Distributive
+import Data.MonoTraversable (Element)
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
@@ -67,7 +78,6 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
-import Data.Semimodule.Free
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -76,7 +86,7 @@ import qualified Data.Functor.Rep as F
 -- >>> :set -XTypeFamilies
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XTupleSections
--- >>> import Control.Arrow
+-- >>> import Control.Arrow ((&&&))
 -- >>> import Control.Monad.Reader
 -- >>> import Data.Int
 -- >>> import Data.Complex
@@ -84,6 +94,8 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.Function ((&))
 -- >>> import Data.List as L
 -- >>> import Data.Monoid (Endo(..))
+-- >>> import qualified Data.ByteString as B
+-- >>> import qualified Data.ByteString.Char8 as C
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
@@ -134,6 +146,24 @@ lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap)
 --
 matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
 matching sca cbt = dimap sca cbt . second'
+
+-- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
+--
+-- @
+-- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
+-- @
+--
+-- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
+-- 4
+--
+inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
+inside l = lensVl $ \f es -> o es <$> f (i es) where
+  i es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
+  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
+  sell x = Index x id
+{-# INLINE inside #-}
+
+--coinside :: Representable p => AGrate s t a b -> Grate (p e s) (p e t) (p e a) (p e b)
 
 -- | TODO: Document
 --
@@ -322,6 +352,7 @@ cloneGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
 --
 united :: Lens' a ()
 united = lens (const ()) const
+{-# INLINE united #-}
 
 -- | There is everything in a 'Void'.
 --
@@ -330,6 +361,37 @@ united = lens (const ()) const
 --
 voided :: Lens' Void a
 voided = lens absurd const
+{-# INLINE voided #-}
+
+-- | TODO: Document
+--
+first :: Lens (a, c) (b, c) a b
+first = first'
+{-# INLINE first #-}
+
+-- | TODO: Document
+--
+second :: Lens (c, a) (c, b) a b
+second = second'
+{-# INLINE second #-}
+
+-- | TODO: Document
+--
+cofirst :: Colens a b (a, c) (b, c) 
+cofirst = unfirst
+{-# INLINE cofirst #-}
+
+-- | TODO: Document
+--
+cosecond :: Colens a b (c, a) (c, b) 
+cosecond = unsecond
+{-# INLINE cosecond #-}
+
+-- | TODO: Document
+--
+contained :: IsSet s => Element s -> Lens' s Bool
+contained k = lens (C.member k) $ \s b -> if b then C.insertSet k s else C.deleteSet k s
+{-# INLINE contained #-}
 
 -- | Obtain a 'Grate' from a 'F.Representable' functor.
 --
@@ -345,29 +407,17 @@ distributed = grate (`cotraverse` id)
 
 -- | Obtain a 'Grate' from an endomorphism. 
 --
--- >>> flip appEndo 2 $ zipsWith2 endomorphed (+) (Endo (*3)) (Endo (*4))
+-- >>> flip appEndo 2 $ zipsWith endomorphed (+) (Endo (*3)) (Endo (*4))
 -- 14
 --
 endomorphed :: Grate' (Endo a) a
 endomorphed = dimap appEndo Endo . closed
 {-# INLINE endomorphed #-}
 
--- | Obtain a 'Grate' from a linear map.
---
-precomposed :: Grate (Lin a b1 c) (Lin a b2 c) (Vec a b1) (Vec a b2)
-precomposed = dimap runLin Lin . closed . dimap Vec runVec
-{-# INLINE precomposed #-}
-
--- | Obtain a 'Grate' from a linear functional.
---
-dotted :: Grate c (Cov a c) a a
-dotted = grate Cov
-{-# INLINE dotted #-}
-
 -- | Obtain a 'Grate' from a continuation.
 --
 -- @
--- 'zipsWith2' 'continued' :: (a -> a -> a) -> c -> c -> 'Cont' a c
+-- 'zipsWith' 'continued' :: (a -> a -> a) -> c -> c -> 'Cont' a c
 -- @
 --
 continued :: Grate c (Cont a c) a a
@@ -377,7 +427,7 @@ continued = grate cont
 -- | Obtain a 'Grate' from a continuation.
 --
 -- @
--- 'zipsWith2' 'continued' :: (m a -> m a -> m a) -> c -> c -> 'ContT' a m c 
+-- 'zipsWith' 'continued' :: (m a -> m a -> m a) -> c -> c -> 'ContT' a m c 
 -- @
 --
 continuedT :: Grate c (ContT a m c) (m a) (m a)
@@ -387,7 +437,7 @@ continuedT = grate ContT
 -- | Lift the current continuation into the calling context.
 --
 -- @
--- 'zipsWith2' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
+-- 'zipsWith' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
 -- @
 --
 calledCC :: MonadCont m => Grate a (m a) (m b) (m a)
@@ -398,32 +448,41 @@ calledCC = grate callCC
 -- Operators
 ---------------------------------------------------------------------
 
+-- | Zip over a mono 'Grate'. 
+--
+-- >>> ozips closed C.reverse id $ C.pack "foo"
+-- [(111,102),(111,111),(102,111)]
+--
+ozips :: MonoZip a => AGrate s t a [(Element a, Element a)] -> s -> s -> t
+ozips o = zipsWith o ozip
+{-# INLINE ozips #-}
+
 -- | Set all fields to the given value.
 --
--- This is essentially a restricted variant of 'Data.Profunctor.Optic.View.review'.
+-- Compare 'Data.Profunctor.Optic.View.review'.
 --
-zipsWith0 :: AGrate s t a b -> b -> t
-zipsWith0 o b = withGrate o $ \sabt -> sabt (const b)
-{-# INLINE zipsWith0 #-}
+coview :: AGrate s t a b -> b -> t
+coview o b = withGrate o $ \sabt -> sabt (const b)
+{-# INLINE coview #-}
 
 -- | Zip over a 'Grate'. 
 --
--- @\\f -> 'zipsWith2' 'closed' ('zipsWith2' 'closed' f) ≡ 'zipsWith2' ('closed' . 'closed')@
+-- @\\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
 --
-zipsWith2 :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
-zipsWith2 o aab s1 s2 = withGrate o $ \sabt -> sabt $ \get -> aab (get s1) (get s2)
-{-# INLINE zipsWith2 #-}
+zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
+zipsWith o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
+{-# INLINE zipsWith #-}
 
 -- | Zip over a 'Grate' with 3 arguments.
 --
 zipsWith3 :: AGrate s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
-zipsWith3 o aaab s1 s2 s3 = withGrate o $ \sabt -> sabt $ \sa -> aaab (sa s1) (sa s2) (sa s3)
+zipsWith3 o f s1 s2 s3 = withGrate o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2) (sa s3)
 {-# INLINE zipsWith3 #-}
 
 -- | Zip over a 'Grate' with 4 arguments.
 --
 zipsWith4 :: AGrate s t a b -> (a -> a -> a -> a -> b) -> (s -> s -> s -> s -> t)
-zipsWith4 o aaaab s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> aaaab (sa s1) (sa s2) (sa s3) (sa s4)
+zipsWith4 o f s1 s2 s3 s4 = withGrate o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2) (sa s3) (sa s4)
 {-# INLINE zipsWith4 #-}
 
 -- | Extract the higher order function that characterizes a 'Grate'.
@@ -446,15 +505,44 @@ zipsWithF :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
 zipsWithF = cloneGrateVl
 {-# INLINE zipsWithF #-}
 
+-- | Zip over a mono 'Grate'. 
+--
+-- >>> ozipsWith closed (+) B.pack B.pack [1..3]
+-- "\STX\EOT\ACK"
+--
+ozipsWith :: MonoZip a => AGrate s t a a -> (Element a -> Element a -> Element a) -> s -> s -> t
+ozipsWith o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> ozipWith f (sa s1) (sa s2)
+{-# INLINE ozipsWith #-}
+
+-- | TODO: Document
+--
+intersectsMap :: PolyMap m => AGrate s t (m a) (m a) -> s -> s -> t
+intersectsMap o = zipsWith o C.intersectionMap
+{-# INLINE intersectsMap #-}
+
+-- | TODO: Document
+--
+differencesMap :: PolyMap m => AGrate s t (m a) (m a) -> s -> s -> t
+differencesMap o = zipsWith o C.differenceMap
+{-# INLINE differencesMap #-}
+
+-- | TODO: Document
+--
+intersectsWithMap :: PolyMap m => AGrate s t (m a) (m b) -> (a -> a -> b) -> s -> s -> t
+intersectsWithMap o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> C.intersectionWithMap f (sa s1) (sa s2)
+{-# INLINE intersectsWithMap #-}
+
 -- | Use a 'Lens' to construct a 'Pastro'.
 --
 toPastro :: ALens s t a b -> p a b -> Pastro p s t
 toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
+{-# INLINE toPastro #-}
 
 -- | Use a 'Lens' to construct a 'Tambara'.
 --
 toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
 toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
+{-# INLINE toTambara #-}
 
 -- | Use a 'Grate' to construct a 'Closure'.
 --

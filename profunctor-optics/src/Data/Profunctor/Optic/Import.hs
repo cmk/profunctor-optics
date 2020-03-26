@@ -39,7 +39,6 @@ import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Coapplicative as Export hiding (apply, branch)
 import Control.Category as Export hiding ((.), id)
 import Control.Monad as Export hiding (void, join)
-import Data.Bifunctor as Export
 import Data.Bool as Export
 import Data.Distributive as Export
 import Data.Foldable as Export (foldr, foldr')
@@ -49,7 +48,6 @@ import Data.Functor.Apply as Export
 import Data.Functor.Coapply as Export hiding (apply, branch)
 import Data.Semigroup.Foldable as Export
 import Data.Semigroup.Traversable as Export
-import Data.Semiring as Export hiding (eval)
 import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export

@@ -49,6 +49,7 @@ module Data.Profunctor.Optic.Carrier (
   , withColens
   , withGrate
   , withAffine
+  , withAffine'
   , withCoaffine
     -- * Carrier profunctors
   , IsoRep(..)
@@ -62,6 +63,12 @@ module Data.Profunctor.Optic.Carrier (
   , Star(..)
   , Costar(..)
   , Tagged(..)
+    -- * Paired
+  , Paired(..)
+  , paired
+    -- * Split
+  , Split(..)
+  , split
     -- * Index
   , Index(..)
   , vals
@@ -79,11 +86,12 @@ import Data.Profunctor.Types as Export (Star(..), Costar(..))
 import Data.Bifunctor as B
 import Data.Function
 import Data.Monoid(Alt(..))
+import Data.Profunctor.Choice
+import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
-
 import qualified Control.Arrow as A
 import qualified Control.Category as C
 import qualified Data.Profunctor.Rep.Foldl as L
@@ -142,7 +150,7 @@ type ACotraversal0' s a = ACotraversal0 s s a a
 
 type ACotraversal f s t a b = Optic (Costar f) s t a b
 
-type ACotraversal' f s a = ACotraversal f s s a a
+type ACotraversal' f t b = ACotraversal f t t b b
 
 type AFold0 r s a = AFold ((Alt Maybe r)) s a
 
@@ -209,6 +217,12 @@ withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
 withAffine :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
 withAffine o k = case o (AffineRep Right $ const id) of AffineRep x y -> k x y
 {-# INLINE withAffine #-}
+
+-- | TODO: Document
+--
+withAffine' :: ATraversal0 s s a b -> ((s -> Maybe a) -> (s -> b -> s) -> r) -> r
+withAffine' o k = case o (AffineRep Right $ const id) of AffineRep x y -> k (either (const Nothing) Just . x) y
+{-# INLINE withAffine' #-}
 
 -- | TODO: Document
 --
@@ -413,6 +427,67 @@ instance Choice (CoaffineRep a b) where
   left' (CoaffineRep stabt) =
     CoaffineRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
 
+
+---------------------------------------------------------------------
+-- 'Paired'
+---------------------------------------------------------------------
+
+newtype Paired p c d a b = Paired { runPaired :: p (c , a) (d , b) }
+
+fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
+fromTambara = Paired . dimap swap swap . runTambara
+
+instance Profunctor p => Profunctor (Paired p c d) where
+  dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
+
+instance Strong p => Strong (Paired p c d) where
+  second' (Paired pab) = Paired . dimap shuffle shuffle . second' $ pab
+   where
+    shuffle (x,(y,z)) = (y,(x,z))
+
+-- ^ @
+-- paired :: Iso s t a b -> Iso s' t' a' b' -> Iso (s, s') (t, t') (a, a') (b, b')
+-- paired :: Lens s t a b -> Lens s' t' a' b' -> Lens (s, s') (t, t') (a, a') (b, b')
+-- @
+--
+paired 
+  :: Profunctor p 
+  => Optic (Paired p s2 t2) s1 t1 a1 b1 
+  -> Optic (Paired p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 , s2) (t1 , t2) (a1 , a2) (b1 , b2)
+paired x y = 
+  dimap swap swap . runPaired . x . Paired . dimap swap swap . runPaired . y . Paired
+
+---------------------------------------------------------------------
+-- 'Split'
+---------------------------------------------------------------------
+
+newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
+
+fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
+fromTambaraSum = Split . dimap eswap eswap . runTambaraSum
+
+instance Profunctor p => Profunctor (Split p c d) where
+  dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
+
+instance Choice p => Choice (Split p c d) where
+  right' (Split pab) = Split . dimap shuffle shuffle . right' $ pab
+   where
+    shuffle = Right . Left ||| (Left ||| Right . Right)
+
+-- ^ @
+-- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (Either s s') (Either t t') (Either a a') (Either b b')
+-- split :: View s t a b -> View s' t' a' b' -> Review (Either s s') (Either t t') (Either a a') (Either b b')
+-- @
+split 
+  :: Profunctor p
+  => Optic (Split p s2 t2) s1 t1 a1 b1 
+  -> Optic (Split p a1 b1) s2 t2 a2 b2 
+  -> Optic p (s1 + s2) (t1 + t2) (a1 + a2) (b1 + b2)
+split x y = 
+  dimap eswap eswap . runSplit . x . Split . dimap eswap eswap . runSplit . y . Split
+
 ---------------------------------------------------------------------
 -- Index
 ---------------------------------------------------------------------
@@ -481,6 +556,10 @@ instance Functor (Coindex a b) where
 
 instance a ~ b => Apply (Coindex a b) where
   (Coindex slab) <.> (Coindex ab) = Coindex $ \la -> slab $ \sl -> ab (la . sl) 
+
+--TODO helpful to use grate ops w/ cotraverse1
+--instance a ~ b => Coapply (Coindex a b) where
+--  coapply (Coindex eab) = undefined 
 
 instance a ~ b => Applicative (Coindex a b) where
   pure s = Coindex ($s)

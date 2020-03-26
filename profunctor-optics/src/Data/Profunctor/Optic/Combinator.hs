@@ -23,6 +23,13 @@ module Data.Profunctor.Optic.Combinator (
   , pushl
   , pushr 
     -- * Operations on (co)-representable profunctors
+  , (%~)
+  , (%%~)
+  , (/~)
+  , (//~)
+  , (.~)
+  , (..~)
+  , over
   , star
   , costar
   , unstar
@@ -59,12 +66,14 @@ import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
+import qualified Data.Bifunctor as B
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XRankNTypes
+-- >>> import Data.Char
 -- >>> import Data.Function ((&))
 -- >>> :load Data.Profunctor.Optic
 
@@ -89,7 +98,7 @@ shiftr = dimap snd fst
 {-# INLINE shiftr #-}
 
 coercel :: Profunctor p => CoerceL p => p a b -> p c b
-coercel = first absurd . lmap absurd
+coercel = B.first absurd . lmap absurd
 {-# INLINE coercel #-}
 
 coercer :: Profunctor p => CoerceR p => p a b -> p a c
@@ -135,6 +144,76 @@ pushr = (<<*>>) . curry'
 ---------------------------------------------------------------------
 -- Operations on (co)-representable profunctors
 ---------------------------------------------------------------------
+
+infixr 4 %~, %%~, /~, //~ , .~, ..~
+
+-- | Set the focus of a representable optic.
+--
+-- /Note/: This function is different from the equivalent in the /lens/ package.
+-- This is unfortunate but done to preserve valuable characters for corepresentable infix ops.
+-- The /profunctor-optics/ equivalent of /%~/ from /lens/ is '..~'.
+--
+(%~) :: Optic (Star f) s t a b -> f b -> s -> f t
+(%~) o b = o %%~ (const b)
+{-# INLINE (%~) #-}
+
+-- | Map over a representable optic.
+--
+-- >>> [66,97,116,109,97,110] & traversed %%~ \a -> ("na", chr a)
+-- ("nananananana","Batman")
+--
+(%%~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
+(%%~) o = runStar #. o .# Star
+{-# INLINE (%%~) #-}
+
+-- | Set the focus of a co-representable optic.
+--
+(/~) :: Optic (Costar f) s t a b -> b -> f s -> t
+(/~) o b = o //~ (const b)
+{-# INLINE (/~) #-}
+
+-- | Map over a co-representable optic.
+--
+(//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
+(//~) o = runCostar #. o .# Costar
+{-# INLINE (//~) #-}
+
+-- | Set the focus of a /->/ optic.
+--
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Map over an optic.
+--
+-- >>> (10,20) & first' ..~ show 
+-- ("10",20)
+--
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) = over
+{-# INLINE (..~) #-}
+
+-- | Map over a setter.
+--
+-- @
+-- 'over' o 'id' ≡ 'id' 
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- 'over' '.' 'resetter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+-- >>> over first' (+1) (1,2)
+-- (2,2)
+-- >>> over first' show (10,20)
+-- ("10",20)
+--
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}
 
 star :: Applicative f => Star f a a
 star = Star pure
@@ -219,7 +298,7 @@ infixr 2 ++++
 -- | Profunctor version of '+++'.
 --
 (++++) :: Cotraversing1 p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-p ++++ q = cotabulate $ bimap (cosieve p) (cosieve q) . coapply
+p ++++ q = cotabulate $ B.bimap (cosieve p) (cosieve q) . coapply
 {-# INLINE (++++) #-}
 
 infixr 3 &&&&

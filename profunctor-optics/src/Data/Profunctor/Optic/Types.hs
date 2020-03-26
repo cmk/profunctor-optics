@@ -63,6 +63,7 @@ module Data.Profunctor.Optic.Types (
     -- * 'Re'
   , Re(..), re
   , between
+  , Key, Value
   , module Export
 ) where
 
@@ -70,11 +71,16 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Types as Export
+import Data.Containers as C
 
 -- $setup
 -- >>> :set -XCPP
 -- >>> :set -XNoOverloadedStrings
 -- >>> :load Data.Profunctor.Optic
+
+
+type Key m = C.ContainerKey m
+type Value m = C.MapValue m
 
 ---------------------------------------------------------------------
 -- Constraints

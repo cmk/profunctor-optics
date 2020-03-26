@@ -31,18 +31,22 @@ module Data.Profunctor.Optic.Iso (
   , generic1
   , adjuncted
   , tabulated
-  , involuted
-  , flipped 
-  , curried
-  , excised
+  , sieved
+  , cosieved
   , unzipped
   , cozipped
   , swapped 
   , coswapped 
   , associated 
   , coassociated
-  , sieved
-  , cosieved
+  , excised
+  , flipped 
+  , curried
+  , involuted
+  , reversed
+  , strict
+  , chunked
+  , unpacked
     -- * Operators
   , reover
   , op
@@ -64,8 +68,10 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
-
+import Data.Sequences (IsSequence, LazySequence(..))
+import Data.MonoTraversable (Element)
 import qualified Data.Functor.Rep as F
+import qualified Data.Sequences as S
 import qualified Control.Monad as M (join)
 import qualified GHC.Generics as G
 
@@ -131,10 +137,6 @@ mapping l = withIso l $ \sa bt -> iso (fmap sa) (fmap bt)
 {-# INLINE mapping #-}
 
 -- | Lift an 'Iso' into a pair of 'Contravariant' functors.
---
--- @
--- contramapping :: 'Contravariant' f => 'Iso' s t a b -> 'Iso' (f a) (f b) (f s) (f t)
--- @
 --
 contramapping :: Contravariant f => Contravariant g => AIso s t a b -> Iso (f a) (g b) (f s) (g t)
 contramapping f = withIso f $ \sa bt -> iso (contramap sa) (contramap bt)
@@ -261,52 +263,17 @@ tabulated :: F.Representable f => F.Representable g => Iso (f a) (g b) (F.Rep f 
 tabulated = iso F.index F.tabulate
 {-# INLINE tabulated #-}
 
--- | Obtain an 'Iso' from a function that is its own inverse.
+-- | TODO: Document
 --
--- @
--- 'involuted' ≡ 'Control.Monad.join' 'iso'
--- @
---
--- >>> "live" ^. involuted reverse
--- "evil"
---
--- >>> involuted reverse ..~ ('d':) $ "live"
--- "lived"
---
-involuted :: (s -> a) -> Iso s a a s
-involuted = M.join iso
-{-# INLINE involuted #-}
+sieved :: ((a -> b) -> s -> t) -> Iso s t (Index s x x) (Index s a b)
+sieved abst = iso (flip Index id) (\(Index s ab) -> abst ab s) 
+{-# INLINE sieved #-}
 
--- | Flip two arguments of a function.
+-- | TODO: Document
 --
--- >>> (view flipped (,)) 1 2
--- (2,1)
---
-flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
-flipped = iso flip flip
-{-# INLINE flipped #-}
-
--- | Curry a function.
---
--- >>> (fst ^. invert curried) 3 4
--- 3
---
-curried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
-curried = iso uncurry curry
-{-# INLINE curried #-}
-
--- | Excise a single value from a type.
---
--- >>> review (excised "foo") "foo"
--- Nothing
--- >>> review (excised "foo") "foobar"
--- Just "foobar"
---
-excised :: Eq a => a -> Iso' (Maybe a) a
-excised a = iso (fromMaybe a) g
-  where g a1 | a1 == a = Nothing
-             | otherwise = Just a1
-{-# INLINE excised #-}
+cosieved :: ((a -> b) -> s -> t) -> Iso s t (Coindex t b a) (Coindex t x x)
+cosieved abst = iso (\s -> Coindex $ \ab -> abst ab s) trivial
+{-# INLINE cosieved #-}
 
 -- | A right adjoint admits an intrinsic notion of zipping.
 --
@@ -344,17 +311,76 @@ coassociated :: Iso (a + (b + c)) (d + (e + f)) ((a + b) + c) ((d + e) + f)
 coassociated = iso eassocl eassocr
 {-# INLINE coassociated #-}
 
--- | TODO: Document
+-- | Excise a single value from a type.
 --
-sieved :: ((a -> b) -> s -> t) -> Iso s t (Index s x x) (Index s a b)
-sieved abst = dimap (flip Index id) (\(Index s ab) -> abst ab s) 
-{-# INLINE sieved #-}
+-- >>> review (excised "foo") "foo"
+-- Nothing
+-- >>> review (excised "foo") "foobar"
+-- Just "foobar"
+--
+excised :: Eq a => a -> Iso' (Maybe a) a
+excised a = iso (fromMaybe a) g
+  where g a1 | a1 == a = Nothing
+             | otherwise = Just a1
+{-# INLINE excised #-}
+
+-- | Flip two arguments of a function.
+--
+-- >>> (view flipped (,)) 1 2
+-- (2,1)
+--
+flipped :: Iso (a -> b -> c) (d -> e -> f) (b -> a -> c) (e -> d -> f)
+flipped = iso flip flip
+{-# INLINE flipped #-}
+
+-- | Curry a function.
+--
+-- >>> (fst ^. invert curried) 3 4
+-- 3
+--
+curried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
+curried = iso uncurry curry
+{-# INLINE curried #-}
+
+-- | Obtain an 'Iso' from a function that is its own inverse.
+--
+-- @
+-- 'involuted' ≡ 'Control.Monad.join' 'iso'
+-- @
+--
+-- >>> "live" ^. involuted reverse
+-- "evil"
+--
+-- >>> "live" & involuted reverse ..~ ('d':) 
+-- "lived"
+--
+involuted :: (s -> a) -> Iso s a a s
+involuted = M.join iso
+{-# INLINE involuted #-}
+
+-- | Reverse a sequence.
+--
+reversed :: IsSequence s => Iso' s s
+reversed = iso S.reverse S.reverse
+{-# INLINE reversed #-}
+
+-- | Convert between strict & lazy variants of a sequence.
+--
+strict :: LazySequence l s => Iso' l s
+strict = iso S.toStrict S.fromStrict
+{-# INLINE strict #-}
 
 -- | TODO: Document
 --
-cosieved :: ((a -> b) -> s -> t) -> Iso s t (Coindex t b a) (Coindex t x x)
-cosieved abst = dimap (\s -> Coindex $ \ab -> abst ab s) trivial
-{-# INLINE cosieved #-}
+chunked :: LazySequence l s => Iso' l [s]
+chunked = iso S.toChunks S.fromChunks
+{-# INLINE chunked #-}
+
+-- | TODO: Document
+--
+unpacked :: IsSequence s => Iso' s [Element s]
+unpacked = iso S.unpack S.pack 
+{-# INLINE unpacked #-}
 
 ---------------------------------------------------------------------
 -- Operators

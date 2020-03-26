@@ -14,8 +14,6 @@ module Data.Profunctor.Optic.Setter (
   , setter
   , closing
   , resetter
-  , asetter
-  , aresetter
     -- * Setter1
   , Setter1
   , Setter1'
@@ -26,14 +24,14 @@ module Data.Profunctor.Optic.Setter (
     -- * Optics
   , cod
   , dom
-  , bound 
   , fmapped
+  , omapped
   , contramapped
   , liftedM
   , liftedA
   , reliftedA
-  , zipListed
   , reliftedF
+  , zipListed
   , forwarded
   , censored
   , zipped
@@ -60,6 +58,7 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.MonoTraversable (Element, MonoComonad(..), MonoFunctor(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
@@ -83,8 +82,6 @@ import Data.Profunctor.Optic.Traversal
 -- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
--- >>> import Data.IntSet as IntSet
--- >>> import Data.Set as Set
 -- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic
 
@@ -140,18 +137,6 @@ resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
 resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
 
--- | TODO: Document
---
-asetter :: ((a -> f b) -> s -> f t) -> ASetter f s t a b
-asetter = atraversal
-{-# INLINE asetter #-}
-
--- | TODO: Document
---
-aresetter :: ((f a -> b) -> f s -> t) -> AResetter f s t a b
-aresetter = acotraversal
-{-# INLINE aresetter #-}
-
 ---------------------------------------------------------------------
 -- Setter1
 ---------------------------------------------------------------------
@@ -203,17 +188,17 @@ dom :: Profunctor p => Setter (p b r) (p a r) a b
 dom = setter lmap
 {-# INLINE dom #-}
 
--- | 'Setter' for monadically transforming a monadic value.
---
-bound :: Monad m => Setter (m a) (m b) a (m b)
-bound = setter (=<<)
-{-# INLINE bound #-}
-
 -- | 'Setter' on each value of a functor.
 --
 fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
+
+-- | 'Setter' on each value of a monofunctor.
+--
+omapped :: MonoFunctor a => Setter' a (Element a)
+omapped = setter omap
+{-# INLINE omapped #-}
 
 -- | 'Setter' on each value of a contravariant functor.
 --
@@ -257,6 +242,12 @@ reliftedA :: Applicative f => Resetter (f a) (f b) a b
 reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
 {-# INLINE reliftedA #-}
 
+-- | TODO: Document
+--
+reliftedF :: Apply f => Resetter1 (f a) (f b) a b
+reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
+{-# INLINE reliftedF #-}
+
 -- | Variant of 'reliftedA' specialized to zip-lists.
 --
 -- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
@@ -264,12 +255,6 @@ reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
 zipListed :: Resetter [a] [b] a b
 zipListed = dimap ZipList getZipList . reliftedA
 {-# INLINE zipListed #-}
-
--- | TODO: Document
---
-reliftedF :: Apply f => Resetter1 (f a) (f b) a b
-reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
-{-# INLINE reliftedF #-}
 
 -- | 'Setter' on the local environment of a 'Reader'. 
 --
@@ -314,45 +299,6 @@ cond p = setter $ \f a -> if p a then f a else a
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
-
--- | Map over a setter.
---
--- @
--- 'over' o 'id' ≡ 'id' 
--- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
--- 'over' '.' 'setter' ≡ 'id'
--- 'over' '.' 'resetter' ≡ 'id'
--- @
---
--- >>> over fmapped (+1) (Just 1)
--- Just 2
--- >>> over fmapped (*10) [1,2,3]
--- [10,20,30]
--- >>> over first' (+1) (1,2)
--- (2,2)
--- >>> over first' show (10,20)
--- ("10",20)
---
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-{-# INLINE over #-}
-
-infixr 4 .~, ..~
-
--- | Map over an optic.
---
--- >>> (10,20) & first' ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
--- | Set the focus of a /->/ optic.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
 
 -- | Set the focus of a 'Setter'.
 --

@@ -9,6 +9,8 @@ module Data.Profunctor.Optic (
     module Types
   , module Carrier
   , module Combinator
+  , module Pattern
+  , module Property
   , module Iso
   , module Prism
   , module Lens
@@ -24,6 +26,8 @@ module Data.Profunctor.Optic (
 import Data.Profunctor.Optic.Types            as Types
 import Data.Profunctor.Optic.Carrier          as Carrier
 import Data.Profunctor.Optic.Combinator       as Combinator
+import Data.Profunctor.Optic.Pattern          as Pattern
+import Data.Profunctor.Optic.Property         as Property
 import Data.Profunctor.Optic.Iso              as Iso
 import Data.Profunctor.Optic.Prism            as Prism
 import Data.Profunctor.Optic.Lens             as Lens

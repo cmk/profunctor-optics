@@ -20,6 +20,10 @@ module Data.Profunctor.Optic.Prism (
   , rehandling
   , cloneCoprism
     -- * Optics
+  , left
+  , right
+  , coleft
+  , coright
   , just
   , cojust
   , nothing
@@ -88,7 +92,10 @@ prism sta bt = dimap sta (id ||| bt) . right'
 
 -- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
-prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
+-- /Note/: The arguments are reversed from the equivalent in the /lens/ package.
+-- This is unfortunate but done to maintain cosistency with 'traversal0' etc.
+--
+prism' :: (s -> Maybe a) -> (b -> s) -> Prism s s a b
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 
 -- | Obtain a 'Prism' from its free tensor representation.
@@ -145,6 +152,26 @@ cloneCoprism o = withCoprism o coprism
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
 
+-- | Focus on the `Left` constructor of `Either`.
+--
+left :: Prism (a + c) (b + c) a b
+left = left'
+
+-- | Focus on the `Right` constructor of `Either`.
+--
+right :: Prism (c + a) (c + b) a b
+right = right'
+
+-- | Co-focus on the `Left` constructor of `Either`.
+--
+coleft :: Coprism a b (a + c) (b + c)
+coleft = unleft
+
+-- | Co-focus on the `Right` constructor of `Either`.
+--
+coright :: Coprism a b (c + a) (c + b)
+coright = unright
+
 -- | Focus on the `Just` constructor of `Maybe`.
 --
 -- >>> Just 1 :| [Just 2, Just 3] & cotraverses just sum
@@ -155,7 +182,7 @@ cloneCoprism o = withCoprism o coprism
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
--- | Unfocus on the `Just` constructor of `Maybe`.
+-- | Co-focus on the `Just` constructor of `Maybe`.
 --
 cojust :: Coprism a b (Maybe a) (Maybe b)
 cojust = coprism Just $ maybe (Left Nothing) Right

@@ -10,20 +10,21 @@ module Data.Profunctor.Optic.Fold (
     -- * Fold0
     Fold0
   , fold0
+  , afold0
   , failing
   , toFold0
   , fromFold0
-  , afold0
     -- * Fold
   , Fold
   , Cofold
   , fold_
+  , ofold_
+  , afold
   , folding
+  , acofold
   , cofolding
   , foldVl
   , cofoldVl
-  , afold
-  , acofold
     -- * Fold1
   , Fold1
   , Cofold1
@@ -36,9 +37,16 @@ module Data.Profunctor.Optic.Fold (
   , folded0
   , filtered
   , folded
+  , values
+  , ofolded
   , folded_
+  , ofolded_
   , folded1 
   , folded1_
+  , afolded
+  , aofolded
+  , afolded1
+  , aofolded1
   , acolist
   , acolist1
     -- * Operators
@@ -72,7 +80,7 @@ import Data.Foldable (Foldable, traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Monoid
-import Data.Semiring as Rng
+import Data.MonoTraversable (Element,MonoTraversable(..),MonoFoldable(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
@@ -81,8 +89,13 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Rep.Foldl (EndoM(..))
 import qualified Data.List as L
-import qualified Data.List.NonEmpty as NEL
+import qualified Data.List.NonEmpty as NNL
 import qualified Data.Profunctor.Rep.Foldl1 as M
+--import qualified Data.NonNull as NN
+import Data.Containers as C
+import Data.NonNull 
+
+type (g - f) a = f (g a)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -117,6 +130,12 @@ fold0 :: (s -> Maybe a) -> Fold0 s a
 fold0 f = coercer . lmap (\s -> maybe (Left s) Right (f s)) . right'
 {-# INLINE fold0 #-}
 
+-- | TODO: Document
+--
+afold0 :: ((a -> Maybe r) -> s -> Maybe r) -> AFold0 r s a
+afold0 f = afold $ (Alt #.) #. f .# (getAlt #.) 
+{-# INLINE afold0 #-}
+
 infixl 3 `failing`
 
 -- | If the first 'Fold0' has no focus then try the second one.
@@ -144,12 +163,6 @@ fromFold0 ::  AFold0 a s a -> View s (Maybe a)
 fromFold0 = (\f -> coercer . lmap f) . preview
 {-# INLINE fromFold0 #-}
 
--- | TODO: Document
---
-afold0 :: ((a -> Maybe r) -> s -> Maybe r) -> AFold0 r s a
-afold0 f = afold $ (Alt #.) #. f .# (getAlt #.) 
-{-# INLINE afold0 #-}
-
 ---------------------------------------------------------------------
 -- 'Fold'
 ---------------------------------------------------------------------
@@ -173,6 +186,25 @@ fold_ :: Foldable f => (s -> f a) -> Fold s a
 fold_ f = coercer . lmap f . foldVl traverse_
 {-# INLINE fold_ #-}
 
+-- | Obtain a 'Fold' directly.
+--
+-- >>> "foobar" ^.. ofold_ tail
+-- "oobar"
+--
+ofold_ :: MonoFoldable a => (s -> a) -> Fold s (Element a)
+ofold_ f = coercer . lmap f . foldVl otraverse_
+{-# INLINE ofold_ #-}
+
+-- | TODO: Document
+--
+-- @ 
+-- 'afold' :: ((a -> r) -> s -> r) -> 'AFold' r s a
+-- @
+--
+afold :: ((a -> r) -> s -> r) -> ATraversal (Const r) s t a b
+afold f = atraversal $ (Const #.) #. f .# (getConst #.)
+{-# INLINE afold #-}
+
 -- | Obtain a 'Fold' from a 'Traversable' functor.
 --
 -- @
@@ -183,6 +215,23 @@ fold_ f = coercer . lmap f . foldVl traverse_
 folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = foldVl traverse . coercer . lmap f
 {-# INLINE folding #-}
+
+-- | Obtain a 'Fold' from a 'MonoTraversable' functor.
+--
+-- @
+-- 'folding' f ≡ 'otraversed' . 'to' f
+-- 'folding' f ≡ 'foldVl' 'otraverse' . 'to' f
+-- @
+--
+ofolding :: MonoTraversable s => (Element s -> a) -> Fold s a
+ofolding f = foldVl otraverse . coercer . lmap f
+{-# INLINE ofolding #-}
+
+-- | TODO: Document
+--
+acofold :: ((r -> b) -> r -> t) -> ACofold r t b
+acofold f = acotraversal $ (.# getConst) #. f .# (.# Const)
+{-# INLINE acofold #-}
 
 -- | TODO: Document
 --
@@ -203,18 +252,6 @@ foldVl f = coercer . traversalVl f . coercer
 cofoldVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cofold t b
 cofoldVl f = coercel . cotraversalVl f . coercel
 {-# INLINE cofoldVl #-}
-
--- | TODO: Document
---
-afold :: ((a -> r) -> s -> r) -> AFold r s a
-afold f = Star #. (Const #.) #. f .# (getConst #.) .# runStar
-{-# INLINE afold #-}
-
--- | TODO: Document
---
-acofold :: ((r -> b) -> r -> t) -> ACofold r t b
-acofold f = Costar #. (.# getConst) #. f .#  (.# Const) .# runCostar  
-{-# INLINE acofold #-}
 
 ---------------------------------------------------------------------
 -- Fold1
@@ -297,6 +334,21 @@ folded :: Traversable f => Fold (f a) a
 folded = folding id
 {-# INLINE folded #-}
 
+-- | 'Fold' over the values of a 'IsMap', in ascending key order.
+--
+-- >>> lists values [(1,3),(2,4)]
+-- [3,4]
+--
+values :: IsMap s => Fold s (Value s)
+values = fold_ C.mapToList . second'
+{-# INLINE values #-}
+
+-- | Obtain a 'Fold' from a 'MonoTraversable' functor.
+--
+ofolded :: MonoTraversable a => Fold a (Element a)
+ofolded = ofolding id
+{-# INLINE ofolded #-}
+
 -- | The canonical 'Fold'.
 --
 -- @
@@ -306,6 +358,12 @@ folded = folding id
 folded_ :: Foldable f => Fold (f a) a
 folded_ = fold_ id
 {-# INLINE folded_ #-}
+
+-- | Obtain a 'Fold' from a 'MonoFoldable'.
+--
+ofolded_ :: MonoFoldable a => Fold a (Element a)
+ofolded_ = ofold_ id
+{-# INLINE ofolded_ #-}
 
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
@@ -323,16 +381,43 @@ folded1_ :: Foldable1 f => Fold1 (f a) a
 folded1_ = fold1_ id
 {-# INLINE folded1_ #-}
 
+-- | TODO: Document
+--
+afolded :: Foldable f => Monoid r => AFold r (f a) a
+afolded = afold foldMap
+{-# INLINE afolded #-}
+
+-- | TODO: Document
+--
+aofolded :: MonoFoldable a => Monoid r => AFold r a (Element a)
+aofolded = afold ofoldMap
+{-# INLINE aofolded #-}
+
+-- | TODO: Document
+--
+afolded1 :: Foldable1 f => Semigroup r => AFold r (f a) a
+afolded1 = afold foldMap1
+{-# INLINE afolded1 #-}
+
+-- | TODO: Document
+--
+aofolded1 :: MonoFoldable a => Semigroup r => AFold r (NonNull a) (Element a)
+aofolded1 = afold ofoldMap1
+{-# INLINE aofolded1 #-}
+
 -- | Right list unfold over an optic.
 --
 acolist :: ACofold a [b] (Maybe (b, a))
 acolist = acofold L.unfoldr
 {-# INLINE acolist #-}
 
+--abytestring :: ACofold a Words.ByteString (Maybe (Word8, a))
+--abytestring = acofold Words.unfoldr
+
 -- | Right non-empty list unfold over an optic.
 --
 acolist1 :: ACofold a (NonEmpty b) (b, Maybe a)
-acolist1 = acofold NEL.unfoldr
+acolist1 = acofold NNL.unfoldr
 {-# INLINE acolist1 #-}
 
 ---------------------------------------------------------------------
@@ -437,22 +522,15 @@ infixl 8 ^..
 -- >>> (1,2) ^.. bitraversed
 -- [1,2]
 --
--- @
--- ('^..') :: s -> 'View' s a     -> [a]
--- ('^..') :: s -> 'Fold' s a       -> [a]
--- ('^..') :: s -> 'Lens'' s a      -> [a]
--- ('^..') :: s -> 'Iso'' s a       -> [a]
--- ('^..') :: s -> 'Traversal'' s a -> [a]
--- ('^..') :: s -> 'Prism'' s a     -> [a]
--- ('^..') :: s -> 'Traversal0'' s a    -> [a]
--- @
---
 (^..) :: s -> AFold (Endo [a]) s a -> [a]
 (^..) = flip lists
---s ^.. o = (`appEndo` []) . folds o (Endo . (:)) $ s 
 {-# INLINE (^..) #-}
 
 -- | Collect the foci of an optic into a list.
+--
+-- @
+-- 'lists' 'folded_' = 'Data.Foldable.toList'
+-- @
 --
 lists :: AFold (Endo [a]) s a -> s -> [a]
 lists o = foldsr o (:) []
@@ -465,6 +543,10 @@ colists o = cofoldsr o (:) []
 {-# INLINE colists #-}
 
 -- | Extract a 'NonEmpty' of the foci of an optic.
+--
+-- @
+-- 'lists1' 'folded1_' = 'Data.Semigroup.Foldable.toNonEmpty'
+-- @
 --
 -- >>> lists1 bitraversed1 ('h' :| "ello", 'w' :| "orld")
 -- ('h' :| "ello") :| ['w' :| "orld"]

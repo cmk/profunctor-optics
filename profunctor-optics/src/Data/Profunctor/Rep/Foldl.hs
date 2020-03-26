@@ -11,10 +11,13 @@
 module Data.Profunctor.Rep.Foldl (
   -- * Foldl
     type L
+  , type Foldl
+  , type IndexedFoldl
   , Fold (..)
   , withFoldl
   , run
-  , fold
+  , foldl
+  --, ifoldl
   , prefix
   , scan
   , prescan
@@ -94,6 +97,7 @@ import Control.Applicative
 import Control.Monad.Fix (MonadFix(..))
 import Control.Monad.Reader (MonadReader(..))
 import Data.Distributive (Distributive (..))
+--import Data.Key hiding (lookup)
 import Data.Functor.Rep as Functor (Representable (..), askRep, localRep, mfixRep)
 import Data.Profunctor (Costrong (..))
 import Data.Profunctor.Closed (Closed (..))
@@ -104,10 +108,14 @@ import Data.Profunctor.Sieve (Cosieve (..))
 import Prelude as P hiding
   ( head, last, null, length, and, or, all, any, sum, product, maximum, 
     minimum, mconcat, elem, notElem, lookup, map, either, drop, 
-    Num(..), Fractional(..), foldMap
+    Num(..), Fractional(..), foldMap, foldl
   )
 
 type L r a b = forall x. (x -> a -> x) -> x -> (x -> b) -> r
+
+type Foldl = Fold
+
+type IndexedFoldl i a b = Foldl (i, a) b
 
 ---------------------------------------------------------------------
 -- Fold
@@ -127,7 +135,16 @@ withFoldl :: Fold a b -> L r a b -> r
 withFoldl (Fold h z k) f = f h z k
 {-# INLINE withFoldl #-}
 
+foldl :: Foldable f => Foldl a b -> f a -> b
+foldl = fold
+
+
 {-
+ifoldl :: FoldableWithKey f => IndexedFoldl (Key f) a b -> f a -> b
+ifoldl (Fold step begin done) as = foldrWithKey cons done as begin
+  where
+    cons i a k x = k $! step x (i, a)
+
 ---------------------------------------------------------------------
 -- Folds
 ---------------------------------------------------------------------
