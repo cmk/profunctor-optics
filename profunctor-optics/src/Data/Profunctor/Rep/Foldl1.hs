@@ -6,12 +6,11 @@
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE MultiParamTypeClasses     #-}
 {-# LANGUAGE BangPatterns              #-}
-{-# LANGUAGE Safe                      #-}
 {-# LANGUAGE RankNTypes                #-}
 
 module Data.Profunctor.Rep.Foldl1 (
-  -- * Foldl1
     type L1
+  -- * Foldl1
   , Foldl1 (..)
   , run1
   , step
@@ -23,17 +22,16 @@ module Data.Profunctor.Rep.Foldl1 (
   , list1
   , revList1
   , sconcat
-  , foldMap1
   --, sum1
   --, sumWith1
   --, prod1
   --, prodWith1
-  , head1
-  , last1
-  , maximum1
-  , maximum1By
-  , minimum1
-  , minimum1By
+  , head
+  , last
+  , maximum
+  , maximumBy
+  , minimum
+  , minimumBy
   -- * Nedl
   , Nedl(..)
   , nedl
@@ -43,7 +41,6 @@ module Data.Profunctor.Rep.Foldl1 (
 import Control.Applicative (liftA2)
 import Control.Arrow (Arrow (..), ArrowChoice(..))
 import Control.Category (Category)
-import Control.Foldl (Fold(..))
 import Control.Monad.Fix (MonadFix(..))
 import Control.Monad.Reader (MonadReader(..))
 import Data.Distributive (Distributive (..))
@@ -53,16 +50,18 @@ import Data.Monoid
 import Data.List.NonEmpty as NonEmpty (NonEmpty (..), (<|), fromList)
 import Data.Profunctor
 import Data.Profunctor.Closed (Closed (..))
+import qualified Data.Profunctor.Rep.Foldl as L
 import Data.Profunctor.Rep as Profunctor (Corepresentable (..), unfirstCorep, unsecondCorep)
 import Data.Profunctor.Sieve (Cosieve (..))
 --import Data.Semiring hiding (sum1, sumWith1, product1, productWith1, sum, sumWith, product, productWith)
 import qualified Control.Category as C ((.), id)
 import qualified Data.List.NonEmpty as NEL
-import qualified Data.Semigroup.Foldable as F1 hiding (fold1, foldMap1)
+import qualified Data.Semigroup.Foldable as F1 hiding (fold1)
 
 import Prelude as P hiding
   ( null, length, and, or, all, any, sum, foldl1, product, mconcat, elem
   , notElem, lookup, map, either, drop, Num(..), Fractional(..)
+  , minimum, maximum, last, head
   )
 
 type L1 r a b = forall x. (x -> a -> x) -> (a -> x) -> (x -> b) -> r
@@ -73,27 +72,33 @@ type L1 r a b = forall x. (x -> a -> x) -> (a -> x) -> (x -> b) -> r
 
 data Foldl1 a b = forall x. Foldl1 (x -> a -> x) (a -> x) (x -> b)
 
--- | Lift a 'Fold' into a 'Foldl1'.
+-- | Lift a 'Foldl' into a 'Foldl1'.
 --
 -- All of the folds defined in 'Data.Profunctor.Rep.Foldl' may be run as 'Foldl1's.
 --
-step :: Fold a b -> Foldl1 a b
-step (Fold h z k) = Foldl1 h (h z) k
+step :: L.Foldl a b -> Foldl1 a b
+step (L.Foldl h z k) = Foldl1 h (h z) k
+{-# INLINABLE step #-}
 
 run1 :: Foldl1 a b -> a -> b
 run1 (Foldl1 _ z k) a = k (z a)
+{-# INLINABLE run1 #-}
 
 foldl1 :: F1.Foldable1 f => Foldl1 a b -> f a -> b
 foldl1 f = cosieve f . F1.toNonEmpty
+{-# INLINABLE foldl1 #-}
 
 withFoldl1 :: Foldl1 a b -> L1 r a b -> r
 withFoldl1 (Foldl1 h z k) f = f h z k
+{-# INLINABLE withFoldl1 #-}
 
 prefix1 :: a -> Foldl1 a b -> Foldl1 a b
 prefix1 a (Foldl1 h z k) = Foldl1 h (h (z a)) k
+{-# INLINABLE prefix1 #-}
 
 intersperse1 :: a -> Foldl1 a b -> Foldl1 a b
 intersperse1 a (Foldl1 h z k) = Foldl1 (\x b -> (h $! h x a) b) z k
+{-# INLINABLE intersperse1 #-}
 
 ---------------------------------------------------------------------
 -- Non-empty folds
@@ -117,15 +122,9 @@ revList1 = Foldl1 (\as a -> nedl a <> as) nedl runNedl
 
 -- | Fold all values within a container using a semigroup.
 --
-sconcat :: Semigroup a => Foldl1 a a
-sconcat = Foldl1 (<>) id id
+sconcat :: Semigroup s => (a -> s) -> (s -> b) -> Foldl1 a b
+sconcat to = Foldl1 (\x a -> x <> (to a)) to
 {-# INLINABLE sconcat #-}
-
--- | Fold all values within a container using a semigroup.
---
-foldMap1 :: Semigroup s => (a -> s) -> (s -> b) -> Foldl1 a b
-foldMap1 to = Foldl1 (\x a -> x <> (to a)) to
-{-# INLINABLE foldMap1 #-}
 
 {-
 -- | Return the sum of all elements in a non-empty container.
@@ -155,47 +154,47 @@ prodWith1 f = Foldl1 (\x y -> x * f y) f id
 
 -- | Return the first element in a non-empty container.
 --
-head1 :: Foldl1 a a
-head1 = Foldl1 const id id
-{-# INLINABLE head1 #-}
+head :: Foldl1 a a
+head = Foldl1 const id id
+{-# INLINABLE head #-}
 
 -- | Return the last1 element in a non-empty container.
 --
-last1 :: Foldl1 a a
-last1 = Foldl1 (flip const) id id
-{-# INLINABLE last1 #-}
+last :: Foldl1 a a
+last = Foldl1 (flip const) id id
+{-# INLINABLE last #-}
 
--- | Return the maximum1 element in a non-empty container.
+-- | Return the maximum element in a non-empty container.
 --
-maximum1 :: Ord a => Foldl1 a a
-maximum1 = Foldl1 max id id
-{-# INLINABLE maximum1 #-}
+maximum :: Ord a => Foldl1 a a
+maximum = Foldl1 max id id
+{-# INLINABLE maximum #-}
 
--- | Return the maximum1 element with respect to a comparator.
+-- | Return the maximum element with respect to a comparator.
 --
-maximum1By :: (a -> a -> Ordering) -> Foldl1 a a
-maximum1By cmp = Foldl1 max' id id
+maximumBy :: (a -> a -> Ordering) -> Foldl1 a a
+maximumBy cmp = Foldl1 max' id id
   where
     max' x y = case cmp x y of
         GT -> x
         _  -> y
-{-# INLINABLE maximum1By #-}
+{-# INLINABLE maximumBy #-}
 
--- | Return the minimum1 element in a non-empty container.
+-- | Return the minimum element in a non-empty container.
 --
-minimum1 :: Ord a => Foldl1 a a
-minimum1 = Foldl1 min id id
-{-# INLINABLE minimum1 #-}
+minimum :: Ord a => Foldl1 a a
+minimum = Foldl1 min id id
+{-# INLINABLE minimum #-}
 
--- | Return the minimum1 element with respect to a comparator.
+-- | Return the minimum element with respect to a comparator.
 --
-minimum1By :: (a -> a -> Ordering) -> Foldl1 a a
-minimum1By cmp = Foldl1 min' id id
+minimumBy :: (a -> a -> Ordering) -> Foldl1 a a
+minimumBy cmp = Foldl1 min' id id
   where
     min' x y = case cmp x y of
         GT -> y
         _  -> x
-{-# INLINABLE minimum1By #-}
+{-# INLINABLE minimumBy #-}
 
 ------------------------------------------------------------------------------
 -- Nedl 

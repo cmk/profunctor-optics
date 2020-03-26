@@ -6,11 +6,9 @@ packages:
 
 extra-deps:
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7
+  - github: chessai/these-skinny
+    commit: 2f20555fcd06612af8c88ccaaa5610307f2427ec
   - github: cmk/lawz
     commit: 55c8dcdc6322f7c35c8568e1317afb5d35c3963d
   - github: cmk/coapplicative
     commit: 9ef7978e44887246cc8b7bb54c8b292c246130aa
-  - github: cmk/rings
-    commit: 8f933f7f1b41408c78360122632465533a6b5b70
-  - github: cmk/magmas
-    commit: f86a7433ffa13407b939280523feb661143a800a
