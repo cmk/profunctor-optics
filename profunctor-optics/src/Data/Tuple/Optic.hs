@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Tuple.Optic (
-    curried
+    uncurried
   , swapped
   , associated
   , t21

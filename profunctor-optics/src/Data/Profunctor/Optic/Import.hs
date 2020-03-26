@@ -3,10 +3,13 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Data.Profunctor.Optic.Import (
     type (+)
+  , type (-)
   , (&)
     -- * Operations on (->) profunctors
   , rgt
@@ -39,7 +42,6 @@ import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Coapplicative as Export hiding (apply, branch)
 import Control.Category as Export hiding ((.), id)
 import Control.Monad as Export hiding (void, join)
-import Data.Bifunctor as Export
 import Data.Bool as Export
 import Data.Distributive as Export
 import Data.Foldable as Export (foldr, foldr')
@@ -49,11 +51,11 @@ import Data.Functor.Apply as Export
 import Data.Functor.Coapply as Export hiding (apply, branch)
 import Data.Semigroup.Foldable as Export
 import Data.Semigroup.Traversable as Export
-import Data.Semiring as Export hiding (eval)
 import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export
 import Data.Functor.Identity as Export
+import Data.Monoid as Export
 import Data.Profunctor.Unsafe as Export
 import Data.Profunctor.Types as Export
 import Data.Profunctor.Strong as Export (Strong(..), Costrong(..))
@@ -66,6 +68,9 @@ import Data.Tagged as Export
 import Data.Void as Export
 import Test.Logic
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
+
+-- | Hyphenation operator.
+type (g - f) a = f (g a)
 
 branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y

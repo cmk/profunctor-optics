@@ -12,10 +12,9 @@ module Data.Profunctor.Optic.Setter (
   , Resetter
   , Resetter'
   , setter
+  , ixsetter
   , closing
   , resetter
-  , asetter
-  , aresetter
     -- * Setter1
   , Setter1
   , Setter1'
@@ -26,27 +25,38 @@ module Data.Profunctor.Optic.Setter (
     -- * Optics
   , cod
   , dom
-  , bound 
   , fmapped
+  , omapped
+  , imappedRep
   , contramapped
   , liftedM
   , liftedA
   , reliftedA
-  , zipListed
   , reliftedF
+  , zipListed
   , forwarded
   , censored
   , zipped
   , modded
   , cond
     -- * Operators
-  , over
   , (.~)
   , (..~)
+  , over
+  , (%~)
+  , (%%~)
+  , overWithKey
+  , (#~)
+  , (##~)
+  , reoverWithKey
   , set
   , sets
+  , setWithKey
+  , setsWithKey
   , reset
   , resets
+  , resetWithKey
+  , resetsWithKey
     -- * mtl
   , (.=)
   , (..=)
@@ -60,12 +70,14 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.MonoTraversable as M
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (sieved,cosieved)
 import Data.Profunctor.Optic.Traversal
+import qualified Data.Functor.Rep as F
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -83,8 +95,7 @@ import Data.Profunctor.Optic.Traversal
 -- >>> import Data.Functor.Rep
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Contravariant
--- >>> import Data.IntSet as IntSet
--- >>> import Data.Set as Set
+-- >>> import Data.Semigroup
 -- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic
 
@@ -120,7 +131,28 @@ setter :: ((a -> b) -> s -> t) -> Setter s t a b
 setter abst = sieved abst . represent (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
--- | Every valid 'Grate' is a 'Setter'.
+-- | Build an 'Ixsetter' from an indexed function.
+--
+-- @
+-- 'ixsetter' '.' 'setsWithKey' ≡ 'id'
+-- 'setsWithKey' '.' 'ixsetter' ≡ 'id'
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const id) ≡ id@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ iabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+-- @since 0.0.3
+ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
+ixsetter f = setter $ \iab -> f (curry iab) . snd 
+{-# INLINE ixsetter #-}
+
+-- | Every valid 'Colens' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
@@ -140,30 +172,20 @@ resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
 resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
 
--- | TODO: Document
---
-asetter :: ((a -> f b) -> s -> f t) -> ASetter f s t a b
-asetter = atraversal
-{-# INLINE asetter #-}
-
--- | TODO: Document
---
-aresetter :: ((f a -> b) -> f s -> t) -> AResetter f s t a b
-aresetter = acotraversal
-{-# INLINE aresetter #-}
-
 ---------------------------------------------------------------------
 -- Setter1
 ---------------------------------------------------------------------
 
 -- | TODO: Document
 --
+-- @since 0.0.3
 setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
 setter1 abst = sieved abst . represent (\f -> distribute1 . fmap f)
 {-# INLINE setter1 #-}
 
 -- | TODO: Document
 --
+-- @since 0.0.3
 resetter1 :: ((a -> t) -> s -> t) -> Resetter1 s t a t
 resetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
 {-# INLINE resetter1 #-}
@@ -178,7 +200,7 @@ resetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
 --
 -- @
 -- (dom ..~ f) g x ≡ f (g x)
--- cod @(->) ≡ 'Data.Profunctor.Optic.Lens.withGrate' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
+-- cod @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
 -- @
 --
 -- >>> (cod ..~ show) length [1,2,3]
@@ -203,17 +225,26 @@ dom :: Profunctor p => Setter (p b r) (p a r) a b
 dom = setter lmap
 {-# INLINE dom #-}
 
--- | 'Setter' for monadically transforming a monadic value.
---
-bound :: Monad m => Setter (m a) (m b) a (m b)
-bound = setter (=<<)
-{-# INLINE bound #-}
-
 -- | 'Setter' on each value of a functor.
 --
 fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
+
+-- | 'Setter' on each value of a monofunctor.
+--
+omapped :: MonoFunctor a => Setter' a (Element a)
+omapped = setter omap
+{-# INLINE omapped #-}
+
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & ixany imappedRep %~ bool 20 10 . getAny
+-- 20 :+ 10
+--
+imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+imappedRep = ixsetter F.imapRep
+{-# INLINE imappedRep #-}
 
 -- | 'Setter' on each value of a contravariant functor.
 --
@@ -257,19 +288,21 @@ reliftedA :: Applicative f => Resetter (f a) (f b) a b
 reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
 {-# INLINE reliftedA #-}
 
+-- | TODO: Document
+--
+-- @since 0.0.3
+reliftedF :: Apply f => Resetter1 (f a) (f b) a b
+reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
+{-# INLINE reliftedF #-}
+
 -- | Variant of 'reliftedA' specialized to zip-lists.
 --
 -- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
 --
+-- @since 0.0.3
 zipListed :: Resetter [a] [b] a b
 zipListed = dimap ZipList getZipList . reliftedA
 {-# INLINE zipListed #-}
-
--- | TODO: Document
---
-reliftedF :: Apply f => Resetter1 (f a) (f b) a b
-reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
-{-# INLINE reliftedF #-}
 
 -- | 'Setter' on the local environment of a 'Reader'. 
 --
@@ -315,45 +348,6 @@ cond p = setter $ \f a -> if p a then f a else a
 -- Operators
 ---------------------------------------------------------------------
 
--- | Map over a setter.
---
--- @
--- 'over' o 'id' ≡ 'id' 
--- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
--- 'over' '.' 'setter' ≡ 'id'
--- 'over' '.' 'resetter' ≡ 'id'
--- @
---
--- >>> over fmapped (+1) (Just 1)
--- Just 2
--- >>> over fmapped (*10) [1,2,3]
--- [10,20,30]
--- >>> over first' (+1) (1,2)
--- (2,2)
--- >>> over first' show (10,20)
--- ("10",20)
---
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-{-# INLINE over #-}
-
-infixr 4 .~, ..~
-
--- | Map over an optic.
---
--- >>> (10,20) & first' ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
--- | Set the focus of a /->/ optic.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
 -- | Set the focus of a 'Setter'.
 --
 -- @ 
@@ -361,15 +355,35 @@ infixr 4 .~, ..~
 -- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)
 -- @
 --
-set :: ASetter Identity s t a b -> b -> s -> t
+set :: ASetter s t a b -> b -> s -> t
 set o b = sets o $ const b
 {-# INLINE set #-}
 
--- | TODO: Document
+-- | Set the focus of a 'Setter'.
 --
-sets ::  ASetter Identity s t a b -> (a -> b) -> s -> t
+sets ::  ASetter s t a b -> (a -> b) -> s -> t
 sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 {-# INLINE sets #-}
+
+-- | Set the focus of a 'Ixsetter'.
+--
+-- Equivalent to 'setsWithKey' with the current value ignored.
+--
+-- @
+-- 'set' o ≡ 'setWithKey' o '.' 'const'
+-- @
+--
+-- @since 0.0.3
+setWithKey :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+setWithKey o = setsWithKey o . (const .)
+{-# INLINE setWithKey #-}
+
+-- | Set the focus of a 'Ixsetter'.
+--
+-- @since 0.0.3
+setsWithKey :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+setsWithKey o f = curry (sets o $ uncurry f) mempty
+{-# INLINE setsWithKey #-}
 
 -- | Set the focus of a 'Resetter'.
 --
@@ -377,15 +391,30 @@ sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 -- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'
 -- @
 --
-reset :: AResetter Identity s t a b -> b -> s -> t
+reset :: AResetter s t a b -> b -> s -> t
 reset o b = resets o $ const b
 
--- | TODO: Document
+-- | Set the focus of a 'Resetter'.
 --
-resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
+resets :: AResetter s t a b -> (a -> b) -> s -> t
 resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
 {-# INLINE resets #-}
 
+-- | Set the focus of a 'Rxsetter'.
+--
+-- Equivalent to 'resetsWithKey' with the current value ignored.
+--
+-- @since 0.0.3
+resetWithKey :: Monoid i => ARxsetter i s t a b -> (i -> b) -> s -> t 
+resetWithKey o ib = resetsWithKey o $ flip (const ib)
+{-# INLINE resetWithKey #-}
+
+-- | Set the focus of a 'Rxsetter'.
+--
+-- @since 0.0.3
+resetsWithKey :: Monoid i => ARxsetter i s t a b -> (i -> a -> b) -> s -> t 
+resetsWithKey o f = flip (resets o $ flip f) mempty
+{-# INLINE resetsWithKey #-}
 
 ---------------------------------------------------------------------
 -- Mtl
@@ -395,11 +424,11 @@ infix 4 .=, ..=
 
 -- | Replace the target(s) of a settable in a monadic state.
 --
--- This is an infixversion of 'assigns'.
+-- This is an infiversion of 'assigns'.
 --
 -- >>> execState (do first' .= 1; second' .= 2) (3,4)
 -- (1,2)
--- >>> execState (both .= 3) (1,2)
+-- >>> execState (bitraversed .= 3) (1,2)
 -- (3,3)
 --
 (.=) :: MonadState s m => Optic (->) s s a b -> b -> m ()
@@ -408,13 +437,13 @@ o .= b = State.modify (o .~ b)
 
 -- | Map over the target(s) of a 'Setter' in a monadic state.
 --
--- This is an infixversion of 'modifies'.
+-- This is an infiversion of 'modifies'.
 --
 -- >>> execState (do just ..= (+1) ) Nothing
 -- Nothing
 -- >>> execState (do first' ..= (+1) ;second' ..= (+2)) (1,2)
 -- (2,4)
--- >>> execState (do both ..= (+1)) (1,2)
+-- >>> execState (do bitraversed ..= (+1)) (1,2)
 -- (2,3)
 --
 (..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()

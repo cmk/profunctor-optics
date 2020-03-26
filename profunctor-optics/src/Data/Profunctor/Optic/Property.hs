@@ -21,8 +21,8 @@ module Data.Profunctor.Optic.Property (
   , tofrom_lens
   , fromto_lens
   , idempotent_lens
-    -- * Grate
-  , Grate
+    -- * Colens
+  , Colens
   , id_grate
   , const_grate
   , compose_grate
@@ -102,7 +102,7 @@ idempotent_prism o s = withPrism o $ \sta _ -> left' sta (sta s) == left' Left (
 ---------------------------------------------------------------------
 
 -- A 'Lens' is a valid 'Traversal' with the following additional laws:
-
+--
 id_lens :: Eq s => Lens' s a -> s -> Bool
 id_lens o = M.join invertible $ runIdentity . cloneLensVl o Identity 
 
@@ -128,25 +128,25 @@ idempotent_lens :: Eq s => Lens' s a -> s -> a -> a -> Bool
 idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
 
 ---------------------------------------------------------------------
--- 'Grate'
+-- 'Colens'
 ---------------------------------------------------------------------
 
--- The 'Grate' laws are that of an algebra for the parameterised continuation 'Coindex'.
+-- The 'Colens' laws are that of an algebra for the parameterised continuation 'Coindex'.
 
-id_grate :: Eq s => Grate' s a -> s -> Bool
-id_grate o = M.join invertible $ cloneGrateVl o runIdentity . Identity 
+id_grate :: Eq s => Colens' s a -> s -> Bool
+id_grate o = M.join invertible $ cloneColensVl o runIdentity . Identity 
 
 -- |
 --
 -- * @sabt ($ s) ≡ s@
 --
-const_grate :: Eq s => Grate' s a -> s -> Bool
-const_grate o s = withGrate o $ \sabt -> sabt ($ s) == s
+const_grate :: Eq s => Colens' s a -> s -> Bool
+const_grate o s = withColens o $ \sabt -> sabt ($ s) == s
 
-compose_grate :: Eq s => Functor f => Functor g => Grate' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
+compose_grate :: Eq s => Functor f => Functor g => Colens' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
 compose_grate o f g = liftA2 (==) lhs rhs
-  where lhs = cloneGrateVl o f . fmap (cloneGrateVl o g) 
-        rhs = cloneGrateVl o (f . fmap g . getCompose) . Compose
+  where lhs = cloneColensVl o f . fmap (cloneColensVl o g) 
+        rhs = cloneColensVl o (f . fmap g . getCompose) . Compose
 
 ---------------------------------------------------------------------
 -- 'Traversal0'

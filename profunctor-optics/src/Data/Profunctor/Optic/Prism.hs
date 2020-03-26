@@ -5,24 +5,23 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE PackageImports        #-}
 module Data.Profunctor.Optic.Prism (
-    -- * Prism & Cxprism
+    -- * Prism
     Prism
   , Prism'
-  , Coprism
-  , Coprism'
   , prism
   , prism'
   , handling
   , clonePrism
-  , coprism
-  , coprism'
-  , rehandling
-  , cloneCoprism
     -- * Optics
+  , left
+  , right
   , just
-  , cojust
   , nothing
+  , this
+  , that
+  , both
   , prefixed
   , only
   , nearly
@@ -34,7 +33,6 @@ module Data.Profunctor.Optic.Prism (
   , toPastroSum
   , toTambaraSum
   , withPrism
-  , withCoprism
     -- * Classes
   , Choice(..)
 ) where
@@ -47,6 +45,7 @@ import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Types
+import "these-skinny" Data.These
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -88,7 +87,10 @@ prism sta bt = dimap sta (id ||| bt) . right'
 
 -- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
-prism' :: (s -> Maybe a) -> (a -> s) -> Prism' s a
+-- /Note/: The arguments are reversed from the equivalent in the /lens/ package.
+-- This is unfortunate but done to maintain cosistency with 'traversal0' etc.
+--
+prism' :: (s -> Maybe a) -> (b -> s) -> Prism s s a b
 prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
 
 -- | Obtain a 'Prism' from its free tensor representation.
@@ -103,47 +105,19 @@ handling sca cbt = dimap sca cbt . right'
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
 
--- | Obtain a 'Cochoice' optic from a constructor and a matcher function.
---
--- @
--- coprism f g ≡ \f g -> re (prism f g)
--- @
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input functions satisfy the following
--- properties:
---
--- * @bat (bt b) ≡ Right b@
---
--- * @(id ||| bt) (bat b) ≡ b@
---
--- * @left bat (bat b) ≡ left Left (bat b)@
---
--- A 'Coprism' is a 'View', so you can specialise types to obtain:
---
--- @ view :: 'Coprism'' s a -> s -> a @
---
-coprism :: (s -> a) -> (b -> a + t) -> Coprism s t a b
-coprism sa bat = unright . dimap (id ||| sa) bat
-
--- | Create a 'Coprism' from a reviewer and a matcher function that produces a 'Maybe'.
---
-coprism' :: (s -> a) -> (a -> Maybe s) -> Coprism' s a
-coprism' tb bt = coprism tb $ \b -> maybe (Left b) Right (bt b)
-
--- | Obtain a 'Coprism' from its free tensor representation.
---
-rehandling :: (c + s -> a) -> (b -> c + t) -> Coprism s t a b
-rehandling csa bct = unright . dimap csa bct
-
--- | TODO: Document
---
-cloneCoprism :: ACoprism s t a b -> Coprism s t a b
-cloneCoprism o = withCoprism o coprism
-
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
+
+-- | Focus on the `Left` constructor of `Either`.
+--
+left :: Prism (a + c) (b + c) a b
+left = left'
+
+-- | Focus on the `Right` constructor of `Either`.
+--
+right :: Prism (c + a) (c + b) a b
+right = right'
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
@@ -155,15 +129,28 @@ cloneCoprism o = withCoprism o coprism
 just :: Prism (Maybe a) (Maybe b) a b
 just = flip prism Just $ maybe (Left Nothing) Right
 
--- | Unfocus on the `Just` constructor of `Maybe`.
---
-cojust :: Coprism a b (Maybe a) (Maybe b)
-cojust = coprism Just $ maybe (Left Nothing) Right
-
 -- | Focus on the `Nothing` constructor of `Maybe`.
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+
+-- | Focus on the 'This' constructor of 'Data.These'.
+--
+-- /Note:/ cannot change type.
+this :: Prism' (These a b) a
+this = prism (these Right (Left . That) (\x y -> Left $ These x y)) This
+
+-- | Focus on the 'That' constructor of 'Data.These'.
+--
+-- /Note:/ cannot change type.
+that :: Prism' (These a b) b
+that = prism (these (Left . This) Right (\x y -> Left $ These x y)) That
+
+-- | Focus on the 'These' constructor of 'Data.These'.
+--
+-- /Note:/ cannot change type.
+both :: Prism' (These a b) (a, b)
+both = prism (these (Left . This) (Left . That) (\x y -> Right (x, y))) $ uncurry These
 
 -- | Focus on the remainder of a list with a given prefix.
 --

@@ -4,16 +4,18 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 module Data.Profunctor.Optic.View (
-    -- * Types
+    -- * View
     View
   , Review
-    -- * Constructors
   , to
+  , ixto
   , from
+  , rxfrom
   , cloneView
   , cloneReview
     -- * Optics
   , like
+  , ixlike
   , relike
   , toProduct
   , fromSum
@@ -21,11 +23,17 @@ module Data.Profunctor.Optic.View (
   , (^.)
   , view
   , views
-  , use
-  , uses
+  , (^%)
+  , viewWithKey
+  , viewsWithKey
   , (.^)
   , review
   , reviews
+  , reviewWithKey
+  , reviewsWithKey
+    -- * MonadState
+  , use
+  , uses
   , reuse
   , reuses
 ) where
@@ -44,6 +52,7 @@ import Data.Profunctor.Optic.Fold
 -- >>> :set -XFlexibleContexts
 -- >>> :set -XRank2Types
 -- >>> import Data.Either
+-- >>> import qualified Data.Map.Lazy as Map
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
 -- >>> :load Data.Profunctor.Optic
@@ -137,8 +146,8 @@ like = to . const
 --
 -- @
 -- 'relike' a '.' 'relike' b ≡ 'relike' a
--- 'relike' a '#' b ≡ a
--- 'relike' a '#' b ≡ 'from' ('const' a) '#' b
+-- 'relike' a '.^' b ≡ a
+-- 'relike' a '.^' b ≡ 'from' ('const' a) '#' b
 -- @
 --
 relike :: t -> Review t b
@@ -166,14 +175,42 @@ fromSum l r = from (review l ||| review r)
 {-# INLINE fromSum #-}
 
 ---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+ixto :: (s -> (k , a)) -> Ixview k s a
+ixto f = coercer . lmap (f . snd)
+{-# INLINE ixto #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+ixlike :: k -> a -> Ixview k s a
+ixlike k a = ixto (const (k, a))
+{-# INLINE ixlike #-}
+
+-- | TODO: Document
+--
+-- >>> cofoldsWithKey (rxfrom Map.mapWithKey # rxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
+--
+-- @since 0.0.3
+rxfrom :: ((k -> b) -> t) -> Rxview k t b
+rxfrom f = coercel . rmap (\ib _ -> f ib)
+{-# INLINE rxfrom #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
-infixl 8 ^.
+infix 8 ^.
 
 -- | An infix alias for 'view'.
 --
--- Fixity and semantics are such that subsequent field accesses can be
+-- Fiity and semantics are such that subsequent field accesses can be
 -- performed with ('Prelude..').
 --
 -- >>> ("hello","world") ^. second'
@@ -216,32 +253,48 @@ view o = views o id
 -- 'Data.Foldable.foldMap' = 'views' 'folding''
 -- @
 --
--- >>> views both id (["foo"], ["bar", "baz"])
+-- >>> views bitraversed id (["foo"], ["bar", "baz"])
 -- ["foo","bar","baz"]
 --
 views :: MonadReader s m => AView r s a -> (a -> r) -> m r
 views o f = asks $ folds o f
 {-# INLINE views #-}
 
--- | TODO: Document
---
-use :: MonadState s m => AView a s a -> m a
-use o = gets (view o)
-{-# INLINE use #-}
+infix 8 ^%
 
--- | Use the target of a 'Lens', 'Data.Profunctor.Optic.Iso.Iso' or
--- 'View' in the current state, or use a summary of a
--- 'Data.Profunctor.Optic.Fold.Fold' or 'Data.Profunctor.Optic.Traversal.Traversal' that
--- points to a monoidal value.
+-- | View the focus of an indexed optic along with its index.
 --
--- >>> evalState (uses first' length) ("hello","world!")
--- 5
+-- /Note/: if the optic focuses on more than one element, then
+-- the returned index will be a monoidal sum of all indices visited.
 --
-uses :: MonadState s m => AFold r s a -> (a -> r) -> m r
-uses l f = gets (views l f)
-{-# INLINE uses #-}
+-- >>> [("foo",41), ("bar",42), ("baz",43)] ^% ix "yo" traversed . ixfirst
+-- (Just "yoyoyo","foobarbaz")
+--
+-- @since 0.0.3
+(^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
+(^%) = flip viewWithKey
+{-# INLINE (^%) #-}
 
-infixr 8 .^
+-- | A prefix alias for '^%'.
+--
+-- >>> viewWithKey ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
+-- (Just (Sum {getSum = 0}),"foo")
+--
+-- @since 0.0.3
+viewWithKey :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
+viewWithKey o = viewsWithKey o $ \k a -> (Just k, a)
+{-# INLINE viewWithKey #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+-- Use 'viewWithKey' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
+--
+-- @since 0.0.3
+viewsWithKey :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
+viewsWithKey o f = asks $ foldsWithKey o f
+{-# INLINE viewsWithKey #-}
+
+infix 8 .^
 
 -- | An infix alias of 'review'.
 --
@@ -262,8 +315,8 @@ infixr 8 .^
 -- >>> review left' 4
 -- Left 4
 --
-review :: MonadReader b m => AReview t b -> m t
-review o = asks $ reviews o id
+review :: AReview t b -> b -> t
+review o = reviews o id
 {-# INLINE review #-}
 
 -- | Turn an optic around and look through the other end, applying a function.
@@ -273,15 +326,51 @@ review o = asks $ reviews o id
 -- 'reviews' ('from' f) g ≡ g '.' f
 -- @
 --
--- >>> reviews left' isRight "mustard"
+-- >>> reviews left isRight "mustard"
 -- False
---
 -- >>> reviews (from succ) (*2) 3
 -- 8
 --
 reviews :: AReview t b -> (t -> r) -> b -> r
 reviews o f = f . unTagged #. o .# Tagged
 {-# INLINE reviews #-}
+
+-- | Bring a function of the index of a co-indexed optic into the current environment.
+--
+-- @since 0.0.3
+reviewWithKey :: ARxview k t b -> b -> (k -> t)
+reviewWithKey o = reviewsWithKey o id
+{-# INLINE reviewWithKey #-}
+
+-- | Bring a continuation of the index of a co-indexed optic into the current environment.
+--
+-- @
+-- reviewsWithKey :: ARxview k t b -> ((k -> t) -> r) -> b -> r
+-- @
+--
+-- @since 0.0.3
+reviewsWithKey :: ARxview k t b -> ((k -> t) -> r) -> b -> r
+reviewsWithKey o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
+{-# INLINE reviewsWithKey #-}
+
+---------------------------------------------------------------------
+-- MonadState
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+use :: MonadState s m => AView a s a -> m a
+use o = gets (view o)
+{-# INLINE use #-}
+
+-- | Use the target of an optic in the current state.
+--
+-- >>> evalState (uses first length) ("hello","world!")
+-- 5
+--
+uses :: MonadState s m => AFold r s a -> (a -> r) -> m r
+uses l f = gets (views l f)
+{-# INLINE uses #-}
 
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --
@@ -290,9 +379,8 @@ reviews o f = f . unTagged #. o .# Tagged
 -- 'reuse' '.' 'from' ≡ 'gets'
 -- @
 --
--- >>> evalState (reuse left') 5
+-- >>> evalState (reuse left) 5
 -- Left 5
---
 -- >>> evalState (reuse (from succ)) 5
 -- 6
 --
@@ -307,7 +395,7 @@ reuse o = gets (unTagged #. o .# Tagged)
 -- 'reuses' ('from' f) g ≡ 'gets' (g '.' f)
 -- @
 --
--- >>> evalState (reuses left' isLeft) (5 :: Int)
+-- >>> evalState (reuses left isLeft) (5 :: Int)
 -- True
 --
 reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
