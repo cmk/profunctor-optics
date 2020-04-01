@@ -7,57 +7,90 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE DeriveGeneric         #-}
 module Data.Profunctor.Optic.Carrier (
-    -- * Carrier types
+    -- * Iso carrier
     AIso
   , AIso'
+    -- * Prism carriers
   , APrism
-  , APrism'
   , ACoprism
+  , APrism'
   , ACoprism'
+    -- * Lens carriers
   , ALens
-  , ALens'
   , AColens
-  , AColens'
   , AGrate
+  , AIxlens
+  , ACxgrate
+  , ALens'
+  , AColens'
   , AGrate'
+  , AIxlens'
+  , ACxgrate'
+    -- * Traversal carriers
   , ATraversal0
-  , ATraversal0'
-  , ATraversal
-  , ATraversal'
   , ACotraversal0
-  , ACotraversal0'
+  , ATraversal
   , ACotraversal
+  , AIxtraversal0
+  , AIxtraversal
+  , ACxtraversal
+  , ATraversal0'
+  , ACotraversal0'
+  , ATraversal'
   , ACotraversal'
+  , AIxtraversal0'
+  , AIxtraversal'
+  , ACxtraversal'
+    -- * Fold carriers
   , AFold0
   , AFold
   , ACofold
+  , AIxfold0
+  , AIxfold
+  , ACxfold
+    -- * Machine carriers
   , AFoldl
-  , AFoldl'
   , AFoldl1
+  , ACxfoldl
+  , ACxfoldl1
+  , AFoldl'
   , AFoldl1'
+  , ACxfoldl'
+  , ACxfoldl1'
+    -- * Setter carriers
   , ASetter
-  , ASetter'
   , AResetter
+  , AIxsetter
+  , ARxsetter
+  , ASetter'
   , AResetter'
+  , AIxsetter'
+  , ARxsetter'
+    -- * View carriers
   , AView
   , AReview
+  , AIxview
+  , ARxview
     -- * Carrier operators
   , withIso
   , withPrism
   , withCoprism
   , withLens
+  , withIxlens
   , withColens
   , withGrate
+  , withCxgrate
   , withAffine
-  , withAffine'
   , withCoaffine
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
   , CoprismRep(..)
   , LensRep(..)
+  , IxlensRep(..)
   , ColensRep(..)
   , GrateRep(..)
+  , CxgrateRep(..)
   , AffineRep(..)
   , CoaffineRep(..)
   , Star(..)
@@ -66,9 +99,11 @@ module Data.Profunctor.Optic.Carrier (
     -- * Paired
   , Paired(..)
   , paired
+  , fromTambara
     -- * Split
   , Split(..)
   , split
+  , fromTambaraSum
     -- * Index
   , Index(..)
   , vals
@@ -109,48 +144,84 @@ import qualified Data.Profunctor.Rep.Foldl1 as L1
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
--- Carriers
+-- Iso carriers
 ---------------------------------------------------------------------
 
 type AIso s t a b = Optic (IsoRep a b) s t a b
 
 type AIso' s a = AIso s s a a
 
-type APrism s t a b = Optic (PrismRep a b) s t a b
+---------------------------------------------------------------------
+-- Prism carriers
+---------------------------------------------------------------------
 
-type APrism' s a = APrism s s a a
+type APrism s t a b = Optic (PrismRep a b) s t a b
 
 type ACoprism s t a b = Optic (CoprismRep a b) s t a b
 
+type APrism' s a = APrism s s a a
+
 type ACoprism' s a = ACoprism s s a a
+
+---------------------------------------------------------------------
+-- Lens carriers
+---------------------------------------------------------------------
 
 type ALens s t a b = Optic (LensRep a b) s t a b
 
-type ALens' s a = ALens s s a a
-
 type AColens s t a b = Optic (ColensRep a b) s t a b
-
-type AColens' s a = AColens s s a a 
 
 type AGrate s t a b = Optic (GrateRep a b) s t a b
 
+type AIxlens k s t a b = IndexedOptic (IxlensRep k a b) k s t a b
+
+type ACxgrate k s t a b = CoindexedOptic (CxgrateRep k a b) k s t a b
+
+type ALens' s a = ALens s s a a
+
+type AColens' s a = AColens s s a a 
+
 type AGrate' s a = AGrate s s a a
+
+type AIxlens' k s a = AIxlens k s s a a
+
+type ACxgrate' k s a = ACxgrate k s s a a
+
+---------------------------------------------------------------------
+-- Traversal carriers
+---------------------------------------------------------------------
 
 type ATraversal0 s t a b = Optic (AffineRep a b) s t a b
 
-type ATraversal0' s a = ATraversal0 s s a a
+type ACotraversal0 s t a b = Optic (CoaffineRep a b) s t a b
 
 type ATraversal f s t a b = Optic (Star f) s t a b
 
-type ATraversal' f s a = ATraversal f s s a a
+type ACotraversal f s t a b = Optic (Costar f) s t a b
 
-type ACotraversal0 s t a b = Optic (CoaffineRep a b) s t a b
+type AIxtraversal0 k s t a b = IndexedOptic (AffineRep a b) k s t a b
+
+type AIxtraversal f k s t a b = IndexedOptic (Star f) k s t a b
+
+type ACxtraversal f k s t a b = CoindexedOptic (Costar f) k s t a b 
+
+type ATraversal0' s a = ATraversal0 s s a a
 
 type ACotraversal0' s a = ACotraversal0 s s a a
 
-type ACotraversal f s t a b = Optic (Costar f) s t a b
+type ATraversal' f s a = ATraversal f s s a a
 
-type ACotraversal' f t b = ACotraversal f t t b b
+type ACotraversal' f s a = ACotraversal f s s a a
+
+type AIxtraversal0' k s a = AIxtraversal0 k s s a a
+
+type AIxtraversal' f k s a = AIxtraversal f k s s a a
+
+type ACxtraversal' f k t b = ACxtraversal f k t t b b
+
+---------------------------------------------------------------------
+-- Fold carriers
+---------------------------------------------------------------------
 
 type AFold0 r s a = AFold ((Alt Maybe r)) s a
 
@@ -158,25 +229,71 @@ type AFold r s a = ATraversal' (Const r) s a
 
 type ACofold r t b = ACotraversal' (Const r) t b
 
-type AFoldl s t a b = Optic L.Fold s t a b
+type AIxfold0 r k s a = AIxfold (Alt Maybe r) k s a
 
-type AFoldl' s a = AFoldl s s a a
+type AIxfold r k s a = AIxtraversal' (Const r) k s a
+
+type ACxfold r k t b = ACxtraversal' (Const r) k t b
+
+---------------------------------------------------------------------
+-- Machine carriers
+---------------------------------------------------------------------
+
+type AFoldl s t a b = Optic L.Fold s t a b
 
 type AFoldl1 s t a b = Optic L1.Foldl1 s t a b
 
-type AFoldl1' s a = AFoldl1 s s a a
+type ACxfoldl k s t a b = CoindexedOptic L.Foldl k s t a b
 
-type ASetter f s t a b = ATraversal f s t a b
+type ACxfoldl1 k s t a b = CoindexedOptic L1.Foldl1 k s t a b
 
-type ASetter' f s a = ASetter f s s a a
+--type AIxfoldl k s t a b = IndexedOptic L.Foldl k s t a b
 
-type AResetter f s t a b = ACotraversal f s t a b
+--type AIxfoldl1 k s t a b = IndexedOptic L1.Foldl1 k s t a b
 
-type AResetter' f s a = AResetter f s s a a
+type AFoldl' t b = AFoldl t t b b
 
-type AView r s a = ATraversal' (Const r) s a
+type AFoldl1' t b = AFoldl1 t t b b
+
+type ACxfoldl' k t b = ACxfoldl k t t b b
+
+type ACxfoldl1' k t b = ACxfoldl1 k t t b b 
+
+---------------------------------------------------------------------
+-- Setter carriers
+---------------------------------------------------------------------
+
+type ASetter s t a b = ATraversal Identity s t a b
+
+type AResetter s t a b = ACotraversal Identity s t a b
+
+type AIxsetter k s t a b = AIxtraversal Identity k s t a b
+
+type ARxsetter k s t a b = ACxtraversal Identity k s t a b
+
+type ASetter' s a = ASetter s s a a
+
+type AResetter' s a = AResetter s s a a
+
+type AIxsetter' k s a = AIxsetter k s s a a
+
+type ARxsetter' k t b = ARxsetter k t t b b
+
+---------------------------------------------------------------------
+-- View carriers
+---------------------------------------------------------------------
+
+type AView r s a = AFold r s a
 
 type AReview t b = Optic' Tagged t b
+
+type AIxview k s a = AIxfold (Maybe k, a) k s a
+
+type ARxview k t b = CoindexedOptic' Tagged k t b
+
+---------------------------------------------------------------------
+-- Carrier operators
+---------------------------------------------------------------------
 
 -- | Extract the two functions that characterize an 'Iso'.
 --
@@ -201,6 +318,12 @@ withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 {-# INLINE withLens #-}
 
+-- | Extract the two functions that characterize a 'Ixlens'.
+--
+withIxlens :: (Sum-Monoid) k => AIxlens k s t a b -> ((s -> (k , a)) -> (s -> b -> t) -> r) -> r
+withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (zero,)) (\s b -> y (zero, s) b)
+{-# INLINE withIxlens #-}
+
 -- | Extract the two functions that characterize a 'Colens'.
 --
 withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
@@ -211,6 +334,12 @@ withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
 withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
 {-# INLINE withGrate #-}
+
+-- | TODO: Document
+--
+withCxgrate :: (Sum-Monoid) k => ACxgrate k s t a b -> ((((s -> a) -> k -> b) -> t) -> r) -> r
+withCxgrate o sakbtr = case o (CxgrateRep $ \f -> f id) of CxgrateRep sakbt -> sakbtr $ flip sakbt zero
+{-# INLINE withCxgrate #-}
 
 -- | TODO: Document
 --
@@ -319,6 +448,23 @@ instance Representable (LensRep a b) where
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
 
+
+---------------------------------------------------------------------
+-- IxlensRep
+---------------------------------------------------------------------
+
+data IxlensRep i a b s t = IxlensRep (s -> (i , a)) (s -> b -> t)
+
+instance Profunctor (IxlensRep i a b) where
+  dimap f g (IxlensRep sia sbt) = IxlensRep (sia . f) (\s -> g . sbt (f s))
+
+instance Strong (IxlensRep i a b) where
+  first' (IxlensRep sia sbt) =
+    IxlensRep (\(a, _) -> sia a) (\(s, c) b -> (sbt s b, c))
+
+  second' (IxlensRep sia sbt) =
+    IxlensRep (\(_, a) -> sia a) (\(c, s) b -> (c, sbt s b))
+
 ---------------------------------------------------------------------
 -- ColensRep
 ---------------------------------------------------------------------
@@ -359,6 +505,18 @@ instance Corepresentable (GrateRep a b) where
   type Corep (GrateRep a b) = Coindex b a
 
   cotabulate f = GrateRep $ f . Coindex
+
+---------------------------------------------------------------------
+-- CxgrateRep
+---------------------------------------------------------------------
+
+newtype CxgrateRep k a b s t = CxgrateRep { unCxgrateRep :: ((s -> a) -> k -> b) -> t }
+
+instance Profunctor (CxgrateRep k a b) where
+  dimap f g (CxgrateRep z) = CxgrateRep $ \d -> g (z $ \k -> d (k . f))
+
+instance Closed (CxgrateRep k a b) where
+  closed (CxgrateRep sabt) = CxgrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
 
 ---------------------------------------------------------------------
 -- AffineRep

@@ -12,8 +12,10 @@ module Data.Profunctor.Optic.Setter (
   , Resetter
   , Resetter'
   , setter
+  , ixsetter
   , closing
   , resetter
+  , rxsetter
     -- * Setter1
   , Setter1
   , Setter1'
@@ -37,6 +39,10 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , cond
+    -- * Indexed optics
+  , ixmapped
+  , ixmappedRep
+  , oxmapped
     -- * Operators
   , over
   , (.~)
@@ -45,6 +51,13 @@ module Data.Profunctor.Optic.Setter (
   , sets
   , reset
   , resets
+    -- * Indexed operators
+  , ixover
+  , ixset
+  , ixsets
+  , rxover
+  , rxset
+  , rxsets
     -- * mtl
   , (.=)
   , (..=)
@@ -58,13 +71,20 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.MonoTraversable (Element, MonoComonad(..), MonoFunctor(..))
+import Data.Key as K
+import Data.MonoTraversable as M
+import Data.MonoTraversable.Keys as MK
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (sieved,cosieved)
 import Data.Profunctor.Optic.Traversal
+import qualified Data.Functor.Rep as F
+
+
+
+
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -117,6 +137,26 @@ setter :: ((a -> b) -> s -> t) -> Setter s t a b
 setter abst = sieved abst . represent (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
+-- | Build an 'Ixsetter' from an indexed function.
+--
+-- @
+-- 'ixsetter' '.' 'ixsets' ≡ 'id'
+-- 'ixsets' '.' 'ixsetter' ≡ 'id'
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const id) ≡ id@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ iabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
+ixsetter f = setter $ \iab -> f (curry iab) . snd 
+{-# INLINE ixsetter #-}
+
 -- | Every valid 'Grate' is a 'Setter'.
 --
 closing :: (((s -> a) -> b) -> t) -> Setter s t a b
@@ -136,6 +176,21 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
 resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 {-# INLINE resetter #-}
+
+-- | TODO: Document
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @kabst (const id) ≡ id@
+--
+-- * @fmap (kabst $ const f) . (kabst $ const g) ≡ kabst (const $ f . g)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+rxsetter :: ((k -> a -> t) -> s -> t) -> Rxsetter k s t a t
+rxsetter f = resetter $ \kab -> const . f (flip kab)
+{-# INLINE rxsetter #-}
 
 ---------------------------------------------------------------------
 -- Setter1
@@ -297,6 +352,31 @@ cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
 
 ---------------------------------------------------------------------
+-- Indexed optics 
+---------------------------------------------------------------------
+
+-- | 'Ixsetter' on each value of a 'Data.Key.Keyed' container.
+--
+ixmapped :: Keyed f => Ixsetter (Key f) (f a) (f b) a b
+ixmapped = ixsetter K.mapWithKey
+{-# INLINE ixmapped #-}
+
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & ixmappedRep %~ bool 20 10
+-- 20 :+ 10
+--
+ixmappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+ixmappedRep = ixsetter F.imapRep
+{-# INLINE ixmappedRep #-}
+
+-- | 'Ixsetter' on each value of a 'Data.Monotraversable.Keys.MonoKeyed' container.
+--
+oxmapped :: MonoKeyed a => Ixsetter' (MonoKey a) a (Element a)
+oxmapped = ixsetter MK.omapWithKey
+{-# INLINE oxmapped #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
@@ -307,13 +387,13 @@ cond p = setter $ \f a -> if p a then f a else a
 -- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)
 -- @
 --
-set :: ASetter Identity s t a b -> b -> s -> t
+set :: ASetter s t a b -> b -> s -> t
 set o b = sets o $ const b
 {-# INLINE set #-}
 
 -- | TODO: Document
 --
-sets ::  ASetter Identity s t a b -> (a -> b) -> s -> t
+sets ::  ASetter s t a b -> (a -> b) -> s -> t
 sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 {-# INLINE sets #-}
 
@@ -323,15 +403,72 @@ sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 -- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'
 -- @
 --
-reset :: AResetter Identity s t a b -> b -> s -> t
+reset :: AResetter s t a b -> b -> s -> t
 reset o b = resets o $ const b
 
 -- | TODO: Document
 --
-resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
+resets :: AResetter s t a b -> (a -> b) -> s -> t
 resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
 {-# INLINE resets #-}
 
+---------------------------------------------------------------------
+-- Indexed operators
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+ixover :: IndexedOptic (->) i s t a b -> (i -> a -> b) -> i -> s -> t
+ixover o = unConjoin #. corepresent o .# Conjoin
+{-# INLINE ixover #-}
+
+-- | Prefix alias of '%~'.
+--
+-- Equivalent to 'ixsets' with the current value ignored.
+--
+-- @
+-- 'set' o ≡ 'ixset' o '.' 'const'
+-- @
+--
+-- >>> ixset (iat 2) (+4) [1,2,3 :: Int]
+-- [1,2,6]
+-- >>> ixset (iat 5) (const 0) [1,2,3 :: Int]
+-- [1,2,3]
+--
+ixset :: (Sum-Monoid) i => AIxsetter i s t a b -> (i -> b) -> s -> t
+ixset o = ixsets o . (const .)
+{-# INLINE ixset #-}
+
+-- | Prefix alias of '%%~'.
+--
+-- >>> ixsets (iat 1) (+) [1,2,3 :: Int]
+-- [1,3,3]
+-- >>> ixsets (iat 5) (+) [1,2,3 :: Int]
+-- [1,2,3]
+--
+ixsets :: (Sum-Monoid) i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+ixsets o f = curry (sets o $ uncurry f) zero
+{-# INLINE ixsets #-}
+
+-- | TODO: Document
+--
+rxover :: CoindexedOptic (->) k s t a b -> (k -> a -> b) -> k -> s -> t
+rxover o = unConjoin #. represent o .# Conjoin
+{-# INLINE rxover #-}
+
+-- | Prefix alias of '#~'.
+--
+-- Equivalent to 'rxsets' with the current value ignored.
+--
+rxset :: (Sum-Monoid) k => ARxsetter k s t a b -> (k -> b) -> s -> t 
+rxset o kb = rxsets o $ flip (const kb)
+{-# INLINE rxset #-}
+
+-- | Prefix alias of '##~'.
+--
+rxsets :: (Sum-Monoid) k => ARxsetter k s t a b -> (k -> a -> b) -> s -> t 
+rxsets o f = flip (resets o $ flip f) zero
+{-# INLINE rxsets #-}
 
 ---------------------------------------------------------------------
 -- Mtl

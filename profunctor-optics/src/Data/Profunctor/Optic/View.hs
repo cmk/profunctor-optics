@@ -10,6 +10,8 @@ module Data.Profunctor.Optic.View (
     -- * Constructors
   , to
   , from
+  , ixto
+  , rxfrom
   , cloneView
   , cloneReview
     -- * Optics
@@ -17,6 +19,9 @@ module Data.Profunctor.Optic.View (
   , relike
   , toProduct
   , fromSum
+    -- * Indexed optics
+  , ixlike
+  , rxlike
     -- * Operators
   , (^.)
   , view
@@ -28,6 +33,16 @@ module Data.Profunctor.Optic.View (
   , reviews
   , reuse
   , reuses
+    -- * Indexed operators
+  , (^@)
+  , ixview
+  , ixviews
+  , ixuse
+  , ixuses
+  , rxview
+  , rxviews
+  , rxuse
+  , rxuses
 ) where
 
 import Control.Monad.Reader as Reader
@@ -37,6 +52,105 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Fold
+
+-- | TODO: Document
+--
+ixto :: (s -> (i , a)) -> Ixview i s a
+ixto f = coercer . lmap (f . snd)
+{-# INLINE ixto #-}
+
+
+-- | TODO: Document
+--
+ixlike :: i -> a -> Ixview i s a
+ixlike i a = ixto (const (i, a))
+{-# INLINE ixlike #-}
+
+
+
+infixl 8 ^@
+
+-- | View the focus of an indexed optic along with its index.
+--
+-- >>> ("foo", 42) ^@ ifirst
+-- (Just 0,"foo")
+--
+(^@) :: (Sum-Monoid) i => s -> AIxview i s a -> (Maybe i, a)
+(^@) = flip ixview
+{-# INLINE (^@) #-}
+
+-- | A prefix alias for '^%'.
+--
+-- >>> ixview ifirst ("foo", 42)
+-- (Just 0,"foo")
+--
+ixview :: MonadReader s m => (Sum-Monoid) i => AIxview i s a -> m (Maybe i , a)
+ixview o = ixviews o $ \i a -> (Just i, a)
+{-# INLINE ixview #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+-- 'ixviews' ≡ 'ixfolds'
+--
+-- Use 'ixview' if there is a need to disambiguate between 'zero' as a miss vs. as a return value.
+--
+ixviews :: MonadReader s m => (Sum-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+ixviews o f = asks $ ixfolds o f
+{-# INLINE ixviews #-}
+
+-- | Bring the index and value of an indexed optic into the current environment as a pair.
+--
+ixuse :: MonadState s m => (Sum-Monoid) i => AIxview i s a -> m (Maybe i , a)
+ixuse o = gets (ixview o)
+{-# INLINE ixuse #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+ixuses :: MonadState s m => (Sum-Monoid) i => IndexedOptic' (Star (Const r)) i s a -> (i -> a -> r) -> m r
+ixuses o f = gets $ ixviews o f
+{-# INLINE ixuses #-}
+
+-- | Obtain a constant-valued 'Rxview' from an arbitrary value. 
+--
+rxlike :: t -> Rxview k t b
+rxlike = rxfrom . const
+{-# INLINE rxlike #-}
+
+-- | TODO: Document
+--
+rxfrom :: ((k -> b) -> t) -> Rxview k t b
+rxfrom f = coercel . rmap (\kb _ -> f kb)
+{-# INLINE rxfrom #-}
+
+-- | Bring a function of the index of a co-indexed optic into the current environment.
+--
+rxview :: MonadReader b m => ARxview k t b -> m (k -> t)
+rxview o = rxviews o id
+{-# INLINE rxview #-}
+
+-- | Bring a continuation of the index of a co-indexed optic into the current environment.
+--
+-- @
+-- rxviews :: ARxview k t b -> ((k -> t) -> r) -> b -> r
+-- @
+--
+rxviews :: MonadReader b m => ARxview k t b -> ((k -> t) -> r) -> m r
+rxviews o f = asks $ unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
+{-# INLINE rxviews #-}
+
+-- | TODO: Document
+--
+rxuse :: MonadState b m => ARxview k t b -> m (k -> t)
+rxuse o = gets (rxview o)
+{-# INLINE rxuse #-}
+
+-- | TODO: Document
+--
+rxuses :: MonadState b m => ARxview k t b -> ((k -> t) -> r) -> m r
+rxuses o f = gets (rxviews o f)
+{-# INLINE rxuses #-}
+
+
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings

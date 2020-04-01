@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# OPTIONS_GHC -fno-warn-duplicate-exports #-}
 module Data.Profunctor.Optic.Lens (
     -- * Lens
     Lens
@@ -13,19 +14,23 @@ module Data.Profunctor.Optic.Lens (
   , Colens'
   , lens
   , lensVl
-  , matching
-  , inside
-  , cloneLens
-  , cloneLensVl
   , colens
   , colensVl
+  , ixlens
+  , ixlensVl
+  , inside
+  , matching
   , comatching
+  , cloneLens
   , cloneColens
+  , cloneLensVl
     -- * Grate
   , Grate
   , Grate'
   , grate
   , grateVl
+  , cxgrate
+  , cxgrateVl
   , inverting
   , cloneGrate
   , cloneGrateVl
@@ -34,6 +39,7 @@ module Data.Profunctor.Optic.Lens (
   , voided
   , first
   , second
+  , closed
   , cofirst
   , cosecond
   , contained
@@ -43,14 +49,21 @@ module Data.Profunctor.Optic.Lens (
   , continued
   , continuedT
   , calledCC
+    -- * Keyed optics
+  , kfirst
+  , ksecond
+  , kclosed
+  , kcofirst
+  , kcosecond
     -- * Operators
-  , ozips
   , coview
   , zipsWith
+  , ozipsWith
   , zipsWith3
   , zipsWith4 
   , zipsWithF
-  , ozipsWith
+  , zipsWithKey
+  , ozipsWithKey
   , intersectsMap
   , differencesMap
   , intersectsWithMap
@@ -68,9 +81,11 @@ module Data.Profunctor.Optic.Lens (
 ) where
 
 import Control.Monad.Cont
-import Data.Containers as C hiding (unions)
+import Data.Containers (PolyMap(..), IsSet(..))
 import Data.Distributive
-import Data.MonoTraversable (Element)
+import Data.Key as K
+import Data.MonoTraversable as M (Element)
+import Data.MonoTraversable.Keys as MK
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
@@ -79,6 +94,7 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import qualified Data.Functor.Rep as F
+import qualified Data.Containers as C
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -142,56 +158,6 @@ lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
 lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
 
--- | Obtain a 'Lens' from its free tensor representation.
---
-matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
-matching sca cbt = dimap sca cbt . second'
-
--- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
---
--- @
--- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
--- @
---
--- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
--- 4
---
-inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
-inside l = lensVl $ \f es -> o es <$> f (i es) where
-  i es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
-  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
-  sell x = Index x id
-{-# INLINE inside #-}
-
---coinside :: Representable p => AGrate s t a b -> Grate (p e s) (p e t) (p e a) (p e b)
-
--- | TODO: Document
---
-cloneLens :: ALens s t a b -> Lens s t a b
-cloneLens o = withLens o lens 
-
--- | Extract the higher order function that characterizes a 'Lens'.
---
--- The lens laws can be stated in terms of 'withLens':
--- 
--- Identity:
--- 
--- @
--- cloneLensVl o Identity ≡ Identity
--- @
--- 
--- Composition:
--- 
--- @ 
--- Compose . fmap (cloneLensVl o f) . cloneLensVl o g ≡ cloneLensVl o (Compose . fmap f . g)
--- @
---
--- See 'Data.Profunctor.Optic.Property'.
---
-cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
-cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
-{-# INLINE cloneLensVl #-}
-
 -- | Obtain a 'Colens' from a getter and setter. 
 --
 -- @
@@ -238,6 +204,71 @@ colens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
 colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
 colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
 
+-- | Obtain an indexed 'Lens' from an indexed getter and a setter.
+--
+-- Compare 'lens' and 'Data.Profunctor.Optic.Traversal.itraversal'.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input functions constitute a legal 
+-- indexed lens:
+--
+-- * @snd . sia (sbt s a) ≡ a@
+--
+-- * @sbt s (snd $ sia s) ≡ s@
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixlens :: (s -> (k , a)) -> (s -> b -> t) -> Ixlens k s t a b
+ixlens ska sbt = ixlensVl $ \kab s -> sbt s <$> uncurry kab (ska s)
+{-# INLINE ixlens #-}
+
+-- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
+--
+-- An 'Ixlens' is a valid 'Ixtraversal'. Compare 'Data.Profunctor.Optic.Traversal.itraversalVl'.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @iabst (const Identity) ≡ Identity@
+--
+-- * @fmap (iabst $ const f) . (iabst $ const g) ≡ getCompose . iabst (const $ Compose . fmap f . g)@
+--
+-- More generally, a profunctor optic must be monoidal as a natural 
+-- transformation:
+-- 
+-- * @o id ≡ id@
+--
+-- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+ixlensVl :: (forall f. Functor f => (k -> a -> f b) -> s -> f t) -> Ixlens k s t a b
+ixlensVl f = lensVl $ \kab -> f (curry kab) . snd
+{-# INLINE ixlensVl #-}
+
+-- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
+--
+-- @
+-- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
+-- @
+--
+-- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
+-- 4
+--
+inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
+inside l = lensVl $ \f es -> o es <$> f (i es) where
+  i es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
+  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
+  sell x = Index x id
+{-# INLINE inside #-}
+
+-- | Obtain a 'Lens' from its free tensor representation.
+--
+matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
+matching sca cbt = dimap sca cbt . second'
+
 -- | Obtain a 'Colens' from its free tensor representation.
 --
 -- >>> fib = comatching (uncurry L.take . swap) (id &&& L.reverse) --fib :: Colens Int [Int] [Int] [Int]
@@ -247,10 +278,39 @@ colensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Inde
 comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
 comatching csa bct = unsecond . dimap csa bct
 
+--coinside :: Representable p => AGrate s t a b -> Grate (p e s) (p e t) (p e a) (p e b)
+
+-- | TODO: Document
+--
+cloneLens :: ALens s t a b -> Lens s t a b
+cloneLens o = withLens o lens 
+
 -- | TODO: Document
 --
 cloneColens :: AColens s t a b -> Colens s t a b
 cloneColens o = withColens o colens 
+
+-- | Extract the higher order function that characterizes a 'Lens'.
+--
+-- The lens laws can be stated in terms of 'withLens':
+-- 
+-- Identity:
+-- 
+-- @
+-- cloneLensVl o Identity ≡ Identity
+-- @
+-- 
+-- Composition:
+-- 
+-- @ 
+-- Compose . fmap (cloneLensVl o f) . cloneLensVl o g ≡ cloneLensVl o (Compose . fmap f . g)
+-- @
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
+cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
+{-# INLINE cloneLensVl #-}
 
 ---------------------------------------------------------------------
 -- 'Grate'
@@ -291,7 +351,8 @@ cloneColens o = withColens o colens
 -- See 'Data.Profunctor.Optic.Property'.
 --
 grate :: (((s -> a) -> b) -> t) -> Grate s t a b
-grate sabt = dimap (flip ($)) sabt . closed
+grate f = dimap (flip ($)) f . closed
+{-# INLINE grate #-}
 
 -- | Transform a Van Laarhoven grate into a profunctor grate.
 --
@@ -308,16 +369,31 @@ grate sabt = dimap (flip ($)) sabt . closed
 --
 grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Grate s t a b 
 grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
+{-# INLINE grateVl #-}
+
+-- | TODO: Document
+--
+cxgrate :: ((k -> (s -> a) -> b) -> t) -> Cxgrate k s t a b
+cxgrate f = cxgrateVl $ \kab s -> f $ \k sa -> kab k (fmap sa s)
+{-# INLINE cxgrate #-}
+
+-- | Transform a co-indexed Van Laarhoven grate into a co-indexed profunctor grate.
+--
+cxgrateVl :: (forall f. Functor f => (k -> f a -> b) -> f s -> t) -> Cxgrate k s t a b
+cxgrateVl f = grateVl $ \kab -> const . f (flip kab) 
+{-# INLINE cxgrateVl #-}
 
 -- | Construct a 'Grate' from a pair of inverses.
 --
 inverting :: (s -> a) -> (b -> t) -> Grate s t a b
 inverting sa bt = grate $ \sab -> bt (sab sa)
+{-# INLINE inverting #-}
 
 -- | TODO: Document
 --
 cloneGrate :: AGrate s t a b -> Grate s t a b
 cloneGrate k = withGrate k grate
+{-# INLINE cloneGrate #-}
 
 -- | Extract the higher order function that characterizes a 'Grate'.
 --
@@ -336,7 +412,7 @@ cloneGrate k = withGrate k grate
 -- @
 --
 cloneGrateVl :: AGrate s t a b -> (forall f . Functor f => (f a -> b) -> f s -> t)
-cloneGrateVl o ab s = withGrate o $ \sabt -> sabt $ \get -> ab (fmap get s)
+cloneGrateVl o ab s = withGrate o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 {-# INLINE cloneGrateVl #-}
 
 ---------------------------------------------------------------------
@@ -445,17 +521,46 @@ calledCC = grate callCC
 {-# INLINE calledCC #-}
 
 ---------------------------------------------------------------------
--- Operators
+-- Keyed optics
 ---------------------------------------------------------------------
 
--- | Zip over a mono 'Grate'. 
+-- | TODO: Document
 --
--- >>> ozips closed C.reverse id $ C.pack "foo"
--- [(111,102),(111,111),(102,111)]
+-- >>> ilists (ix @Int traversed . ifirst . ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
+-- >>> ilists (ix @Int traversed % ifirst % ix traversed) [("foo",1), ("bar",2)]
+-- [(0,'f'),(1,'o'),(2,'o'),(2,'b'),(3,'a'),(4,'r')]
 --
-ozips :: MonoZip a => AGrate s t a [(Element a, Element a)] -> s -> s -> t
-ozips o = zipsWith o ozip
-{-# INLINE ozips #-}
+kfirst :: Ixlens k (a , c) (b , c) a b
+kfirst = lmap assocl . first'
+
+-- | TODO: Document
+--
+ksecond :: Ixlens k (c , a) (c , b) a b
+ksecond = lmap (\(i, (c, a)) -> (c, (i, a))) . second'
+
+-- | TODO: Document
+--
+kcofirst :: Cxgrate k a b (a , c) (b , c)
+kcofirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE kcofirst #-}
+
+-- | TODO: Document
+--
+kcosecond :: Cxgrate k a b (c , a) (c , b)
+kcosecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE kcosecond #-}
+
+-- >>> kover kclosed (,) (*2) 5
+-- ((),10)
+--
+kclosed :: Cxgrate k (c -> a) (c -> b) a b
+kclosed = rmap flip . closed
+{-# INLINE kclosed #-}
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
 
 -- | Set all fields to the given value.
 --
@@ -472,6 +577,15 @@ coview o b = withGrate o $ \sabt -> sabt (const b)
 zipsWith :: AGrate s t a b -> (a -> a -> b) -> s -> s -> t
 zipsWith o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
 {-# INLINE zipsWith #-}
+
+-- | Zip over a mono 'Grate'. 
+--
+-- >>> ozipsWith closed (+) B.pack B.pack [1..3]
+-- "\STX\EOT\ACK"
+--
+ozipsWith :: MonoZip a => AGrate s t a a -> (Element a -> Element a -> Element a) -> s -> s -> t
+ozipsWith o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> ozipWith f (sa s1) (sa s2)
+{-# INLINE ozipsWith #-}
 
 -- | Zip over a 'Grate' with 3 arguments.
 --
@@ -505,14 +619,17 @@ zipsWithF :: Functor f => AGrate s t a b -> (f a -> b) -> f s -> t
 zipsWithF = cloneGrateVl
 {-# INLINE zipsWithF #-}
 
--- | Zip over a mono 'Grate'. 
+-- | TODO: Document
 --
--- >>> ozipsWith closed (+) B.pack B.pack [1..3]
--- "\STX\EOT\ACK"
+zipsWithKey :: (Sum-Monoid) k => ACxgrate k s t a b -> (k -> a -> a -> b) -> s -> s -> t
+zipsWithKey o f s1 s2 = withCxgrate o $ \sakbt -> sakbt $ \sa k -> f k (sa s1) (sa s2)
+{-# INLINE zipsWithKey #-}
+
+-- | TODO: Document
 --
-ozipsWith :: MonoZip a => AGrate s t a a -> (Element a -> Element a -> Element a) -> s -> s -> t
-ozipsWith o f s1 s2 = withGrate o $ \sabt -> sabt $ \sa -> ozipWith f (sa s1) (sa s2)
-{-# INLINE ozipsWith #-}
+ozipsWithKey :: MonoZipWithKey a => AGrate s t a a -> (MonoKey a -> Element a -> Element a -> Element a) -> s -> s -> t
+ozipsWithKey o f s1 s2 = withGrate o $ \sakbt -> sakbt $ \sa -> ozipWithKey f (sa s1) (sa s2)
+{-# INLINE ozipsWithKey #-}
 
 -- | TODO: Document
 --

@@ -5,6 +5,8 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
+{-# LANGUAGE PolyKinds             #-}
+{-# LANGUAGE DeriveFunctor             #-}
 module Data.Profunctor.Optic (
     module Types
   , module Carrier

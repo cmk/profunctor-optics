@@ -23,13 +23,17 @@ module Data.Profunctor.Optic.Combinator (
   , pushl
   , pushr 
     -- * Operations on (co)-representable profunctors
+  , over
+  , (.~)
+  , (..~)
   , (%~)
   , (%%~)
   , (/~)
   , (//~)
-  , (.~)
-  , (..~)
-  , over
+  , (@~)
+  , (@@~)
+  , (#~)
+  , (##~)
   , star
   , costar
   , unstar
@@ -97,11 +101,11 @@ shiftr :: Profunctor p => p b (c , d) -> p (a , b) c
 shiftr = dimap snd fst
 {-# INLINE shiftr #-}
 
-coercel :: Profunctor p => CoerceL p => p a b -> p c b
+coercel :: Profunctor p => CoercingL p => p a b -> p c b
 coercel = B.first absurd . lmap absurd
 {-# INLINE coercel #-}
 
-coercer :: Profunctor p => CoerceR p => p a b -> p a c
+coercer :: Profunctor p => CoercingR p => p a b -> p a c
 coercer = rmap absurd . contramap absurd
 {-# INLINE coercer #-}
 
@@ -145,7 +149,44 @@ pushr = (<<*>>) . curry'
 -- Operations on (co)-representable profunctors
 ---------------------------------------------------------------------
 
-infixr 4 %~, %%~, /~, //~ , .~, ..~
+infixr 4 .~, ..~, %~, %%~, /~, //~ , @~, @@~, #~, ##~
+
+-- | Map over an optic.
+--
+-- @
+-- 'over' o 'id' ≡ 'id' 
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- 'over' '.' 'resetter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+-- >>> over first' (+1) (1,2)
+-- (2,2)
+-- >>> over first' show (10,20)
+-- ("10",20)
+--
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}
+
+-- | Set the focus of a /->/ optic.
+--
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Map over an optic.
+--
+-- >>> (10,20) & first' ..~ show 
+-- ("10",20)
+--
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) = over
+{-# INLINE (..~) #-}
 
 -- | Set the focus of a representable optic.
 --
@@ -178,42 +219,29 @@ infixr 4 %~, %%~, /~, //~ , .~, ..~
 (//~) o = runCostar #. o .# Costar
 {-# INLINE (//~) #-}
 
--- | Set the focus of a /->/ optic.
+-- | Set the focus of an indexed optic.
 --
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
+(@~) :: (Sum-Monoid) k => IndexedOptic (Star f) k s t a b -> (k -> f b) -> s -> f t
+(@~) o = (@@~) o . (const .)
+{-# INLINE (@~) #-}
 
--- | Map over an optic.
+-- | Map over an indexed optic.
 --
--- >>> (10,20) & first' ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
+(@@~) :: (Sum-Monoid) k => IndexedOptic (Star f) k s t a b -> (k -> a -> f b) -> s -> f t
+(@@~) o f = curry (o %%~ uncurry f) zero
+{-# INLINE (@@~) #-}
 
--- | Map over a setter.
+-- | Set the focus of a coindexed optic.
 --
--- @
--- 'over' o 'id' ≡ 'id' 
--- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
--- 'over' '.' 'setter' ≡ 'id'
--- 'over' '.' 'resetter' ≡ 'id'
--- @
---
--- >>> over fmapped (+1) (Just 1)
--- Just 2
--- >>> over fmapped (*10) [1,2,3]
--- [10,20,30]
--- >>> over first' (+1) (1,2)
--- (2,2)
--- >>> over first' show (10,20)
--- ("10",20)
---
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-{-# INLINE over #-}
+(#~) :: (Sum-Monoid) k => CoindexedOptic (Costar f) k s t a b -> (k -> b) -> f s -> t 
+(#~) o kb = o ##~ flip (const kb) 
+{-# INLINE (#~) #-}
+
+-- | Map over a coindexed optic.
+-- 
+(##~) :: (Sum-Monoid) k => CoindexedOptic (Costar f) k s t a b -> (k -> f a -> b) -> f s -> t 
+(##~) o f = flip (o //~ flip f) zero
+{-# INLINE (##~) #-}
 
 star :: Applicative f => Star f a a
 star = Star pure
