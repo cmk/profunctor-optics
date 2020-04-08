@@ -9,15 +9,19 @@
 {-# LANGUAGE RankNTypes                #-}
 
 module Data.Profunctor.Rep.Foldl1 (
-    type L1
   -- * Foldl1
-  , Foldl1 (..)
+    Foldl1 (..)
+  , Unfoldl1 (..)
   , run1
   , step
   , foldl1
+  , build1
   , withFoldl1
   , prefix1
   , intersperse1
+  -- * FoldlM1
+  , FoldlM1 (..)
+  , UnfoldlM1 (..)
   -- * Folds
   , list1
   , revList1
@@ -32,6 +36,9 @@ module Data.Profunctor.Rep.Foldl1 (
   , maximumBy
   , minimum
   , minimumBy
+  -- * Unfolds
+  , foldable1
+  , nonNull
   -- * Nedl
   , Nedl(..)
   , nedl
@@ -57,6 +64,10 @@ import Data.Profunctor.Sieve (Cosieve (..))
 import qualified Control.Category as C ((.), id)
 import qualified Data.List.NonEmpty as NEL
 import qualified Data.Semigroup.Foldable as F1 hiding (fold1)
+import qualified Data.Foldable as F
+import qualified Data.NonNull as NN
+import Data.Sequences (IsSequence, LazySequence, Index)
+import Data.MonoTraversable (MonoFoldable(..), Element)
 
 import Prelude as P hiding
   ( null, length, and, or, all, any, sum, foldl1, product, mconcat, elem
@@ -64,13 +75,64 @@ import Prelude as P hiding
   , minimum, maximum, last, head
   )
 
-type L1 r a b = forall x. (x -> a -> x) -> (a -> x) -> (x -> b) -> r
+data FoldlM1 m a b = forall x. FoldlM1 (x -> a -> m x) (a -> m x) (x -> m b)
+
+newtype UnfoldlM1 m a = UnfoldlM1 (forall x. (x -> a -> m x) -> (a -> m x) -> m x)
+--newtype UnfoldlM1 m a = Unfoldl1 (forall x. (x -> a -> m x) -> m x)
+
+{-
+buildM1 :: Monad m => FoldlM1 m a b -> UnfoldlM1 m a -> m b
+buildM1 (FoldlM1 h z k) (UnfoldlM1 run) = run h z >>= k
+
+-- | Construct an 'L.Unfoldl' from a 'Data.Foldable1'.
+--
+foldableM1 :: F1.Foldable1 f => f a -> Unfoldl1 a
+foldableM1 f = UnfoldlM1 $ \h z -> F.foldlM' h (z a) as
+  where a NEL.:| as = F1.toNonEmpty f
+{-# INLINE foldableM1 #-}
+-}
 
 ---------------------------------------------------------------------
 -- Foldl1
 ---------------------------------------------------------------------
 
 data Foldl1 a b = forall x. Foldl1 (x -> a -> x) (a -> x) (x -> b)
+
+newtype Unfoldl1 a = Unfoldl1 (forall x. (x -> a -> x) -> (a -> x) -> x)
+
+-- | A version of the /build/ function from < http://hackage.haskell.org/package/base-4.12.0.0/docs/src/GHC.Base.html#build base >.
+--
+build1 :: Foldl1 a b -> Unfoldl1 a -> b
+build1 (Foldl1 h z k) (Unfoldl1 run) = k (run h z)
+{-# INLINE build1 #-}
+
+-- | Construct an 'L.Unfoldl' from a 'Data.Foldable1'.
+--
+foldable1 :: F1.Foldable1 f => f a -> Unfoldl1 a
+foldable1 f = Unfoldl1 $ \h z -> F.foldl' h (z a) as where a NEL.:| as = F1.toNonEmpty f 
+{-# INLINE foldable1 #-}
+
+nonNull :: IsSequence a => NN.NonNull a -> Unfoldl1 (Element a)
+nonNull a = Unfoldl1 $ \h z -> ofoldl' h (z e) es where (e, es) = NN.splitFirst a
+{-# INLINE nonNull #-}
+
+{-
+
+type Unfoldl1 a = L.Unfoldl a
+
+-- | A version of the /build/ function from < http://hackage.haskell.org/package/base-4.12.0.0/docs/src/GHC.Base.html#build base >.
+--
+build1 :: Foldl1 a b -> Unfoldl1 a -> a -> b
+build1 (Foldl1 h z k) (L.Unfoldl run) a = k (run h $ z a)
+{-# INLINE build1 #-}
+
+-- | Construct an 'L.Unfoldl' from a 'Data.Foldable1'.
+--
+foldable1 :: F1.Foldable1 f => f a -> Unfoldl1 a
+foldable1 = L.foldable
+{-# INLINE foldable1 #-}
+
+-}
 
 -- | Lift a 'Foldl' into a 'Foldl1'.
 --
@@ -88,7 +150,7 @@ foldl1 :: F1.Foldable1 f => Foldl1 a b -> f a -> b
 foldl1 f = cosieve f . F1.toNonEmpty
 {-# INLINABLE foldl1 #-}
 
-withFoldl1 :: Foldl1 a b -> L1 r a b -> r
+withFoldl1 :: Foldl1 a b -> (forall x. (x -> a -> x) -> (a -> x) -> (x -> b) -> r) -> r
 withFoldl1 (Foldl1 h z k) f = f h z k
 {-# INLINABLE withFoldl1 #-}
 
@@ -125,32 +187,6 @@ revList1 = Foldl1 (\as a -> nedl a <> as) nedl runNedl
 sconcat :: Semigroup s => (a -> s) -> (s -> b) -> Foldl1 a b
 sconcat to = Foldl1 (\x a -> x <> (to a)) to
 {-# INLINABLE sconcat #-}
-
-{-
--- | Return the sum of all elements in a non-empty container.
---
-sum1 :: (Sum-Semigroup) a => Foldl1 a a
-sum1 = sumWith1 id
-{-# INLINABLE sum1 #-}
-
--- | Return the sum of all elements in a non-empty container.
---
-sumWith1 :: (Sum-Semigroup) b => (a -> b) -> Foldl1 a b
-sumWith1 f = Foldl1 (\x y -> x + f y) f id
-{-# INLINABLE sumWith1 #-}
-
--- | Return the product of all elements in a non-empty container.
---
-prod1 :: (Product-Semigroup) a => Foldl1 a a
-prod1 = prodWith1 id
-{-# INLINABLE prod1 #-}
-
--- | Return the product of all elements in a non-empty container.
---
-prodWith1 :: (Product-Semigroup) b => (a -> b) -> Foldl1 a b
-prodWith1 f = Foldl1 (\x y -> x * f y) f id
-{-# INLINABLE prodWith1 #-}
--}
 
 -- | Return the first element in a non-empty container.
 --

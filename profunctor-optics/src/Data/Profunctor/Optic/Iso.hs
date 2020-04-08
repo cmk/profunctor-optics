@@ -14,13 +14,13 @@ module Data.Profunctor.Optic.Iso (
   , Iso'
   , iso
   , isoVl
+  , cloneIso
   , fmapping
   , contramapping
   , dimapping
   , toYoneda 
   , toCoyoneda
   , invert
-  , cloneIso
     -- * Optics
   , equaled
   , coerced
@@ -58,8 +58,7 @@ module Data.Profunctor.Optic.Iso (
   , reover
   , reixes
   , recxes
-  , withIso
-    -- * Auxilliary Types
+    -- * Re
   , Re(..)
     -- * Classes
   , Profunctor(..)

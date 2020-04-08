@@ -27,6 +27,7 @@ module Data.Profunctor.Optic.Types (
   , Affine, Coaffine
   , Traversing, Cotraversing
   , Traversing1, Cotraversing1
+  , Listing, Listing1
   , Mapping, Remapping
   , Mapping1, Remapping1
   , CoercingL, CoercingR
@@ -62,10 +63,9 @@ module Data.Profunctor.Optic.Types (
   , Ixfold0, Cxfold0
   , Ixfold, Cxfold
   , Ixfold1, Cxfold1
-    -- * Machine
-  , Moore, Mealy
-  , Ixmoore, Cxmoore
-  , Moore', Mealy'
+    -- * List
+  , List, List1
+  , List', List1'
     -- * Setter
   , Setter, Resetter
   , Setter1, Resetter1
@@ -104,19 +104,23 @@ type Coaffine p = (Closed p, Choice p)
 
 type Traversing p = (Representable p, Applicative' (Rep p))
 
-type Cotraversing p = (Closed p, Corepresentable p, Coapplicative (Corep p))
+type Cotraversing p = (Corepresentable p, Coapplicative (Corep p))
 
 type Traversing1 p = (Representable p, Apply (Rep p))
 
-type Cotraversing1 p = (Closed p, Corepresentable p, Coapply (Corep p))
+type Cotraversing1 p = (Corepresentable p, Coapply (Corep p))
 
-type Mapping p = (Representable p, Distributive (Rep p))
+type Listing p = (Cotraversing1 p, Foldable' (Corep p))
 
-type Remapping p = (Corepresentable p, Traversable (Corep p))
+type Listing1 p = (Cotraversing p, Foldable1' (Corep p))
 
-type Mapping1 p = (Representable p, Distributive1 (Rep p))
+type Mapping p = (Traversing p, Distributive (Rep p))
 
-type Remapping1 p = (Corepresentable p, Traversable1 (Corep p))
+type Remapping p = (Cotraversing1 p, Traversable (Corep p))
+
+type Mapping1 p = (Traversing1 p, Distributive1 (Rep p))
+
+type Remapping1 p = (Cotraversing p, Traversable1 (Corep p))
 
 type CoercingL p = (Bifunctor p)
 
@@ -280,9 +284,9 @@ type Fold1 s a = forall p. (Strong p, Traversing1 p, CoercingR p) => Optic' p s 
 
 type Cofold0 t b = forall p. (Coaffine p, CoercingL p) => Optic' p t b 
 
-type Cofold t b = forall p. (Affine p, Cotraversing p, CoercingL p) => Optic' p t b
+type Cofold t b = forall p. (Coaffine p, Cotraversing p, CoercingL p) => Optic' p t b
 
-type Cofold1 t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Optic' p t b 
+type Cofold1 t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Optic' p t b 
 
 type Ixfold0 k s a = forall p. (Affine p, CoercingR p) => Ixoptic' p k s a 
 
@@ -292,29 +296,23 @@ type Ixfold1 k s a = forall p. (Strong p, Traversing1 p, CoercingR p) => Ixoptic
 
 type Cxfold0 k t b = forall p. (Coaffine p, CoercingL p) => Cxoptic' p k t b
 
-type Cxfold k t b = forall p. (Affine p, Cotraversing p, CoercingL p) => Cxoptic' p k t b
+type Cxfold k t b = forall p. (Coaffine p, Cotraversing p, CoercingL p) => Cxoptic' p k t b
 
-type Cxfold1 k t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Cxoptic' p k t b
+type Cxfold1 k t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Cxoptic' p k t b
 
 ---------------------------------------------------------------------
--- Machine
+-- List
 ---------------------------------------------------------------------
 
--- | A < https://en.wikipedia.org/wiki/Moore_machine Moore machine >
---
-type Moore s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Optic p s t a b
+type List s t a b = forall p. (Coaffine p, Listing p) => Optic p s t a b
 
--- | A < https://en.wikipedia.org/wiki/Mealy_machine Mealy machine >
---
-type Mealy s t a b = forall p. (Coaffine p, Cotraversing p, Foldable1 (Corep p)) => Optic p s t a b
+type List1 s t a b = forall p. (Affine p, Coaffine p, Listing1 p) => Optic p s t a b
 
-type Ixmoore k s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Ixoptic p k s t a b
+--type Cxlist k s t a b = forall p. (Closed p, Listing p) => Cxoptic p k s t a b
 
-type Cxmoore k s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Cxoptic p k s t a b
+type List' t b = List t t b b
 
-type Moore' t b = Moore t t b b
-
-type Mealy' t b = Mealy t t b b
+type List1' t b = List1 t t b b
 
 ---------------------------------------------------------------------
 -- Setter
@@ -322,25 +320,25 @@ type Mealy' t b = Mealy t t b b
 
 -- | \( \mathsf{Functor}\;S\;A = \exists F : \mathsf{Functor}, S \equiv F\,A \)
 --
-type Setter s t a b = forall p. (Affine p, Traversing p, Mapping p) => Optic p s t a b
+type Setter s t a b = forall p. (Affine p, Coaffine p, Mapping p) => Optic p s t a b
 
 -- | \( \quad \mathsf{Resetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
 --
 -- See also section 3 on Kaleidoscopes < https://cs.ttu.ee/events/nwpt2019/abstracts/paper14.pdf here >.
 --
-type Resetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b 
+type Resetter s t a b = forall p. (Coaffine p, Remapping p) => Optic p s t a b 
 
-type Setter1 s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Optic p s t a b
+type Setter1 s t a b = forall p. (Affine p, Coaffine p, Mapping1 p) => Optic p s t a b
 
-type Resetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b 
+type Resetter1 s t a b = forall p. (Affine p, Coaffine p, Remapping1 p) => Optic p s t a b 
 
-type Ixsetter k s t a b = forall p. (Affine p, Traversing p, Mapping p) => Ixoptic p k s t a b
+type Ixsetter k s t a b = forall p. (Affine p, Coaffine p, Mapping p) => Ixoptic p k s t a b
 
-type Ixsetter1 k s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Ixoptic p k s t a b
+type Rxsetter k s t a b = forall p. (Affine p, Coaffine p, Remapping p) => Cxoptic p k s t a b
 
-type Rxsetter k s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Cxoptic p k s t a b
+type Ixsetter1 k s t a b = forall p. (Affine p, Coaffine p, Mapping1 p) => Ixoptic p k s t a b
 
-type Rxsetter1 k s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Cxoptic p k s t a b
+type Rxsetter1 k s t a b = forall p. (Affine p, Coaffine p, Remapping1 p) => Cxoptic p k s t a b
 
 type Setter' s a = Setter s s a a
 

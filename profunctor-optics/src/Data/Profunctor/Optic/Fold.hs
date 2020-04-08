@@ -91,6 +91,13 @@ module Data.Profunctor.Optic.Fold (
   , foldsrMWithKey
   , foldslMWithKey
   , traversesWithKey_
+    -- * IO
+  , tries
+  , tries_
+  , catches
+  , catches_
+  , handles
+  , handles_
     -- * EndoM
   , EndoM(..)
     -- * Classes
@@ -105,6 +112,7 @@ import Control.Applicative as A
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
+import Control.Monad.IO.Unlift
 import Data.Foldable (Foldable, traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
@@ -121,6 +129,9 @@ import qualified Data.Functor.Rep as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NNL
 import qualified Data.Profunctor.Rep.Foldl1 as M
+import qualified Data.Profunctor.Rep.Foldl as L
+import Control.Exception (Exception (..), SomeException (..), SomeAsyncException (..))
+import qualified Control.Exception as Ex
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -878,6 +889,84 @@ foldslMWithKey o f r xs = foldsrWithKey o f' mempty xs `appEndoM` r where f' k a
 traversesWithKey_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k -> a -> f r) -> s -> f ()
 traversesWithKey_ p f = foldsrWithKey p (\k a fu -> void (f k a) *> fu) (pure ())
 {-# INLINE traversesWithKey_ #-}
+
+---------------------------------------------------------------------
+-- Exception handling
+---------------------------------------------------------------------
+
+is :: AFold0 a s a -> s -> Bool
+is k s = isJust (preview k s)
+
+isnt k s = not $ is k s
+
+-- | Test for synchronous exceptions that match a given optic.
+--
+-- In the style of 'safe-exceptions' this function rethrows async exceptions 
+-- synchronously in order to preserve async behavior,
+-- 
+-- @
+-- 'tries' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> m ('Either' e a)
+-- 'tries' 'exception' :: 'MonadUnliftIO' m => 'Exception' e => m a -> m ('Either' e a)
+-- @
+--
+tries :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Either e a)
+tries o a = withRunInIO $ \run -> run (Right `liftM` a) `Ex.catch` \e ->
+  if is async e then throwM e else run $ maybe (throwM e) (return . Left) (preview o e)
+{-# INLINE tries #-}
+
+-- | A variant of 'tries' that returns synchronous exceptions.
+--
+tries_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m (Maybe a)
+tries_ o a = preview right' `liftM` tries o a
+{-# INLINE tries_ #-}
+
+-- | Catch synchronous exceptions that match a given optic.
+--
+-- Rethrows async exceptions synchronously in order to preserve async behavior.
+--
+-- @
+-- 'catches' :: 'MonadUnliftIO' m => 'AFold0' e 'Ex.SomeException' e -> m a -> (e -> m a) -> m a
+-- 'catches' 'exception' :: 'MonadUnliftIO' m => Exception e => m a -> (e -> m a) -> m a
+-- @
+--
+-- >>> catches (only Overflow) (throwIO Overflow) (\_ -> return "caught")
+-- "caught"
+--
+catches :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> (e -> m a) -> m a
+catches o a ea = withRunInIO $ \run -> run a `Ex.catch` \e ->
+  if is async e then throwM e else run $ maybe (throwM e) ea (preview o e)
+{-# INLINE catches #-}
+
+-- | Catch synchronous exceptions that match a given optic, discarding the match.
+--
+-- >>> catches_ (only Overflow) (throwIO Overflow) (return "caught")
+-- "caught"
+--
+catches_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+catches_ o x y = catches o x $ const y
+{-# INLINE catches_ #-}
+
+-- | Flipped variant of 'catches'.
+--
+-- >>> handles (only Overflow) (\_ -> return "caught") $ throwIO Overflow
+-- "caught"
+--
+handles :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> (e -> m a) -> m a -> m a
+handles o = flip $ catches o
+{-# INLINE handles #-}
+
+-- | Flipped variant of 'catches_'.
+--
+-- >>> handles_ (only Overflow) (return "caught") $ throwIO Overflow
+-- "caught"
+--
+handles_ :: MonadUnliftIO m => Exception ex => AFold0 e ex e -> m a -> m a -> m a
+handles_ o = flip $ catches_ o
+{-# INLINE handles_ #-}
+
+throwM :: MonadIO m => Exception e => e -> m a
+throwM = liftIO . Ex.throwIO
+{-# INLINE throwM #-}
 
 ---------------------------------------------------------------------
 -- EndoM

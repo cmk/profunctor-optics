@@ -44,7 +44,7 @@ module Data.Profunctor.Optic.Carrier (
   , AIxfold0
   , AIxfold
   , ACxfold
-    -- * Machine carriers
+    -- * List carriers
   , AFoldl
   , AFoldl1
   , ACxfoldl
@@ -224,7 +224,7 @@ type AIxfold r k s a = AIxtraversal' (Const r) k s a
 type ACxfold r k t b = ACxtraversal' (Const r) k t b
 
 ---------------------------------------------------------------------
--- Machine carriers
+-- List carriers
 ---------------------------------------------------------------------
 
 type AFoldl s t a b = Optic L.Foldl s t a b

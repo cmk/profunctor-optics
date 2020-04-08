@@ -6,7 +6,6 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE PolyKinds             #-}
-{-# LANGUAGE DeriveFunctor         #-}
 module Data.Profunctor.Optic (
     module Types
   , module Carrier
@@ -17,7 +16,7 @@ module Data.Profunctor.Optic (
   , module Prism
   , module Lens
   , module Traversal
-  , module Machine
+  , module List
   , module Fold
   , module View
   , module Setter
@@ -35,7 +34,7 @@ import Data.Profunctor.Optic.Prism            as Prism
 import Data.Profunctor.Optic.Lens             as Lens
 import Data.Profunctor.Optic.Traversal        as Traversal
 import Data.Profunctor.Optic.Fold             as Fold
-import Data.Profunctor.Optic.Machine          as Machine
+import Data.Profunctor.Optic.List             as List
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
 import Data.Profunctor.Optic.Zoom             as Zoom

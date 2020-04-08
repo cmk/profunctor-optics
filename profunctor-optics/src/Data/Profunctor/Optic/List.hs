@@ -5,10 +5,10 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-module Data.Profunctor.Optic.Machine (
-    -- * Moore
-    Moore
-  , moore
+module Data.Profunctor.Optic.List (
+    -- * List
+    List
+  , list
   , listing
   , packing
   , chunking
@@ -16,23 +16,16 @@ module Data.Profunctor.Optic.Machine (
   , foldingr'
   , foldingl
   , foldingl'
-  , foldingrM
-  , foldinglM
-  , traversing_
-  , mappingM_
   , foldMapping
-    -- * Mealy 
-  , Mealy
-  , mealy
+    -- * List1 
+  , List1
+  , list1
   , listing1
   , packing1
   , foldingl1
   , foldingr1
-  , foldingrM1
-  , foldinglM1
-  , traversing1_
   , foldMapping1
-    -- * Optics
+    -- * Lens optics
   , head1
   , last1
   , projected
@@ -69,35 +62,37 @@ module Data.Profunctor.Optic.Machine (
  -- , intercalated
     -- * Operators
   , listl
+  , listsl
   , listl1
-  , steps
+  , listsl1
   , buildl
   , buildsl
   , obuildl
-  , obuildsl
+  , buildlM
+  , buildslM
   , buildl1
   , buildsl1
   , obuildl1
-  , obuildsl1
+  , premaplM
+  , premapslM
   , postscanl
   , postscansl
-  , mconcats
-  , sconcats
-  --, heads
-  --, lasts
-  --, headsDef
-  --, lastsDef
-  , minimizes
-  , maximizes
-  , minimizesDef
-  , maximizesDef
-  , minimizesBy 
-  , maximizesBy
-  , minimizesByDef
-  , maximizesByDef
+    -- * IO
+  , haltl
+  , haltsl
+  , haltl_
+  , haltsl_
+  , skipl
+  , skipsl
+  , skipl_
+  , skipsl_
 ) where
 
+
+import Control.Exception (Exception (..))
+import Control.Monad.IO.Unlift
 import Data.List.NonEmpty (NonEmpty (..))
+import Data.Maybe (listToMaybe)
 import Data.Monoid
 import Data.MonoTraversable (MonoFoldable(..), Element)
 import Data.NonNull (NonNull)
@@ -108,6 +103,7 @@ import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Semigroup.Foldable as F1
+import qualified Control.Exception as Ex
 import qualified Data.Foldable as F
 import qualified Data.Profunctor.Rep.Foldl as L
 import qualified Data.Profunctor.Rep.Foldl1 as L1
@@ -116,8 +112,10 @@ import qualified Data.Sequences as MS
 import qualified Data.List.NonEmpty as NE
 import qualified Data.MonoTraversable as MT
 
---import qualified Control.Foldl.ByteString as LB
 
+import Data.Profunctor.Optic.Prism
+import Data.Profunctor.Optic.Fold
+import Data.Maybe
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XFlexibleContexts
@@ -140,165 +138,118 @@ import qualified Data.MonoTraversable as MT
 -- >>> :load Data.Profunctor.Optic
 
 ---------------------------------------------------------------------
--- 'Moore'
+-- 'List'
 ---------------------------------------------------------------------
 
--- | Obtain a 'Moore' directly.
+-- | Obtain a 'List' lens directly.
 --
+-- See < https://arxiv.org/pdf/2001.07488.pdf > section 3.1.4 or the slides < http://events.cs.bham.ac.uk/syco/strings3-syco5/slides/roman.pdf here >.
+-- 
 -- @since 0.0.3
-moore :: (s -> a) -> (forall f. Foldable' f => f s -> b -> t) -> Moore s t a b
-moore sa sbt p = cotabulate $ \s -> sbt s (cosieve p . fmap sa $ s)
-{-# INLINE moore #-}
+list :: (s -> a) -> (forall f. Foldable' f => f s -> b -> t) -> List s t a b
+list sa sbt p = cotabulate $ \s -> sbt s (cosieve p . fmap sa $ s)
+{-# INLINE list #-}
 
--- | A < http://events.cs.bham.ac.uk/syco/strings3-syco5/slides/roman.pdf list lens >.
+-- | 
 --
 -- @since 0.0.3
-listing :: (s -> a) -> ([s] -> b -> t) -> Moore s t a b
-listing sa sbt = moore sa $ sbt . F.toList
+listing :: (s -> a) -> ([s] -> b -> t) -> List s t a b
+listing sa sbt = list sa $ sbt . F.toList
 {-# INLINE listing #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-packing :: IsSequence s => (Element s -> a) -> (s -> b -> t) -> Moore (Element s) t a b
-packing sa sbt = moore sa $ sbt . MS.pack . F.toList
+packing :: IsSequence s => (Element s -> a) -> (s -> b -> t) -> List (Element s) t a b
+packing sa sbt = list sa $ sbt . MS.pack . F.toList
 {-# INLINEABLE packing #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-chunking :: LazySequence l s => (s -> a) -> (l -> b -> t) -> Moore s t a b
-chunking sa sbt = moore sa $ sbt . MS.fromChunks . F.toList
+chunking :: LazySequence l s => (s -> a) -> (l -> b -> t) -> List s t a b
+chunking sa sbt = list sa $ sbt . MS.fromChunks . F.toList
 {-# INLINEABLE chunking #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingr :: (s -> a) -> (s -> r -> r) -> r -> (r -> b -> t) -> Moore s t a b
-foldingr sa h z rbt = moore sa $ rbt . F.foldr h z
+foldingr :: (s -> a) -> (s -> r -> r) -> r -> (r -> b -> t) -> List s t a b
+foldingr sa h z rbt = list sa $ rbt . F.foldr h z
 {-# INLINE foldingr #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingr' :: (s -> a) -> (s -> r -> r) -> r -> (r -> b -> t) -> Moore s t a b
-foldingr' sa h z rbt = moore sa $ rbt . F.foldr' h z
+foldingr' :: (s -> a) -> (s -> r -> r) -> r -> (r -> b -> t) -> List s t a b
+foldingr' sa h z rbt = list sa $ rbt . F.foldr' h z
 {-# INLINE foldingr' #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingl :: (s -> a) -> (r -> s -> r) -> r -> (r -> b -> t) -> Moore s t a b
-foldingl sa h z rbt = moore sa $ rbt . F.foldl h z
+foldingl :: (s -> a) -> (r -> s -> r) -> r -> (r -> b -> t) -> List s t a b
+foldingl sa h z rbt = list sa $ rbt . F.foldl h z
 {-# INLINE foldingl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingl' :: (s -> a) -> (r -> s -> r) -> r -> (r -> b -> t) -> Moore s t a b
-foldingl' sa h z rbt = moore sa $ rbt . F.foldl' h z
+foldingl' :: (s -> a) -> (r -> s -> r) -> r -> (r -> b -> t) -> List s t a b
+foldingl' sa h z rbt = list sa $ rbt . F.foldl' h z
 {-# INLINE foldingl' #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingrM :: Monad m => (s -> a) -> (s -> r -> m r) -> r -> (m r -> b -> t) -> Moore s t a b
-foldingrM sa h z rbt = moore sa $ rbt . F.foldrM h z
-{-# INLINE foldingrM #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-foldinglM :: Monad m => (s -> a) -> (r -> s -> m r) -> r -> (m r -> b -> t) -> Moore s t a b
-foldinglM sa h z rbt = moore sa $ rbt . F.foldlM h z
-{-# INLINE foldinglM #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-traversing_ :: Applicative f => (s -> a) -> (s -> f r) -> (f () -> b -> t) -> Moore s t a b
-traversing_ sa h sbt = moore sa $ sbt . F.traverse_ h
-{-# INLINE traversing_ #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-mappingM_ :: Monad m => (s -> a) -> (s -> m r) -> (m () -> b -> t) -> Moore s t a b
-mappingM_ sa h sbt = moore sa $ sbt . F.mapM_ h
-{-# INLINE mappingM_ #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-foldMapping :: Monoid r => (s -> a) -> (s -> r) -> (r -> b -> t) -> Moore s t a b
-foldMapping sa sr rbt = moore sa $ rbt . F.foldMap sr
+foldMapping :: Monoid r => (s -> a) -> (s -> r) -> (r -> b -> t) -> List s t a b
+foldMapping sa sr rbt = list sa $ rbt . F.foldMap sr
 {-# INLINE foldMapping #-}
 
 ---------------------------------------------------------------------
--- 'Mealy'
+-- 'List1'
 ---------------------------------------------------------------------
 
--- | Obtain a 'Mealy' directly.
+-- | Obtain a 'List1' directly.
 --
 -- @since 0.0.3
-mealy :: (s -> a) -> (forall f. Foldable1' f => f s -> b -> t) -> Mealy s t a b
-mealy sa sbt p = cotabulate $ \s -> sbt s (cosieve p . fmap sa $ s)
-{-# INLINE mealy #-}
+list1 :: (s -> a) -> (forall f. Foldable1' f => f s -> b -> t) -> List1 s t a b
+list1 sa sbt p = cotabulate $ \s -> sbt s (cosieve p . fmap sa $ s)
+{-# INLINE list1 #-}
 
 -- | A non-empty list lens.
 --
 -- @since 0.0.3
-listing1 :: (s -> a) -> (NonEmpty s -> b -> t) -> Mealy s t a b
-listing1 sa sbt = mealy sa $ sbt . F1.toNonEmpty
+listing1 :: (s -> a) -> (NonEmpty s -> b -> t) -> List1 s t a b
+listing1 sa sbt = list1 sa $ sbt . F1.toNonEmpty
 {-# INLINE listing1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-packing1 :: IsSequence s => (Element s -> a) -> (NonNull s -> b -> t) -> Mealy (Element s) t a b
-packing1 sa sbt = mealy sa $ sbt . NN.fromNonEmpty . F1.toNonEmpty
+packing1 :: IsSequence s => (Element s -> a) -> (NonNull s -> b -> t) -> List1 (Element s) t a b
+packing1 sa sbt = list1 sa $ sbt . NN.fromNonEmpty . F1.toNonEmpty
 {-# INLINE packing1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingr1 :: (s -> a) -> (s -> s -> s) -> (s -> b -> t) -> Mealy s t a b
-foldingr1 sa h sbt = mealy sa $ sbt . F.foldr1 h
+foldingr1 :: (s -> a) -> (s -> s -> s) -> (s -> b -> t) -> List1 s t a b
+foldingr1 sa h sbt = list1 sa $ sbt . F.foldr1 h
 {-# INLINE foldingr1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingl1 :: (s -> a) -> (s -> s -> s) -> (s -> b -> t) -> Mealy s t a b
-foldingl1 sa h sbt = mealy sa $ sbt . F.foldl1 h
+foldingl1 :: (s -> a) -> (s -> s -> s) -> (s -> b -> t) -> List1 s t a b
+foldingl1 sa h sbt = list1 sa $ sbt . F.foldl1 h
 {-# INLINE foldingl1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-foldingrM1 :: Monad m => (s -> a) -> (s -> s -> m s) -> (m s -> b -> t) -> Mealy s t a b
-foldingrM1 sa h sbt = mealy sa $ sbt . F1.foldrM1 h
-{-# INLINE foldingrM1 #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-foldinglM1 :: Monad m => (s -> a) -> (s -> s -> m s) -> (m s -> b -> t) -> Mealy s t a b
-foldinglM1 sa h sbt = mealy sa $ sbt . F1.foldlM1 h
-{-# INLINE foldinglM1 #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-traversing1_ :: Apply f => (s -> a) -> (s -> f r) -> (f () -> b -> t) -> Mealy s t a b
-traversing1_ sa h sbt = mealy sa $ sbt . F1.traverse1_ h
-{-# INLINE traversing1_ #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-foldMapping1 :: Semigroup r => (s -> a) -> (s -> r) -> (r -> b -> t) -> Mealy s t a b
-foldMapping1 sa sr rbt = mealy sa $ rbt . F1.foldMap1 sr
+foldMapping1 :: Semigroup r => (s -> a) -> (s -> r) -> (r -> b -> t) -> List1 s t a b
+foldMapping1 sa sr rbt = list1 sa $ rbt . F1.foldMap1 sr
 {-# INLINE foldMapping1 #-}
 
 ---------------------------------------------------------------------
@@ -313,7 +264,7 @@ foldMapping1 sa sr rbt = mealy sa $ rbt . F1.foldMap1 sr
 -- ("key1",(0 :| [4,1],"beets"))
 --
 -- @since 0.0.3
-head1 :: Lens s t a b -> Mealy s t a b
+head1 :: Lens s t a b -> List1 s t a b
 head1 o = withLens o $ \sa sbt -> listing1 sa $ sbt . NE.head
 {-# INLINE head1 #-}
 
@@ -323,7 +274,7 @@ head1 o = withLens o $ \sa sbt -> listing1 sa $ sbt . NE.head
 -- ("three",6)
 -- 
 -- @since 0.0.3
-last1 :: Lens s t a b -> Mealy s t a b
+last1 :: Lens s t a b -> List1 s t a b
 last1 o = withLens o $ \sa sbt -> listing1 sa $ sbt . NE.last
 {-# INLINE last1 #-}
 
@@ -333,15 +284,15 @@ last1 o = withLens o $ \sa sbt -> listing1 sa $ sbt . NE.last
 -- (4,"apples" :| ["oranges","beets"])
 --
 -- @since 0.0.3
-projected :: (s -> a) -> Moore s b a b
-projected sa = moore sa (flip const)
+projected :: (s -> a) -> List s b a b
+projected sa = list sa (flip const)
 {-# INLINE projected #-}
 
 -- | Minimize over a lens.
 --
 -- @since 0.0.3
-minimized :: Ord s => Lens s t a b -> Mealy s t a b
-minimized o = withLens o $ \sa sbt -> mealy sa $ \fs b -> sbt (F.minimum fs) b
+minimized :: Ord s => Lens s t a b -> List1 s t a b
+minimized o = withLens o $ \sa sbt -> list1 sa $ \fs b -> sbt (F.minimum fs) b
 {-# INLINE minimized #-}
 
 -- | Maximize over a lens.
@@ -354,15 +305,15 @@ minimized o = withLens o $ \sa sbt -> mealy sa $ \fs b -> sbt (F.minimum fs) b
 -- ("key3",(0 :| [4,1],"apples"))
 --
 -- @since 0.0.3
-maximized :: Ord s => Lens s t a b -> Mealy s t a b
-maximized o = withLens o $ \sa sbt -> mealy sa $ \fs b -> sbt (F.maximum fs) b
+maximized :: Ord s => Lens s t a b -> List1 s t a b
+maximized o = withLens o $ \sa sbt -> list1 sa $ \fs b -> sbt (F.maximum fs) b
 {-# INLINE maximized #-}
 
 -- | Minimize over a 'Lens' using a default.
 --
 -- @since 0.0.3
-minimizedDef :: Ord s => s -> Lens s t a b -> Moore s t a b
-minimizedDef s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe s id $ minimumMay fs
+minimizedDef :: Ord s => s -> Lens s t a b -> List s t a b
+minimizedDef s o = withLens o $ \sa sbt -> list sa $ \fs b -> flip sbt b $ maybe s id $ minimumMay fs
 {-# INLINE minimizedDef #-}
 
 -- | Maximize over a 'Lens' using a default.
@@ -379,36 +330,36 @@ minimizedDef s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ mayb
 -- (2,["to","wn","oe"])
 --
 -- @since 0.0.3
-maximizedDef :: Ord s => s -> Lens s t a b -> Moore s t a b
-maximizedDef s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe s id $ maximumMay fs
+maximizedDef :: Ord s => s -> Lens s t a b -> List s t a b
+maximizedDef s o = withLens o $ \sa sbt -> list sa $ \fs b -> flip sbt b $ maybe s id $ maximumMay fs
 {-# INLINE maximizedDef #-}
 
 -- | Minimize over a 'Lens' using a comparator.
 --
 -- @since 0.0.3
-minimizedBy :: (s -> s -> Ordering) -> Lens s t a b -> Mealy s t a b
-minimizedBy cmp o = withLens o $ \sa sbt -> mealy sa $ \fs b -> sbt (F.minimumBy cmp fs) b 
+minimizedBy :: (s -> s -> Ordering) -> Lens s t a b -> List1 s t a b
+minimizedBy cmp o = withLens o $ \sa sbt -> list1 sa $ \fs b -> sbt (F.minimumBy cmp fs) b 
 {-# INLINE minimizedBy #-}
 
 -- | Maximize over a 'Lens' using a comparator.
 --
 -- @since 0.0.3
-maximizedBy :: (s -> s -> Ordering) -> Lens s t a b -> Mealy s t a b
-maximizedBy cmp o = withLens o $ \sa sbt -> mealy sa $ \fs b -> sbt (F.maximumBy cmp fs) b 
+maximizedBy :: (s -> s -> Ordering) -> Lens s t a b -> List1 s t a b
+maximizedBy cmp o = withLens o $ \sa sbt -> list1 sa $ \fs b -> sbt (F.maximumBy cmp fs) b 
 {-# INLINE maximizedBy #-}
 
 -- | Minimize over a 'Lens' using a comparator and a default.
 --
 -- @since 0.0.3
-minimizedByDef :: (s -> s -> Ordering) -> s -> Lens s t a b -> Moore s t a b
-minimizedByDef cmp s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe s id $ minimumByMay cmp fs
+minimizedByDef :: (s -> s -> Ordering) -> s -> Lens s t a b -> List s t a b
+minimizedByDef cmp s o = withLens o $ \sa sbt -> list sa $ \fs b -> flip sbt b $ maybe s id $ minimumByMay cmp fs
 {-# INLINE minimizedByDef #-}
 
 -- | Maximize over a 'Lens' using a comparator and a default.
 --
 -- @since 0.0.3
-maximizedByDef :: (s -> s -> Ordering) -> s -> Lens s t a b -> Moore s t a b
-maximizedByDef cmp s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe s id $ maximumByMay cmp fs 
+maximizedByDef :: (s -> s -> Ordering) -> s -> Lens s t a b -> List s t a b
+maximizedByDef cmp s o = withLens o $ \sa sbt -> list sa $ \fs b -> flip sbt b $ maybe s id $ maximumByMay cmp fs 
 {-# INLINE maximizedByDef #-}
 
 -- | Search over the a 'Lens' using a predicate and a default.
@@ -419,8 +370,8 @@ maximizedByDef cmp s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b 
 -- ("key1",(4,"oranges"))
 --
 -- @since 0.0.3
-foundDef :: (s -> b -> Bool) -> s -> Lens s t a b -> Moore s t a b 
-foundDef p s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe s id $ F.find (flip p b) fs
+foundDef :: (s -> b -> Bool) -> s -> Lens s t a b -> List s t a b 
+foundDef p s o = withLens o $ \sa sbt -> list sa $ \fs b -> flip sbt b $ maybe s id $ F.find (flip p b) fs
 {-# INLINE foundDef #-}
 
 ---------------------------------------------------------------------
@@ -430,13 +381,13 @@ foundDef p s o = withLens o $ \sa sbt -> moore sa $ \fs b -> flip sbt b $ maybe 
 -- | TODO: Document
 --
 -- @since 0.0.3
-packed :: IsSequence s => Lens s t a b -> Moore (Element s) t a b
+packed :: IsSequence s => Lens s t a b -> List (Element s) t a b
 packed o = withLens o $ \sa sbt -> packing (sa . MT.opoint) sbt
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-packed' :: LazySequence l s => Lens l t a b -> Moore s t a b
+packed' :: LazySequence l s => Lens l t a b -> List s t a b
 packed' o = withLens o $ \la lbt -> chunking (la . MS.fromStrict) lbt
 {-# INLINE packed' #-}
 
@@ -448,7 +399,7 @@ packed' o = withLens o $ \la lbt -> chunking (la . MS.fromStrict) lbt
 -- "foo"
 --
 -- @since 0.0.3
-taken :: IsSequence s => (b -> Index s) -> Moore (Element s) s (Element s) b
+taken :: IsSequence s => (b -> Index s) -> List (Element s) s (Element s) b
 taken f = packing id $ \s b -> MS.take (f b) s
 
 -- | TODO: Document
@@ -463,14 +414,14 @@ taken f = packing id $ \s b -> MS.take (f b) s
 -- (2,"zero")
 --
 -- @since 0.0.3
-taken' :: LazySequence l s => (b -> Index l) -> Moore s l (Index s) b
+taken' :: LazySequence l s => (b -> Index l) -> List s l (Index s) b
 taken' f = chunking MS.lengthIndex $ \s b -> MS.take (f b) s
 {-# INLINE taken' #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-padded :: IsSequence s => Element s -> Moore s [s] (Index s) (Index s)
+padded :: IsSequence s => Element s -> List s [s] (Index s) (Index s)
 padded w = listing MS.lengthIndex $ \s b -> fmap (\x -> MS.take b (x <> MS.replicate b w)) s
 {-# INLINE padded #-}
 
@@ -482,8 +433,8 @@ padded w = listing MS.lengthIndex $ \s b -> fmap (\x -> MS.take b (x <> MS.repli
 -- ["foo   ","barbaz","bippy "]
 --
 -- @since 0.0.3
-padded' :: LazySequence l s => Element s -> Moore s l (Index s) (Index s)
-padded' w = moore MS.lengthIndex $ \bs n -> MS.fromChunks $
+padded' :: LazySequence l s => Element s -> List s l (Index s) (Index s)
+padded' w = list MS.lengthIndex $ \bs n -> MS.fromChunks $
   fmap (\s -> MS.take n $ s <> MS.replicate n w) $ F.toList bs
 {-# INLINE padded' #-}
 
@@ -497,7 +448,7 @@ padded' w = moore MS.lengthIndex $ \bs n -> MS.fromChunks $
 -- (2,["one"])
 --
 -- @since 0.0.3
-takenWhile :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) s a b
+takenWhile :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) s a b
 takenWhile sa sbt = packing sa $ \s b -> MS.takeWhile (flip sbt b) s
 {-# INLINE takenWhile #-}
 
@@ -507,25 +458,25 @@ takenWhile sa sbt = packing sa $ \s b -> MS.takeWhile (flip sbt b) s
 -- "foobar"
 --
 -- @since 0.0.3
-takenWhile' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> Moore s l a b
+takenWhile' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> List s l a b
 takenWhile' sa sbt = chunking sa $ \s b -> MS.takeWhile (flip sbt b) s
 {-# INLINE takenWhile' #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-droppedWhile :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) s a b
+droppedWhile :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) s a b
 droppedWhile sa sbt = packing sa $ \s b -> MS.dropWhile (flip sbt b) s
 {-# INLINE droppedWhile #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-droppedWhile' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> Moore s l a b
+droppedWhile' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> List s l a b
 droppedWhile' sa sbt = chunking sa $ \s b -> MS.dropWhile (flip sbt b) s
 {-# INLINE droppedWhile' #-}
 
--- | Filter a sequence of elements using a Moore machine. 
+-- | Filter a sequence of elements using a List machine. 
 --
 -- >>> "foobar" & filteredBy id (==) /~ 'b' :: String
 -- "b"
@@ -548,11 +499,11 @@ droppedWhile' sa sbt = chunking sa $ \s b -> MS.dropWhile (flip sbt b) s
 -- ["obb"]
 --
 -- @since 0.0.3
-filteredBy :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) s a b
+filteredBy :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) s a b
 filteredBy sa sbt = packing sa $ \s b -> MS.filter (flip sbt b) s
 {-# INLINE filteredBy #-}
 
--- | Filter a chunked sequence of elements using a Moore machine. 
+-- | Filter a chunked sequence of elements using a List machine. 
 --
 -- >>> CL.unpack $ fmap C.pack ["foo","bar"] & filteredBy' (ord . C.head) (/=) /~ 111 
 -- "fbar"
@@ -562,28 +513,28 @@ filteredBy sa sbt = packing sa $ \s b -> MS.filter (flip sbt b) s
 -- "izbuz"
 --
 -- @since 0.0.3
-filteredBy' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> Moore s l a b
+filteredBy' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> List s l a b
 filteredBy' sa sbt = chunking sa $ \s b -> MS.filter (flip sbt b) s
 {-# INLINE filteredBy' #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-filteredBy1 :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Mealy (Element s) s a b
+filteredBy1 :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List1 (Element s) s a b
 filteredBy1 sa sbt = packing1 sa $ \s b -> NN.nfilter (flip sbt b) s
 {-# INLINE filteredBy1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-broken :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) (s, s) a b
+broken :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) (s, s) a b
 broken sa sbt = packing sa $ \s b -> MS.break (flip sbt b) s
 {-# INLINE broken #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-spanned :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) (s, s) a b
+spanned :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) (s, s) a b
 spanned sa sbt = packing sa $ \s b -> MS.span (flip sbt b) s
 {-# INLINE spanned #-}
 
@@ -599,14 +550,14 @@ spanned sa sbt = packing sa $ \s b -> MS.span (flip sbt b) s
 -- ("\ACK","\SOH\STX\ETX\EOT\ENQ\a\b\t\n")
 --
 -- @since 0.0.3
-partitioned :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) (s, s) a b
+partitioned :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) (s, s) a b
 partitioned sa sbt = packing sa $ \s b -> MS.partition (flip sbt b) s
 {-# INLINE partitioned #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-partitioned' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> Moore s (l, l) a b
+partitioned' :: LazySequence l s => (s -> a) -> (Element l -> b -> Bool) -> List s (l, l) a b
 partitioned' sa sbt = chunking sa $ \s b -> MS.partition (flip sbt b) s
 {-# INLINE partitioned' #-}
 
@@ -618,21 +569,21 @@ partitioned' sa sbt = chunking sa $ \s b -> MS.partition (flip sbt b) s
 -- (["Hawa","ii"],1)
 --
 -- @since 0.0.3
-groupedAllOn :: IsSequence s => Eq r => (Element s -> a) -> (Element s -> b -> r) -> Moore (Element s) [s] a b
+groupedAllOn :: IsSequence s => Eq r => (Element s -> a) -> (Element s -> b -> r) -> List (Element s) [s] a b
 groupedAllOn sa sbt = packing sa $ \s b -> MS.groupAllOn (flip sbt b) s
 {-# INLINE groupedAllOn #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-splitWhen :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> Moore (Element s) [s] a b 
+splitWhen :: IsSequence s => (Element s -> a) -> (Element s -> b -> Bool) -> List (Element s) [s] a b 
 splitWhen sa sbt = packing sa $ \s b -> MS.splitWhen (flip sbt b) s 
 {-# INLINE splitWhen #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-splitFirst :: IsSequence s => (Element s -> a) -> ((Element s, s) -> b -> t) -> Mealy (Element s) t a b 
+splitFirst :: IsSequence s => (Element s -> a) -> ((Element s, s) -> b -> t) -> List1 (Element s) t a b 
 splitFirst sa sbt = packing1 sa $ sbt . NN.splitFirst
 {-# INLINE splitFirst #-}
 
@@ -642,18 +593,25 @@ splitFirst sa sbt = packing1 sa $ sbt . NN.splitFirst
 
 -- | TODO: Document
 --
+-- @since 0.0.3
+listl :: Foldable f => AFoldl s t a [a] -> f s -> t
+listl o = listsl o . L.foldable
+{-# INLINE listl #-}
+
+-- | TODO: Document
+--
 -- @
--- 'listl' o = 'buildl' o 'Control.Foldl.list'
--- 'listl' id = 'Control.Foldl.fold' 'Control.Foldl.list' = 'Data.Foldable.toList'
+-- 'listsl' o = 'buildl' o 'Control.Foldl.list'
+-- 'listsl' id = 'Control.Foldl.fold' 'Control.Foldl.list' = 'Data.Foldable.toList'
 -- @
 --
--- >>> listl closed [("foo: "++) . show, ("bar: "++) . show] 42
+-- >>> listsl closed [("foo: "++) . show, ("bar: "++) . show] 42
 -- ["foo: 42","bar: 42"]
 --
 -- @since 0.0.3
-listl :: Foldable f => AFoldl s t a [a] -> f s -> t
-listl o = buildl o L.list
-{-# INLINE listl #-}
+listsl :: AFoldl s t a [a] -> L.Unfoldl s -> t
+listsl o = L.withFoldl L.list $ buildsl o
+{-# INLINE listsl #-}
 
 -- | TODO: Document
 --
@@ -665,15 +623,15 @@ listl1 o s = flip L1.foldl1 s . o $ L1.list1
 -- | TODO: Document
 --
 -- @since 0.0.3
-steps :: Foldable1 f => AFoldl1 s t a b -> (x -> a -> x) -> x -> (x -> b) -> f s -> t 
-steps o h z k = buildl1 o $ L1.Foldl1 h (h z) k
-{-# INLINE steps #-}
+listsl1 :: AFoldl1 s t a (NonEmpty a) -> L1.Unfoldl1 s -> t
+listsl1 o = L1.withFoldl1 L1.list1 $ buildsl1 o
+{-# INLINE listsl1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-buildl :: Foldable f => AFoldl s t a b -> L.Foldl a b -> f s -> t
-buildl o f s = flip L.foldl s . o $ f
+buildl :: Foldable f => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> f s -> t 
+buildl o h z k = buildsl o h z k . L.foldable
 {-# INLINE buildl #-}
 
 -- | TODO: Document
@@ -688,53 +646,82 @@ buildl o f s = flip L.foldl s . o $ f
 -- Usable in conjunction with /purely/ from the /foldl/ package.
 --
 -- @since 0.0.3
-buildsl :: Foldable f => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> f s -> t
-buildsl o h z k = buildl o $ L.Foldl h z k
+buildsl :: AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> L.Unfoldl s -> t
+buildsl o h z k u = flip L.build u . o $ L.Foldl h z k
 {-# INLINE buildsl #-}
 
 -- | TODO: Document
 --
--- @since 0.0.3
-obuildl :: MonoFoldable s => AFoldl (Element s) t a b -> L.Foldl a b -> s -> t 
-obuildl o f = (`L.withFoldl` MT.ofoldlUnwrap) . o $ f
-{-# INLINE obuildl #-}
-
--- | TODO: Document
+-- @
+-- 'obuildl' o h z k = 'buildsl' o h z k . 'Data.Profunctor.Rep.Foldl.ofoldable'
+-- @
 --
 -- Usable in conjunction with /purely/ from the /foldl/ package.
 --
 -- @since 0.0.3
-obuildsl :: MonoFoldable s => AFoldl (Element s) t a b -> (x -> a -> x) -> x -> (x -> b) -> s -> t 
-obuildsl o h z k = obuildl o $ L.Foldl h z k
-{-# INLINE obuildsl #-}
+obuildl :: MonoFoldable s => AFoldl (Element s) t a b -> (x -> a -> x) -> x -> (x -> b) -> s -> t 
+obuildl o h z k = (`L.withFoldl` MT.ofoldlUnwrap) . o $ L.Foldl h z k
+{-# INLINE obuildl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-buildl1 :: Foldable1 f => AFoldl1 s t a b -> L1.Foldl1 a b -> f s -> t
-buildl1 o f s = flip L1.foldl1 s . o $ f
+buildlM :: Foldable f => Monad m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> f s -> m t
+buildlM o h z k = buildslM o h z k . L.foldableM
+{-# INLINE buildlM #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+buildslM :: Monad m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> L.UnfoldlM m s -> m t
+buildslM o h z k u = flip L.buildM u . L.generalize . o $ L.Foldl h z k
+{-# INLINE buildslM #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+buildl1 :: Foldable1 f => AFoldl1 s t a b -> (x -> a -> x) -> (a -> x) -> (x -> b) -> f s -> t
+buildl1 o h z k = buildsl1 o h z k . L1.foldable1
 {-# INLINE buildl1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-buildsl1 :: Foldable1 f => AFoldl1 s t a b -> (x -> a -> x) -> (a -> x) -> (x -> b) -> f s -> t
-buildsl1 o h z k = buildl1 o $ L1.Foldl1 h z k
+buildsl1 :: AFoldl1 s t a b -> (x -> a -> x) -> (a -> x) -> (x -> b) -> L1.Unfoldl1 s -> t
+buildsl1 o h z k u = flip L1.build1 u . o $ L1.Foldl1 h z k
 {-# INLINE buildsl1 #-}
 
 -- | TODO: Document
 --
+-- @
+-- 'obuildl1' o h z k = 'buildsl1' o h z k . 'Data.Profunctor.Rep.Foldl1.nonNull'
+-- @
+--
 -- @since 0.0.3
-obuildl1 :: IsSequence s => AFoldl1 (Element s) t a b -> L1.Foldl1 a b -> NonNull s -> t 
-obuildl1 o f = (`L1.withFoldl1` ofoldl1Unwrap) . o $ f
+obuildl1 :: IsSequence s => AFoldl1 (Element s) t a b -> (x -> a -> x) -> (a -> x) -> (x -> b) -> NonNull s -> t 
+obuildl1 o h z k = (`L1.withFoldl1` ofoldl1Unwrap) . o $ L1.Foldl1 h z k
 {-# INLINE obuildl1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-obuildsl1 :: IsSequence s => AFoldl1 (Element s) t a b -> (x -> a -> x) -> (a -> x) -> (x -> b) -> NonNull s -> t 
-obuildsl1 o h z k = obuildl1 o $ L1.Foldl1 h z k
-{-# INLINE obuildsl1 #-}
+--buildslM1 :: Monad m => AFoldl1 s t a b -> (x -> a -> m x) -> (a -> m x) -> (x -> m b) -> L.UnfoldlM m s -> m t
+--buildslM1 o h z k u = flip L1.buildM1 u . L1.generalize1 . o $ L1.Foldl1 h z k
+--{-# INLINE buildslM1 #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+premaplM :: Foldable f => Monad m => AFoldl s t a b -> L.Foldl a b -> (r -> m s) -> f r -> m t
+premaplM o f g s = flip L.foldlM s . L.premapM g . L.generalize . o $ f
+{-# INLINE premaplM #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+premapslM :: Foldable f => Monad m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> (r -> m s) -> f r -> m t
+premapslM o h z k = premaplM o $ L.Foldl h z k 
+{-# INLINE premapslM #-}
 
 -- | TODO: Document
 --
@@ -757,86 +744,72 @@ postscansl :: Traversable f => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) 
 postscansl o h z k = postscanl o $ L.Foldl h z k
 {-# INLINE postscansl #-}
 
+---------------------------------------------------------------------
+-- IO
+---------------------------------------------------------------------
+
 -- | TODO: Document
 --
--- >>> mconcats cotraversed1 id id [["foo","bar"],["baz","bip"]]
--- ["foobaz","barbip"]
--- >>> mconcats cotraversed1 Sum getSum [[1,2,3],[4,5,6,7]]
--- [5,7,9]
+-- >>> import qualified Control.Exception as Ex
+-- >>> f x = if x < 10 then return x else Ex.throw Ex.Overflow
+-- >>> exfold = premapM f (generalize list)
+-- >>> xs = [1, 2, 500, 4] :: [Integer]
+-- >>> foldlM (halt @Ex.ArithException exfold) xs
+-- (Just arithmetic overflow,[1,2])
 --
 -- @since 0.0.3
-mconcats :: Foldable f => Monoid m => AFoldl s t a b -> (a -> m) -> (m -> b) -> f s -> t
-mconcats o f g s = flip L.foldl s . o $ L.mconcat f g
-{-# INLINE mconcats #-}
+haltl :: Exception e => Foldable f => MonadUnliftIO m => AFoldl s t a b -> L.Foldl a b -> (r -> m s) -> f r -> m (Maybe e, t)
+haltl o f g s = flip L.foldlM s . L.halt . L.premapM g . L.generalize . o $ f
+{-# INLINE haltl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-sconcats :: Foldable1 f => Semigroup m => AFoldl1 s t a b -> (a -> m) -> (m -> b) -> f s -> t
-sconcats o f g s = flip L1.foldl1 s . o $ L1.sconcat f g
-{-# INLINE sconcats #-}
+haltsl :: Exception e => Foldable f => MonadUnliftIO m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> (r -> m s) -> f r -> m (Maybe e, t)
+haltsl o h z k = haltl o $ L.Foldl h z k
+{-# INLINE haltsl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-minimizes :: Foldable1 f => Ord a => AFoldl1 s t a a -> f s -> t 
-minimizes o = buildl1 o $ L1.minimum
-{-# INLINE minimizes #-}
+haltl_ :: Foldable f => MonadUnliftIO m => AFoldl s t a b -> L.Foldl a b -> (r -> m s) -> f r -> m t
+haltl_ o f g s = flip L.foldlM s . L.halt_ . L.premapM g . L.generalize . o $ f
+{-# INLINE haltl_ #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-maximizes :: Foldable1 f => Ord a => AFoldl1 s t a a -> f s -> t 
-maximizes o = buildl1 o $ L1.maximum
-{-# INLINE maximizes #-}
-
--- | TODO: Document
---
--- >>> minimizesDef (maximizedDef (0,[]) second) "" [(0,"zero"),(1,"one"),(2,"two")]
--- (2,"one")
---
--- @since 0.0.3
-minimizesDef :: Foldable f => Ord a => AFoldl s t a a -> a -> f s -> t 
-minimizesDef o a = buildl o $ L.minimumDef a
-{-# INLINE minimizesDef #-}
-
--- | TODO: Document
---
--- >>> maximizesDef (maximizedDef (0,[]) second) "" [(0,"zero"),(1,"one"),(2,"two")]
--- (2,"zero")
---
--- @since 0.0.3
-maximizesDef :: Foldable f => Ord a => AFoldl s t a a -> a -> f s -> t 
-maximizesDef o a = buildl o $ L.maximumDef a
-{-# INLINE maximizesDef #-}
+haltsl_ :: Foldable f => MonadUnliftIO m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> (r -> m s) -> f r -> m t
+haltsl_ o h z k = haltl_ o $ L.Foldl h z k
+{-# INLINE haltsl_ #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-minimizesBy :: Foldable1 f => AFoldl1 s t a a -> (a -> a -> Ordering) -> f s -> t 
-minimizesBy o f = buildl1 o $ L1.minimumBy f
-{-# INLINE minimizesBy #-}
+skipl :: Exception e => Foldable f => MonadUnliftIO m => AFoldl s t a b -> L.Foldl a b -> (r -> m s) -> f r -> m ([e], t)
+skipl o f g s = flip L.foldlM s . L.skip . L.premapM g . L.generalize . o $ f
+{-# INLINE skipl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-maximizesBy :: Foldable1 f => AFoldl1 s t a a -> (a -> a -> Ordering) -> f s -> t 
-maximizesBy o f = buildl1 o $ L1.maximumBy f
-{-# INLINE maximizesBy #-}
+skipsl :: Exception e => Foldable f => MonadUnliftIO m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> (r -> m s) -> f r -> m ([e], t)
+skipsl o h z k = skipl o $ L.Foldl h z k
+{-# INLINE skipsl #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-minimizesByDef :: Foldable f => AFoldl s t a a -> (a -> a -> Ordering) -> a -> f s -> t 
-minimizesByDef o f a = buildl o $ L.minimumByDef f a
-{-# INLINE minimizesByDef #-}
+skipl_ :: Foldable f => MonadUnliftIO m => AFoldl s t a b -> L.Foldl a b -> (r -> m s) -> f r -> m t
+skipl_ o f g s = flip L.foldlM s . L.skip_ . L.premapM g . L.generalize . o $ f
+{-# INLINE skipl_ #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-maximizesByDef :: Foldable f => AFoldl s t a a -> (a -> a -> Ordering) -> a -> f s -> t 
-maximizesByDef o f a = buildl o $ L.maximumByDef f a
-{-# INLINE maximizesByDef #-}
+skipsl_ :: Foldable f => MonadUnliftIO m => AFoldl s t a b -> (x -> a -> x) -> x -> (x -> b) -> (r -> m s) -> f r -> m t
+skipsl_ o h z k = skipl_ o $ L.Foldl h z k
+{-# INLINE skipsl_ #-}
 
 ---------------------------------------------------------------------
 -- Internal

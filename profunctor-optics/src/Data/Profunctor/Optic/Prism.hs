@@ -14,29 +14,29 @@ module Data.Profunctor.Optic.Prism (
   , prism'
   , handling
   , clonePrism
-    -- * Optics
-  , left
-  , right
-  , just
-  , nothing
-  , this
-  , that
-  , both
-  , prefixed
-  , only
-  , nearly
-  , nthbit
-    -- * Operators
   , aside
   , without
   , below
   , toPastroSum
   , toTambaraSum
-  , withPrism
+    -- * Optics
+  , left
+  , right
+  , just
+  , nothing
+  , prefixed
+  , only
+  , nearly
+  , nthbit
+  , sync
+  , async
+  , exception
+  , asynchronous
     -- * Classes
   , Choice(..)
 ) where
 
+import Control.Exception as Ex
 import Control.Monad (guard)
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
@@ -46,6 +46,8 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Types
 import "these-skinny" Data.These
+import GHC.IO.Exception (IOErrorType)
+import qualified GHC.IO.Exception as Ghc
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -105,87 +107,6 @@ handling sca cbt = dimap sca cbt . right'
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o prism
 
----------------------------------------------------------------------
--- Common 'Prism's and 'Coprism's
----------------------------------------------------------------------
-
--- | Focus on the `Left` constructor of `Either`.
---
-left :: Prism (a + c) (b + c) a b
-left = left'
-
--- | Focus on the `Right` constructor of `Either`.
---
-right :: Prism (c + a) (c + b) a b
-right = right'
-
--- | Focus on the `Just` constructor of `Maybe`.
---
--- >>> Just 1 :| [Just 2, Just 3] & cotraverses just sum
--- Just 6
--- >>> Nothing :| [Just 2, Just 3] & cotraverses just sum
--- Nothing
---
-just :: Prism (Maybe a) (Maybe b) a b
-just = flip prism Just $ maybe (Left Nothing) Right
-
--- | Focus on the `Nothing` constructor of `Maybe`.
---
-nothing :: Prism (Maybe a) (Maybe b) () ()
-nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
-
--- | Focus on the 'This' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-this :: Prism' (These a b) a
-this = prism (these Right (Left . That) (\x y -> Left $ These x y)) This
-
--- | Focus on the 'That' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-that :: Prism' (These a b) b
-that = prism (these (Left . This) Right (\x y -> Left $ These x y)) That
-
--- | Focus on the 'These' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-both :: Prism' (These a b) (a, b)
-both = prism (these (Left . This) (Left . That) (\x y -> Right (x, y))) $ uncurry These
-
--- | Focus on the remainder of a list with a given prefix.
---
-prefixed :: Eq a => [a] -> Prism' [a] [a]
-prefixed ps = prism' (stripPrefix ps) (ps ++)
-
--- | Focus not just on a case, but a specific value of that case.
---
-only :: Eq a => a -> Prism' a ()
-only x = nearly x (x==)
-
--- | Create a 'Prism' from a value and a predicate.
---
--- >>> review (nearly [] null) ()
--- []
--- >>> [1,2,3,4] ^? nearly [] null
--- Nothing
---
--- @'nearly' [] 'Prelude.null' :: 'Prism'' [a] ()@
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that @f x@ holds iff @x ≡ a@. 
---
-nearly :: a -> (a -> Bool) -> Prism' a ()
-nearly x f = prism' (guard . f) (const x)
-
--- | Focus on the truth value of the nth bit in a bit array.
---
-nthbit :: Bits s => Int -> Prism' s ()
-nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
-
----------------------------------------------------------------------
--- Operators
----------------------------------------------------------------------
-
 -- | Use a 'Prism' to lift part of a structure.
 --
 aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
@@ -235,3 +156,92 @@ toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswa
 --
 toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
+
+---------------------------------------------------------------------
+-- Common 'Prism's and 'Coprism's
+---------------------------------------------------------------------
+
+-- | Focus on the `Left` constructor of `Either`.
+--
+left :: Prism (a + c) (b + c) a b
+left = left'
+
+-- | Focus on the `Right` constructor of `Either`.
+--
+right :: Prism (c + a) (c + b) a b
+right = right'
+
+-- | Focus on the `Just` constructor of `Maybe`.
+--
+-- >>> Just 1 :| [Just 2, Just 3] & cotraverses just sum
+-- Just 6
+-- >>> Nothing :| [Just 2, Just 3] & cotraverses just sum
+-- Nothing
+--
+just :: Prism (Maybe a) (Maybe b) a b
+just = flip prism Just $ maybe (Left Nothing) Right
+
+-- | Focus on the `Nothing` constructor of `Maybe`.
+--
+nothing :: Prism (Maybe a) (Maybe b) () ()
+nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+
+-- | Focus on the remainder of a list with a given prefix.
+--
+prefixed :: Eq a => [a] -> Prism' [a] [a]
+prefixed ps = prism' (stripPrefix ps) (ps ++)
+
+-- | Focus not just on a case, but a specific value of that case.
+--
+only :: Eq a => a -> Prism' a ()
+only x = nearly x (x==)
+
+-- | Create a 'Prism' from a value and a predicate.
+--
+-- >>> review (nearly [] null) ()
+-- []
+-- >>> [1,2,3,4] ^? nearly [] null
+-- Nothing
+--
+-- @'nearly' [] 'Prelude.null' :: 'Prism'' [a] ()@
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that @f x@ holds iff @x ≡ a@. 
+--
+nearly :: a -> (a -> Bool) -> Prism' a ()
+nearly x f = prism' (guard . f) (const x)
+
+-- | Focus on the truth value of the nth bit in a bit array.
+--
+nthbit :: Bits s => Int -> Prism' s ()
+nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
+
+-- | Focus on whether an exception is synchronous.
+--
+sync :: Exception e => Prism' e e 
+sync = filterOn $ \e -> case fromException (toException e) of
+  Just (SomeAsyncException _) -> False
+  Nothing -> True
+  where filterOn f = dimap (branch' f) join . right'
+
+-- | Focus on whether an exception is asynchronous.
+--
+async :: Exception e => Prism' e e 
+async = filterOn $ \e -> case fromException (toException e) of
+  Just (SomeAsyncException _) -> True
+  Nothing -> False
+  where filterOn f = dimap (branch' f) join . right'
+
+-- | Focus on whether a given exception has occurred.
+--
+-- @
+-- exception @IOException :: Prism' SomeException IOException
+-- @
+--
+exception :: Exception e => Prism' SomeException e
+exception = prism' fromException toException
+
+-- | Focus on whether a given asynchronous exception has occurred.
+--
+asynchronous :: Exception e => Prism' SomeException e
+asynchronous = prism' asyncExceptionFromException asyncExceptionToException

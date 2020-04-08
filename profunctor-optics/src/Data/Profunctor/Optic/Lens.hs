@@ -16,20 +16,24 @@ module Data.Profunctor.Optic.Lens (
   , ixlens
   , lensVl
   , ixlensVl
-  , grate
   , colens
+  , relens
   , cxlens
-  , grateVl
   , colensVl
+  , relensVl
   , cxlensVl
-  , inside
   , matching
-  , comatching
   , inverting
+  , comatching
   , cloneLens
   , cloneLensVl
   , cloneColens
   , cloneColensVl
+  , inside
+  , toPastro
+  , toTambara
+  , toClosure
+  , toEnvironment
     -- * Optics
   , first
   , ixfirst
@@ -50,6 +54,7 @@ module Data.Profunctor.Optic.Lens (
   , continued
   , continuedT
   , calledCC
+  , unlifted
     -- * Operators
   , coview
   , zipsWith
@@ -61,20 +66,13 @@ module Data.Profunctor.Optic.Lens (
   , intersectsMap
   , differencesMap
   , intersectsWithMap
-  , toPastro
-  , toTambara
-  , toClosure
-  , toEnvironment
-  , withLens
-  , withColens
-  , withIxlens
-  , withCxlens
     -- * Classes
   , Strong(..)
   , Closed(..)
 ) where
 
 import Control.Monad.Cont
+import Control.Monad.IO.Unlift
 import Data.Containers (PolyMap(..), IsSet(..), MonoZip(..))
 import Data.Distributive
 import Data.MonoTraversable as M (Element)
@@ -154,7 +152,7 @@ ixlens ska sbt = ixlensVl $ \kab s -> sbt s <$> uncurry kab (ska s)
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
 --
--- Compare 'Data.Profunctor.Optic.Lens.grateVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
+-- Compare 'Data.Profunctor.Optic.Lens.colensVl' and 'Data.Profunctor.Optic.Traversal.traversalVl'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input satisfies the following properties:
@@ -233,20 +231,20 @@ ixlensVl f = lensVl $ \iab -> f (curry iab) . snd
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-grate :: (((s -> a) -> b) -> t) -> Colens s t a b
-grate f = dimap (flip ($)) f . closed
-{-# INLINE grate #-}
+colens :: (((s -> a) -> b) -> t) -> Colens s t a b
+colens f = dimap (flip ($)) f . closed
+{-# INLINE colens #-}
 
 -- | Obtain a 'Colens' from a getter and setter. 
 --
 -- @
--- 'colens' f g ≡ \\f g -> 're' ('lens' f g)
--- 'colens' bsia bt ≡ 'colensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
--- 'review' $ 'colens' f g ≡ f
+-- 'relens' f g ≡ \\f g -> 're' ('lens' f g)
+-- 'relens' bsia bt ≡ 'relensVl' '$' \\ts b -> bsia b '<$>' (ts . bt '$' b)
+-- 'review' $ 'relens' f g ≡ f
 -- 'set' . 're' $ 're' ('lens' f g) ≡ g
 -- @
 --
--- /Caution/: Colenses are recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
+-- /Caution/: This function is inherently recursive, similar to < http://hackage.haskell.org/package/base-4.12.0.0/docs/Control-Arrow.html#t:ArrowLoop ArrowLoop >. 
 -- In addition to the normal optic laws, the input functions must have 
 -- the correct < https://wiki.haskell.org/Lazy_pattern_match laziness > annotations.
 --
@@ -254,15 +252,15 @@ grate f = dimap (flip ($)) f . closed
 --
 -- @
 -- ct21 :: Colens a b (a, c) (b, c)
--- ct21 = flip colens fst $ \ ~(_,c) b -> (b,c)
+-- ct21 = flip relens fst $ \ ~(_,c) b -> (b,c)
 -- @
 --
 -- However removing the annotation will result in a faulty optic.
 -- 
 -- See 'Data.Profunctor.Optic.Property'.
 --
-colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = cosecond . dimap (uncurry bsa) (id &&& bt)
+relens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
+relens bsa bt = cosecond . dimap (uncurry bsa) (id &&& bt)
 
 -- | TODO: Document
 --
@@ -271,7 +269,7 @@ cxlens :: (((s -> a) -> k -> b) -> t) -> Cxlens k s t a b
 cxlens f = cxlensVl $ \aib s -> f $ \sa -> aib (fmap sa s)
 {-# INLINE cxlens #-}
 
--- | Transform a Van Laarhoven grate into a profunctor grate.
+-- | Transform a Van Laarhoven colens into a profunctor colens.
 --
 -- Compare 'Data.Profunctor.Optic.Lens.lensVl' & 'Data.Profunctor.Optic.Traversal.cotraversalVl'.
 --
@@ -284,13 +282,13 @@ cxlens f = cxlensVl $ \aib s -> f $ \sa -> aib (fmap sa s)
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
-grateVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Colens s t a b 
-grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
-{-# INLINE grateVl #-}
+colensVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Colens s t a b 
+colensVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
+{-# INLINE colensVl #-}
 
--- | Transform a Van Laarhoven colens into a profunctor colens.
+-- | Transform a Van Laarhoven relens into a profunctor relens.
 --
--- Compare 'grateVl'.
+-- Compare 'colensVl'.
 --
 -- /Caution/: In addition to the normal optic laws, the input functions
 -- must have the correct laziness annotations.
@@ -299,41 +297,32 @@ grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 --
 -- @
 -- ct21 :: Colens a b (a, c) (b, c)
--- ct21 = colensVl $ \f ~(a,b) -> (,b) <$> f a
+-- ct21 = relensVl $ \f ~(a,b) -> (,b) <$> f a
 -- @
 --
 -- However removing the annotation will result in a faulty optic.
 -- 
-colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-colensVl o = cofirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
+-- @since 0.0.3
+relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
+relensVl o = cofirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
 
--- | Transform a coindexed Van Laarhoven grate into a coindexed profunctor grate.
+-- | Transform a coindexed Van Laarhoven colens into a coindexed profunctor colens.
 --
 -- @since 0.0.3
 cxlensVl :: (forall f. Functor f => (f a -> k -> b) -> f s -> t) -> Cxlens k s t a b
-cxlensVl f = grateVl $ \aib -> const . f aib 
+cxlensVl f = colensVl $ \aib -> const . f aib 
 {-# INLINE cxlensVl #-}
-
--- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
---
--- @
--- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
--- @
---
--- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
--- 4
---
-inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
-inside l = lensVl $ \f es -> o es <$> f (k es) where
-  k es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
-  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
-  sell x = Index x id
-{-# INLINE inside #-}
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --
 matching :: (s -> (c , a)) -> ((c , b) -> t) -> Lens s t a b
 matching sca cbt = dimap sca cbt . second'
+
+-- | Construct a 'Colens' from a pair of inverses.
+--
+inverting :: (s -> a) -> (b -> t) -> Colens s t a b
+inverting sa bt = colens $ \sab -> bt (sab sa)
+{-# INLINE inverting #-}
 
 -- | Obtain a 'Colens' from its free tensor representation.
 --
@@ -371,21 +360,15 @@ cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
 cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 {-# INLINE cloneLensVl #-}
 
--- | Construct a 'Colens' from a pair of inverses.
---
-inverting :: (s -> a) -> (b -> t) -> Colens s t a b
-inverting sa bt = grate $ \sab -> bt (sab sa)
-{-# INLINE inverting #-}
-
 -- | TODO: Document
 --
 cloneColens :: AColens s t a b -> Colens s t a b
-cloneColens k = withColens k grate
+cloneColens k = withColens k colens
 {-# INLINE cloneColens #-}
 
 -- | Extract the higher order function that characterizes a 'Colens'.
 --
--- The grate laws can be stated in terms or 'withColens':
+-- The colens laws can be stated in terms or 'withColens':
 -- 
 -- Identity:
 -- 
@@ -402,6 +385,46 @@ cloneColens k = withColens k grate
 cloneColensVl :: AColens s t a b -> (forall f . Functor f => (f a -> b) -> f s -> t)
 cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 {-# INLINE cloneColensVl #-}
+
+-- | Lift a 'Lens' so it can run under a function (or other corepresentable profunctor).
+--
+-- @
+-- 'inside' :: 'Lens' s t a b -> 'Lens' (e -> s) (e -> t) (e -> a) (e -> b)
+-- @
+--
+-- >>> (\x -> (x-1,x+1)) ^. inside first $ 5
+-- 4
+--
+inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
+inside l = lensVl $ \f es -> o es <$> f (k es) where
+  k es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
+  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
+  sell x = Index x id
+{-# INLINE inside #-}
+
+-- | Use a 'Lens' to construct a 'Pastro'.
+--
+toPastro :: ALens s t a b -> p a b -> Pastro p s t
+toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
+{-# INLINE toPastro #-}
+
+-- | Use a 'Lens' to construct a 'Tambara'.
+--
+toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
+toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
+{-# INLINE toTambara #-}
+
+-- | Use a 'Colens' to construct a 'Closure'.
+--
+toClosure :: Closed p => AColens s t a b -> p a b -> Closure p s t
+toClosure o p = withColens o $ \sabt -> Closure (closed . colens sabt $ p)
+{-# INLINE toClosure #-}
+
+-- | Use a 'Colens' to construct an 'Environment'.
+--
+toEnvironment :: Closed p => AColens s t a b -> p a b -> Environment p s t
+toEnvironment o p = withColens o $ \sabt -> Environment sabt p (curry eval)
+{-# INLINE toEnvironment #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -466,7 +489,7 @@ represented = tabulated . closed
 -- | Obtain a 'Colens' from a distributive functor.
 --
 distributed :: Distributive f => Colens (f a) (f b) a b
-distributed = grate (`cotraverse` id)
+distributed = colens (`cotraverse` id)
 {-# INLINE distributed #-}
 
 -- | Obtain a 'Colens' from an endomorphism. 
@@ -485,7 +508,7 @@ endomorphed = dimap appEndo Endo . closed
 -- @
 --
 continued :: Colens c (Cont a c) a a
-continued = grate cont
+continued = colens cont
 {-# INLINE continued #-}
 
 -- | Obtain a 'Colens' from a continuation.
@@ -495,7 +518,7 @@ continued = grate cont
 -- @
 --
 continuedT :: Colens c (ContT a m c) (m a) (m a)
-continuedT = grate ContT
+continuedT = colens ContT
 {-# INLINE continuedT #-}
 
 -- | Lift the current continuation into the calling context.
@@ -505,8 +528,22 @@ continuedT = grate ContT
 -- @
 --
 calledCC :: MonadCont m => Colens a (m a) (m b) (m a)
-calledCC = grate callCC
+calledCC = colens callCC
 {-# INLINE calledCC #-}
+
+-- | Unlift an action into an 'IO' context.
+--
+-- @
+-- 'liftIO' ≡ 'coview' 'unlifted'
+-- @
+--
+-- >>> let catchA = catch @ArithException
+-- >>> zipsWith unlifted (flip catchA . const) (throwIO Overflow) (print "caught") 
+-- "caught" 
+--
+unlifted :: MonadUnliftIO m => Colens (m a) (m b) (IO a) (IO b)
+unlifted = colens withRunInIO
+{-# INLINE unlifted #-}
 
 ---------------------------------------------------------------------
 -- Indexed optics
@@ -599,7 +636,7 @@ zipsWith4 o f s1 s2 s3 s4 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa 
 
 -- | Extract the higher order function that characterizes a 'Colens'.
 --
--- The grate laws can be stated in terms or 'withColens':
+-- The colens laws can be stated in terms or 'withColens':
 -- 
 -- Identity:
 -- 
@@ -644,27 +681,3 @@ differencesMap o = zipsWith o C.differenceMap
 intersectsWithMap :: PolyMap m => AColens s t (m a) (m b) -> (a -> a -> b) -> s -> s -> t
 intersectsWithMap o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> C.intersectionWithMap f (sa s1) (sa s2)
 {-# INLINE intersectsWithMap #-}
-
--- | Use a 'Lens' to construct a 'Pastro'.
---
-toPastro :: ALens s t a b -> p a b -> Pastro p s t
-toPastro o p = withLens o $ \sa sbt -> Pastro (uncurry sbt . swap) p (\s -> (sa s, s))
-{-# INLINE toPastro #-}
-
--- | Use a 'Lens' to construct a 'Tambara'.
---
-toTambara :: Strong p => ALens s t a b -> p a b -> Tambara p s t
-toTambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
-{-# INLINE toTambara #-}
-
--- | Use a 'Colens' to construct a 'Closure'.
---
-toClosure :: Closed p => AColens s t a b -> p a b -> Closure p s t
-toClosure o p = withColens o $ \sabt -> Closure (closed . grate sabt $ p)
-{-# INLINE toClosure #-}
-
--- | Use a 'Colens' to construct an 'Environment'.
---
-toEnvironment :: Closed p => AColens s t a b -> p a b -> Environment p s t
-toEnvironment o p = withColens o $ \sabt -> Environment sabt p (curry eval)
-{-# INLINE toEnvironment #-}

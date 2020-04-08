@@ -29,6 +29,7 @@ module Data.Profunctor.Optic.Setter (
   , omapped
   , imappedRep
   , contramapped
+  , exmapped
   , liftedM
   , liftedA
   , reliftedA
@@ -67,6 +68,8 @@ module Data.Profunctor.Optic.Setter (
 ) where
 
 import Control.Applicative (liftA,ZipList(..))
+import Control.Exception (Exception)
+import qualified Control.Exception as Ex
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
@@ -260,6 +263,19 @@ imappedRep = ixsetter F.imapRep
 contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
+
+-- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
+--
+-- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (exmapped ..~ \ (AssertionFailed _) -> Overflow)
+-- "caught"
+--
+-- @
+-- exmapped :: Exception e => Setter s s SomeException e
+-- @
+--
+exmapped :: Exception e1 => Exception e2 => Setter s s e1 e2
+exmapped = setter Ex.mapException
+{-# INLINE exmapped #-}
 
 -- | 'Setter' on each value of a monad.
 --

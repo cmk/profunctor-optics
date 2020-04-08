@@ -62,8 +62,6 @@ module Data.Profunctor.Optic.Traversal (
   , (||||)
     -- * Optics
   , sat
-  , here
-  , there
   , anulled
   , selected
   , traversed
@@ -119,7 +117,6 @@ import Data.Semigroup.Bitraversable
 import Data.Sequences (IsSequence)
 import qualified Data.Sequences as S
 import qualified Data.Functor.Rep as F
-import "these-skinny" Data.These hiding (here, there)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -127,7 +124,6 @@ import "these-skinny" Data.These hiding (here, there)
 -- >>> :set -XTypeApplications
 -- >>> :set -XTupleSections
 -- >>> :set -XRankNTypes
--- >>> :set -XPackageImports
 -- >>> import Data.Char
 -- >>> import Data.Function ((&))
 -- >>> import Data.Int
@@ -135,7 +131,6 @@ import "these-skinny" Data.These hiding (here, there)
 -- >>> import Data.Maybe
 -- >>> import Data.String
 -- >>> import Data.Semigroup
--- >>> import "these-skinny" Data.These (These(..))
 -- >>> import qualified Data.Bifunctor as B
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
@@ -221,7 +216,7 @@ atraversal f = Star #. f .# runStar
 --  'withLens' o 'traversing' ≡ 'traversed' . o
 -- @
 --
--- Compare 'Data.Profunctor.Optic.Moore.folding'.
+-- Compare 'Data.Profunctor.Optic.List.folding'.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions constitute a legal lens:
@@ -354,7 +349,7 @@ acotraversal f = Costar #. f .# runCostar
 -- * @sabt (\k -> f (k . sabt)) ≡ sabt (\k -> f ($ k))@
 --
 cotraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal (g s) (g t) a b
-cotraversing sabt = corepresent cotraverse . grate sabt
+cotraversing sabt = corepresent cotraverse . colens sabt
 
 -- | Obtain a 'Cotraversal' by embedding a reversed lens getter and setter into a 'Distributive' functor.
 --
@@ -363,7 +358,7 @@ cotraversing sabt = corepresent cotraverse . grate sabt
 -- @
 --
 retraversing :: Distributive g => (b -> t) -> (b -> s -> a) -> Cotraversal (g s) (g t) a b
-retraversing bt bsa = corepresent cotraverse . (re $ lens bt bsa)
+retraversing bt bsa = corepresent cotraverse . relens bsa bt
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
@@ -513,7 +508,7 @@ ixtraversalVl1 f = traversalVl1 $ \kab -> f (curry kab) . snd
 -- * @sabt (\k -> f (k . sabt)) ≡ sabt (\k -> f ($ k))@
 --
 cotraversing1 :: Distributive1 g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
-cotraversing1 sabt = corepresent cotraverse1 . grate sabt
+cotraversing1 sabt = corepresent cotraverse1 . colens sabt
 
 -- | Obtain a 'Cotraversal1' by embedding a reversed lens getter and setter into a 'Distributive1' functor.
 --
@@ -522,7 +517,7 @@ cotraversing1 sabt = corepresent cotraverse1 . grate sabt
 -- @
 --
 retraversing1 :: Distributive1 g => (b -> t) -> (b -> s -> a) -> Cotraversal1 (g s) (g t) a b
-retraversing1 bt bsa = corepresent cotraverse1 . (re $ lens bt bsa)
+retraversing1 bt bsa = corepresent cotraverse1 . relens bsa bt
 
 -- | Obtain a profunctor 'Cotraversal1' from a Van Laarhoven 'Cotraversal1'.
 --
@@ -583,32 +578,6 @@ sat e = traversalVl0 $ \point f s ->
       Nothing      -> point s
       Just (c, xs) -> f c <&> \d -> l <> S.singleton d <> xs
 {-# INLINE sat #-}
-
--- | A 'Traversal0' of the first half of a 'These'.
---
--- >>> over here show (That 1)
--- That 1
---
--- >>> over here show (These 'a' 2)
--- These "'a'" 2
---
--- @since 0.0.3
-here :: Traversal0 (These a c) (These b c) a b
-here = traversalVl0 $ \point afb -> these (fmap This . afb) (point . That) (\x y -> flip These y <$> afb x)
-{-# INLINE here #-}
-
--- | A 'Traversal0' of the second half of a 'These'.
---
--- >>> over there show (That 1)
--- That "1"
---
--- >>> over there show (These 'a' 2)
--- These 'a' "2"
---
--- @since 0.0.3
-there :: Traversal0 (These c a) (These c b) a b
-there = traversalVl0 $ \point afb -> these (point . This) (fmap That . afb) (\x y -> These x <$> afb y) 
-{-# INLINE there #-}
 
 -- | TODO: Document
 --
