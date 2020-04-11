@@ -25,7 +25,6 @@ module Data.Profunctor.Optic.Setter (
   , cod
   , dom
   , fmapped
-  , omapped
   , contramapped
   , liftedM
   , liftedA
@@ -37,6 +36,7 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , cond
+  , mappedException
     -- * Operators
   , over
   , (.~)
@@ -54,17 +54,18 @@ module Data.Profunctor.Optic.Setter (
   , scribe
 ) where
 
+import Control.Exception (Exception)
 import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.MonoTraversable (Element, MonoComonad(..), MonoFunctor(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (sieved,cosieved)
 import Data.Profunctor.Optic.Traversal
+import qualified Control.Exception as Ex
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -194,12 +195,6 @@ fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
 
--- | 'Setter' on each value of a monofunctor.
---
-omapped :: MonoFunctor a => Setter' a (Element a)
-omapped = setter omap
-{-# INLINE omapped #-}
-
 -- | 'Setter' on each value of a contravariant functor.
 --
 -- @
@@ -296,6 +291,19 @@ cond :: (a -> Bool) -> Setter' a a
 cond p = setter $ \f a -> if p a then f a else a
 {-# INLINE cond #-}
 
+-- | Map one exception into another as proposed in the paper "A semantics for imprecise exceptions".
+--
+-- >>> handles (only Overflow) (\_ -> return "caught") $ assert False (return "uncaught") & (mappedException ..~ \ (AssertionFailed _) -> Overflow)
+-- "caught"
+--
+-- @
+-- emapped :: Exception e => Setter s s SomeException e
+-- @
+--
+mappedException :: Exception e1 => Exception e2 => Setter s s e1 e2
+mappedException = setter Ex.mapException
+{-# INLINE mappedException #-}
+
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -331,7 +339,6 @@ reset o b = resets o $ const b
 resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
 resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
 {-# INLINE resets #-}
-
 
 ---------------------------------------------------------------------
 -- Mtl

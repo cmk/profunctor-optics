@@ -35,10 +35,13 @@ source-repository head
 
 library
   exposed-modules:
+      Control.Exception.Optic
+
       Data.Tuple.Optic
       
       Data.Profunctor.Rep.Foldl
       Data.Profunctor.Rep.Foldl1
+      Data.Profunctor.Rep.Foldr
 
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
@@ -53,8 +56,8 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
       --Data.Profunctor.Optic.Fold.Prelude
-      Data.Profunctor.Optic.Machine
-      --Data.Profunctor.Optic.Machine.Prelude
+      Data.Profunctor.Optic.List
+      --Data.Profunctor.Optic.List.Prelude
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Zoom
@@ -83,22 +86,30 @@ library
 
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
   build-depends:
-      base              >= 4.9      && < 5.0
-    , adjunctions       >= 4.4      && < 5.0
-    , coapplicative     >= 0.0.1    && < 0.2
-    , distributive      >= 0.3      && < 1
-    , lawz              >= 0.1.1    && < 0.2
-    , foldl             >= 1.4.5    && < 1.5
-    , mtl               >= 2.0.1    && < 2.3
-    , newtype-generics  >= 0.5.3    && < 0.6
-    , profunctors       >= 5.4      && < 6
-    -- , rings             >= 0.1.3    && < 0.1.4
-    , semigroupoids     >= 5        && < 6
-    , tagged            >= 0.4.4    && < 1
-    , transformers      >= 0.5      && < 0.6
-    , mono-traversable
-    , bytestring
+      base                   >= 4.10      && < 5.0
+    , coapplicative          >= 0.0.1
+    , distributive           >= 0.3
+    , mtl                    >= 2.0.1
+    , newtype-generics       >= 0.5.3
+    , profunctors            >= 5.4
+    , semigroupoids          >= 5
+    , tagged                 >= 0.4.4
+    , unliftio-core          >= 0.1.2.0
+
+    , foldl
+    , deferred-folds
+
     , text
+    , hashable
+    , primitive 
+    , bytestring
+    , containers
+    , unordered-containers
+    -- , strict                 >= 0.3.2
+    , transformers           >= 0.5
+    -- , adjunctions            >= 4.4
+
+    , mono-traversable       >= 1.0.13.0
 
 executable doctest
   main-is:           doctest.hs
@@ -109,7 +120,8 @@ executable doctest
 
   build-depends:
       base
-    , doctest >= 0.8
+    , bytestring
+    , doctest                >= 0.8
     , mtl
     , profunctor-optics
 

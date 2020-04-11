@@ -18,8 +18,6 @@ module Data.Profunctor.Optic.Carrier (
   , ALens'
   , AColens
   , AColens'
-  , AGrate
-  , AGrate'
   , ATraversal0
   , ATraversal0'
   , ATraversal
@@ -47,7 +45,7 @@ module Data.Profunctor.Optic.Carrier (
   , withCoprism
   , withLens
   , withColens
-  , withGrate
+  , withColens
   , withAffine
   , withAffine'
   , withCoaffine
@@ -57,7 +55,7 @@ module Data.Profunctor.Optic.Carrier (
   , CoprismRep(..)
   , LensRep(..)
   , ColensRep(..)
-  , GrateRep(..)
+  , ColensRep(..)
   , AffineRep(..)
   , CoaffineRep(..)
   , Star(..)
@@ -130,11 +128,7 @@ type ALens' s a = ALens s s a a
 
 type AColens s t a b = Optic (ColensRep a b) s t a b
 
-type AColens' s a = AColens s s a a 
-
-type AGrate s t a b = Optic (GrateRep a b) s t a b
-
-type AGrate' s a = AGrate s s a a
+type AColens' t b = AColens t t b b
 
 type ATraversal0 s t a b = Optic (AffineRep a b) s t a b
 
@@ -158,7 +152,7 @@ type AFold r s a = ATraversal' (Const r) s a
 
 type ACofold r t b = ACotraversal' (Const r) t b
 
-type AFoldl s t a b = Optic L.Fold s t a b
+type AFoldl s t a b = Optic L.Foldl s t a b
 
 type AFoldl' s a = AFoldl s s a a
 
@@ -201,16 +195,11 @@ withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 {-# INLINE withLens #-}
 
--- | Extract the two functions that characterize a 'Colens'.
+-- | Extract the function that characterizes a 'Colens'.
 --
-withColens :: AColens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
-withColens l f = case l (ColensRep (flip const) id) of ColensRep x y -> f x y
-
--- | Extract the function that characterizes a 'Grate'.
---
-withGrate :: AGrate s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
-withGrate o f = case o (GrateRep $ \k -> k id) of GrateRep sabt -> f sabt
-{-# INLINE withGrate #-}
+withColens :: AColens s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
+withColens o f = case o (ColensRep $ \k -> k id) of ColensRep sabt -> f sabt
+{-# INLINE withColens #-}
 
 -- | TODO: Document
 --
@@ -323,42 +312,26 @@ instance Representable (LensRep a b) where
 -- ColensRep
 ---------------------------------------------------------------------
 
-data ColensRep a b s t = ColensRep (b -> s -> a) (b -> t)
+-- | The 'ColensRep' profunctor precisely characterizes 'Colens'.
+--
+newtype ColensRep a b s t = ColensRep { unColensRep :: ((s -> a) -> b) -> t }
 
 instance Profunctor (ColensRep a b) where
-  dimap f g (ColensRep bsa bt) = ColensRep (\b s -> bsa b (f s)) (g . bt)
+  dimap f g (ColensRep z) = ColensRep $ \d -> g (z $ \k -> d (k . f))
 
-{-
+instance Closed (ColensRep a b) where
+  closed (ColensRep sabt) = ColensRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
+
 instance Costrong (ColensRep a b) where
-  unfirst (ColensRep baca bbc) = ColensRep (curry baa) (forget2 $ bbc . fst)
-    where baa = uncurry baca . shuffle . (\(a,b) -> (a,bbc b)) . swap --TODO: B.second bbc
-          shuffle (x,(y,z)) = (y,(x,z))
--}
-
----------------------------------------------------------------------
--- GrateRep
----------------------------------------------------------------------
-
--- | The 'GrateRep' profunctor precisely characterizes 'Grate'.
---
-newtype GrateRep a b s t = GrateRep { unGrateRep :: ((s -> a) -> b) -> t }
-
-instance Profunctor (GrateRep a b) where
-  dimap f g (GrateRep z) = GrateRep $ \d -> g (z $ \k -> d (k . f))
-
-instance Closed (GrateRep a b) where
-  closed (GrateRep sabt) = GrateRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
-
-instance Costrong (GrateRep a b) where
   unfirst = unfirstCorep
 
-instance Cosieve (GrateRep a b) (Coindex b a) where
-  cosieve (GrateRep f) (Coindex g) = f g
+instance Cosieve (ColensRep a b) (Coindex b a) where
+  cosieve (ColensRep f) (Coindex g) = f g
 
-instance Corepresentable (GrateRep a b) where
-  type Corep (GrateRep a b) = Coindex b a
+instance Corepresentable (ColensRep a b) where
+  type Corep (ColensRep a b) = Coindex b a
 
-  cotabulate f = GrateRep $ f . Coindex
+  cotabulate f = ColensRep $ f . Coindex
 
 ---------------------------------------------------------------------
 -- AffineRep
@@ -533,11 +506,11 @@ instance a ~ b => Coapplicative (Index a b) where
 -- Coindex
 ---------------------------------------------------------------------
 
--- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Lens.Grate'
+-- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Lens.Colens'
 --
 -- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@,
 --
--- See also 'Data.Profunctor.Optic.Lens.cloneGrateVl'.
+-- See also 'Data.Profunctor.Optic.Lens.cloneColensVl'.
 --
 -- 'Coindex' can also be used to compose indexed maps, folds, or traversals directly.
 --

@@ -3,10 +3,13 @@
 {-# LANGUAGE TypeFamilies     #-}
 {-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE ConstraintKinds #-}
 
 module Data.Profunctor.Optic.Import (
     type (+)
+  , type (-)
   , (&)
     -- * Operations on (->) profunctors
   , rgt
@@ -52,6 +55,7 @@ import Data.Functor.Compose as Export
 import Data.Functor.Const as Export
 import Data.Functor.Contravariant as Export
 import Data.Functor.Identity as Export
+import Data.Monoid as Export
 import Data.Profunctor.Unsafe as Export
 import Data.Profunctor.Types as Export
 import Data.Profunctor.Strong as Export (Strong(..), Costrong(..))
@@ -62,8 +66,70 @@ import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tuple (swap)
 import Data.Tagged as Export
 import Data.Void as Export
-import Test.Logic
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
+import qualified Control.Monad as M
+
+-- | Hyphenation operator.
+type (g - f) a = f (g a)
+
+
+type (+) = Either
+
+xor :: Bool -> Bool -> Bool
+xor a b = (a || b) && not (a && b)
+
+xor3 :: Bool -> Bool -> Bool -> Bool
+xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
+
+infixr 0 ==>
+
+(==>) :: Bool -> Bool -> Bool
+(==>) a b = not a || b
+
+iff :: Bool -> Bool -> Bool
+iff a b = a ==> b && b ==> a
+
+infixr 1 <==>
+
+(<==>) :: Bool -> Bool -> Bool
+(<==>) = iff
+
+rgt :: (a -> b) -> a + b -> b
+rgt f = either f id
+{-# INLINE rgt #-}
+
+rgt' :: Void + b -> b
+rgt' = rgt absurd
+{-# INLINE rgt' #-}
+
+lft :: (b -> a) -> a + b -> a
+lft f = either id f
+{-# INLINE lft #-}
+
+lft' :: a + Void -> a
+lft' = lft absurd
+{-# INLINE lft' #-}
+
+eswap :: (a1 + a2) -> (a2 + a1)
+eswap (Left x) = Right x
+eswap (Right x) = Left x
+{-# INLINE eswap #-}
+
+fork :: a -> (a , a)
+fork = M.join (,)
+{-# INLINE fork #-}
+
+join :: (a + a) -> a
+join = M.join either id
+{-# INLINE join #-}
+
+eval :: (a , a -> b) -> b
+eval = uncurry $ flip id
+{-# INLINE eval #-}
+
+apply :: (b -> a , b) -> a
+apply = uncurry id
+{-# INLINE apply #-}
 
 branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y

@@ -21,15 +21,23 @@ module Data.Profunctor.Optic.View (
   , (^.)
   , view
   , views
-  , use
-  , uses
   , (.^)
   , review
   , reviews
+    -- * MonadState
+  , use
+  , uses
   , reuse
   , reuses
+    -- * MonadIO
+  , throws
+  , throws_
+  , throwsTo
 ) where
 
+import Control.Concurrent (ThreadId)
+import Control.Exception (Exception (..))
+import qualified Control.Exception as Ex
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Data.Profunctor.Optic.Carrier
@@ -313,3 +321,33 @@ reuse o = gets (unTagged #. o .# Tagged)
 reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
 reuses o tr = gets (tr . unTagged #. o .# Tagged)
 {-# INLINE reuses #-}
+
+---------------------------------------------------------------------
+-- 'MonadIO'
+---------------------------------------------------------------------
+
+-- | Throw an exception described by an optic.
+--
+-- @
+-- 'throws' o e \`seq\` x  ≡ 'throws' o e
+-- @
+--
+throws :: MonadIO m => Exception e => AReview e b -> b -> m r
+throws o = reviews o $ liftIO . Ex.throwIO
+{-# INLINE throws #-}
+
+-- | Variant of 'throws' for error constructors with no arguments.
+--
+throws_ :: MonadIO m => Exception e => AReview e () -> m r
+throws_ o = throws o ()
+{-# INLINE throws_ #-}
+
+-- | Raise an 'Exception' specified by an optic in the target thread.
+--
+-- @
+-- 'throwsTo' thread o ≡ 'throwTo' thread . 'review' o
+-- @
+--
+throwsTo :: MonadIO m => Exception e => ThreadId -> AReview e b -> b -> m ()
+throwsTo tid o = reviews o (liftIO . Ex.throwTo tid)
+{-# INLINE throwsTo #-}
