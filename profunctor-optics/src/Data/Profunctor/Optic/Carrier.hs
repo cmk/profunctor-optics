@@ -29,10 +29,10 @@ module Data.Profunctor.Optic.Carrier (
   , AFold0
   , AFold
   , ACofold
-  , AFoldl
-  , AFoldl'
-  , AFoldl1
-  , AFoldl1'
+  , ARescan
+  , ARescan'
+  , ARescan1
+  , ARescan1'
   , ASetter
   , ASetter'
   , AResetter
@@ -86,14 +86,18 @@ import Data.Function
 import Data.Monoid(Alt(..))
 import Data.Profunctor.Choice
 import Data.Profunctor.Strong
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Rep (unfirstCorep)
+import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Rep
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
 import qualified Control.Category as C
-import qualified Data.Profunctor.Rep.Foldl as L
-import qualified Data.Profunctor.Rep.Foldl1 as L1
+import qualified Control.Foldl as L
+import qualified Data.Profunctor.Rep.Fold as L
+import qualified Data.Profunctor.Rep.Fold1 as L1
+import qualified Data.Foldable as F
+import qualified Prelude as P
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -152,13 +156,13 @@ type AFold r s a = ATraversal' (Const r) s a
 
 type ACofold r t b = ACotraversal' (Const r) t b
 
-type AFoldl s t a b = Optic L.Foldl s t a b
+type ARescan s t a b = Optic L.Fold s t a b
 
-type AFoldl' s a = AFoldl s s a a
+type ARescan' s a = ARescan s s a a
 
-type AFoldl1 s t a b = Optic L1.Foldl1 s t a b
+type ARescan1 s t a b = Optic L1.Fold1 s t a b
 
-type AFoldl1' s a = AFoldl1 s s a a
+type ARescan1' s a = ARescan1 s s a a
 
 type ASetter f s t a b = ATraversal f s t a b
 
@@ -265,6 +269,10 @@ instance Choice (PrismRep a b) where
   right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
   {-# INLINE right' #-}
 
+---------------------------------------------------------------------
+-- CoprismRep
+---------------------------------------------------------------------
+
 data CoprismRep a b s t = CoprismRep (s -> a) (b -> a + t) 
 
 instance Functor (CoprismRep a b s) where
@@ -279,7 +287,7 @@ instance Profunctor (CoprismRep a b) where
   {-# INLINE rmap #-}
 
 instance Cochoice (CoprismRep a b) where
-  unleft (CoprismRep sca batc) = CoprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  unleft (CoprismRep sa bat) = CoprismRep (sa . Left) (forgetr $ either (eassocl . bat) Right)
   {-# INLINE unleft #-}
 
 ---------------------------------------------------------------------
@@ -381,7 +389,6 @@ instance Applicative (Index0 a b) where
 ---------------------------------------------------------------------
 -- CoaffineRep
 ---------------------------------------------------------------------
-
 --TODO: Corepresentable, Coapplicative (Corep)
 
 -- | The 'CoaffineRep' profunctor precisely characterizes 'Cotraversal0'.
@@ -399,7 +406,6 @@ instance Closed (CoaffineRep a b) where
 instance Choice (CoaffineRep a b) where
   left' (CoaffineRep stabt) =
     CoaffineRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
-
 
 ---------------------------------------------------------------------
 -- 'Paired'
@@ -489,7 +495,7 @@ instance Profunctor (Index a) where
   dimap f g (Index a bs) = Index a (g . bs . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (Index a b) where
+instance a ~ b => F.Foldable (Index a b) where
   foldMap f (Index b bs) = f . bs $ b
 
 --coapp f = either (Left . const) (Right . const) $ f b

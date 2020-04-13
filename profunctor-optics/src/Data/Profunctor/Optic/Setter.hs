@@ -30,7 +30,7 @@ module Data.Profunctor.Optic.Setter (
   , liftedA
   , reliftedA
   , reliftedF
-  , zipListed
+  , relisted
   , forwarded
   , censored
   , zipped
@@ -59,12 +59,12 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Combinator
-import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Iso (sieved,cosieved)
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Iso (sieved,cosieved,zipListed)
 import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator
 import qualified Control.Exception as Ex
 
 -- $setup
@@ -247,9 +247,9 @@ reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
 --
 -- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
 --
-zipListed :: Resetter [a] [b] a b
-zipListed = dimap ZipList getZipList . reliftedA
-{-# INLINE zipListed #-}
+relisted :: Resetter [a] [b] a b
+relisted = zipListed . reliftedA
+{-# INLINE relisted #-}
 
 -- | 'Setter' on the local environment of a 'Reader'. 
 --
@@ -322,7 +322,7 @@ set o b = sets o $ const b
 -- | TODO: Document
 --
 sets ::  ASetter Identity s t a b -> (a -> b) -> s -> t
-sets o = (runIdentity #.) #. traverses o .# (Identity #.)
+sets o = (runIdentity #.) #. stars o .# (Identity #.)
 {-# INLINE sets #-}
 
 -- | Set the focus of a 'Resetter'.
@@ -337,7 +337,7 @@ reset o b = resets o $ const b
 -- | TODO: Document
 --
 resets :: AResetter Identity s t a b -> (a -> b) -> s -> t
-resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
+resets o = (.# Identity) #. costars o .# (.# runIdentity) 
 {-# INLINE resets #-}
 
 ---------------------------------------------------------------------

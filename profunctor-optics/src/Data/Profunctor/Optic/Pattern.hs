@@ -10,35 +10,32 @@
 module Data.Profunctor.Optic.Pattern where
 
 import Control.Exception (Exception(..), SomeException)
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Import
-import Data.MonoTraversable (Element)
-import Data.Sequences
+import Data.Word
+import qualified Data.ByteString            as BS
+import qualified Data.ByteString.Char8      as CS
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.ByteString.Lazy.Char8 as CL
 
-pattern Lazy :: LazySequence l s => l -> s
-pattern Lazy a <- (view (re strict) -> a) where Lazy a = review (re strict) a
+pattern Bytes :: BL.ByteString -> [Word8]
+pattern Bytes b <- (view bytes -> b) where Bytes b = review bytes b
 
-pattern Strict :: LazySequence l s => s -> l
-pattern Strict a <- (view strict -> a) where Strict a = review strict a
+pattern Chars :: CL.ByteString -> String
+pattern Chars b <- (view chars -> b) where Chars b = review chars b
 
-pattern Chunked :: LazySequence l s => [s] -> l
+pattern Bytes' :: BS.ByteString -> [Word8]
+pattern Bytes' b <- (view bytes' -> b) where Bytes' b = review bytes' b
+
+pattern Chars' :: CS.ByteString -> String
+pattern Chars' b <- (view chars' -> b) where Chars' b = review chars' b
+
+pattern Chunked :: BL.ByteString -> [BS.ByteString]
 pattern Chunked a <- (view chunked -> a) where Chunked a = review chunked a
-
-pattern Packed :: IsSequence s => s -> [Element s]
-pattern Packed a <- (view (re unpacked) -> a) where Packed a = review (re unpacked) a
-
-pattern Unpacked :: IsSequence s => [Element s] -> s
-pattern Unpacked a <- (view unpacked -> a) where Unpacked a = review unpacked a
-
-pattern Swapped :: (a, b) -> (b, a)
-pattern Swapped a <- (view swapped -> a) where Swapped a = review swapped a
-
-pattern Reversed :: IsSequence s => s -> s
-pattern Reversed a <- (view reversed -> a) where Reversed a = review reversed a
 
 pattern Exception :: Exception a => a -> SomeException
 pattern Exception e <- (preview exception -> Just e) where Exception e = review exception e

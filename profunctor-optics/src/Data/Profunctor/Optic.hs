@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE PolyKinds             #-}
 module Data.Profunctor.Optic (
-    module Types
+    module Type
   , module Carrier
   , module Combinator
   , module Pattern
@@ -16,7 +16,7 @@ module Data.Profunctor.Optic (
   , module Prism
   , module Lens
   , module Traversal
-  , module List
+  , module Scan
   , module Fold
   , module View
   , module Setter
@@ -24,7 +24,7 @@ module Data.Profunctor.Optic (
   , module Zoom
 ) where
 
-import Data.Profunctor.Optic.Types            as Types
+import Data.Profunctor.Optic.Type             as Type
 import Data.Profunctor.Optic.Carrier          as Carrier
 import Data.Profunctor.Optic.Combinator       as Combinator
 import Data.Profunctor.Optic.Pattern          as Pattern
@@ -34,7 +34,7 @@ import Data.Profunctor.Optic.Prism            as Prism
 import Data.Profunctor.Optic.Lens             as Lens
 import Data.Profunctor.Optic.Traversal        as Traversal
 import Data.Profunctor.Optic.Fold             as Fold
-import Data.Profunctor.Optic.List             as List
+import Data.Profunctor.Optic.Scan             as Scan
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
 import Data.Profunctor.Optic.Zoom             as Zoom

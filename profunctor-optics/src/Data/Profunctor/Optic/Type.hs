@@ -17,18 +17,19 @@
 #define MIN_VERSION_profunctors(x,y,z) 1
 #endif
 
-module Data.Profunctor.Optic.Types (
+module Data.Profunctor.Optic.Type (
+    type (+)
     -- * Optic
-    Optic, Optic'
+  , Optic, Optic'
     -- * Constraints
   , Affine, Coaffine
   , Traversing, Cotraversing
   , Traversing1, Cotraversing1
-  , Listing, Listing1
+  , Rescanning, Rescanning1
   , Mapping, Remapping
   , Mapping1, Remapping1
   , CoercingL, CoercingR
-  , Foldable', Foldable1'
+  , Traversable, Traversable1
     -- * Equality
   , Equality, Equality'
     -- * Iso
@@ -49,9 +50,9 @@ module Data.Profunctor.Optic.Types (
   , Fold0, Cofold0
   , Fold, Cofold
   , Fold1, Cofold1
-    -- * List
-  , List, List1
-  , List', List1'
+    -- * Rescan
+  , Rescan, Rescan1
+  , Rescan', Rescan1'
     -- * Setter
   , Setter, Resetter
   , Setter1, Resetter1
@@ -69,11 +70,13 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Types as Export
-
+import Data.Foldable (Foldable)
 -- $setup
 -- >>> :set -XCPP
 -- >>> :set -XNoOverloadedStrings
 -- >>> :load Data.Profunctor.Optic
+
+type (+) = Either
 
 ---------------------------------------------------------------------
 -- Constraints
@@ -85,31 +88,31 @@ type Coaffine p = (Closed p, Choice p)
 
 type Traversing p = (Representable p, Applicative' (Rep p))
 
-type Cotraversing p = (Corepresentable p, Coapplicative (Corep p))
-
 type Traversing1 p = (Representable p, Apply (Rep p))
 
-type Cotraversing1 p = (Corepresentable p, Coapply (Corep p))
+type Cotraversing p = (Corepresentable p, Coapply (Corep p))
 
-type Listing p = (Cotraversing1 p, Foldable' (Corep p))
+type Cotraversing1 p = (Corepresentable p, Coapplicative (Corep p))
 
-type Listing1 p = (Cotraversing p, Foldable1' (Corep p))
+type Scanning p = (Traversing p, Distributive (Rep p))
 
-type Mapping p = (Traversing p, Distributive (Rep p))
+type Scanning1 p = (Traversing1 p, Distributive1 (Rep p))
 
-type Remapping p = (Cotraversing1 p, Traversable (Corep p))
+type Rescanning p = (Cotraversing p, Traversable (Corep p))
 
-type Mapping1 p = (Traversing1 p, Distributive1 (Rep p))
+type Rescanning1 p = (Cotraversing1 p, Traversable1 (Corep p))
 
-type Remapping1 p = (Cotraversing p, Traversable1 (Corep p))
+type Mapping p = (Scanning p, Monad (Rep p))
+
+type Mapping1 p = (Scanning1 p, Bind (Rep p))
+
+type Remapping p = Rescanning p -- (Rescanning p, Comonad (Corep p))
+
+type Remapping1 p = Rescanning1 p -- (Rescanning1 p, Comonad (Corep p))
 
 type CoercingL p = (Bifunctor p)
 
 type CoercingR p = (forall x. Contravariant (p x))
-
-type Foldable' f = (Functor f, Foldable f)
-
-type Foldable1' f = (Functor f, Foldable1 f)
 
 ---------------------------------------------------------------------
 -- Optic
@@ -173,25 +176,25 @@ type Colens' s a = Colens s s a a
 --
 type Traversal0 s t a b = forall p. Affine p => Optic p s t a b 
 
--- | \( \mathsf{Cotraversal0}\;S\;A = \exists D, I, S \cong I \to D + A \)
---
-type Cotraversal0 s t a b = forall p. Coaffine p => Optic p s t a b
-
 -- | \( \mathsf{Traversal}\;S\;A = \exists F : \mathsf{Traversable}, S \equiv F\,A \)
 --
 type Traversal s t a b = forall p. (Affine p, Traversing p) => Optic p s t a b
-
--- | \( \mathsf{Cotraversal}\;S\;A = \exists F : \mathsf{Distributive}, S \equiv F\,A \)
---
-type Cotraversal s t a b = forall p. (Coaffine p, Cotraversing p) => Optic p s t a b
 
 -- | \( \mathsf{Traversal1}\;S\;A = \exists F : \mathsf{Traversable1}, S \equiv F\,A \)
 --
 type Traversal1 s t a b = forall p. (Strong p, Traversing1 p) => Optic p s t a b 
 
--- | \( \mathsf{Cotraversal1}\;S\;A = \exists F : \mathsf{Distributive1}, S \equiv F\,A \)
+-- | \( \mathsf{Cotraversal0}\;S\;A = \exists D, I, S \cong I \to D + A \)
 --
-type Cotraversal1 s t a b = forall p. (Closed p, Cotraversing1 p) => Optic p s t a b
+type Cotraversal0 s t a b = forall p. Coaffine p => Optic p s t a b
+
+-- | \( \mathsf{Cotraversal}\;S\;A = \exists F : \mathsf{Distributive1}, S \equiv F\,A \)
+--
+type Cotraversal s t a b = forall p. (Coaffine p, Cotraversing p) => Optic p s t a b
+
+-- | \( \mathsf{Cotraversal}\;S\;A = \exists F : \mathsf{Distributive}, S \equiv F\,A \)
+--
+type Cotraversal1 s t a b = forall p. (Coaffine p, Cotraversing1 p) => Optic p s t a b
 
 type Traversal0' s a = Traversal0 s s a a
 
@@ -199,7 +202,7 @@ type Cotraversal0' t b = Cotraversal0 t t b b
 
 type Traversal' s a = Traversal s s a a
 
-type Cotraversal' t b = Cotraversal t t b b
+type Cotraversal' t b = Cotraversal1 t t b b
 
 type Traversal1' s a = Traversal1 s s a a
 
@@ -219,19 +222,19 @@ type Cofold0 t b = forall p. (Coaffine p, CoercingL p) => Optic' p t b
 
 type Cofold t b = forall p. (Coaffine p, Cotraversing p, CoercingL p) => Optic' p t b
 
-type Cofold1 t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Optic' p t b 
+type Cofold1 t b = forall p. (Coaffine p, Cotraversing1 p, CoercingL p) => Optic' p t b 
 
 ---------------------------------------------------------------------
--- List
+-- Rescan
 ---------------------------------------------------------------------
 
-type List s t a b = forall p. (Coaffine p, Listing p) => Optic p s t a b
+type Rescan s t a b = forall p. (Closed p, Rescanning p) => Optic p s t a b
 
-type List1 s t a b = forall p. (Affine p, Coaffine p, Listing1 p) => Optic p s t a b
+type Rescan1 s t a b = forall p. (Coaffine p, Rescanning1 p) => Optic p s t a b
 
-type List' t b = List t t b b
+type Rescan' t b = Rescan t t b b
 
-type List1' t b = List1 t t b b
+type Rescan1' t b = Rescan1 t t b b
 
 ---------------------------------------------------------------------
 -- Setter
@@ -241,13 +244,13 @@ type List1' t b = List1 t t b b
 --
 type Setter s t a b = forall p. (Affine p, Coaffine p, Mapping p) => Optic p s t a b
 
+type Setter1 s t a b = forall p. (Strong p, Coaffine p, Mapping1 p) => Optic p s t a b
+
 -- | \( \quad \mathsf{Resetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
 --
 -- See also section 3 on Kaleidoscopes < https://cs.ttu.ee/events/nwpt2019/abstracts/paper14.pdf here >.
 --
-type Resetter s t a b = forall p. (Coaffine p, Remapping p) => Optic p s t a b 
-
-type Setter1 s t a b = forall p. (Affine p, Coaffine p, Mapping1 p) => Optic p s t a b
+type Resetter s t a b = forall p. (Affine p, Closed p, Remapping p) => Optic p s t a b 
 
 type Resetter1 s t a b = forall p. (Affine p, Coaffine p, Remapping1 p) => Optic p s t a b 
 
@@ -353,16 +356,12 @@ instance Contravariant f => Bifunctor (Costar f) where
   second f (Costar g) = Costar $ f . g
 
 #if MIN_VERSION_profunctors(5,4,0)
--- used for Choice operations (e.g. preview) on Cotraversals & Cofolds
--- e.g. 
--- distributes left' (1, Left "foo")
+-- used for Choice operations on Cotraversals & Cofolds
 instance Coapplicative f => Choice (Costar f) where
   left' (Costar f) = Costar $ either (Left . f) (Right . copure) . coapply
 #endif
 
-#if !(MIN_VERSION_profunctors(5,5,0))
-instance Cochoice (Forget r) where 
-  unleft (Forget f) = Forget $ f . Left
-
-  unright (Forget f) = Forget $ f . Right
-#endif
+{-
+unright' :: Coapplicative f => Star f (Either a b) (Either a c) -> Star f b c
+unright' (Star f) = Star (go . Right) where go = either (go . Left) id . B.first copure . coapply . f
+-}

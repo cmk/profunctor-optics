@@ -42,7 +42,6 @@ module Data.Profunctor.Optic.Lens (
   , morphed
   , continued
   , continuedT
-  , calledCC
   , unlifted
   , masked
     -- * Operators
@@ -62,10 +61,11 @@ import Data.Distributive
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
-import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator 
 import Data.Profunctor.Strong
 import qualified Control.Exception as Ex
 
@@ -212,7 +212,7 @@ relens bsa bt = cosecond . dimap (uncurry bsa) (id &&& bt)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 colensVl :: (forall f. Functor f => (f a -> b) -> f s -> t) -> Colens s t a b 
-colensVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
+colensVl f = dimap (curry eval) (f trivial . Coindex) . closed
 {-# INLINE colensVl #-}
 
 -- | Transform a Van Laarhoven relens into a profunctor relens.
@@ -233,7 +233,7 @@ colensVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 -- 
 -- @since 0.0.3
 relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-relensVl o = cofirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
+relensVl f = cofirst . dimap (uncurry id . swap) ((info &&& vals) . f (flip Index id))
 
 -- | Obtain a 'Lens' from its free tensor representation.
 --
@@ -319,9 +319,8 @@ cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 --
 inside :: Corepresentable p => ALens s t a b -> Lens (p e s) (p e t) (p e a) (p e b)
 inside l = lensVl $ \f es -> o es <$> f (k es) where
-  k es = cotabulate $ \ e -> info $ cloneLensVl l sell (cosieve es e)
-  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l sell (cosieve es e)
-  sell x = Index x id
+  k es = cotabulate $ \ e -> info $ cloneLensVl l (flip Index id) (cosieve es e)
+  o es ea = cotabulate $ \ e -> flip vals (cosieve ea e) $ cloneLensVl l (flip Index id) (cosieve es e)
 {-# INLINE inside #-}
 
 -- | Use a 'Lens' to construct a 'Pastro'.
@@ -430,16 +429,6 @@ continued = colens cont
 continuedT :: Colens c (ContT a m c) (m a) (m a)
 continuedT = colens ContT
 {-# INLINE continuedT #-}
-
--- | Lift the current continuation into the calling context.
---
--- @
--- 'zipsWith' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
--- @
---
-calledCC :: MonadCont m => Colens a (m a) (m b) (m a)
-calledCC = colens callCC
-{-# INLINE calledCC #-}
 
 -- | Unlift an action into an 'IO' context.
 --

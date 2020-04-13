@@ -51,11 +51,31 @@ module Data.Profunctor.Optic.Property (
 import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
+
+xor :: Bool -> Bool -> Bool
+xor a b = (a || b) && not (a && b)
+
+xor3 :: Bool -> Bool -> Bool -> Bool
+xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
+
+infixr 0 ==>
+
+(==>) :: Bool -> Bool -> Bool
+(==>) a b = not a || b
+
+iff :: Bool -> Bool -> Bool
+iff a b = a ==> b && b ==> a
+
+infixr 1 <==>
+
+(<==>) :: Bool -> Bool -> Bool
+(<==>) = iff
 
 -- | \( \forall a: f (g a) \equiv a \)
 --
@@ -189,23 +209,23 @@ idempotent_traversal0 o s a1 a2 = withAffine o $ \_ sbt -> sbt (sbt s a1) a2 == 
 -- A 'Traversal' is a valid 'Setter' with the following additional laws:
 
 id_traversal :: Eq s => Traversal' s a -> s -> Bool
-id_traversal o = M.join invertible $ runIdentity . traverses o Identity 
+id_traversal o = M.join invertible $ runIdentity . stars o Identity 
 
 id_traversal1 :: Eq s => Traversal1' s a -> s -> Bool
-id_traversal1 o = M.join invertible $ runIdentity . traverses o Identity 
+id_traversal1 o = M.join invertible $ runIdentity . stars o Identity 
 
 pure_traversal :: Eq (f s) => Applicative f => ATraversal' f s a -> s -> Bool
-pure_traversal o = liftA2 (==) (traverses o pure) pure
+pure_traversal o = liftA2 (==) (stars o pure) pure
 
 compose_traversal :: Eq (f (g s)) => Applicative' f => Applicative' g => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal o f g = liftA2 (==) lhs rhs
-  where lhs = fmap (traverses o f) . traverses o g
-        rhs = getCompose . traverses o (Compose . fmap f . g)
+  where lhs = fmap (stars o f) . stars o g
+        rhs = getCompose . stars o (Compose . fmap f . g)
 
 compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal1 o f g s = lhs s == rhs s
-  where lhs = fmap (traverses o f) . traverses o g
-        rhs = getCompose . traverses o (Compose . fmap f . g)
+  where lhs = fmap (stars o f) . stars o g
+        rhs = getCompose . stars o (Compose . fmap f . g)
 
 ---------------------------------------------------------------------
 -- 'Cotraversal'
@@ -215,18 +235,18 @@ compose_traversal1 o f g s = lhs s == rhs s
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- The cotraversal laws can be restated in terms of 'cotraverses1':
+-- The cotraversal laws can be restated in terms of 'costars1':
 --
--- * @cotraverses o (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @costars o (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @cotraverses o f . fmap (cotraverses o g) == cotraverses o (f . fmap g . getCompose) . Compose@
+-- * @costars o f . fmap (costars o g) == costars o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
 compose_cotraversal :: Eq s => Coapplicative f => Coapplicative g => Cotraversal' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
 compose_cotraversal o f g = liftF2 (==) lhs rhs
-  where lhs = cotraverses o f . fmap (cotraverses o g) 
-        rhs = cotraverses o (f . fmap g . getCompose) . Compose
+  where lhs = costars o f . fmap (costars o g) 
+        rhs = costars o (f . fmap g . getCompose) . Compose
 -}
 ---------------------------------------------------------------------
 -- 'Setter'

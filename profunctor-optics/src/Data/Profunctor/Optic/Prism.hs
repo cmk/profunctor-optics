@@ -42,9 +42,10 @@ import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix,(++))
 import Data.Profunctor.Choice
-import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import 
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator 
 import GHC.IO.Exception (IOErrorType)
 import qualified GHC.IO.Exception as Ghc
 

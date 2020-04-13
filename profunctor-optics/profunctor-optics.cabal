@@ -38,13 +38,14 @@ library
       Control.Exception.Optic
 
       Data.Tuple.Optic
+      Data.ByteString.Optic
+      --Data.Text.Optic
       
-      Data.Profunctor.Rep.Foldl
-      Data.Profunctor.Rep.Foldl1
-      Data.Profunctor.Rep.Foldr
+      Data.Profunctor.Rep.Fold
+      Data.Profunctor.Rep.Fold1
 
       Data.Profunctor.Optic
-      Data.Profunctor.Optic.Types
+      Data.Profunctor.Optic.Type
       Data.Profunctor.Optic.Pattern
       Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Carrier
@@ -56,11 +57,11 @@ library
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
       --Data.Profunctor.Optic.Fold.Prelude
-      Data.Profunctor.Optic.List
-      --Data.Profunctor.Optic.List.Prelude
+      Data.Profunctor.Optic.Scan
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Zoom
+
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -97,19 +98,11 @@ library
     , unliftio-core          >= 0.1.2.0
 
     , foldl
-    , deferred-folds
-
-    , text
-    , hashable
-    , primitive 
     , bytestring
-    , containers
-    , unordered-containers
-    -- , strict                 >= 0.3.2
     , transformers           >= 0.5
     -- , adjunctions            >= 4.4
+    --, vector
 
-    , mono-traversable       >= 1.0.13.0
 
 executable doctest
   main-is:           doctest.hs

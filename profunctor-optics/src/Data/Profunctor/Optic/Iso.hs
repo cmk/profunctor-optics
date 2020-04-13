@@ -39,10 +39,16 @@ module Data.Profunctor.Optic.Iso (
   , flipped 
   , involuted
   , uncurried
+  , zipListed
+  , zipFolded
+    -- * Bytestring optics
+  , short
   , strict
   , chunked
-  , unpacked
-  , reversed
+  , chars
+  , chars'
+  , bytes'
+  , bytes
     -- * Operators
   , op
   , au 
@@ -55,19 +61,25 @@ module Data.Profunctor.Optic.Iso (
   , Profunctor(..)
 ) where
 
+import Control.Applicative (ZipList(..))
 import Control.Newtype.Generics (Newtype(..), op)
 import Data.Coerce
 import Data.Maybe (fromMaybe)
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Combinator
-import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Rep.Fold (Unfold,ZipFold(..))
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
-import Data.Sequences (IsSequence, LazySequence(..))
-import Data.MonoTraversable (Element)
-import qualified Data.Sequences as S
+import Data.Word
 import qualified Control.Monad as M (join)
+import qualified Data.ByteString       as BS
+import qualified Data.ByteString.Char8 as CS
+import qualified Data.ByteString.Lazy       as BL
+import qualified Data.ByteString.Lazy.Char8 as CL
+import qualified Data.ByteString.Short.Internal as Short
 import qualified GHC.Generics as G
+
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -322,29 +334,98 @@ uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
 uncurried = iso uncurry curry
 {-# INLINE uncurried #-}
 
--- | An 'Iso' between strict & lazy variants of a sequence.
+-- | Convert to the 'Control.Applicative.ZipList' applicative.
 --
-strict :: LazySequence l s => Iso' l s
-strict = iso S.toStrict S.fromStrict
+zipListed :: Iso [a] [b] (ZipList a) (ZipList b)
+zipListed = iso ZipList getZipList
+{-# INLINE zipListed #-}
+
+-- | Convert to the 'Data.Unfold.ZipList' applicative.
+--
+zipFolded :: Iso (Unfold a) (Unfold b) (ZipFold a) (ZipFold b)
+zipFolded = iso ZipFold getZipFold
+{-# INLINE zipFolded #-}
+
+---------------------------------------------------------------------
+-- ByteString optics
+---------------------------------------------------------------------
+
+-- | Convert between strict 'BS.ByteString's and short 'Short.ShortByteString's.
+--
+short :: Iso' BS.ByteString Short.ShortByteString 
+short = iso Short.toShort Short.fromShort
+{-# INLINE short #-}
+
+-- | Convert between lazy 'BL.ByteString's and strict 'BS.ByteString's.
+--
+strict :: Iso' BL.ByteString BS.ByteString
+strict = iso BL.toStrict BL.fromStrict
 {-# INLINE strict #-}
 
--- | TODO: Document
+-- | Chunk a list of strict 'BS.ByteString's into a lazy 'BL.ByteString'.
 --
-chunked :: LazySequence l s => Iso' l [s]
-chunked = iso S.toChunks S.fromChunks
+chunked :: Iso' [BS.ByteString] BL.ByteString
+chunked = iso BL.fromChunks BL.toChunks
 {-# INLINE chunked #-}
 
--- | TODO: Document
+-- | Pack a list of characters into a lazy 'CL.ByteString'.
 --
-unpacked :: IsSequence s => Iso' s [Element s]
-unpacked = iso S.unpack S.pack 
-{-# INLINE unpacked #-}
+-- When writing back to the 'ByteString' it is assumed that every 'Char' lies
+-- between @'\x00'@ and @'\xff'@.
+--
+-- @
+-- 'Data.ByteString.Lazy.Char8.pack' x ≡ x '^.' 'chars'
+-- 'Data.ByteString.Lazy.Char8.unpack' x ≡ x '^.' 're' 'chars'
+-- @
+--
+-- >>> [104,101,108,108,111] ^. re bytes . unpacked
+-- "hello"
+--
+chars :: Iso' String BL.ByteString
+chars = iso CL.pack CL.unpack
+{-# INLINE chars #-}
 
--- | Reverse a sequence.
+-- | Pack a list of characters into a strict 'CS.ByteString'.
 --
-reversed :: IsSequence s => Iso' s s
-reversed = iso S.reverse S.reverse
-{-# INLINE reversed #-}
+-- When writing back to the 'ByteString' it is assumed that every 'Char' lies
+-- between @'\x00'@ and @'\xff'@.
+--
+-- 
+-- 'Data.ByteString.Char8.pack' x ≡ x '^.' 'chars''
+-- 'Data.ByteString.Char8.unpack' x ≡ x '^.' 're' 'chars''
+-- @
+--
+-- >>> "hello" ^. packed
+-- [104,101,108,108,111]
+--
+chars' :: Iso' String BS.ByteString
+chars' = iso CS.pack CS.unpack
+{-# INLINE chars' #-}
+
+-- | Unpack a lazy 'BL.ByteString' into a list of bytes.
+--
+-- @
+-- 'Data.ByteString.Lazy.pack' x ≡  x '^.' 'bytes'
+-- 'Data.ByteString.Lazy.unpack' x ≡ x '^.' 're' 'bytes'
+-- @
+--
+-- >>> [104,101,108,108,111] ^. bytes
+-- "hello"
+--
+bytes :: Iso' [Word8] BL.ByteString
+bytes = iso BL.pack BL.unpack
+{-# INLINE bytes #-}
+
+-- | Unpack a strict 'ByteString' into a list of bytes.
+--
+-- @
+-- 'Data.ByteString.pack' x ≡  x '^.' 'bytes''
+-- 'Data.ByteString.unpack' x ≡ x '^.' 're' 'bytes''
+-- @
+--
+bytes' :: Iso' [Word8] BS.ByteString
+bytes' = iso BS.pack BS.unpack
+{-# INLINE bytes' #-}
 
 ---------------------------------------------------------------------
 -- Operators
