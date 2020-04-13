@@ -24,7 +24,7 @@ module Data.Profunctor.Optic (
   , module Zoom
 ) where
 
-import Data.Profunctor.Optic.Types            as Types
+import Data.Profunctor.Optic.Type            as Types
 import Data.Profunctor.Optic.Carrier          as Carrier
 import Data.Profunctor.Optic.Combinator       as Combinator
 import Data.Profunctor.Optic.Pattern          as Pattern

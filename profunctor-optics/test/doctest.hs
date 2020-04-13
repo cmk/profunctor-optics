@@ -16,6 +16,6 @@ main = doctest
   , "src/Data/Profunctor/Optic/Setter.hs"
   , "src/Data/Profunctor/Optic/Traversal.hs"
   , "src/Data/Profunctor/Optic/View.hs"
-  , "src/Data/Profunctor/Rep/Foldl.hs"
-  , "src/Data/Profunctor/Rep/Foldl1.hs"
+  , "src/Data/Profunctor/Rep/Fold.hs"
+  , "src/Data/Profunctor/Rep/Fold1.hs"
   ]

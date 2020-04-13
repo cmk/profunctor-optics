@@ -18,7 +18,7 @@ import Control.Monad.Trans.RWS.Lazy as Lazy
 import Control.Monad.Trans.RWS.Strict as Strict
 import Control.Monad.Trans.Identity
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings

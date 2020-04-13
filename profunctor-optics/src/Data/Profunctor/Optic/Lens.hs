@@ -47,7 +47,7 @@ module Data.Profunctor.Optic.Lens (
   , masked
     -- * Operators
   , coview
-  , zipsWith
+  , zipsWith2
   , zipsWith3
   , zipsWith4 
   , zipsWithF
@@ -62,10 +62,11 @@ import Data.Distributive
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
-import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Combinator 
 import Data.Profunctor.Strong
 import qualified Control.Exception as Ex
 
@@ -478,9 +479,9 @@ coview o b = withColens o $ \sabt -> sabt (const b)
 --
 -- @\\f -> 'zipsWith' 'closed' ('zipsWith' 'closed' f) ≡ 'zipsWith' ('closed' . 'closed')@
 --
-zipsWith :: AColens s t a b -> (a -> a -> b) -> s -> s -> t
-zipsWith o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
-{-# INLINE zipsWith #-}
+zipsWith2 :: AColens s t a b -> (a -> a -> b) -> s -> s -> t
+zipsWith2 o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
+{-# INLINE zipsWith2 #-}
 
 -- | Zip over a 'Colens' with 3 arguments.
 --

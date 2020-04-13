@@ -28,7 +28,6 @@ module Data.Profunctor.Optic.Traversal (
   , retraversing
   , cotraversalVl
   , beside
-  , reversing
     -- * Traversal1
   , Traversal1
   , Traversal1'
@@ -73,12 +72,13 @@ module Data.Profunctor.Optic.Traversal (
   , backwards
   , mapAccumsL
   , mapAccumsR
-  , scansl1
-  , scansr1
+  --, scansl1
+  --, scansr1
   , (/~)
   , collects 
   , (//~)
   , cotraverses
+
     -- * Classes
   , Strong(..)
   , Choice(..)
@@ -87,15 +87,15 @@ module Data.Profunctor.Optic.Traversal (
   , Corepresentable(..)
 ) where
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Control.Applicative.Backwards
 import Data.Function
 import Data.Bitraversable
-import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Prism
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Lens
+import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Combinator
 import Data.Semigroup.Bitraversable
 
@@ -277,13 +277,6 @@ cotraversalVl = corepresent
 beside :: Bitraversable r => Traversal s1 t1 a b -> Traversal s2 t2 a b -> Traversal (r s1 s2) (r t1 t2) a b
 beside x y p = tabulate go where go rss = bitraverse (sieve $ x p) (sieve $ y p) rss
 {-# INLINE beside #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-reversing :: ATraversal (Backwards f) s t a b -> ATraversal f s t a b
-reversing = atraversal . backwards
-{-# INLINE reversing #-}
 
 ---------------------------------------------------------------------
 -- 'Traversal1'
@@ -574,9 +567,10 @@ mapAccumsL o f acc0 s = swap (runState (traverses o g s) acc0) where
 --
 -- @since 0.0.3
 mapAccumsR :: ATraversal (Backwards (State r)) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
-mapAccumsR = mapAccumsL . reversing
+mapAccumsR = mapAccumsL . atraversal . backwards
 {-# INLINE mapAccumsR #-}
 
+{-
 -- | Scan left over a 'Traversing' or 'Traversing1' optic.
 --
 -- @
@@ -602,6 +596,7 @@ scansr1 o f = snd . mapAccumsR o step Nothing where
   step Nothing a  = (Just a, a)
   step (Just s) a = (Just r, r) where r = f a s
 {-# INLINE scansr1 #-}
+-}
 
 -- | TODO: Document
 --

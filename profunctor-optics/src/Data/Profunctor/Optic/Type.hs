@@ -17,9 +17,10 @@
 #define MIN_VERSION_profunctors(x,y,z) 1
 #endif
 
-module Data.Profunctor.Optic.Types (
+module Data.Profunctor.Optic.Type (
+    type (+), type (-)
     -- * Optic
-    Optic, Optic'
+  , Optic, Optic'
     -- * Constraints
   , Affine, Coaffine
   , Traversing, Cotraversing
@@ -69,11 +70,16 @@ import Data.Bifunctor (Bifunctor(..))
 import Data.Functor.Apply (Apply(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Types as Export
-
+import Data.Foldable (Foldable)
 -- $setup
 -- >>> :set -XCPP
 -- >>> :set -XNoOverloadedStrings
 -- >>> :load Data.Profunctor.Optic
+
+type (+) = Either
+
+-- | Hyphenation operator.
+type (g - f) a = f (g a)
 
 ---------------------------------------------------------------------
 -- Constraints

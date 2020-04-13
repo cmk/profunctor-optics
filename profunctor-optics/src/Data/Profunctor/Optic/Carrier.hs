@@ -29,10 +29,10 @@ module Data.Profunctor.Optic.Carrier (
   , AFold0
   , AFold
   , ACofold
-  , AFoldl
-  , AFoldl'
-  , AFoldl1
-  , AFoldl1'
+  , AList
+  , AList'
+  , AList1
+  , AList1'
   , ASetter
   , ASetter'
   , AResetter
@@ -86,14 +86,18 @@ import Data.Function
 import Data.Monoid(Alt(..))
 import Data.Profunctor.Choice
 import Data.Profunctor.Strong
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Rep (unfirstCorep)
+import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Rep
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
 import qualified Control.Category as C
-import qualified Data.Profunctor.Rep.Foldl as L
-import qualified Data.Profunctor.Rep.Foldl1 as L1
+import qualified Control.Foldl as L
+import qualified Data.Profunctor.Rep.Fold as L
+import qualified Data.Profunctor.Rep.Fold1 as L1
+import qualified Data.Foldable as F
+import qualified Prelude as P
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -152,13 +156,15 @@ type AFold r s a = ATraversal' (Const r) s a
 
 type ACofold r t b = ACotraversal' (Const r) t b
 
-type AFoldl s t a b = Optic L.Foldl s t a b
+--type AList s t a b = Optic L.Fold s t a b
+type AList s t a b = Optic L.Fold s t a b
 
-type AFoldl' s a = AFoldl s s a a
+type AList' s a = AList s s a a
 
-type AFoldl1 s t a b = Optic L1.Foldl1 s t a b
+--type AList1 s t a b = Optic L1.Fold1 s t a b
+type AList1 s t a b = Optic L1.Fold1 s t a b
 
-type AFoldl1' s a = AFoldl1 s s a a
+type AList1' s a = AList1 s s a a
 
 type ASetter f s t a b = ATraversal f s t a b
 
@@ -489,7 +495,7 @@ instance Profunctor (Index a) where
   dimap f g (Index a bs) = Index a (g . bs . f)
   {-# INLINE dimap #-}
 
-instance a ~ b => Foldable (Index a b) where
+instance a ~ b => F.Foldable (Index a b) where
   foldMap f (Index b bs) = f . bs $ b
 
 --coapp f = either (Left . const) (Right . const) $ f b

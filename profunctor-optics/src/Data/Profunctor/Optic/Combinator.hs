@@ -6,13 +6,19 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Combinator (
-    -- * Constructors
-    parr
-  , coarr
-  , star
-  , costar
-  , unstar
-  , uncostar
+    (&)
+  , rgt
+  , rgt'
+  , lft
+  , lft'
+  , swap
+  , eswap
+  , fork
+  , join
+  , eval
+  , apply
+  , branch
+  , branch'
     -- * Miscellaneous optics
   , constl
   , constr
@@ -22,11 +28,28 @@ module Data.Profunctor.Optic.Combinator (
   , coercer
   , represent
   , corepresent
-    -- * Operations on representable profunctors
+    -- * Operations on (->) profunctors
   , (.)
   , (.~)
   , (..~)
   , over
+  , assocl
+  , assocr
+  , assocl'
+  , assocr'
+  , eassocl
+  , eassocr
+  , forget1
+  , forget2
+  , forgetl
+  , forgetr
+    -- * Operations on star profunctors
+  , parr
+  , coarr
+  , star
+  , costar
+  , unstar
+  , uncostar
   , (*~)
   , (**~)
   , reps
@@ -54,14 +77,14 @@ module Data.Profunctor.Optic.Combinator (
 
 
 import Control.Monad.State hiding (join)
-import Data.Function
+import Data.Tuple (swap)
+import Data.Function ((&))
 import Data.Profunctor.Strong
-import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Import
 import qualified Data.Bifunctor as B
 import qualified Data.Semigroup as S
-
+import qualified Control.Monad as M
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
@@ -74,29 +97,137 @@ import qualified Data.Semigroup as S
 -- >>> import qualified Data.Map.Lazy as Map
 -- >>> :load Data.Profunctor.Optic
 
-parr :: Traversing p => (a -> b) -> p a b 
-parr = tabulate . (pure .)
-{-# INLINE parr #-}
+rgt :: (a -> b) -> a + b -> b
+rgt f = either f id
+{-# INLINE rgt #-}
 
-coarr :: Cotraversing p => (a -> b) -> p a b
-coarr = cotabulate . (. copure)
-{-# INLINE coarr #-}
+rgt' :: Void + b -> b
+rgt' = rgt absurd
+{-# INLINE rgt' #-}
 
-star :: Applicative f => Star f a a
-star = Star pure
-{-# INLINE star #-}
+lft :: (b -> a) -> a + b -> a
+lft f = either id f
+{-# INLINE lft #-}
 
-costar :: Coapplicative f => Costar f a a
-costar = Costar copure
-{-# INLINE costar #-}
+lft' :: a + Void -> a
+lft' = lft absurd
+{-# INLINE lft' #-}
 
-unstar :: Coapplicative f => Star f a b -> a -> b
-unstar f = copure . runStar f
-{-# INLINE unstar #-}
+eswap :: (a1 + a2) -> (a2 + a1)
+eswap (Left x) = Right x
+eswap (Right x) = Left x
+{-# INLINE eswap #-}
 
-uncostar :: Applicative f => Costar f a b -> a -> b
-uncostar f = runCostar f . pure
-{-# INLINE uncostar #-}
+fork :: a -> (a , a)
+fork = M.join (,)
+{-# INLINE fork #-}
+
+join :: (a + a) -> a
+join = M.join either id
+{-# INLINE join #-}
+
+eval :: (a , a -> b) -> b
+eval = uncurry $ flip id
+{-# INLINE eval #-}
+
+apply :: (b -> a , b) -> a
+apply = uncurry id
+{-# INLINE apply #-}
+
+branch :: (a -> Bool) -> b -> c -> a -> b + c
+branch f y z x = if f x then Right z else Left y
+{-# INLINE branch #-}
+
+branch' :: (a -> Bool) -> a -> a + a
+branch' f x = branch f x x x
+{-# INLINE branch' #-}
+
+---------------------------------------------------------------------
+-- Operations on (->) profunctors
+---------------------------------------------------------------------
+
+-- | Map over an 'Optic'.
+--
+-- @
+-- 'over' o 'id' ≡ 'id' 
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- 'over' '.' 'resetter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+-- >>> over first (+1) (1,2)
+-- (2,2)
+-- >>> over first show (10,20)
+-- ("10",20)
+--
+over :: Optic (->) s t a b -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}
+
+infixr 4 .~, ..~
+
+-- | Set the focus of an 'Optic'.
+--
+(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Map over an 'Optic'.
+--
+-- >>> (10,20) & first ..~ show 
+-- ("10",20)
+--
+(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) = over
+{-# INLINE (..~) #-}
+
+assocl :: (a , (b , c)) -> ((a , b) , c)
+assocl (a, (b, c)) = ((a, b), c)
+{-# INLINE assocl #-}
+
+assocr :: ((a , b) , c) -> (a , (b , c))
+assocr ((a, b), c) = (a, (b, c))
+{-# INLINE assocr #-}
+
+assocl' :: (a , b + c) -> (a , b) + c
+assocl' = eswap . traverse eswap
+{-# INLINE assocl' #-}
+
+assocr' :: (a + b , c) -> a + (b , c)
+assocr' (f, b) = fmap (,b) f
+{-# INLINE assocr' #-}
+
+eassocl :: a + (b + c) -> (a + b) + c
+eassocl (Left a)          = Left (Left a)
+eassocl (Right (Left b))  = Left (Right b)
+eassocl (Right (Right c)) = Right c
+{-# INLINE eassocl #-}
+
+eassocr :: (a + b) + c -> a + (b + c)
+eassocr (Left (Left a))  = Left a
+eassocr (Left (Right b)) = Right (Left b)
+eassocr (Right c)        = Right (Right c)
+{-# INLINE eassocr #-}
+
+forget1 :: ((c, a) -> (c, b)) -> a -> b
+forget1 f a = b where (c, b) = f (c, a)
+{-# INLINE forget1 #-}
+
+forget2 :: ((a, c) -> (b, c)) -> a -> b
+forget2 f a = b where (b, c) = f (a, c)
+{-# INLINE forget2 #-}
+
+forgetl :: (c + a -> c + b) -> a -> b
+forgetl f = go . Right where go = either (go . Left) id . f
+{-# INLINE forgetl #-}
+
+forgetr :: (a + c -> b + c) -> a -> b
+forgetr f = go . Left where go = either id (go . Right) . f
+{-# INLINE forgetr #-}
 
 ---------------------------------------------------------------------
 -- Operations on arbitrary profunctors
@@ -139,47 +270,32 @@ corepresent f = cotabulate . f . cosieve
 {-# INLINE corepresent #-}
 
 ---------------------------------------------------------------------
--- Operations on representable profunctors
+-- Operations on star profunctors
 ---------------------------------------------------------------------
 
--- | Map over an 'Optic'.
---
--- @
--- 'over' o 'id' ≡ 'id' 
--- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
--- 'over' '.' 'setter' ≡ 'id'
--- 'over' '.' 'resetter' ≡ 'id'
--- @
---
--- >>> over fmapped (+1) (Just 1)
--- Just 2
--- >>> over fmapped (*10) [1,2,3]
--- [10,20,30]
--- >>> over first (+1) (1,2)
--- (2,2)
--- >>> over first show (10,20)
--- ("10",20)
---
-over :: Optic (->) s t a b -> (a -> b) -> s -> t
-over = id
-{-# INLINE over #-}
+parr :: Traversing p => (a -> b) -> p a b 
+parr = tabulate . (pure .)
+{-# INLINE parr #-}
 
-infixr 4 .~, ..~
+coarr :: Cotraversing p => (a -> b) -> p a b
+coarr = cotabulate . (. copure)
+{-# INLINE coarr #-}
 
--- | Set the focus of an 'Optic'.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
+star :: Applicative f => Star f a a
+star = Star pure
+{-# INLINE star #-}
 
--- | Map over an 'Optic'.
---
--- >>> (10,20) & first ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
+costar :: Coapplicative f => Costar f a a
+costar = Costar copure
+{-# INLINE costar #-}
+
+unstar :: Coapplicative f => Star f a b -> a -> b
+unstar f = copure . runStar f
+{-# INLINE unstar #-}
+
+uncostar :: Applicative f => Costar f a b -> a -> b
+uncostar f = runCostar f . pure
+{-# INLINE uncostar #-}
 
 infixr 4 *~, **~, /~, //~
 

@@ -10,7 +10,7 @@
 module Data.Profunctor.Optic.Pattern where
 
 import Control.Exception (Exception(..), SomeException)
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.View
 import Data.Profunctor.Optic.Fold

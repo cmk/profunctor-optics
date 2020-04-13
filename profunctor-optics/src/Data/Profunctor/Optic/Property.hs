@@ -52,10 +52,29 @@ import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Type
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
+
+xor :: Bool -> Bool -> Bool
+xor a b = (a || b) && not (a && b)
+
+xor3 :: Bool -> Bool -> Bool -> Bool
+xor3 a b c = (a `xor` (b `xor` c)) && not (a && b && c)
+
+infixr 0 ==>
+
+(==>) :: Bool -> Bool -> Bool
+(==>) a b = not a || b
+
+iff :: Bool -> Bool -> Bool
+iff a b = a ==> b && b ==> a
+
+infixr 1 <==>
+
+(<==>) :: Bool -> Bool -> Bool
+(<==>) = iff
 
 -- | \( \forall a: f (g a) \equiv a \)
 --
