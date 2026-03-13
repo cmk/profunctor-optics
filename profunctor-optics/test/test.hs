@@ -2,8 +2,10 @@ import Control.Monad
 import System.Exit (exitFailure)
 import System.IO (BufferMode(..), hSetBuffering, stdout, stderr)
 
+import qualified Test.Carrier as Carrier
+
 tests :: IO [Bool]
-tests = sequence [] -- [CI.tests, CW.tests, F.tests] 
+tests = sequence [Carrier.tests]
 
 main :: IO ()
 main = do

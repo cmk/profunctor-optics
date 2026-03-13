@@ -6,6 +6,7 @@ packages:
 
 extra-deps:
   - profunctors-5.5.1@sha256:48a53d69f997693db6b3fd339e92edea7776420ace5101737f037b04306096a7
+  - hedgehog-1.0.1@sha256:2580f9931286292a1fcc0d322c7a11c47608f1f839b495765808c172e54c6346,4307
   - github: chessai/these-skinny
     commit: 2f20555fcd06612af8c88ccaaa5610307f2427ec
   - github: cmk/lawz

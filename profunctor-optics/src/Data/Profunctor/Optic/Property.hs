@@ -154,10 +154,10 @@ compose_grate o f g = liftA2 (==) lhs rhs
 
 -- | You get back what you put in.
 --
--- * @sta (sbt a s) ≡ either (Left . const a) Right (sta s)@
+-- * @sta (sbt s a) ≡ either Left (const (Right a)) (sta s)@
 --
 tofrom_traversal0 :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
-tofrom_traversal0 o s a = withAffine o $ \sta sbt -> sta (sbt s a) == either (Left . flip const a) Right (sta s)
+tofrom_traversal0 o s a = withAffine o $ \sta sbt -> sta (sbt s a) == either Left (const (Right a)) (sta s)
 
 -- | Putting back what you got doesn't change anything.
 --

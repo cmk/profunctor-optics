@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE GADTs                 #-}
 module Data.Profunctor.Optic.Carrier (
     -- * Iso carrier
     AIso
@@ -74,9 +75,13 @@ module Data.Profunctor.Optic.Carrier (
   , withIxlens
   , withColens
   , withCxlens
+  , withPrism'
   , withAffine
   , withAffine'
   , withCoaffine
+  , withCoaffine'
+  , withCotraversal
+  , withCxtraversal
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
@@ -86,6 +91,8 @@ module Data.Profunctor.Optic.Carrier (
   , CxlensRep(..)
   , AffineRep(..)
   , CoaffineRep(..)
+  , CotraversalRep(..)
+  , CxtraversalRep(..)
   , Star(..)
   , Costar(..)
   , Tagged(..)
@@ -291,6 +298,13 @@ withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
 withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 {-# INLINE withPrism #-}
 
+-- | Extract the two functions that characterize a simple 'Prism'.
+--
+-- @since 0.0.3
+withPrism' :: APrism s s a b -> ((s -> Maybe a) -> (b -> s) -> r) -> r
+withPrism' o f = withPrism o $ \sta bt -> f (either (const Nothing) Just . sta) bt
+{-# INLINE withPrism' #-}
+
 -- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
@@ -335,6 +349,31 @@ withAffine' o k = case o (AffineRep Right $ const id) of AffineRep x y -> k (eit
 withCoaffine :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
 withCoaffine o k = case o (CoaffineRep $ \f -> f Right) of CoaffineRep g -> k g
 {-# INLINE withCoaffine #-}
+
+-- | Extract the function that characterizes a simple 'Cotraversal0',
+-- with the matcher converted to @'Maybe'@.
+--
+-- @since 0.0.3
+withCoaffine' :: ACotraversal0 s s a b -> ((((s -> Maybe a) -> b) -> s) -> r) -> r
+withCoaffine' o k = withCoaffine o $ \stabt ->
+  k (\f -> stabt (\sta -> f (either (const Nothing) Just . sta)))
+{-# INLINE withCoaffine' #-}
+
+-- | Extract the function that characterizes a 'Cotraversal'.
+--
+-- @since 0.0.3
+withCotraversal :: Optic (CotraversalRep a b) s t a b -> ((forall f. Coapplicative f => (f a -> b) -> f s -> t) -> r) -> r
+withCotraversal o k = case o (CotraversalRep $ \fab fa -> fab fa) of
+  CotraversalRep h -> k h
+{-# INLINE withCotraversal #-}
+
+-- | Extract the function that characterizes a 'Cxtraversal'.
+--
+-- @since 0.0.3
+withCxtraversal :: Monoid k => Cxoptic (CxtraversalRep k a b) k s t a b -> ((forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> r) -> r
+withCxtraversal o k = case o (CxtraversalRep $ \fakb fa -> fakb fa) of
+  CxtraversalRep h -> k $ \fakb fs -> h fakb fs mempty
+{-# INLINE withCxtraversal #-}
 
 ---------------------------------------------------------------------
 -- IsoRep
@@ -514,6 +553,44 @@ instance Applicative (Index0 a b) where
 
 --TODO: Corepresentable, Coapplicative (Corep)
 
+{-
+  CoaffineRep's Choice instance is lawful. See the property tests for evidence of this, but it's also worth reasoning through. The always-Left return is not a bug — it's an inherent consequence of the CPS encoding.
+
+  Key reasoning:
+
+  1. CoaffineRep a b s t = ((s -> t + a) -> b) -> t — this is a CPS type where t is produced by running the continuation. There is no "stored" s value — values of s only appear inside the
+  callback.
+  2. left' :: CoaffineRep a b s t -> CoaffineRep a b (s+c) (t+c) — we need to produce t + c. Since the CPS can produce t but has no access to any c value, Left t is the only possibility.
+  3. The left-unit law holds: I verified that lmap Left . left' ≡ rmap Left by tracing through the chain eassocl . fmap eswap . eassocr . first sta . Left and showing it reduces to first
+  Left . sta.
+  4. The adapted callback is correct: The chain eassocl . fmap eswap . eassocr . first sta :: (s+c) -> (t+c)+a correctly extends sta :: s -> t+a by threading the c through — if the input is
+   Right c, the result is Left (Right c) (i.e., pass-through); if the input is Left s, it applies sta and reshuffles.
+  5. Intuition: CoaffineRep is the dual of AffineRep. Just as AffineRep's Strong instance wraps extra context alongside the stored data, CoaffineRep's Choice instance threads extra
+  alternatives through the continuation. The continuation never produces a Right c because the CPS structure only knows how to produce t — the c path is only reachable when the adapted
+  callback is invoked with a Right c input, and in that case the callback itself handles it internally (returning Left (Right c) to the outer adapter, which becomes Left (Right c) in the
+  final result... but wait, we always return Left (stabt ...)).
+
+  The c values do flow through the adapted callback, but the outer CPS always wraps in Left:
+
+  \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
+
+  When the original stabt calls sta :: s -> t + a and gets Left t, it uses that t somehow to produce its own t result. The adapted version calls f (adapted_sta) which may internally handle
+  Right c inputs. But stabt's result is always a t, which gets wrapped in Left.
+
+  This is correct because CoaffineRep represents a cotraversal0 — a "setter-like" optic for the dual (sum) side. It doesn't need to produce Right c because it only transforms the s part,
+  leaving the c untouched at the level of the optic's semantics. The Left wrapper is the CPS way of saying "I modified the s/t component". And so the always-Left pattern in left' is the natural consequence of CPS: the continuation produces a t, and wrapping it in Left is the only way to embed it into t + c.
+
+  Finally, the Closed instance is also correct. The first const trick:
+
+  closed (CoaffineRep stabt) =
+    CoaffineRep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+
+  Here sta :: s -> t + a and xs :: x -> s, so sta (xs x) :: t + a. Then first const :: t + a -> (x -> t) + a lifts t into a constant function x -> t. This correctly adapts the callback for
+  closed :: p s t -> p (x -> s) (x -> t).
+
+
+-}
+
 -- | The 'CoaffineRep' profunctor precisely characterizes 'Cotraversal0'.
 --
 newtype CoaffineRep a b s t = CoaffineRep { unCoaffineRep :: ((s -> t + a) -> b) -> t }
@@ -530,6 +607,133 @@ instance Choice (CoaffineRep a b) where
   left' (CoaffineRep stabt) =
     CoaffineRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
 
+
+---------------------------------------------------------------------
+-- CotraversalRep
+---------------------------------------------------------------------
+
+-- | The 'CotraversalRep' profunctor precisely characterizes 'Cotraversal'.
+--
+-- It uses a rank-2 encoding, quantifying over all 'Coapplicative' functors.
+-- This is analogous to how 'Costar' @f@ serves as a carrier for a specific @f@,
+-- but 'CotraversalRep' is universal — it works for any 'Cotraversal' without
+-- choosing @f@ upfront.
+--
+-- @since 0.0.3
+newtype CotraversalRep a b s t = CotraversalRep
+  { runCotraversalRep :: forall f. Coapplicative f => (f a -> b) -> f s -> t }
+
+instance Profunctor (CotraversalRep a b) where
+  dimap f g (CotraversalRep h) = CotraversalRep $ \fab fs -> g (h fab (fmap f fs))
+  {-# INLINE dimap #-}
+
+instance Closed (CotraversalRep a b) where
+  closed (CotraversalRep h) = CotraversalRep $ \fab fxs x -> h fab (fmap ($ x) fxs)
+  {-# INLINE closed #-}
+
+instance Choice (CotraversalRep a b) where
+  left' (CotraversalRep h) = CotraversalRep $ \fab fsc ->
+    case coapply fsc of
+      Left fs  -> Left (h fab fs)
+      Right fc -> Right (copure fc)
+  {-# INLINE left' #-}
+
+instance Costrong (CotraversalRep a b) where
+  unfirst = unfirstCorep
+  {-# INLINE unfirst #-}
+
+instance Cosieve (CotraversalRep a b) (CotraversalCorep b a) where
+  cosieve (CotraversalRep h) (CotraversalCorep fab fs) = h fab fs
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (CotraversalRep a b) where
+  type Corep (CotraversalRep a b) = CotraversalCorep b a
+
+  cotabulate f = CotraversalRep $ \fab fs -> f (CotraversalCorep fab fs)
+  {-# INLINE cotabulate #-}
+
+-- | The 'Corep' of 'CotraversalRep'. An existential pairing of a
+-- 'Coapplicative' functor @f@ with an observation @f a -> b@ and a
+-- value @f s@.
+--
+-- @since 0.0.3
+data CotraversalCorep b a s where
+  CotraversalCorep :: Coapplicative f => (f a -> b) -> f s -> CotraversalCorep b a s
+
+instance Functor (CotraversalCorep b a) where
+  fmap g (CotraversalCorep fab fs) = CotraversalCorep fab (fmap g fs)
+  {-# INLINE fmap #-}
+
+instance Coapply (CotraversalCorep b a) where
+  coapply (CotraversalCorep fab fsc) = case coapply fsc of
+    Left fs  -> Left (CotraversalCorep fab fs)
+    Right fc -> Right (CotraversalCorep fab fc)
+  {-# INLINE coapply #-}
+
+instance Coapplicative (CotraversalCorep b a) where
+  copure (CotraversalCorep _ fs) = copure fs
+  {-# INLINE copure #-}
+
+---------------------------------------------------------------------
+-- CxtraversalRep
+---------------------------------------------------------------------
+
+-- | The 'CxtraversalRep' profunctor precisely characterizes 'Cxtraversal'.
+--
+-- Coindexed variant of 'CotraversalRep'.
+--
+-- @since 0.0.3
+newtype CxtraversalRep k a b s t = CxtraversalRep
+  { runCxtraversalRep :: forall f. Coapplicative f => (f a -> k -> b) -> f s -> t }
+
+instance Profunctor (CxtraversalRep k a b) where
+  dimap f g (CxtraversalRep h) = CxtraversalRep $ \fakb fs -> g (h fakb (fmap f fs))
+  {-# INLINE dimap #-}
+
+instance Closed (CxtraversalRep k a b) where
+  closed (CxtraversalRep h) = CxtraversalRep $ \fakb fxs x -> h fakb (fmap ($ x) fxs)
+  {-# INLINE closed #-}
+
+instance Choice (CxtraversalRep k a b) where
+  left' (CxtraversalRep h) = CxtraversalRep $ \fakb fsc ->
+    case coapply fsc of
+      Left fs  -> Left (h fakb fs)
+      Right fc -> Right (copure fc)
+  {-# INLINE left' #-}
+
+instance Costrong (CxtraversalRep k a b) where
+  unfirst = unfirstCorep
+  {-# INLINE unfirst #-}
+
+instance Cosieve (CxtraversalRep k a b) (CxtraversalCorep k b a) where
+  cosieve (CxtraversalRep h) (CxtraversalCorep fakb fs) = h fakb fs
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (CxtraversalRep k a b) where
+  type Corep (CxtraversalRep k a b) = CxtraversalCorep k b a
+
+  cotabulate f = CxtraversalRep $ \fakb fs -> f (CxtraversalCorep fakb fs)
+  {-# INLINE cotabulate #-}
+
+-- | The 'Corep' of 'CxtraversalRep'. Coindexed variant of 'CotraversalCorep'.
+--
+-- @since 0.0.3
+data CxtraversalCorep k b a s where
+  CxtraversalCorep :: Coapplicative f => (f a -> k -> b) -> f s -> CxtraversalCorep k b a s
+
+instance Functor (CxtraversalCorep k b a) where
+  fmap g (CxtraversalCorep fakb fs) = CxtraversalCorep fakb (fmap g fs)
+  {-# INLINE fmap #-}
+
+instance Coapply (CxtraversalCorep k b a) where
+  coapply (CxtraversalCorep fakb fsc) = case coapply fsc of
+    Left fs  -> Left (CxtraversalCorep fakb fs)
+    Right fc -> Right (CxtraversalCorep fakb fc)
+  {-# INLINE coapply #-}
+
+instance Coapplicative (CxtraversalCorep k b a) where
+  copure (CxtraversalCorep _ fs) = copure fs
+  {-# INLINE copure #-}
 
 ---------------------------------------------------------------------
 -- 'Paired'
@@ -715,7 +919,14 @@ Coindex f <<<< Coindex g = Coindex $ \b -> f $ \s1 -> g $ \s2 -> b (s1 <> s2)
 -- Conjoin
 ---------------------------------------------------------------------
 
--- '(->)' is simultaneously both indexed and co-indexed.
+-- | Index and coindex
+--
+-- '(->)' is simultaneously both indexed and co-indexed. This means 
+-- that indexed and coindexed optics collapse to the same shape at 
+-- at 'Conjoin', both give 'i -> a -> k -> b' (up to argument order).
+-- The distinction is purely in how the optic threads the index,
+-- not in the caller's interface.
+--
 newtype Conjoin j a b = Conjoin { unConjoin :: j -> a -> b }
 
 instance Functor (Conjoin j a) where
