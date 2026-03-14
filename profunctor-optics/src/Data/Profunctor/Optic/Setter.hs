@@ -26,7 +26,6 @@ module Data.Profunctor.Optic.Setter (
   , cod
   , dom
   , fmapped
-  , omapped
   , imappedRep
   , contramapped
   , liftedM
@@ -70,7 +69,6 @@ import Control.Applicative (liftA,ZipList(..))
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
-import Data.MonoTraversable as M
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
@@ -230,12 +228,6 @@ dom = setter lmap
 fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
-
--- | 'Setter' on each value of a monofunctor.
---
-omapped :: MonoFunctor a => Setter' a (Element a)
-omapped = setter omap
-{-# INLINE omapped #-}
 
 -- | 'Ixsetter' on each value of a representable functor.
 --

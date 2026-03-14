@@ -43,7 +43,6 @@ module Data.Profunctor.Optic.Lens (
   , cxclosed
   , united
   , voided
-  , contained
   , represented
   , distributed
   , endomorphed
@@ -53,14 +52,10 @@ module Data.Profunctor.Optic.Lens (
     -- * Operators
   , coview
   , zipsWith
-  , ozipsWith
   , zipsWith3
   , zipsWith4 
   , zipsWithF
   , zipsWithKey
-  , intersectsMap
-  , differencesMap
-  , intersectsWithMap
   , toPastro
   , toTambara
   , toClosure
@@ -75,9 +70,7 @@ module Data.Profunctor.Optic.Lens (
 ) where
 
 import Control.Monad.Cont
-import Data.Containers (PolyMap(..), IsSet(..), MonoZip(..))
 import Data.Distributive
-import Data.MonoTraversable as M (Element)
 import Data.Monoid (Endo(..))
 import Data.Profunctor.Closed
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
@@ -87,7 +80,6 @@ import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong
 import qualified Data.Functor.Rep as F
-import qualified Data.Containers as C
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -451,12 +443,6 @@ voided :: Lens' Void a
 voided = lens absurd const
 {-# INLINE voided #-}
 
--- | TODO: Document
---
-contained :: IsSet s => Element s -> Lens' s Bool
-contained k = lens (C.member k) $ \s b -> if b then C.insertSet k s else C.deleteSet k s
-{-# INLINE contained #-}
-
 -- | Obtain a 'Colens' from a 'F.Representable' functor.
 --
 represented :: F.Representable f => Colens (f a) (f b) a b
@@ -575,16 +561,6 @@ zipsWith :: AColens s t a b -> (a -> a -> b) -> s -> s -> t
 zipsWith o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa s2)
 {-# INLINE zipsWith #-}
 
--- | Zip over a mono 'Colens'. 
---
--- >>> ozipsWith closed (+) B.pack B.pack [1..3]
--- "\STX\EOT\ACK"
---
--- @since 0.0.3
-ozipsWith :: MonoZip a => AColens s t a a -> (Element a -> Element a -> Element a) -> s -> s -> t
-ozipsWith o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> ozipWith f (sa s1) (sa s2)
-{-# INLINE ozipsWith #-}
-
 -- | Zip over a 'Colens' with 3 arguments.
 --
 zipsWith3 :: AColens s t a b -> (a -> a -> a -> b) -> (s -> s -> s -> t)
@@ -623,27 +599,6 @@ zipsWithF = cloneColensVl
 zipsWithKey :: Monoid k => ACxlens k s t a b -> (k -> a -> a -> b) -> s -> s -> t
 zipsWithKey o f s1 s2 = withCxlens o $ \sabt -> sabt $ \sa k -> f k (sa s1) (sa s2)
 {-# INLINE zipsWithKey #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-intersectsMap :: PolyMap m => AColens s t (m a) (m a) -> s -> s -> t
-intersectsMap o = zipsWith o C.intersectionMap
-{-# INLINE intersectsMap #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-differencesMap :: PolyMap m => AColens s t (m a) (m a) -> s -> s -> t
-differencesMap o = zipsWith o C.differenceMap
-{-# INLINE differencesMap #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-intersectsWithMap :: PolyMap m => AColens s t (m a) (m b) -> (a -> a -> b) -> s -> s -> t
-intersectsWithMap o f s1 s2 = withColens o $ \sabt -> sabt $ \sa -> C.intersectionWithMap f (sa s1) (sa s2)
-{-# INLINE intersectsWithMap #-}
 
 -- | Use a 'Lens' to construct a 'Pastro'.
 --

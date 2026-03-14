@@ -24,9 +24,6 @@ module Data.Profunctor.Optic.Iso (
     -- * Optics
   , equaled
   , coerced
-  , wrapped
-  , rewrapped
-  , rewrapped'
   , generic
   , generic1
   , adjuncted
@@ -35,9 +32,6 @@ module Data.Profunctor.Optic.Iso (
   , cosieved
   , unzipped
   , cozipped
-  , pair'
-  , maybe'
-  , either'
   , swapped 
   , coswapped 
   , associated 
@@ -46,15 +40,9 @@ module Data.Profunctor.Optic.Iso (
   , flipped 
   , involuted
   , uncurried
-  , strict
-  , chunked
-  , unpacked
-  , reversed
     -- * Operators
-  , op
-  , au 
+  , au
   , aup
-  , ala
   , reover
   , reixes
   , recxes
@@ -65,7 +53,6 @@ module Data.Profunctor.Optic.Iso (
   , Profunctor(..)
 ) where
 
-import Control.Newtype.Generics (Newtype(..), op)
 import Data.Coerce
 import Data.Functor.Adjunction hiding (adjuncted)
 import Data.Maybe (fromMaybe)
@@ -74,13 +61,7 @@ import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
-import Data.Sequences (IsSequence, LazySequence(..))
-import Data.MonoTraversable (Element)
 import qualified Data.Functor.Rep as F
-import qualified Data.Sequences as S
-import qualified Data.Strict.Either as E'
-import qualified Data.Strict.Maybe as M'
-import qualified Data.Strict.Tuple as T'
 import qualified Control.Monad as M (join)
 import qualified GHC.Generics as G
 
@@ -207,38 +188,6 @@ coerced :: Coercible s a => Coercible t b => Iso s t a b
 coerced = dimap coerce coerce
 {-# INLINE coerced #-}
 
--- | Obtain an 'Iso' from a newtype.
---
--- @
--- 'Data.Profunctor.Optic.View.view' 'wrapped' f '.' f ≡ 'id'
--- f '.' 'Data.Profunctor.Optic.View.view' 'wrapped' f ≡ 'id'
--- @
---
--- >>> view wrapped $ Identity 'x'
--- 'x'
---
--- >>> view wrapped (Const "hello")
--- "hello"
---
-wrapped :: Newtype s => Iso' s (O s)
-wrapped = dimap unpack pack
-{-# INLINE wrapped #-}
-
--- | An 'Iso' between newtype wrappers.
---
--- >>> Const "hello" & rewrapped ..~ Prelude.length & getConst
--- 5
---
-rewrapped :: Newtype s => Newtype t => Iso s t (O s) (O t)
-rewrapped = withIso wrapped $ \ sa _ -> withIso wrapped $ \ _ bt -> iso sa bt
-{-# INLINE rewrapped #-}
-
--- | A variant of 'rewrapped' that ignores its argument.
---
-rewrapped' :: Newtype s => Newtype t => (O s -> s) -> Iso s t (O s) (O t)
-rewrapped' _ = rewrapped
-{-# INLINE rewrapped' #-}
-
 -- | An 'Iso' between 'Generic' representations.
 --
 -- >>> view (generic . re generic) "hello" :: String
@@ -295,27 +244,6 @@ unzipped = iso zipR unzipR
 cozipped :: Adjunction f u => Iso ((f a) + (f b)) ((f c) + (f d)) (f (a + b)) (f (c + d))
 cozipped = iso uncozipL cozipL
 {-# INLINE cozipped #-}
-
--- | An 'Iso' between strict & lazy variants of /(,)/.
---
--- @since 0.0.3
-pair' :: Iso (a , b) (c , d) (T'.Pair a b) (T'.Pair c d)
-pair' = iso (uncurry (T'.:!:)) (T'.fst &&& T'.snd)
-{-# INLINE pair' #-}
-
--- | An 'Iso' between strict & lazy variants of /Maybe/.
---
--- @since 0.0.3
-maybe' :: Iso (Maybe a) (Maybe b) (M'.Maybe a) (M'.Maybe b)
-maybe' = iso (maybe M'.Nothing M'.Just) (M'.maybe Nothing Just)
-{-# INLINE maybe' #-}
-
--- | An 'Iso' between strict & lazy variants of /Either/.
---
--- @since 0.0.3
-either' :: Iso (Either a b) (Either c d) (E'.Either a b) (E'.Either c d)
-either' = iso (either E'.Left E'.Right) (E'.either Left Right)
-{-# INLINE either' #-}
 
 -- | Swap sides of a product.
 --
@@ -388,30 +316,6 @@ uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
 uncurried = iso uncurry curry
 {-# INLINE uncurried #-}
 
--- | An 'Iso' between strict & lazy variants of a sequence.
---
-strict :: LazySequence l s => Iso' l s
-strict = iso S.toStrict S.fromStrict
-{-# INLINE strict #-}
-
--- | TODO: Document
---
-chunked :: LazySequence l s => Iso' l [s]
-chunked = iso S.toChunks S.fromChunks
-{-# INLINE chunked #-}
-
--- | TODO: Document
---
-unpacked :: IsSequence s => Iso' s [Element s]
-unpacked = iso S.unpack S.pack 
-{-# INLINE unpacked #-}
-
--- | Reverse a sequence.
---
-reversed :: IsSequence s => Iso' s s
-reversed = iso S.reverse S.reverse
-{-# INLINE reversed #-}
-
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -442,31 +346,6 @@ au k = withIso k $ \ sa bt f -> fmap sa (f bt)
 aup :: Profunctor p => Functor f => AIso s t a b -> (p c a -> f b) -> p c s -> f t
 aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 {-# INLINE aup #-}
-
--- | This combinator is based on @ala@ from Conor McBride's work on Epigram.
---
--- As with 'rewrapped'', the user supplied function for the newtype is /ignored/.
---
--- >>> ala Sum foldMap [1,2,3,4]
--- 10
--- >>> ala All foldMap [True,True]
--- True
--- >>> ala All foldMap [True,False]
--- False
--- >>> ala Any foldMap [False,False]
--- False
--- >>> ala Any foldMap [True,False]
--- True
--- >>> ala Product foldMap [1,2,3,4]
--- 24
---
--- @
--- 'ala' :: 'Newtype' s => 'Newtype' t => ('O' s -> s) -> (('O' t -> t) -> e -> s) -> e -> O s
--- @
---
-ala :: Newtype s => Newtype t => Functor f => (O s -> s) -> ((O t -> t) -> f s) -> f (O s) 
-ala = au . rewrapped'
-{-# INLINE ala #-}
 
 -- | Given a conversion on one side of an 'Iso', recover the other.
 --

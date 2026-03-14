@@ -427,6 +427,9 @@ instance Choice p => Cochoice (Re p s t) where
 instance Cochoice p => Choice (Re p s t) where
   right' (Re p) = Re (p . unright)
 
+instance Profunctor p => Functor (Re p s t a) where
+  fmap f (Re p) = Re (p . lmap f)
+
 instance (Profunctor p, forall x. Contravariant (p x)) => Bifunctor (Re p s t) where
   first f (Re p) = Re (p . contramap f)
 

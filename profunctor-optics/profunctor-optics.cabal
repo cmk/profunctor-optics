@@ -1,9 +1,9 @@
 cabal-version: >= 1.10
 
 name:           profunctor-optics
-version:        0.0.2
+version:        0.0.3
 synopsis:       A compact optics library compatible with the typeclasses in profunctors.
-description:  
+description:
   This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
   .
   Full complement of isos, prisms, lenses, grates, traversals, cotraversals, views, setters, folds, and more.
@@ -12,9 +12,7 @@ description:
   .
   Fully interoperable. All that is required to create optics is the `profunctors` package. Optics compose with (.) from `Prelude` as is typical. Conversions to & from the Van Laarhoven representations are provided for each optic type.
   .
-  Well-documented properties and exportable predicates for testing your own optics.
-  .
-  See the <https://github.com/cmk/profunctor-optics/blob/master/profunctor-optics/README.md Readme> file for more information. 
+  See the <https://github.com/cmk/profunctor-optics/blob/master/profunctor-optics/README.md Readme> file for more information.
 
 category:       Data, Lenses, Profunctors
 stability:      Experimental
@@ -26,7 +24,7 @@ copyright:      2019 Chris McKinlay
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
-tested-with:    GHC == 8.6.3
+tested-with:    GHC == 9.6.7
 extra-source-files:  ChangeLog.md
 
 source-repository head
@@ -35,15 +33,8 @@ source-repository head
 
 library
   exposed-modules:
-      Data.Tuple.Optic
-      
-      Data.Profunctor.Rep.Foldl
-      Data.Profunctor.Rep.Foldl1
-
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
-      Data.Profunctor.Optic.Pattern
-      Data.Profunctor.Optic.Property
       Data.Profunctor.Optic.Carrier
       Data.Profunctor.Optic.Combinator
 
@@ -52,12 +43,8 @@ library
       Data.Profunctor.Optic.Lens
       Data.Profunctor.Optic.Traversal
       Data.Profunctor.Optic.Fold
-      --Data.Profunctor.Optic.Fold.Prelude
-      Data.Profunctor.Optic.Machine
-      --Data.Profunctor.Optic.Machine.Prelude
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
-      Data.Profunctor.Optic.Zoom
 
   other-modules: Data.Profunctor.Optic.Import
 
@@ -65,13 +52,13 @@ library
 
   hs-source-dirs:
       src
-  default-extensions: 
+  default-extensions:
       ConstraintKinds
-      RankNTypes 
-      MultiParamTypeClasses 
-      OverloadedStrings 
+      RankNTypes
+      MultiParamTypeClasses
+      OverloadedStrings
       FlexibleContexts
-      FlexibleInstances 
+      FlexibleInstances
       ExistentialQuantification
       NoImplicitPrelude
       QuantifiedConstraints
@@ -85,64 +72,10 @@ library
   build-depends:
       base                   >= 4.10      && < 5.0
     , adjunctions            >= 4.4
-    , coapplicative          >= 0.0.1
+    , coapplicative          >= 0.0.2
     , distributive           >= 0.3
-    , lawz                   >= 0.1.1
     , mtl                    >= 2.0.1
-    , mono-traversable       >= 1.0.13.0
-    , newtype-generics       >= 0.5.3
+    , tagged                 >= 0.4.4
     , profunctors            >= 5.4
     , semigroupoids          >= 5
-    , strict                 >= 0.3.2
-    , tagged                 >= 0.4.4
     , transformers           >= 0.5
-    , these-skinny           >= 0.7.4
-
-test-suite test
-  type:              exitcode-stdio-1.0
-  main-is:           test.hs
-  other-modules:     Test.Carrier
-  ghc-options:       -Wall -threaded -rtsopts -with-rtsopts=-N
-  hs-source-dirs:    test
-  default-language:  Haskell2010
-
-  build-depends:
-      base
-    , hedgehog
-    , profunctor-optics
-    , profunctors
-
-  default-extensions:
-      RankNTypes
-      ScopedTypeVariables
-      TypeApplications
-      TypeOperators
-
-executable doctest
-  main-is:           doctest.hs
-  ghc-options:       -Wall -threaded
-  hs-source-dirs:    test
-  default-language:  Haskell2010
-  x-doctest-options: --fast
-
-  build-depends:
-      base
-    , bytestring
-    , doctest                >= 0.8
-    , mtl
-    , profunctor-optics
-
-  default-extensions: 
-      ConstraintKinds
-      RankNTypes 
-      MultiParamTypeClasses 
-      OverloadedStrings 
-      FlexibleContexts
-      FlexibleInstances 
-      ExistentialQuantification
-      QuantifiedConstraints
-      ScopedTypeVariables
-      TupleSections
-      TypeOperators
-      TypeApplications
-      TypeFamilies

@@ -19,11 +19,9 @@ module Data.Profunctor.Optic.Fold (
   , Fold
   , Cofold
   , fold_
-  , ofold_
   , afold
   , aixfold
   , folding
-  , ofolding
   , foldVl
   , ixfoldVl
   , acofold
@@ -43,16 +41,12 @@ module Data.Profunctor.Optic.Fold (
   , filtered
   , folded
   , cofolded
-  , ofolded
   , folded_
-  , ofolded_
   , ixfoldedRep
   , folded1 
   , folded1_
   , afolded
-  , aofolded
   , afolded1
-  , aofolded1
   , acolist
   , acolist1
     -- * Operators
@@ -68,7 +62,6 @@ module Data.Profunctor.Optic.Fold (
   , cofoldsa
   , (^..)
   , lists
-  , lists1
   , foldsr
   , foldsl
   , foldsr'
@@ -109,8 +102,6 @@ import Data.Foldable (Foldable, traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe
 import Data.Monoid
-import Data.MonoTraversable (Element,MonoTraversable(..),MonoFoldable(..))
-import Data.NonNull 
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
@@ -120,7 +111,6 @@ import Data.Profunctor.Optic.Prism
 import qualified Data.Functor.Rep as F
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NNL
-import qualified Data.Profunctor.Rep.Foldl1 as M
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -218,16 +208,6 @@ fold_ :: Foldable f => (s -> f a) -> Fold s a
 fold_ f = coercer . lmap f . foldVl traverse_
 {-# INLINE fold_ #-}
 
--- | Obtain a mono 'Fold' directly.
---
--- >>> "foobar" ^.. ofold_ tail
--- "oobar"
---
--- @since 0.0.3
-ofold_ :: MonoFoldable a => (s -> a) -> Fold s (Element a)
-ofold_ f = coercer . lmap f . foldVl otraverse_
-{-# INLINE ofold_ #-}
-
 -- | TODO: Document
 --
 -- @ 
@@ -255,18 +235,6 @@ aixfold f = afold $ \iar s -> f (curry iar) $ snd s
 folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = foldVl traverse . coercer . lmap f
 {-# INLINE folding #-}
-
--- | Obtain a 'Fold' from a 'MonoTraversable' functor.
---
--- @
--- 'folding' f ≡ 'otraversed' . 'to' f
--- 'folding' f ≡ 'foldVl' 'otraverse' . 'to' f
--- @
---
--- @since 0.0.3
-ofolding :: MonoTraversable s => (Element s -> a) -> Fold s a
-ofolding f = foldVl otraverse . coercer . lmap f
-{-# INLINE ofolding #-}
 
 -- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
 --
@@ -308,7 +276,7 @@ cofoldVl f = coercel . cotraversalVl f . coercel
 -- | Obtain a 'Fold1' directly.
 --
 -- @ 
--- 'fold1_' ('lists1' o) ≡ o
+-- 'fold1_' (toNonEmpty o) ≡ o
 -- 'fold1_' f ≡ 'to' f . 'foldVl1' 'traverse1_'
 -- 'fold1_' f ≡ 'coercer' . 'lmap' f . 'lift' 'traverse1_'
 -- @
@@ -397,13 +365,6 @@ cofolded :: Distributive g => Cofold (g b) b
 cofolded = cofolding id
 {-# INLINE cofolded #-}
 
--- | Obtain a 'Fold' from a 'MonoTraversable' functor.
---
--- @since 0.0.3
-ofolded :: MonoTraversable a => Fold a (Element a)
-ofolded = ofolding id
-{-# INLINE ofolded #-}
-
 -- | The canonical 'Fold'.
 --
 -- @
@@ -413,13 +374,6 @@ ofolded = ofolding id
 folded_ :: Foldable f => Fold (f a) a
 folded_ = fold_ id
 {-# INLINE folded_ #-}
-
--- | Obtain a 'Fold' from a 'MonoFoldable'.
---
--- @since 0.0.3
-ofolded_ :: MonoFoldable a => Fold a (Element a)
-ofolded_ = ofold_ id
-{-# INLINE ofolded_ #-}
 
 -- | Obtain an 'Ixfold' from a 'F.Representable' functor.
 --
@@ -452,23 +406,9 @@ afolded = afold foldMap
 
 -- | TODO: Document
 --
--- @since 0.0.3
-aofolded :: MonoFoldable a => Monoid r => AFold r a (Element a)
-aofolded = afold ofoldMap
-{-# INLINE aofolded #-}
-
--- | TODO: Document
---
 afolded1 :: Foldable1 f => Semigroup r => AFold r (f a) a
 afolded1 = afold foldMap1
 {-# INLINE afolded1 #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-aofolded1 :: MonoFoldable a => Semigroup r => AFold r (NonNull a) (Element a)
-aofolded1 = afold ofoldMap1
-{-# INLINE aofolded1 #-}
 
 -- | Right list unfold over an optic.
 --
@@ -645,18 +585,6 @@ lists o = foldsr o (:) []
 {-# INLINE lists #-}
 
 -- | Extract a 'NonEmpty' of the fock of an optic.
---
--- @
--- 'lists1' 'folded1_' = 'Data.Semigroup.Foldable.toNonEmpty'
--- @
---
--- >>> lists1 bitraversed1 ('h' :| "ello", 'w' :| "orld")
--- ('h' :| "ello") :| ['w' :| "orld"]
---
-lists1 :: AFold (M.Nedl a) s a -> s -> NonEmpty a
-lists1 l = M.runNedl . folds l (M.Nedl . (:|))
-{-# INLINE lists1 #-}
-
 -- | Right fold over an optic.
 --
 -- >>> foldsr folded (+) 0 [1..5::Int64]

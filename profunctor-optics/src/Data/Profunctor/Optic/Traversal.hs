@@ -5,7 +5,6 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE PackageImports        #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Traversal0
     Traversal0
@@ -61,13 +60,9 @@ module Data.Profunctor.Optic.Traversal (
   , (++++)
   , (||||)
     -- * Optics
-  , sat
-  , here
-  , there
   , anulled
   , selected
   , traversed
-  , otraversed
   , cotraversed
   , itraversedRep
   , traversed1
@@ -108,7 +103,6 @@ import Control.Monad.State
 import Control.Applicative.Backwards
 import Data.Function
 import Data.Bitraversable
-import Data.MonoTraversable as M (Element, MonoTraversable(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Lens
@@ -116,10 +110,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Combinator
 import Data.Semigroup.Bitraversable
-import Data.Sequences (IsSequence)
-import qualified Data.Sequences as S
 import qualified Data.Functor.Rep as F
-import "these-skinny" Data.These hiding (here, there)
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -127,7 +118,6 @@ import "these-skinny" Data.These hiding (here, there)
 -- >>> :set -XTypeApplications
 -- >>> :set -XTupleSections
 -- >>> :set -XRankNTypes
--- >>> :set -XPackageImports
 -- >>> import Data.Char
 -- >>> import Data.Function ((&))
 -- >>> import Data.Int
@@ -135,7 +125,6 @@ import "these-skinny" Data.These hiding (here, there)
 -- >>> import Data.Maybe
 -- >>> import Data.String
 -- >>> import Data.Semigroup
--- >>> import "these-skinny" Data.These (These(..))
 -- >>> import qualified Data.Bifunctor as B
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
@@ -572,46 +561,6 @@ beside1 x y p = tabulate go where go rss = bitraverse1 (sieve $ x p) (sieve $ y 
 
 -- | TODO: Document
 --
--- >>> "foobar" ^? sat 3 :: Maybe Char
--- Just 'b'
--- 
--- @since 0.0.3
-sat :: IsSequence a => S.Index a -> Traversal0' a (Element a)
-sat e = traversalVl0 $ \point f s ->
-  case S.splitAt e s of
-   (l, mr) -> case S.uncons mr of
-      Nothing      -> point s
-      Just (c, xs) -> f c <&> \d -> l <> S.singleton d <> xs
-{-# INLINE sat #-}
-
--- | A 'Traversal0' of the first half of a 'These'.
---
--- >>> over here show (That 1)
--- That 1
---
--- >>> over here show (These 'a' 2)
--- These "'a'" 2
---
--- @since 0.0.3
-here :: Traversal0 (These a c) (These b c) a b
-here = traversalVl0 $ \point afb -> these (fmap This . afb) (point . That) (\x y -> flip These y <$> afb x)
-{-# INLINE here #-}
-
--- | A 'Traversal0' of the second half of a 'These'.
---
--- >>> over there show (That 1)
--- That "1"
---
--- >>> over there show (These 'a' 2)
--- These 'a' "2"
---
--- @since 0.0.3
-there :: Traversal0 (These c a) (These c b) a b
-there = traversalVl0 $ \point afb -> these (point . This) (fmap That . afb) (\x y -> These x <$> afb y) 
-{-# INLINE there #-}
-
--- | TODO: Document
---
 anulled :: Traversal0' s a
 anulled = traversal0 Left const 
 {-# INLINE anulled #-}
@@ -627,13 +576,6 @@ selected p = traversal0 (\kv@(k,v) -> branch p kv v k) (\kv@(k,_) v' -> if p k t
 traversed :: Traversable f => Traversal (f a) (f b) a b
 traversed = traversalVl traverse
 {-# INLINE traversed #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-otraversed :: MonoTraversable a => Traversal' a (Element a)
-otraversed = traversalVl otraverse
-{-# INLINE otraversed #-}
 
 -- | TODO: Document
 --
