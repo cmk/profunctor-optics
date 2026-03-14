@@ -174,7 +174,7 @@ failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
 -- @
 --
 toFold0 :: View s (Maybe a) -> Fold0 s a
-toFold0 = (. just)
+toFold0 o pab = o (just pab)
 {-# INLINE toFold0 #-}
 
 -- | Obtain a 'View' from a 'Fold0' 
@@ -182,7 +182,7 @@ toFold0 = (. just)
 -- > 'fromFold0' = 'to' . 'preview'
 --
 fromFold0 ::  AFold0 a s a -> View s (Maybe a)
-fromFold0 = (\f -> coercer . lmap f) . preview
+fromFold0 o = coercer . lmap (preview o)
 {-# INLINE fromFold0 #-}
 
 ---------------------------------------------------------------------

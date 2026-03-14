@@ -711,7 +711,7 @@ instance Coapplicative (CxtraversalCorep k b a) where
 newtype Paired p c d a b = Paired { runPaired :: p (c , a) (d , b) }
 
 fromTambara :: Profunctor p => Tambara p a b -> Paired p d d a b
-fromTambara = Paired . dimap swap swap . runTambara
+fromTambara t = Paired (dimap swap swap (runTambara t))
 
 instance Profunctor p => Profunctor (Paired p c d) where
   dimap f g (Paired pab) = Paired $ dimap (fmap f) (fmap g) pab
@@ -741,7 +741,7 @@ paired x y =
 newtype Split p c d a b = Split { runSplit :: p (Either c a) (Either d b) }
 
 fromTambaraSum :: Profunctor p => TambaraSum p a b -> Split p d d a b
-fromTambaraSum = Split . dimap eswap eswap . runTambaraSum
+fromTambaraSum t = Split (dimap eswap eswap (runTambaraSum t))
 
 instance Profunctor p => Profunctor (Split p c d) where
   dimap f g (Split pab) = Split $ dimap (fmap f) (fmap g) pab
@@ -838,7 +838,7 @@ instance a ~ b => Apply (Coindex a b) where
 --  coapply (Coindex eab) = undefined 
 
 instance a ~ b => Applicative (Coindex a b) where
-  pure s = Coindex ($s)
+  pure s = Coindex ($ s)
   (<*>) = (<.>)
 
 trivial :: Coindex a b b -> a

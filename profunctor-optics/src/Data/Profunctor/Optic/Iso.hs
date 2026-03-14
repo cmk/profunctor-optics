@@ -109,7 +109,7 @@ import qualified GHC.Generics as G
 -- See 'Data.Profunctor.Optic.Property'.
 --
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
-iso = dimap
+iso sa bt = dimap sa bt
 {-# INLINE iso #-}
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
@@ -163,7 +163,7 @@ invert o = withIso o $ \sa bt -> iso bt sa
 -- | Convert from 'AIso' back to any 'Iso'.
 --
 cloneIso :: AIso s t a b -> Iso s t a b
-cloneIso k = withIso k iso
+cloneIso k = withIso k $ \sa bt -> iso sa bt
 {-# INLINE cloneIso #-}
 
 ---------------------------------------------------------------------
@@ -304,7 +304,7 @@ flipped = iso flip flip
 -- "lived"
 --
 involuted :: (s -> a) -> Iso s a a s
-involuted = M.join iso
+involuted f = iso f f
 {-# INLINE involuted #-}
 
 -- | Uncurry a function.

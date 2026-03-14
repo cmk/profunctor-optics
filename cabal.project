@@ -1,4 +1,5 @@
 packages: profunctor-optics/
 
-optional-packages:
-  /Users/cmk/Documents/Code/haskell/coapplicative/
+optional-packages: /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
+
+write-ghc-environment-files: always
