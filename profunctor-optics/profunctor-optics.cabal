@@ -1,4 +1,4 @@
-cabal-version: >= 1.10
+cabal-version: >= 1.22
 
 name:           profunctor-optics
 version:        0.0.3
@@ -32,6 +32,10 @@ source-repository head
   location: https://github.com/cmk/profunctor-optics
 
 library
+  reexported-modules:
+      Data.Functor.Rep
+    , Data.Functor.Adjunction
+
   exposed-modules:
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
