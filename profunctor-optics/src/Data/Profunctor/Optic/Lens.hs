@@ -339,7 +339,7 @@ comatching csa bct = cosecond . dimap csa bct
 -- | TODO: Document
 --
 cloneLens :: ALens s t a b -> Lens s t a b
-cloneLens o = withLens o lens 
+cloneLens o = withLens o $ \sa sbt -> lens sa sbt
 
 -- | Extract the higher order function that characterizes a 'Lens'.
 --
@@ -372,7 +372,7 @@ inverting sa bt = grate $ \sab -> bt (sab sa)
 -- | TODO: Document
 --
 cloneColens :: AColens s t a b -> Colens s t a b
-cloneColens k = withColens k grate
+cloneColens k = withColens k $ \sabt -> grate sabt
 {-# INLINE cloneColens #-}
 
 -- | Extract the higher order function that characterizes a 'Colens'.
@@ -590,7 +590,7 @@ zipsWith4 o f s1 s2 s3 s4 = withColens o $ \sabt -> sabt $ \sa -> f (sa s1) (sa 
 -- @
 --
 zipsWithF :: Functor f => AColens s t a b -> (f a -> b) -> f s -> t
-zipsWithF = cloneColensVl
+zipsWithF o f s = cloneColensVl o f s
 {-# INLINE zipsWithF #-}
 
 -- | TODO: Document

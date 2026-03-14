@@ -162,7 +162,7 @@ traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (id ||| uncurry sbt) . right' 
 -- | Obtain a 'Traversal0'' from match and constructor functions.
 --
 traversal0' :: (s -> Maybe a) -> (s -> b -> s) -> Traversal0 s s a b
-traversal0' sa sas = flip traversal0 sas $ \s -> maybe (Left s) Right (sa s)
+traversal0' sa sas = traversal0 (\s -> maybe (Left s) Right (sa s)) sas
 {-# INLINE traversal0' #-}
 
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
@@ -273,7 +273,7 @@ ixtraversing sia sbt = represent (\kab -> traverse (curry kab mempty) . snd) . i
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversalVl :: (forall f. Applicative' f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversalVl = represent
+traversalVl f pab = represent f pab
 {-# INLINE traversalVl #-}
 
 -- | Lift an indexed VL traversal into an indexed profunctor traversal.
@@ -372,7 +372,7 @@ retraversing bt bsa = corepresent cotraverse . (re $ lens bt bsa)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 cotraversalVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversalVl = corepresent
+cotraversalVl f pab = corepresent f pab
 
 -- | Lift a coindexed VL cotraversal into a coindexed profunctor cotraversal.
 --

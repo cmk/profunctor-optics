@@ -77,7 +77,7 @@ import Data.Profunctor.Optic.Types
 -- See 'Data.Profunctor.Optic.Property'.
 --
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
-prism sta bt = dimap sta (id ||| bt) . right'
+prism sta bt pab = dimap sta (id ||| bt) (right' pab)
 
 -- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
@@ -85,19 +85,19 @@ prism sta bt = dimap sta (id ||| bt) . right'
 -- This is unfortunate but done to maintain cosistency with 'traversal0' etc.
 --
 prism' :: (s -> Maybe a) -> (b -> s) -> Prism s s a b
-prism' sa as = flip prism as $ \s -> maybe (Left s) Right (sa s)
+prism' sa as = prism (\s -> maybe (Left s) Right (sa s)) as
 
 -- | Obtain a 'Prism' from its free tensor representation.
 --
 -- Useful for constructing prisms from try and handle functions.
 --
 handling :: (s -> c + a) -> (c + b -> t) -> Prism s t a b
-handling sca cbt = dimap sca cbt . right'
+handling sca cbt pab = dimap sca cbt (right' pab)
 
 -- | TODO: Document
 --
 clonePrism :: APrism s t a b -> Prism s t a b
-clonePrism o = withPrism o prism
+clonePrism o = withPrism o $ \sta bt -> prism sta bt
 
 ---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
@@ -106,12 +106,12 @@ clonePrism o = withPrism o prism
 -- | Focus on the `Left` constructor of `Either`.
 --
 left :: Prism (a + c) (b + c) a b
-left = left'
+left pab = left' pab
 
 -- | Focus on the `Right` constructor of `Either`.
 --
 right :: Prism (c + a) (c + b) a b
-right = right'
+right pab = right' pab
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
@@ -121,12 +121,12 @@ right = right'
 -- Nothing
 --
 just :: Prism (Maybe a) (Maybe b) a b
-just = flip prism Just $ maybe (Left Nothing) Right
+just = prism (maybe (Left Nothing) Right) Just
 
 -- | Focus on the `Nothing` constructor of `Maybe`.
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
-nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
+nothing = prism (maybe (Right ()) (const $ Left Nothing)) (const Nothing)
 
 -- | Focus on the remainder of a list with a given prefix.
 --
@@ -167,10 +167,10 @@ nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 aside :: APrism s t a b -> Prism (e , s) (e , t) (e , a) (e , b)
 aside k =
   withPrism k $ \sta bt ->
-    flip prism (fmap bt) $ \(e,s) ->
-      case sta s of
-        Left t  -> Left  (e,t)
-        Right a -> Right (e,a)
+    prism (\(e,s) -> case sta s of
+             Left t  -> Left  (e,t)
+             Right a -> Right (e,a))
+          (fmap bt)
 {-# INLINE aside #-}
 
 -- | Given a pair of prisms, project sums.
@@ -178,10 +178,10 @@ without :: APrism s t a b -> APrism u v c d -> Prism (s + u) (t + v) (a + c) (b 
 without k =
   withPrism k $ \sta bt k' ->
     withPrism k' $ \uevc dv ->
-      flip prism (bimap bt dv) $ \su ->
-        case su of
-          Left s  -> bimap Left Left (sta s)
-          Right u -> bimap Right Right (uevc u)
+      prism (\su -> case su of
+               Left s  -> bimap Left Left (sta s)
+               Right u -> bimap Right Right (uevc u))
+            (bimap bt dv)
 {-# INLINE without #-}
 
 -- | Lift a 'Prism' through a 'Traversable' functor.
@@ -196,10 +196,10 @@ without k =
 below :: Traversable f => APrism' s a -> Prism' (f s) (f a)
 below k =
   withPrism k $ \sta bt ->
-    flip prism (fmap bt) $ \s ->
-      case traverse sta s of
-        Left _  -> Left s
-        Right t -> Right t
+    prism (\s -> case traverse sta s of
+             Left _  -> Left s
+             Right t -> Right t)
+          (fmap bt)
 {-# INLINE below #-}
 
 -- | Use a 'Prism' to construct a 'PastroSum'.

@@ -109,13 +109,13 @@ from f = coercel . rmap f
 -- @
 --
 cloneView :: AView a s a -> View s a
-cloneView = to . view
+cloneView o = to (view o)
 {-# INLINE cloneView #-}
 
 -- | TODO: Document
 --
 cloneReview :: AReview t b -> Review t b
-cloneReview = from . review
+cloneReview o = from (review o)
 {-# INLINE cloneReview #-}
 
 ---------------------------------------------------------------------
@@ -139,7 +139,7 @@ cloneReview = from . review
 -- @
 --
 like :: a -> View s a
-like = to . const
+like a = to (const a)
 {-# INLINE like #-}
 
 -- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
@@ -151,7 +151,7 @@ like = to . const
 -- @
 --
 relike :: t -> Review t b
-relike = from . const
+relike t = from (const t)
 {-# INLINE relike #-}
 
 -- | Combine two 'View's into a 'View' to a product.
