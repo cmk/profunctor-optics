@@ -45,15 +45,6 @@ module Data.Profunctor.Optic.Carrier (
   , AIxfold0
   , AIxfold
   , ACxfold
-    -- * Machine carriers
-  , AFoldl
-  , AFoldl1
-  , ACxfoldl
-  , ACxfoldl1
-  , AFoldl'
-  , AFoldl1'
-  , ACxfoldl'
-  , ACxfoldl1'
     -- * Setter carriers
   , ASetter
   , AResetter
@@ -132,8 +123,6 @@ import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
 import qualified Control.Category as C
-import qualified Data.Profunctor.Rep.Foldl as L
-import qualified Data.Profunctor.Rep.Foldl1 as L1
 
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -229,26 +218,6 @@ type AIxfold0 r k s a = AIxfold (Alt Maybe r) k s a
 type AIxfold r k s a = AIxtraversal' (Const r) k s a
 
 type ACxfold r k t b = ACxtraversal' (Const r) k t b
-
----------------------------------------------------------------------
--- Machine carriers
----------------------------------------------------------------------
-
-type AFoldl s t a b = Optic L.Foldl s t a b
-
-type AFoldl1 s t a b = Optic L1.Foldl1 s t a b
-
-type ACxfoldl k s t a b = Cxoptic L.Foldl k s t a b
-
-type ACxfoldl1 k s t a b = Cxoptic L1.Foldl1 k s t a b
-
-type AFoldl' t b = AFoldl t t b b
-
-type AFoldl1' t b = AFoldl1 t t b b
-
-type ACxfoldl' k t b = ACxfoldl k t t b b
-
-type ACxfoldl1' k t b = ACxfoldl1 k t t b b 
 
 ---------------------------------------------------------------------
 -- Setter carriers

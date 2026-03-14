@@ -66,8 +66,47 @@ import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tuple (swap)
 import Data.Tagged as Export
 import Data.Void as Export
-import Test.Logic
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
+
+-- Inlined from Test.Logic (lawz)
+type (+) = Either
+
+rgt :: (a -> b) -> a + b -> b
+rgt f = either f id
+{-# INLINE rgt #-}
+
+rgt' :: Void + b -> b
+rgt' = rgt absurd
+{-# INLINE rgt' #-}
+
+lft :: (b -> a) -> a + b -> a
+lft f = either id f
+{-# INLINE lft #-}
+
+lft' :: a + Void -> a
+lft' = lft absurd
+{-# INLINE lft' #-}
+
+eswap :: (a1 + a2) -> (a2 + a1)
+eswap (Left x) = Right x
+eswap (Right x) = Left x
+{-# INLINE eswap #-}
+
+fork :: a -> (a , a)
+fork a = (a, a)
+{-# INLINE fork #-}
+
+join :: (a + a) -> a
+join = either id id
+{-# INLINE join #-}
+
+eval :: (a , a -> b) -> b
+eval = uncurry $ flip id
+{-# INLINE eval #-}
+
+apply :: (b -> a , b) -> a
+apply = uncurry id
+{-# INLINE apply #-}
 
 -- | Hyphenation operator.
 type (g - f) a = f (g a)

@@ -5,7 +5,6 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
-{-# LANGUAGE PackageImports        #-}
 module Data.Profunctor.Optic.Prism (
     -- * Prism
     Prism
@@ -19,9 +18,6 @@ module Data.Profunctor.Optic.Prism (
   , right
   , just
   , nothing
-  , this
-  , that
-  , both
   , prefixed
   , only
   , nearly
@@ -45,8 +41,6 @@ import Data.Profunctor.Choice
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import 
 import Data.Profunctor.Optic.Types
-import "these-skinny" Data.These
-
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications
@@ -133,24 +127,6 @@ just = flip prism Just $ maybe (Left Nothing) Right
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = flip prism (const Nothing) $ maybe (Right ()) (const $ Left Nothing)
-
--- | Focus on the 'This' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-this :: Prism' (These a b) a
-this = prism (these Right (Left . That) (\x y -> Left $ These x y)) This
-
--- | Focus on the 'That' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-that :: Prism' (These a b) b
-that = prism (these (Left . This) Right (\x y -> Left $ These x y)) That
-
--- | Focus on the 'These' constructor of 'Data.These'.
---
--- /Note:/ cannot change type.
-both :: Prism' (These a b) (a, b)
-both = prism (these (Left . This) (Left . That) (\x y -> Right (x, y))) $ uncurry These
 
 -- | Focus on the remainder of a list with a given prefix.
 --
