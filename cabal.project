@@ -3,6 +3,7 @@ packages:
     profunctor-optics-exceptions/
     profunctor-optics-folds/
     profunctor-optics-sequences/
+    profunctor-optics-containers/
 
 optional-packages: /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
 
