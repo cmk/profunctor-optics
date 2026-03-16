@@ -20,7 +20,12 @@ module Control.Exception.Optic (
   , handles_
     -- * Lifting
   , unlifted
+  , masked
+  , uninterruptiblyMasked
   , exmapped
+    -- * Fault + masking
+  , withFaultMasked
+  , withFaultBracket
     -- * Utility
   , non'
     -- * IO Exceptions
@@ -89,6 +94,8 @@ import Control.Exception (AsyncException(..), IOException, ArithException(..), A
 import Control.Exception.Fault.Class (Exception(..), SomeException(..), MonadIO(..), MonadUnliftIO(..))
 import Control.Exception.Fault.Catch (isSyncException, isAsyncException, toSyncException, toAsyncException)
 import qualified Control.Exception.Fault.Catch as Catch
+import Control.Exception.Fault.Type (Fault)
+import qualified Control.Exception.Fault.Catch as FaultCatch
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Profunctor.Optic (Prism', Iso', Lens', Fold0, Colens, Optic', AReview,
   Profunctor, prism', iso, lens, only, grate, dimap, rmap, right', preview, review)
@@ -220,11 +227,58 @@ unlifted :: MonadUnliftIO m => Colens (m a) (m b) (IO a) (IO b)
 unlifted = grate (\k -> withRunInIO (\run -> k run))
 {-# INLINE unlifted #-}
 
+-- | A 'Colens' that runs computations in a masked context.
+--
+-- @
+-- 'masked' :: 'MonadUnliftIO' m => 'Colens' (m a) (m b) (m a) (m b)
+-- @
+--
+-- Each focus receives the restore function via the colens.
+masked :: MonadUnliftIO m => Colens (m a) (m b) (m a) (m b)
+masked = grate (\k -> Catch.mask (\restore -> k restore))
+{-# INLINE masked #-}
+
+-- | Like 'masked' but with 'Catch.uninterruptibleMask'.
+uninterruptiblyMasked :: MonadUnliftIO m => Colens (m a) (m b) (m a) (m b)
+uninterruptiblyMasked = grate (\k -> Catch.uninterruptibleMask (\restore -> k restore))
+{-# INLINE uninterruptiblyMasked #-}
+
 -- | Map one exception type to another.
 --
 exmapped :: (Exception e1, Exception e2, MonadUnliftIO m) => Prism' SomeException e1 -> Prism' SomeException e2 -> (e1 -> e2) -> m a -> m a
 exmapped o1 o2 f = catches o1 `flip` (throws o2 . f)
 {-# INLINE exmapped #-}
+
+---------------------------------------------------------------------
+-- Fault + masking
+---------------------------------------------------------------------
+
+-- | Run a 'Fault' handler on a masked action, with access to the
+-- restore function.
+--
+-- @
+-- withFaultMasked myHandler $ \\restore ->
+--   restore (readFile "config.yaml")
+-- @
+withFaultMasked :: MonadUnliftIO m => Fault a b -> ((forall x. m x -> m x) -> m a) -> m b
+withFaultMasked f action = Catch.mask $ \restore ->
+  FaultCatch.withFaultIO f (action restore)
+
+-- | Run a 'Fault' handler with bracket-style resource management.
+--
+-- The acquire and release run outside the handler; the body runs
+-- through the 'Fault'.
+--
+-- @
+-- withFaultBracket myHandler
+--   (openFile "out.log" WriteMode)
+--   hClose
+--   (\\h -> hPutStr h result)
+-- @
+withFaultBracket :: MonadUnliftIO m => Fault a b -> m r -> (r -> m c) -> (r -> m a) -> m b
+withFaultBracket f acquire release action =
+  Catch.bracket acquire release $ \r ->
+    FaultCatch.withFaultIO f (action r)
 
 ---------------------------------------------------------------------
 -- Utility
