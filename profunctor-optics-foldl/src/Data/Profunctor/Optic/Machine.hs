@@ -9,6 +9,7 @@ module Data.Profunctor.Optic.Machine (
     -- * Types
     Moore, Mealy
   , Moore', Mealy'
+  , AFoldl, AFoldl1
     -- * Moore
   , moore
   , listing
