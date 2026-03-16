@@ -1,6 +1,6 @@
 cabal-version: 2.0
 
-name:           profunctor-optics-foldl
+name:           profunctor-optics-folds
 version:        0.0.1
 synopsis:       Foldl carrier profunctors and Moore/Mealy machine optics.
 description:

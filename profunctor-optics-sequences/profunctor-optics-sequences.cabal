@@ -52,5 +52,5 @@ library
       base               >= 4.16  && < 5.0
     , mono-traversable
     , profunctor-optics
-    , profunctor-optics-foldl
+    , profunctor-optics-folds
     , semigroupoids
