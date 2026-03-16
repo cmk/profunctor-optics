@@ -1,4 +1,6 @@
-packages: profunctor-optics/
+packages:
+    profunctor-optics/
+    profunctor-optics-exceptions/
 
 optional-packages: /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
 
