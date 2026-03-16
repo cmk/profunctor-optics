@@ -23,7 +23,7 @@ module Control.Exception.Optic (
   , masked
   , uninterruptiblyMasked
   , exmapped
-    -- * Fault + masking
+    -- * Fault + masking (re-exported from "Control.Exception.Fault.Catch")
   , withFaultMasked
   , withFaultBracket
     -- * Utility
@@ -94,8 +94,7 @@ import Control.Exception (AsyncException(..), IOException, ArithException(..), A
 import Control.Exception.Fault.Class (Exception(..), SomeException(..), MonadIO(..), MonadUnliftIO(..))
 import Control.Exception.Fault.Catch (isSyncException, isAsyncException, toSyncException, toAsyncException)
 import qualified Control.Exception.Fault.Catch as Catch
-import Control.Exception.Fault.Type (Fault)
-import qualified Control.Exception.Fault.Catch as FaultCatch
+import Control.Exception.Fault.Catch (withFaultMasked, withFaultBracket)
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Profunctor.Optic (Prism', Iso', Lens', Fold0, Colens, Optic', AReview,
   Profunctor, prism', iso, lens, only, grate, dimap, rmap, right', preview, review)
@@ -249,36 +248,6 @@ exmapped :: (Exception e1, Exception e2, MonadUnliftIO m) => Prism' SomeExceptio
 exmapped o1 o2 f = catches o1 `flip` (throws o2 . f)
 {-# INLINE exmapped #-}
 
----------------------------------------------------------------------
--- Fault + masking
----------------------------------------------------------------------
-
--- | Run a 'Fault' handler on a masked action, with access to the
--- restore function.
---
--- @
--- withFaultMasked myHandler $ \\restore ->
---   restore (readFile "config.yaml")
--- @
-withFaultMasked :: MonadUnliftIO m => Fault a b -> ((forall x. m x -> m x) -> m a) -> m b
-withFaultMasked f action = Catch.mask $ \restore ->
-  FaultCatch.withFaultIO f (action restore)
-
--- | Run a 'Fault' handler with bracket-style resource management.
---
--- The acquire and release run outside the handler; the body runs
--- through the 'Fault'.
---
--- @
--- withFaultBracket myHandler
---   (openFile "out.log" WriteMode)
---   hClose
---   (\\h -> hPutStr h result)
--- @
-withFaultBracket :: MonadUnliftIO m => Fault a b -> m r -> (r -> m c) -> (r -> m a) -> m b
-withFaultBracket f acquire release action =
-  Catch.bracket acquire release $ \r ->
-    FaultCatch.withFaultIO f (action r)
 
 ---------------------------------------------------------------------
 -- Utility
