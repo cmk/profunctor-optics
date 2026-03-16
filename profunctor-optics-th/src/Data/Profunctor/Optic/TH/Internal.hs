@@ -40,7 +40,7 @@ import qualified Data.Set as Set
 import           Data.Set (Set)
 import           Data.List (nub)
 import           Data.Maybe
-import           Data.Tuple.Optic
+import           Data.Functor.Apply (Apply)
 import           Data.Profunctor.Optic
 import           Language.Haskell.TH
 
@@ -55,10 +55,10 @@ class HasName t where
   -- | Extract (or modify) the 'Name' of something
   name :: Lens' t Name
 
-instance HasName TyVarBndr where
+instance HasName (TyVarBndr flag) where
   name = lensVl tyVarBndrT
-    where tyVarBndrT f (PlainTV n) = PlainTV <$> f n
-          tyVarBndrT f (KindedTV n k) = (`KindedTV` k) <$> f n
+    where tyVarBndrT f (PlainTV n fl) = (\n' -> PlainTV n' fl) <$> f n
+          tyVarBndrT f (KindedTV n fl k) = (\n' -> KindedTV n' fl k) <$> f n
 
 instance HasName Name where
   name = id
@@ -88,7 +88,7 @@ class HasTypeVars t where
   -- the 'Traversal' laws, when in doubt generate your names with 'newName'.
   typeVarsEx :: Set Name -> Traversal' t Name
 
-instance HasTypeVars TyVarBndr where
+instance HasTypeVars (TyVarBndr flag) where
   typeVarsEx s = traversalVl $ \f b -> if Set.member (b ^. name) s then pure b else flip runStar b $ name (Star f)
 
 instance HasTypeVars Name where
@@ -97,8 +97,8 @@ instance HasTypeVars Name where
 instance HasTypeVars Type where
   typeVarsEx s = traversalVl tyT
     where 
-      typeVarsEx' :: Applicative f => HasTypeVars t => Set Name -> (Name -> f Name) -> t -> f t 
-      typeVarsEx' s = withTraversal $ typeVarsEx s
+      typeVarsEx' :: (Applicative f, Apply f) => HasTypeVars t => Set Name -> (Name -> f Name) -> t -> f t
+      typeVarsEx' s' g = runStar $ typeVarsEx s' (Star g)
  
       tyT f (VarT n) = VarT <$> typeVarsEx' s f n
       tyT f (AppT l r) = AppT <$> typeVarsEx' s f l <*> typeVarsEx' s f r
@@ -181,7 +181,7 @@ quantifyType = quantifyType' Set.empty
 quantifyType' :: Set Name -> Cxt -> Type -> Type
 quantifyType' exclude c t = ForallT vs c t
   where
-    vs = map PlainTV
+    vs = map (`PlainTV` SpecifiedSpec)
        $ filter (`Set.notMember` exclude)
        $ nub -- stable order
        $ lists typeVars t

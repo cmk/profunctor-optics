@@ -65,7 +65,7 @@ import           Control.Monad.Trans.State
 import           Data.Char
 import           Data.Data
 import           Data.Either
-import           Data.Either.Optic
+import           Data.Function ((&))
 import qualified Data.Map as Map
 import           Data.Map (Map)
 import           Data.Monoid
@@ -74,9 +74,7 @@ import           Data.Set (Set)
 import           Data.Functor.Identity
 import           Data.List (nub, findIndices, stripPrefix, isPrefixOf)
 import           Data.Maybe
-import           Data.Tuple.Optic
 import           Data.Profunctor.Optic
-import           Data.Profunctor.Optic.Prelude hiding (elem)
 import           Data.Profunctor.Optic.TH.Internal
 import           Language.Haskell.TH
 import qualified Language.Haskell.TH.Datatype as D
@@ -154,7 +152,7 @@ lengthOf l s = length (s ^.. l)
 setOf :: Ord a => AFold (Endo [a]) s a -> s -> Set a
 setOf o s = Set.fromList (s ^.. o)
 
-forallt :: Traversal' Type ([TyVarBndr], Cxt, Type)
+forallt :: Traversal' Type ([TyVarBndr Specificity], Cxt, Type)
 forallt = traversalVl foralltVl
   where foralltVl f (ForallT a b c) = (\(x, y, z) -> ForallT x y z) <$> f (a, b, c)
         foralltVl _ other = pure other
@@ -867,7 +865,7 @@ makeClassyClass className methodName s defs = do
            | otherwise = [FunDep [c] vars]
 
 
-  classD (cxt[]) className (map PlainTV (c:vars)) fd
+  classD (cxt[]) className (map (\v -> PlainTV v ()) (c:vars)) fd
     $ sigD methodName (return (''Lens' `conAppsT` [VarT c, s']))
     : concat
       [ [sigD defName (return ty)
@@ -922,12 +920,12 @@ opticTypeName typeChanging  LensType          = if typeChanging
                                                   then ''Lens
                                                   else ''Lens'
 opticTypeName typeChanging  AffineType    = if typeChanging
-                                                  then ''Affine
-                                                  else ''Affine'
+                                                  then ''Traversal0
+                                                  else ''Traversal0'
 opticTypeName typeChanging  TraversalType     = if typeChanging
                                                   then ''Traversal
                                                   else ''Traversal'
-opticTypeName _typeChanging OptionType         = ''Option
+opticTypeName _typeChanging OptionType         = ''Fold0
 opticTypeName _typeChanging FoldType          = ''Fold
 
 -- Compute the positional location of the fields involved in
@@ -945,7 +943,7 @@ buildScaffold rules s cons defName =
 
   do (s',t,a,b) <- buildStab s (concatMap snd consForDef)
 
-     let prev o s = getFirst $ withFold o (First . Just) s
+     let prev o s = listToMaybe (lists o s)
 
          defType
            | Just (_,cx,a') <- prev forallt a =
@@ -977,7 +975,7 @@ buildScaffold rules s cons defName =
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
-         opticType | has forallt a             = ViewType
+         opticType | not (null (lists forallt a)) = ViewType
                    | not (_allowUpdates rules) = ViewType
                    | isoCase                   = IsoType
                    | otherwise                 = LensType
@@ -992,7 +990,7 @@ buildScaffold rules s cons defName =
   scaffolds = [ (n, length ts, rightIndices ts) | (n,ts) <- consForDef ]
 
   rightIndices :: [Either Type Type] -> [Int]
-  rightIndices = findIndices (has right)
+  rightIndices = findIndices isRight
 
   -- Right: types for this definition
   -- Left : other types
@@ -1058,7 +1056,7 @@ buildStab s categorizedFields =
 
      -- compute possible type changes
      sub <- sequenceA (fromSet (newName . nameBase) unfixedTypeVars)
-     let (t,b) = over both (substTypeVars sub) (s',a)
+     let (t,b) = (substTypeVars sub s', substTypeVars sub a)
 
      return (s',t,a,b)
 
@@ -1109,7 +1107,7 @@ makeFieldOptic rules (defName, (_, defType, cons)) = do
 
 makeFieldClass :: OpticStab -> Name -> Name -> DecQ
 makeFieldClass defType className methodName =
-  classD (cxt []) className [PlainTV s, PlainTV a] [FunDep [s] [a]]
+  classD (cxt []) className [PlainTV s (), PlainTV a ()] [FunDep [s] [a]]
          [sigD methodName (return methodType)]
   where
   methodType = quantifyType' (Set.fromList [s,a])
@@ -1273,7 +1271,7 @@ makeAffineClause cons irref = do
   clause
     []
     (normalB $ appsE
-      [ varE 'affineVl
+      [ varE 'traversalVl0
       , lamE [varP point, varP f, varP s] $ caseE (varE s)
         [ makeAffineMatch point f conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
@@ -1346,7 +1344,7 @@ makeOptionClause cons = do
   clause
     []
     (normalB $ appsE
-      [ varE 'option
+      [ varE 'fold0
       , lamE [varP s] $ caseE (varE s)
         [ makeOptionMatch conName fieldCount fields
         | (conName, fieldCount, fields) <- cons
@@ -1452,16 +1450,16 @@ unify1 _ x y = fail ("Failed to unify types: " ++ show (x,y))
 
 -- Perform a limited substitution on type variables. This is used
 -- when unifying rank-2 fields when trying to achieve a View or Fold.
-limitedSubst :: Map Name Type -> TyVarBndr -> Q TyVarBndr
-limitedSubst sub (PlainTV n)
+limitedSubst :: Map Name Type -> TyVarBndr Specificity -> Q (TyVarBndr Specificity)
+limitedSubst sub (PlainTV n _)
   | Just r <- Map.lookup n sub =
        case r of
-         VarT m -> limitedSubst sub (PlainTV m)
+         VarT m -> limitedSubst sub (PlainTV m SpecifiedSpec)
          _ -> fail "Unable to unify exotic higher-rank type"
-limitedSubst sub (KindedTV n k)
+limitedSubst sub (KindedTV n _ k)
   | Just r <- Map.lookup n sub =
        case r of
-         VarT m -> limitedSubst sub (KindedTV m k)
+         VarT m -> limitedSubst sub (KindedTV m SpecifiedSpec k)
          _ -> fail "Unable to unify exotic higher-rank type"
 limitedSubst _ tv = return tv
 
