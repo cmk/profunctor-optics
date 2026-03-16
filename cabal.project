@@ -7,6 +7,8 @@ packages:
     profunctor-optics-generics/
     profunctor-optics-th/
 
-optional-packages: /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
+optional-packages:
+    /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
+    /Users/cmk/Documents/Code/haskell/fault/*.cabal
 
 write-ghc-environment-files: always

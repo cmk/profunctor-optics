@@ -45,6 +45,6 @@ library
 
   build-depends:
       base               >= 4.16  && < 5.0
+    , fault
     , profunctor-optics
-    , unliftio
     , unliftio-core

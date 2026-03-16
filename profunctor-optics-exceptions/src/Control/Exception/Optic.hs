@@ -87,7 +87,9 @@ module Control.Exception.Optic (
 import Control.Concurrent (ThreadId)
 import Control.Exception (Exception(..), SomeException,
   AsyncException(..), IOException, ArithException(..), ArrayException(..))
-import Control.Monad.IO.Unlift (MonadIO(..), MonadUnliftIO(..))
+import Control.Exception.Fault.Catch (MonadIO(..), MonadUnliftIO(..),
+  isSyncException, isAsyncException, toSyncException, toAsyncException)
+import qualified Control.Exception.Fault.Catch as Catch
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Profunctor.Optic (Prism', Iso', Lens', Fold0, Colens, Optic', AReview,
   Profunctor, prism', iso, lens, only, grate, dimap, rmap, right', preview, review)
@@ -97,7 +99,6 @@ import Prelude
 import System.IO (Handle)
 import qualified Control.Exception as Ex
 import qualified GHC.IO.Exception as Ghc
-import qualified UnliftIO.Exception as UE
 
 ---------------------------------------------------------------------
 -- Core optics
@@ -118,13 +119,13 @@ pattern Exception e <- (preview exception -> Just e) where Exception e = review 
 -- | A 'Prism' that selects synchronous exceptions (not async).
 --
 sync :: Prism' SomeException SomeException
-sync = prism' (\e -> if UE.isSyncException e then Just e else Nothing) UE.toSyncException
+sync = prism' (\e -> if isSyncException e then Just e else Nothing) toSyncException
 {-# INLINE sync #-}
 
 -- | A 'Prism' that selects asynchronous exceptions.
 --
 async :: Prism' SomeException SomeException
-async = prism' (\e -> if UE.isAsyncException e then Just e else Nothing) UE.toAsyncException
+async = prism' (\e -> if isAsyncException e then Just e else Nothing) toAsyncException
 {-# INLINE async #-}
 
 -- | A 'Prism' into an 'AsyncException' embedded in 'SomeException'.
@@ -169,7 +170,7 @@ throwsTo tid o = liftIO . Ex.throwTo tid . review o
 -- @
 --
 tries :: MonadUnliftIO m => Fold0 SomeException e -> m a -> m (Either e a)
-tries o = UE.tryJust (preview o)
+tries o = Catch.tryJust (preview o)
 {-# INLINE tries #-}
 
 -- | Try an action, discarding the exception on failure.
@@ -185,7 +186,7 @@ tries_ o m = fmap (either (const Nothing) Just) (tries o m)
 -- @
 --
 catches :: MonadUnliftIO m => Fold0 SomeException e -> m a -> (e -> m a) -> m a
-catches o = UE.catchJust (preview o)
+catches o = Catch.catchJust (preview o)
 {-# INLINE catches #-}
 
 -- | Catch exceptions that match a 'Prism', discarding the exception.
