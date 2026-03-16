@@ -126,6 +126,7 @@ import qualified Data.List.NonEmpty as NNL
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- 'Fold0'

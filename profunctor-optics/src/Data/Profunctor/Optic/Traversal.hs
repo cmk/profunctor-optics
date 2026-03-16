@@ -129,6 +129,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import qualified Data.List.NonEmpty as NE
 -- >>> import Data.Functor.Identity
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- 'Traversal0'

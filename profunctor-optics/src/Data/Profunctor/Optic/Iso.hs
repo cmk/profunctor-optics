@@ -70,13 +70,12 @@ import qualified GHC.Generics as G
 -- >>> :set -XTypeApplications
 -- >>> :set -XAllowAmbiguousTypes
 -- >>> import Data.Monoid
--- >>> import Data.List.Index
--- >>> import Data.Semiring
 -- >>> import Data.Function ((&))
 -- >>> import Data.Functor.Identity
 -- >>> import Data.Functor.Const
 -- >>> import Data.Profunctor.Types
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- 'Iso' 
@@ -173,7 +172,7 @@ cloneIso k = withIso k $ \sa bt -> iso sa bt
 -- | Obtain an 'Iso'' directly from type equality constraints.
 --
 -- >>> :t (^. equaled)
--- (^. equaled) :: b -> b
+-- (^. equaled) :: a -> a
 --
 equaled :: s ~ a => t ~ b => Iso s t a b
 equaled = id
@@ -324,7 +323,7 @@ uncurried = iso uncurry curry
 --
 -- This version is generalized to accept any 'Iso', not just a @newtype@.
 --
--- >>> au (rewrapped' Sum) foldMap [1,2,3,4]
+-- >>> au (iso getSum Sum) foldMap [1,2,3,4]
 -- 10
 --
 -- You may want to think of this combinator as having the following, simpler type:
