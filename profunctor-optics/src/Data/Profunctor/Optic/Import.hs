@@ -34,6 +34,7 @@ module Data.Profunctor.Optic.Import (
   , forget2
   , forgetl
   , forgetr
+  , invertible
   , module Export
 ) where
 
@@ -68,8 +69,13 @@ import Data.Tagged as Export
 import Data.Void as Export
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
 
--- Inlined from Test.Logic (lawz)
+-- Inlined from Test.Logic / Test.Function.Invertible (lawz)
 type (+) = Either
+
+-- | \( \forall a: f (g a) \equiv a \)
+--
+invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)
+invertible f g a = g (f a) == a
 
 rgt :: (a -> b) -> a + b -> b
 rgt f = either f id

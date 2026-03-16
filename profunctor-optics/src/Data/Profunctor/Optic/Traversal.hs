@@ -211,8 +211,6 @@ atraversal f = Star #. f .# runStar
 --  'withLens' o 'traversing' ≡ 'traversed' . o
 -- @
 --
--- Compare 'Data.Profunctor.Optic.Moore.folding'.
---
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input functions constitute a legal lens:
 --

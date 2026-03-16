@@ -20,7 +20,7 @@ homepage:       https://github.com/cmk/profunctor-optics
 bug-reports:    https://github.com/cmk/profunctor-optics/issues
 author:         Chris McKinlay
 maintainer:     Chris McKinlay
-copyright:      2019 Chris McKinlay
+copyright:      2019-2026 Chris McKinlay
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -49,6 +49,7 @@ library
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
+      Data.Profunctor.Optic.Property
 
   other-modules: Data.Profunctor.Optic.Import
 
