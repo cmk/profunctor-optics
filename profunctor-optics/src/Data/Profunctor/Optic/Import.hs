@@ -49,7 +49,7 @@ import Data.Foldable as Export (foldr, foldr')
 import Data.Function ((&))
 import Data.Functor as Export hiding (void)
 import Data.Functor.Apply as Export
-import Data.Functor.Coapply as Export hiding (apply, branch)
+import Data.Functor.Coapply as Export hiding (apply, branch, type (+))
 import Data.Semigroup.Foldable as Export
 import Data.Semigroup.Traversable as Export
 import Data.Functor.Compose as Export
