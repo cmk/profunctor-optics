@@ -1,4 +1,4 @@
-cabal-version: >= 1.22
+cabal-version: 2.0
 
 name:           profunctor-optics
 version:        0.0.3
@@ -10,9 +10,9 @@ description:
   .
   Compact & straight-forward implementation.
   .
-  Fully interoperable. All that is required to create optics is the `profunctors` package. Optics compose with (.) from `Prelude` as is typical. Conversions to & from the Van Laarhoven representations are provided for each optic type.
+  Fully interoperable. All that is required to create optics is the @profunctors@ package. Optics compose with @(.)@ from @Prelude@ as is typical. Conversions to & from the Van Laarhoven representations are provided for each optic type.
   .
-  See the <https://github.com/cmk/profunctor-optics/blob/master/profunctor-optics/README.md Readme> file for more information.
+  See the <https://github.com/cmk/profunctor-optics#readme README> for more information.
 
 category:       Data, Lenses, Profunctors
 stability:      Experimental
@@ -25,7 +25,9 @@ license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
 tested-with:    GHC == 9.6.7
-extra-source-files:  ChangeLog.md
+extra-source-files:
+    ChangeLog.md
+    README.md
 
 source-repository head
   type: git
@@ -57,11 +59,11 @@ library
 
   hs-source-dirs:
       src
+
   default-extensions:
       ConstraintKinds
       RankNTypes
       MultiParamTypeClasses
-      OverloadedStrings
       FlexibleContexts
       FlexibleInstances
       ExistentialQuantification
@@ -74,16 +76,17 @@ library
       TypeFamilies
 
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
+
   build-depends:
-      base                   >= 4.10      && < 5.0
-    , adjunctions            >= 4.4
-    , coapplicative          >= 0.0.2
-    , distributive           >= 0.3
-    , mtl                    >= 2.0.1
-    , tagged                 >= 0.4.4
-    , profunctors            >= 5.4
-    , semigroupoids          >= 5
-    , transformers           >= 0.5
+      base                   >= 4.16       && < 5.0
+    , adjunctions            >= 4.4        && < 5
+    , coapplicative          >= 0.0.2      && < 0.1
+    , distributive           >= 0.3        && < 0.7
+    , mtl                    >= 2.0.1      && < 2.4
+    , tagged                 >= 0.4.4      && < 0.9
+    , profunctors            >= 5.4        && < 5.7
+    , semigroupoids          >= 5          && < 7
+    , transformers           >= 0.5        && < 0.7
 
 test-suite doctest
   type:              exitcode-stdio-1.0
@@ -107,6 +110,6 @@ test-suite properties
 
   build-depends:
       base
-    , hedgehog               >= 1.0
+    , hedgehog               >= 1.0        && < 1.5
     , profunctors
     , profunctor-optics
