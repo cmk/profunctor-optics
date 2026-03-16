@@ -96,3 +96,17 @@ test-suite doctest
       base
     , doctest                >= 0.8
     , profunctor-optics
+
+test-suite properties
+  type:              exitcode-stdio-1.0
+  main-is:           test.hs
+  other-modules:     Test.Carrier
+  ghc-options:       -Wall -threaded
+  hs-source-dirs:    test
+  default-language:  Haskell2010
+
+  build-depends:
+      base
+    , hedgehog               >= 1.0
+    , profunctors
+    , profunctor-optics
