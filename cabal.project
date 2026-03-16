@@ -5,6 +5,7 @@ packages:
     profunctor-optics-sequences/
     profunctor-optics-containers/
     profunctor-optics-generics/
+    profunctor-optics-th/
 
 optional-packages: /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
 
