@@ -78,15 +78,15 @@ library
   ghc-options: -Wall -Wincomplete-uni-patterns -Wincomplete-record-updates
 
   build-depends:
-      base                   >= 4.16       && < 5.0
-    , adjunctions            >= 4.4        && < 5
-    , coapplicative          >= 0.0.2      && < 0.1
-    , distributive           >= 0.3        && < 0.7
-    , mtl                    >= 2.0.1      && < 2.4
-    , tagged                 >= 0.4.4      && < 0.9
-    , profunctors            >= 5.4        && < 5.7
-    , semigroupoids          >= 5          && < 7
-    , transformers           >= 0.5        && < 0.7
+      base                   >= 4.16   && < 5.0
+    , adjunctions            >= 4.4
+    , coapplicative          >= 0.0.2
+    , distributive           >= 0.3
+    , mtl                    >= 2.0.1
+    , tagged                 >= 0.4.4
+    , profunctors            >= 5.4
+    , semigroupoids          >= 5
+    , transformers           >= 0.5
 
 test-suite doctest
   type:              exitcode-stdio-1.0
@@ -110,6 +110,6 @@ test-suite properties
 
   build-depends:
       base
-    , hedgehog               >= 1.0        && < 1.5
+    , hedgehog               >= 1.0
     , profunctors
     , profunctor-optics
