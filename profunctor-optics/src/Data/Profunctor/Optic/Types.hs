@@ -62,10 +62,6 @@ module Data.Profunctor.Optic.Types (
   , Ixfold0, Cxfold0
   , Ixfold, Cxfold
   , Ixfold1, Cxfold1
-    -- * Machine
-  , Moore, Mealy
-  , Ixmoore, Cxmoore
-  , Moore', Mealy'
     -- * Setter
   , Setter, Resetter
   , Setter1, Resetter1
@@ -295,26 +291,6 @@ type Cxfold0 k t b = forall p. (Coaffine p, CoercingL p) => Cxoptic' p k t b
 type Cxfold k t b = forall p. (Affine p, Cotraversing p, CoercingL p) => Cxoptic' p k t b
 
 type Cxfold1 k t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Cxoptic' p k t b
-
----------------------------------------------------------------------
--- Machine
----------------------------------------------------------------------
-
--- | A < https://en.wikipedia.org/wiki/Moore_machine Moore machine >
---
-type Moore s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Optic p s t a b
-
--- | A < https://en.wikipedia.org/wiki/Mealy_machine Mealy machine >
---
-type Mealy s t a b = forall p. (Coaffine p, Cotraversing p, Foldable1 (Corep p)) => Optic p s t a b
-
-type Ixmoore k s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Ixoptic p k s t a b
-
-type Cxmoore k s t a b = forall p. (Closed p, Cotraversing1 p, Foldable (Corep p)) => Cxoptic p k s t a b
-
-type Moore' t b = Moore t t b b
-
-type Mealy' t b = Mealy t t b b
 
 ---------------------------------------------------------------------
 -- Setter
