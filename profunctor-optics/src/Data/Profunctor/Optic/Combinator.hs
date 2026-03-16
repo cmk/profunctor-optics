@@ -95,6 +95,7 @@ import qualified Data.Semigroup as S
 -- >>> import qualified Data.Bifunctor as B
 -- >>> import qualified Data.Map.Lazy as Map
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 parr :: Traversing p => (a -> b) -> p a b 
 parr = tabulate . (pure .)

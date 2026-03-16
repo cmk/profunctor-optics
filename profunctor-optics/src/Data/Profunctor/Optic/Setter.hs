@@ -96,6 +96,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Data.Semigroup
 -- >>> import Data.Tuple (swap)
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- Setter

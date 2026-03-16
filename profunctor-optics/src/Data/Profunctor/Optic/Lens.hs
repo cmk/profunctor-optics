@@ -100,6 +100,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import qualified Data.ByteString as B
 -- >>> import qualified Data.ByteString.Char8 as C
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- 'Lens'

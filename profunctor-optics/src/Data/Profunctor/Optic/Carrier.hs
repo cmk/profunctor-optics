@@ -134,6 +134,7 @@ import qualified Control.Category as C
 -- >>> import Data.Maybe
 -- >>> import Data.Monoid
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- Iso carriers

@@ -50,6 +50,7 @@ import Data.Profunctor.Optic.Types
 -- >>> import Data.Function ((&))
 -- >>> import Data.List.NonEmpty
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
 
 ---------------------------------------------------------------------
 -- 'Prism' & 'Cxprism'

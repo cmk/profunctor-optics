@@ -56,6 +56,8 @@ import Data.Profunctor.Optic.Fold
 -- >>> import Control.Monad.State
 -- >>> import Control.Monad.Writer
 -- >>> :load Data.Profunctor.Optic
+-- >>> import Prelude
+-- >>> import Data.Monoid (Sum(..))
 
 ---------------------------------------------------------------------
 -- 'View' & 'Review'
