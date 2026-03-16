@@ -85,10 +85,9 @@ module Control.Exception.Optic (
 ) where
 
 import Control.Concurrent (ThreadId)
-import Control.Exception (Exception(..), SomeException,
-  AsyncException(..), IOException, ArithException(..), ArrayException(..))
-import Control.Exception.Fault.Catch (MonadIO(..), MonadUnliftIO(..),
-  isSyncException, isAsyncException, toSyncException, toAsyncException)
+import Control.Exception (AsyncException(..), IOException, ArithException(..), ArrayException(..))
+import Control.Exception.Fault.Class (Exception(..), SomeException(..), MonadIO(..), MonadUnliftIO(..))
+import Control.Exception.Fault.Catch (isSyncException, isAsyncException, toSyncException, toAsyncException)
 import qualified Control.Exception.Fault.Catch as Catch
 import Data.Maybe (fromMaybe, isNothing)
 import Data.Profunctor.Optic (Prism', Iso', Lens', Fold0, Colens, Optic', AReview,
