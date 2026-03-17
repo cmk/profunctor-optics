@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Data.Container.Pattern
       Data.List.Optic
       Data.Map.Optic
       Data.Map.NonEmpty.Optic
@@ -56,3 +57,4 @@ library
     , containers
     , nonempty-containers
     , profunctor-optics
+    , scheme-extensions
