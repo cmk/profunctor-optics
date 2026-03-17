@@ -10,6 +10,9 @@
 -- review packed "hello"
 -- @
 module Data.Text.Optic (
+    -- * Short iso
+    short,
+
     -- * Lazy\/strict iso
     lazy,
 
@@ -25,7 +28,16 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as TE
+import Data.Text.Short (ShortText)
+import qualified Data.Text.Short as ST
 import Data.Profunctor.Optic
+
+-- | Iso between strict 'Text' and 'ShortText'.
+--
+-- 'ShortText' is backed by unpinned @ByteArray#@ — better
+-- for GC when storing many small strings.
+short :: Iso' Text ShortText
+short = iso ST.fromText ST.toText
 
 -- | Iso between strict and lazy 'Text'.
 lazy :: Iso' Text TL.Text

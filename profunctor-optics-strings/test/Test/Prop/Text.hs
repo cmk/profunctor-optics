@@ -10,11 +10,29 @@ import qualified Hedgehog.Range as Range
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as TE
+import qualified Data.Text.Short as ST
 import Data.Text.Optic
 import Data.Profunctor.Optic
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
+
+---------------------------------------------------------------------
+-- short
+---------------------------------------------------------------------
+
+-- | view short . review short = id
+prop_short_roundtrip :: Property
+prop_short_roundtrip = property $ do
+    s <- forAll $ Gen.text (Range.linear 0 100) Gen.unicode
+    review short (view short s) === s
+
+-- | review short . view short = id
+prop_short_roundtrip_rev :: Property
+prop_short_roundtrip_rev = property $ do
+    s <- forAll $ Gen.text (Range.linear 0 100) Gen.unicode
+    let st = ST.fromText s
+    view short (review short st) === st
 
 ---------------------------------------------------------------------
 -- lazy

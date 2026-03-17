@@ -37,6 +37,7 @@ library
     , profunctor-optics
     , scheme-extensions
     , text
+    , text-short
 
 test-suite props
   type: exitcode-stdio-1.0
@@ -58,3 +59,4 @@ test-suite props
     , profunctor-optics-strings
     , scheme-extensions
     , text
+    , text-short
