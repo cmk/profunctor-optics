@@ -20,7 +20,9 @@ build-type:     Simple
 
 library
   exposed-modules:
-      Data.Profunctor.Optic.String
+      Data.Word.Optic
+      Data.ByteString.Optic
+      Data.Text.Optic
 
   default-language: Haskell2010
 
