@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Data.Container.Pattern
       Data.List.Optic
       Data.Map.Optic
       Data.Map.NonEmpty.Optic
@@ -56,3 +57,22 @@ library
     , containers
     , nonempty-containers
     , profunctor-optics
+    , scheme-extensions
+
+test-suite props
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
+  default-language: Haskell2010
+  ghc-options: -Wall -threaded
+
+  other-modules:
+      Test.Prop.Container
+
+  build-depends:
+      base               >= 4.16  && < 5.0
+    , containers
+    , hedgehog           >= 1.0
+    , profunctor-optics
+    , profunctor-optics-containers
+    , scheme-extensions

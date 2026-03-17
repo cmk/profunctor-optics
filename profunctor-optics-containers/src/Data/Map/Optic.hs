@@ -28,9 +28,16 @@ module Data.Map.Optic (
   , lookedGE
   , lookedGT
   , validated
+    -- * Structural (via pattern functor)
+  , depth
+  , sizes
+  , rebalanced
 ) where
 
 
+import Data.Container.Pattern
+import Data.Functor.Fixed (Mu)
+import Data.Functor.Foldable (fold, unfold, refold)
 import Data.Profunctor.Optic
 import qualified Data.Map.Lazy as Map
 
@@ -317,3 +324,45 @@ lookedGT k = ixtraversal0' (Map.lookupGT k) (flip $ Map.insert k)
 validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = filtered Map.valid
 {-# INLINE validated #-}
+
+---------------------------------------------------------------------
+-- Structural (via pattern functor)
+---------------------------------------------------------------------
+
+-- | Compute the depth of a 'Map.Map' using its tree structure.
+--
+-- This operates on the internal BST representation via 'MapF',
+-- something not possible with the standard Map API.
+--
+-- >>> depth (Map.fromList [(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e')])
+-- 3
+--
+depth :: Map.Map k v -> Int
+depth = fold alg . toMapF
+  where
+    alg MapTip = 0
+    alg (MapBin _ _ _ l r) = 1 + max l r
+
+-- | Collect the sizes stored at each internal node.
+--
+-- Useful for inspecting or validating the balance invariant.
+--
+-- >>> sizes (Map.fromList [(1,'a'),(2,'b'),(3,'c')])
+-- [3,1,1]
+--
+sizes :: Map.Map k v -> [Int]
+sizes = fold alg . toMapF
+  where
+    alg MapTip = []
+    alg (MapBin sz _ _ l r) = sz : l ++ r
+
+-- | Rebuild a 'Map.Map' from its pattern functor representation.
+--
+-- @rebalanced = fromMapF . toMapF@
+--
+-- Since 'Map.Bin' preserves the original sizes, this is the
+-- identity. Useful as a building block for transformations
+-- that modify the tree structure then reconstruct.
+--
+rebalanced :: Map.Map k v -> Map.Map k v
+rebalanced = fromMapF . toMapF
