@@ -3,6 +3,7 @@ packages:
     profunctor-optics-exceptions/
     profunctor-optics-folds/
     profunctor-optics-sequences/
+    profunctor-optics-strings/
     profunctor-optics-containers/
     profunctor-optics-generics/
     profunctor-optics-th/
@@ -10,5 +11,6 @@ packages:
 optional-packages:
     /Users/cmk/Documents/Code/haskell/coapplicative/*.cabal
     /Users/cmk/Documents/Code/haskell/fault/*.cabal
+    /Users/cmk/Documents/Code/haskell/scheme-extensions/*.cabal
 
 write-ghc-environment-files: always
