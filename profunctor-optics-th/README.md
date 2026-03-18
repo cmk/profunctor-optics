@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-th/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-th
 
 Template Haskell generation of profunctor optics from
@@ -17,7 +20,7 @@ A **lens** focuses on exactly one field of a product type.
 For a record with fields, each field naturally gives rise
 to a lens. Template Haskell automates the boilerplate.
 
-### Simple example: record lenses
+### Example 1: record lenses
 
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}
@@ -40,7 +43,7 @@ makeFieldOptics defaultFieldRules ''Person
 Person "Alice" 31
 ```
 
-### Complex example: sum type prisms
+### Example 2: sum type prisms
 
 ```haskell
 {-# LANGUAGE TemplateHaskell #-}

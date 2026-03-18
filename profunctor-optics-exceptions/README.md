@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-exceptions/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-exceptions
 
 Profunctor optics for Haskell's exception hierarchy.
@@ -25,7 +28,7 @@ For exceptions: `exception :: Exception e => Prism' SomeException e`
 lets you match on a specific exception type within the
 `SomeException` sum.
 
-### Simple example: matching exceptions
+### Example 1: matching exceptions
 
 ```haskell
 import Control.Exception.Optic
@@ -42,7 +45,7 @@ Just user error (oops)
 user error (oops)
 ```
 
-### Complex example: safe exception handling
+### Example 2: safe exception handling
 
 ```haskell
 import Control.Exception.Optic
@@ -74,7 +77,7 @@ throws :: Exception e => e -> IO a
 throws = throw . review exception
 ```
 
-### Simple example: typed throwing
+### Example 1: typed throwing
 
 ```haskell
 import Control.Exception.Optic

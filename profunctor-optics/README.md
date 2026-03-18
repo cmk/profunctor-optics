@@ -1,4 +1,8 @@
-[Hackage link](http://hackage.haskell.org/package/profunctor-optics)
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+[![Hackage](https://img.shields.io/hackage/v/profunctor-optics.svg)](https://hackage.haskell.org/package/profunctor-optics)
+
+# profunctor-optics
 
 This package provides utilities for creating and manipulating profunctor-based optics. Some highlights:
 

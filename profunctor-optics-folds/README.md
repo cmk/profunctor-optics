@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-folds/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-folds
 
 Moore and Mealy machines as profunctor optics, with strict
@@ -34,7 +37,7 @@ This is "seed + step + extract" — the same shape as `Nu`
 (greatest fixed point), making Moore machines naturally
 codata.
 
-### Simple example: running sum
+### Example 1: running sum
 
 ```haskell
 import Data.Profunctor.Optic.Machine
@@ -45,7 +48,7 @@ import Data.Profunctor.Optic.Machine
 [0, 1, 3, 6, 10, 15]
 ```
 
-### Complex example: fold with projection
+### Example 2: fold with projection
 
 ```haskell
 import Data.Profunctor.Optic.Machine
@@ -80,7 +83,7 @@ folds to run in a single pass:
 (,) <$> sum <*> length  -- sum and length in one pass
 ```
 
-### Simple example: basic folds
+### Example 1: basic folds
 
 ```haskell
 import Data.Profunctor.Rep.Foldl
@@ -93,7 +96,7 @@ import Data.Profunctor.Rep.Foldl
 2.5
 ```
 
-### Complex example: windowed fold
+### Example 2: windowed fold
 
 ```haskell
 import Data.Profunctor.Rep.Foldl
