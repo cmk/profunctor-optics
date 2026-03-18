@@ -202,7 +202,7 @@ fromFold0 o = coercer . lmap (preview o)
 --
 -- This can be useful to lift operations from @Data.List@ and elsewhere into a 'Fold'.
 --
--- >>> [1,2,3,4] ^.. fold_ tail
+-- >>> [1,2,3,4] ^.. fold_ (Prelude.drop 1)
 -- [2,3,4]
 --
 fold_ :: Foldable f => (s -> f a) -> Fold s a

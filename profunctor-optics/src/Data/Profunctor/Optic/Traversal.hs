@@ -646,7 +646,7 @@ unforked p = p ++++ p
 -- >>> lists (bitraversed . duplicated) ("hello","world")
 -- ["hello","hello","world","world"]
 --
-duplicated :: Traversal a b a b
+duplicated :: Traversal1 a b a b
 duplicated p = pappend p p
 {-# INLINE duplicated #-}
 
