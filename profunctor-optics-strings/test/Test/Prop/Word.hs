@@ -6,6 +6,7 @@ import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
+import Control.Applicative (liftA2)
 import Data.Bits (complement)
 import Data.Functor.Index
 import Data.Profunctor.Optic
@@ -100,3 +101,65 @@ prop_grate8_id :: Property
 prop_grate8_id = property $ do
     w <- forAll $ Gen.word8 Range.linearBounded
     over grate8 id w === w
+
+---------------------------------------------------------------------
+-- Indexed cotraversals
+---------------------------------------------------------------------
+
+-- | reoverWithKey ibits8 (const id) = id
+prop_ibits8_id :: Property
+prop_ibits8_id = property $ do
+    w <- forAll $ Gen.word8 Range.linearBounded
+    reoverWithKey ibits8 (const id) w === w
+
+-- | reoverWithKey ibits8 (const not) = complement
+prop_ibits8_not :: Property
+prop_ibits8_not = property $ do
+    w <- forAll $ Gen.word8 Range.linearBounded
+    reoverWithKey ibits8 (const not) w === complement w
+
+-- | reoverWithKey ibits16 (const id) = id
+prop_ibits16_id :: Property
+prop_ibits16_id = property $ do
+    w <- forAll $ Gen.word16 Range.linearBounded
+    reoverWithKey ibits16 (const id) w === w
+
+-- | reoverWithKey ibits32 (const id) = id
+prop_ibits32_id :: Property
+prop_ibits32_id = property $ do
+    w <- forAll $ Gen.word32 Range.linearBounded
+    reoverWithKey ibits32 (const id) w === w
+
+-- | reoverWithKey ibits64 (const id) = id
+prop_ibits64_id :: Property
+prop_ibits64_id = property $ do
+    w <- forAll $ Gen.word64 Range.linearBounded
+    reoverWithKey ibits64 (const id) w === w
+
+---------------------------------------------------------------------
+-- Grate zipping
+---------------------------------------------------------------------
+
+-- | zipsWith grate8 xor w w = 0
+prop_grate8_xor_self :: Property
+prop_grate8_xor_self = property $ do
+    w <- forAll $ Gen.word8 Range.linearBounded
+    zipsWith grate8 (liftA2 (/=)) w w === 0
+
+-- | zipsWith grate16 xor w w = 0
+prop_grate16_xor_self :: Property
+prop_grate16_xor_self = property $ do
+    w <- forAll $ Gen.word16 Range.linearBounded
+    zipsWith grate16 (liftA2 (/=)) w w === 0
+
+-- | zipsWith grate32 xor w w = 0
+prop_grate32_xor_self :: Property
+prop_grate32_xor_self = property $ do
+    w <- forAll $ Gen.word32 Range.linearBounded
+    zipsWith grate32 (liftA2 (/=)) w w === 0
+
+-- | zipsWith grate64 xor w w = 0
+prop_grate64_xor_self :: Property
+prop_grate64_xor_self = property $ do
+    w <- forAll $ Gen.word64 Range.linearBounded
+    zipsWith grate64 (liftA2 (/=)) w w === 0

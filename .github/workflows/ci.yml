@@ -27,18 +27,20 @@ jobs:
           repository: cmk/coapplicative
           path: coapplicative
 
+      - name: Checkout fault
+        uses: actions/checkout@v4
+        with:
+          repository: cmk/fault
+          path: fault
+
       - uses: haskell-actions/setup@v2
         with:
           ghc-version: ${{ matrix.ghc }}
 
       - name: Configure project
         run: |
-          cat > cabal.project.local << EOF
-          optional-packages:
-            scheme-extensions
-            coapplicative
-          tests: True
-          EOF
+          printf 'packages:\n  profunctor-optics/\n  profunctor-optics-exceptions/\n  profunctor-optics-folds/\n  profunctor-optics-sequences/\n  profunctor-optics-strings/\n  profunctor-optics-containers/\n  profunctor-optics-generics/\n  profunctor-optics-th/\noptional-packages:\n  scheme-extensions\n  coapplicative\n  fault\n' > cabal.project
+          printf 'tests: True\nwrite-ghc-environment-files: always\n' > cabal.project.local
 
       - name: Cache cabal store
         uses: actions/cache@v4
@@ -49,7 +51,73 @@ jobs:
             ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-
 
       - name: Build
-        run: cabal build all
+        run: cabal build all --enable-tests
 
       - name: Test
-        run: cabal test all --test-show-details=direct
+        run: cabal test all --enable-tests --test-show-details=direct
+
+  haddock:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout scheme-extensions
+        uses: actions/checkout@v4
+        with:
+          repository: cmk/scheme-extensions
+          path: scheme-extensions
+
+      - name: Checkout coapplicative
+        uses: actions/checkout@v4
+        with:
+          repository: cmk/coapplicative
+          path: coapplicative
+
+      - name: Checkout fault
+        uses: actions/checkout@v4
+        with:
+          repository: cmk/fault
+          path: fault
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6'
+
+      - name: Configure project
+        run: |
+          printf 'packages:\n  profunctor-optics/\n  profunctor-optics-exceptions/\n  profunctor-optics-folds/\n  profunctor-optics-sequences/\n  profunctor-optics-strings/\n  profunctor-optics-containers/\n  profunctor-optics-generics/\n  profunctor-optics-th/\noptional-packages:\n  scheme-extensions\n  coapplicative\n  fault\n' > cabal.project
+
+      - name: Cache cabal store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: ${{ runner.os }}-ghc-9.6-cabal-${{ hashFiles('**/*.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.6-cabal-
+
+      - name: Build haddocks
+        run: cabal haddock all --haddock-hyperlink-source
+
+      - name: Collect haddocks
+        run: |
+          mkdir -p docs
+          for pkg in profunctor-optics profunctor-optics-exceptions profunctor-optics-folds profunctor-optics-sequences profunctor-optics-strings profunctor-optics-containers profunctor-optics-generics profunctor-optics-th; do
+            src=$(find dist-newstyle/build -path "*/$pkg-*/doc/html/$pkg" -type d 2>/dev/null | head -1)
+            if [ -n "$src" ]; then
+              cp -r "$src" "docs/$pkg"
+            fi
+          done
+          printf '<html><body><h1>profunctor-optics</h1><ul>' > docs/index.html
+          for pkg in docs/*/; do
+            name=$(basename "$pkg")
+            printf '<li><a href="%s/index.html">%s</a></li>' "$name" "$name" >> docs/index.html
+          done
+          printf '</ul></body></html>' >> docs/index.html
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
