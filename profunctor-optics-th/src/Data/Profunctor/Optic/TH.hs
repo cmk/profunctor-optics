@@ -84,6 +84,13 @@ import           Control.Applicative
 import           Data.Traversable (traverse, sequenceA)
 #endif
 
+#if MIN_VERSION_template_haskell(2,21,0)
+plainTV_ :: Name -> TyVarBndr BndrVis
+plainTV_ n = PlainTV n BndrReq
+#else
+plainTV_ :: Name -> TyVarBndr ()
+plainTV_ n = PlainTV n ()
+#endif
 
 ------------------------------------------------------------------------
 -- Field generation parameters
@@ -865,7 +872,7 @@ makeClassyClass className methodName s defs = do
            | otherwise = [FunDep [c] vars]
 
 
-  classD (cxt[]) className (map (\v -> PlainTV v ()) (c:vars)) fd
+  classD (cxt[]) className (map plainTV_ (c:vars)) fd
     $ sigD methodName (return (''Lens' `conAppsT` [VarT c, s']))
     : concat
       [ [sigD defName (return ty)
@@ -1107,7 +1114,7 @@ makeFieldOptic rules (defName, (_, defType, cons)) = do
 
 makeFieldClass :: OpticStab -> Name -> Name -> DecQ
 makeFieldClass defType className methodName =
-  classD (cxt []) className [PlainTV s (), PlainTV a ()] [FunDep [s] [a]]
+  classD (cxt []) className [plainTV_ s, plainTV_ a] [FunDep [s] [a]]
          [sigD methodName (return methodType)]
   where
   methodType = quantifyType' (Set.fromList [s,a])
