@@ -54,3 +54,11 @@ TAGS
 # other
 .DS_Store
 
+dist-newstyle/
+haddocks/
+.DS_Store
+*.swp
+*.swo
+*~
+cabal.project.local
+cabal.project.freeze
