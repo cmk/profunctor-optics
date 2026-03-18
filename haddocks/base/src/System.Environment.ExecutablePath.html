@@ -1,0 +1,270 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LINE 1 &quot;libraries/base/System/Environment/ExecutablePath.hsc&quot; #-}</span><span>
+</span><span id="line-1"></span><span class="hs-pragma">{-# LANGUAGE Safe #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- |</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Module      :  System.Environment.ExecutablePath</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- Copyright   :  (c) The University of Glasgow 2001</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- License     :  BSD-style (see the file libraries/base/LICENSE)</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Maintainer  :  libraries@haskell.org</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Stability   :  provisional</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Portability :  portable</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- Function to retrieve the absolute filepath of the current executable.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- @since 4.6.0.0</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-----------------------------------------------------------------------------</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">System.Environment.ExecutablePath</span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="System.Environment.ExecutablePath.html#getExecutablePath"><span class="hs-identifier">getExecutablePath</span></a></span><span class="hs-cpp">
+#if !defined(javascript_HOST_ARCH)
+</span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="System.Environment.ExecutablePath.html#executablePath"><span class="hs-identifier">executablePath</span></a></span><span class="hs-cpp">
+#endif
+</span><span>  </span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span class="hs-cpp">
+
+#if defined(javascript_HOST_ARCH)
+</span><span>
+</span><span id="line-28"></span><span class="hs-identifier">getExecutablePath</span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-identifier">IO</span><span> </span><span class="hs-identifier">FilePath</span><span>
+</span><span id="line-29"></span><span class="hs-identifier">getExecutablePath</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">return</span><span> </span><span class="hs-string">&quot;a.jsexe&quot;</span><span class="hs-cpp">
+
+#else
+</span><span>
+</span><span id="line-33"></span><span class="hs-comment">-- The imports are purposely kept completely disjoint to prevent edits</span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- to one OS implementation from breaking another.</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-pragma">{-# LINE 37 &quot;libraries/base/System/Environment/ExecutablePath.hsc&quot; #-}</span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="hs-identifier">Control.Exception</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">catch</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">throw</span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Word.html"><span class="hs-identifier">Data.Word</span></a></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.C.html"><span class="hs-identifier">Foreign.C</span></a></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.Marshal.Alloc.html"><span class="hs-identifier">Foreign.Marshal.Alloc</span></a></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.Ptr.html"><span class="hs-identifier">Foreign.Ptr</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Foreign.Storable.html"><span class="hs-identifier">Foreign.Storable</span></a></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="System.IO.Error.html"><span class="hs-identifier">System.IO.Error</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="System.IO.Error.html#isDoesNotExistError"><span class="hs-identifier">isDoesNotExistError</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="System.Posix.Internals.html"><span class="hs-identifier">System.Posix.Internals</span></a></span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-pragma">{-# LINE 78 &quot;libraries/base/System/Environment/ExecutablePath.hsc&quot; #-}</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- The exported function is defined outside any if-guard to make sure</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- every OS implements it with the same type.</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- | Returns the absolute pathname of the current executable,</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- or @argv[0]@ if the operating system does not provide a reliable</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- way query the current executable.</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- Note that for scripts and interactive sessions, this is the path to</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- the interpreter (e.g. ghci.)</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- Since base 4.11.0.0, 'getExecutablePath' resolves symlinks on Windows.</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- If an executable is launched through a symlink, 'getExecutablePath'</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- returns the absolute path of the original executable.</span><span>
+</span><span id="line-92"></span><span class="hs-comment">--</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- If the executable has been deleted, behaviour is ill-defined and</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- varies by operating system.  See 'executablePath' for a more</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- reliable way to query the current executable.</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- @since 4.6.0.0</span><span>
+</span><span id="line-98"></span><span class="annot"><a href="System.Environment.ExecutablePath.html#getExecutablePath"><span class="hs-identifier hs-type">getExecutablePath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="GHC.IO.html#FilePath"><span class="hs-identifier hs-type">FilePath</span></a></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- | Get an action to query the absolute pathname of the current executable.</span><span>
+</span><span id="line-101"></span><span class="hs-comment">--</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- If the operating system provides a reliable way to determine the current</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- executable, return the query action, otherwise return @Nothing@.  The action</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- is defined on FreeBSD, Linux, MacOS, NetBSD, and Windows.</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- Even where the query action is defined, there may be situations where no</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- result is available, e.g. if the executable file was deleted while the</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- program is running.  Therefore the result of the query action is a @Maybe</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- FilePath@.</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- Note that for scripts and interactive sessions, the result is the path to</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- the interpreter (e.g. ghci.)</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- Note also that while most operating systems return @Nothing@ if the</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- executable file was deleted/unlinked, some (including NetBSD) return the</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- original path.</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- @since 4.17.0.0</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="System.Environment.ExecutablePath.html#executablePath"><span class="hs-identifier hs-type">executablePath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="GHC.Maybe.html#Maybe"><span class="hs-identifier hs-type">Maybe</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="GHC.Maybe.html#Maybe"><span class="hs-identifier hs-type">Maybe</span></a></span><span> </span><span class="annot"><a href="GHC.IO.html#FilePath"><span class="hs-identifier hs-type">FilePath</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-120"></span><span>
+</span><span id="line-121"></span><span>
+</span><span id="line-122"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- Mac OS X</span><span>
+</span><span id="line-124"></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-pragma">{-# LINE 126 &quot;libraries/base/System/Environment/ExecutablePath.hsc&quot; #-}</span><span>
+</span><span id="line-126"></span><span>
+</span><span id="line-127"></span><span class="hs-keyword">type</span><span> </span><span id="UInt32"><span class="annot"><a href="System.Environment.ExecutablePath.html#UInt32"><span class="hs-identifier hs-var">UInt32</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="GHC.Word.html#Word32"><span class="hs-identifier hs-type">Word32</span></a></span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-keyword">ccall</span></span><span> </span><span class="annot"><span class="hs-keyword">unsafe</span></span><span> </span><span class="annot"><span class="hs-string">&quot;mach-o/dyld.h _NSGetExecutablePath&quot;</span></span><span>
+</span><span id="line-130"></span><span>    </span><span id="c__NSGetExecutablePath"><span class="annot"><a href="System.Environment.ExecutablePath.html#c__NSGetExecutablePath"><span class="hs-identifier hs-var">c__NSGetExecutablePath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="GHC.Foreign.html#CString"><span class="hs-identifier hs-type">CString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="GHC.Ptr.html#Ptr"><span class="hs-identifier hs-type">Ptr</span></a></span><span> </span><span class="annot"><a href="System.Environment.ExecutablePath.html#UInt32"><span class="hs-identifier hs-type">UInt32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="Foreign.C.Types.html#CInt"><span class="hs-identifier hs-type">CInt</span></a></span><span>
+</span><span id="line-131"></span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- | Returns the path of the main executable. The path may be a</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- symbolic link and not the real file.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- See dyld(3)</span><span>
+</span><span id="line-136"></span><span class="annot"><a href="System.Environment.ExecutablePath.html#_NSGetExecutablePath"><span class="hs-identifier hs-type">_NSGetExecutablePath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="GHC.IO.html#FilePath"><span class="hs-identifier hs-type">FilePath</span></a></span><span>
+</span><span id="line-137"></span><span id="_NSGetExecutablePath"><span class="annot"><span class="annottext">_NSGetExecutablePath :: IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#_NSGetExecutablePath"><span class="hs-identifier hs-var hs-var">_NSGetExecutablePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-138"></span><span>    </span><span class="annot"><span class="annottext">Int -&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><a href="Foreign.Marshal.Alloc.html#allocaBytes"><span class="hs-identifier hs-var">allocaBytes</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1024</span></span><span> </span><span class="annot"><span class="annottext">((Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath)
+-&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621679682121"><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682121"><span class="hs-identifier hs-var">buf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>  </span><span class="hs-comment">-- PATH_MAX is 1024 on OS X</span><span>
+</span><span id="line-139"></span><span>    </span><span class="annot"><span class="annottext">(Ptr UInt32 -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. Storable a =&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><a href="Foreign.Marshal.Alloc.html#alloca"><span class="hs-identifier hs-var">alloca</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr UInt32 -&gt; IO FilePath) -&gt; IO FilePath)
+-&gt; (Ptr UInt32 -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621679682123"><span class="annot"><span class="annottext">Ptr UInt32
+</span><a href="#local-6989586621679682123"><span class="hs-identifier hs-var">bufsize</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-140"></span><span>        </span><span class="annot"><span class="annottext">Ptr UInt32 -&gt; UInt32 -&gt; IO ()
+forall a. Storable a =&gt; Ptr a -&gt; a -&gt; IO ()
+</span><a href="Foreign.Storable.html#poke"><span class="hs-identifier hs-var">poke</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr UInt32
+</span><a href="#local-6989586621679682123"><span class="hs-identifier hs-var">bufsize</span></a></span><span> </span><span class="annot"><span class="annottext">UInt32
+</span><span class="hs-number">1024</span></span><span>
+</span><span id="line-141"></span><span>        </span><span id="local-6989586621679682125"><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679682125"><span class="hs-identifier hs-var">status</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CChar -&gt; Ptr UInt32 -&gt; IO CInt
+</span><a href="System.Environment.ExecutablePath.html#c__NSGetExecutablePath"><span class="hs-identifier hs-var">c__NSGetExecutablePath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682121"><span class="hs-identifier hs-var">buf</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr UInt32
+</span><a href="#local-6989586621679682123"><span class="hs-identifier hs-var">bufsize</span></a></span><span>
+</span><span id="line-142"></span><span>        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679682125"><span class="hs-identifier hs-var">status</span></a></span><span> </span><span class="annot"><span class="annottext">CInt -&gt; CInt -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../../ghc-prim-0.10.0/src/GHC.Classes.html#%3D%3D/GHC.Classes.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">CInt
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-143"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Ptr CChar -&gt; IO FilePath
+</span><a href="System.Posix.Internals.html#peekFilePath"><span class="hs-identifier hs-var">peekFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682121"><span class="hs-identifier hs-var">buf</span></a></span><span>
+</span><span id="line-144"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span> </span><span id="local-6989586621679682127"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679682127"><span class="hs-identifier hs-var">reqBufsize</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">UInt32 -&gt; Int
+forall a b. (Integral a, Num b) =&gt; a -&gt; b
+</span><a href="GHC.Real.html#fromIntegral"><span class="hs-identifier hs-var">fromIntegral</span></a></span><span> </span><span class="annot"><span class="annottext">(UInt32 -&gt; Int) -&gt; IO UInt32 -&gt; IO Int
+forall a b. (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="GHC.Base.html#fmap"><span class="hs-operator hs-var">`fmap`</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr UInt32 -&gt; IO UInt32
+forall a. Storable a =&gt; Ptr a -&gt; IO a
+</span><a href="Foreign.Storable.html#peek"><span class="hs-identifier hs-var">peek</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr UInt32
+</span><a href="#local-6989586621679682123"><span class="hs-identifier hs-var">bufsize</span></a></span><span>
+</span><span id="line-145"></span><span>                    </span><span class="annot"><span class="annottext">Int -&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><a href="Foreign.Marshal.Alloc.html#allocaBytes"><span class="hs-identifier hs-var">allocaBytes</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679682127"><span class="hs-identifier hs-var">reqBufsize</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath)
+-&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621679682129"><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682129"><span class="hs-identifier hs-var">newBuf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-146"></span><span>                        </span><span id="local-6989586621679682130"><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679682130"><span class="hs-identifier hs-var">status2</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Ptr CChar -&gt; Ptr UInt32 -&gt; IO CInt
+</span><a href="System.Environment.ExecutablePath.html#c__NSGetExecutablePath"><span class="hs-identifier hs-var">c__NSGetExecutablePath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682129"><span class="hs-identifier hs-var">newBuf</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr UInt32
+</span><a href="#local-6989586621679682123"><span class="hs-identifier hs-var">bufsize</span></a></span><span>
+</span><span id="line-147"></span><span>                        </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">CInt
+</span><a href="#local-6989586621679682130"><span class="hs-identifier hs-var">status2</span></a></span><span> </span><span class="annot"><span class="annottext">CInt -&gt; CInt -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><a href="../../ghc-prim-0.10.0/src/GHC.Classes.html#%3D%3D/GHC.Classes.html#%3D%3D"><span class="hs-operator hs-var">==</span></a></span><span> </span><span class="annot"><span class="annottext">CInt
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-148"></span><span>                             </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Ptr CChar -&gt; IO FilePath
+</span><a href="System.Posix.Internals.html#peekFilePath"><span class="hs-identifier hs-var">peekFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682129"><span class="hs-identifier hs-var">newBuf</span></a></span><span>
+</span><span id="line-149"></span><span>                             </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+forall a. FilePath -&gt; a
+</span><a href="GHC.Err.html#errorWithoutStackTrace"><span class="hs-identifier hs-var">errorWithoutStackTrace</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;_NSGetExecutablePath: buffer too small&quot;</span></span><span>
+</span><span id="line-150"></span><span>
+</span><span id="line-151"></span><span class="hs-keyword">foreign</span><span> </span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-keyword">ccall</span></span><span> </span><span class="annot"><span class="hs-keyword">unsafe</span></span><span> </span><span class="annot"><span class="hs-string">&quot;stdlib.h realpath&quot;</span></span><span>
+</span><span id="line-152"></span><span>    </span><span id="c_realpath"><span class="annot"><a href="System.Environment.ExecutablePath.html#c_realpath"><span class="hs-identifier hs-var">c_realpath</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="GHC.Foreign.html#CString"><span class="hs-identifier hs-type">CString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="GHC.Foreign.html#CString"><span class="hs-identifier hs-type">CString</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="GHC.Foreign.html#CString"><span class="hs-identifier hs-type">CString</span></a></span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | Resolves all symbolic links, extra \/ characters, and references</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- to \/.\/ and \/..\/. Returns an absolute pathname.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- See realpath(3)</span><span>
+</span><span id="line-158"></span><span class="annot"><a href="System.Environment.ExecutablePath.html#realpath"><span class="hs-identifier hs-type">realpath</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="GHC.IO.html#FilePath"><span class="hs-identifier hs-type">FilePath</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="../../ghc-prim-0.10.0/src/GHC.Types.html#IO/GHC.Types.html#IO"><span class="hs-identifier hs-type">IO</span></a></span><span> </span><span class="annot"><a href="GHC.IO.html#FilePath"><span class="hs-identifier hs-type">FilePath</span></a></span><span>
+</span><span id="line-159"></span><span id="realpath"><span class="annot"><span class="annottext">realpath :: FilePath -&gt; IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#realpath"><span class="hs-identifier hs-var hs-var">realpath</span></a></span></span><span> </span><span id="local-6989586621679682134"><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679682134"><span class="hs-identifier hs-var">path</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-160"></span><span>    </span><span class="annot"><span class="annottext">FilePath -&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a. FilePath -&gt; (Ptr CChar -&gt; IO a) -&gt; IO a
+</span><a href="System.Posix.Internals.html#withFilePath"><span class="hs-identifier hs-var">withFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><a href="#local-6989586621679682134"><span class="hs-identifier hs-var">path</span></a></span><span> </span><span class="annot"><span class="annottext">((Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath)
+-&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621679682136"><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682136"><span class="hs-identifier hs-var">fileName</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-161"></span><span>    </span><span class="annot"><span class="annottext">Int -&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. Int -&gt; (Ptr a -&gt; IO b) -&gt; IO b
+</span><a href="Foreign.Marshal.Alloc.html#allocaBytes"><span class="hs-identifier hs-var">allocaBytes</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1024</span></span><span> </span><span class="annot"><span class="annottext">((Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath)
+-&gt; (Ptr CChar -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="hs-glyph">\</span><span> </span><span id="local-6989586621679682137"><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682137"><span class="hs-identifier hs-var">resolvedName</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-162"></span><span>        </span><span class="annot"><span class="annottext">Ptr CChar
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO (Ptr CChar) -&gt; IO (Ptr CChar)
+forall a. FilePath -&gt; IO (Ptr a) -&gt; IO (Ptr a)
+</span><a href="Foreign.C.Error.html#throwErrnoIfNull"><span class="hs-identifier hs-var">throwErrnoIfNull</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath
+</span><span class="hs-string">&quot;realpath&quot;</span></span><span> </span><span class="annot"><span class="annottext">(IO (Ptr CChar) -&gt; IO (Ptr CChar))
+-&gt; IO (Ptr CChar) -&gt; IO (Ptr CChar)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><a href="GHC.Base.html#%24"><span class="hs-operator hs-var">$</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar -&gt; Ptr CChar -&gt; IO (Ptr CChar)
+</span><a href="System.Environment.ExecutablePath.html#c_realpath"><span class="hs-identifier hs-var">c_realpath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682136"><span class="hs-identifier hs-var">fileName</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682137"><span class="hs-identifier hs-var">resolvedName</span></a></span><span>
+</span><span id="line-163"></span><span>        </span><span class="annot"><span class="annottext">Ptr CChar -&gt; IO FilePath
+</span><a href="System.Posix.Internals.html#peekFilePath"><span class="hs-identifier hs-var">peekFilePath</span></a></span><span> </span><span class="annot"><span class="annottext">Ptr CChar
+</span><a href="#local-6989586621679682137"><span class="hs-identifier hs-var">resolvedName</span></a></span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span id="getExecutablePath"><span class="annot"><span class="annottext">getExecutablePath :: IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#getExecutablePath"><span class="hs-identifier hs-var hs-var">getExecutablePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#_NSGetExecutablePath"><span class="hs-identifier hs-var">_NSGetExecutablePath</span></a></span><span> </span><span class="annot"><span class="annottext">IO FilePath -&gt; (FilePath -&gt; IO FilePath) -&gt; IO FilePath
+forall a b. IO a -&gt; (a -&gt; IO b) -&gt; IO b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><a href="GHC.Base.html#%3E%3E%3D"><span class="hs-operator hs-var">&gt;&gt;=</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#realpath"><span class="hs-identifier hs-var">realpath</span></a></span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- realpath(3) fails with ENOENT file does not exist (e.g. was deleted)</span><span>
+</span><span id="line-168"></span><span id="executablePath"><span class="annot"><span class="annottext">executablePath :: Maybe (IO (Maybe FilePath))
+</span><a href="System.Environment.ExecutablePath.html#executablePath"><span class="hs-identifier hs-var hs-var">executablePath</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IO (Maybe FilePath) -&gt; Maybe (IO (Maybe FilePath))
+forall a. a -&gt; Maybe a
+</span><a href="GHC.Maybe.html#Just"><span class="hs-identifier hs-var">Just</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(FilePath -&gt; Maybe FilePath) -&gt; IO FilePath -&gt; IO (Maybe FilePath)
+forall a b. (a -&gt; b) -&gt; IO a -&gt; IO b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><a href="GHC.Base.html#fmap"><span class="hs-identifier hs-var">fmap</span></a></span><span> </span><span class="annot"><span class="annottext">FilePath -&gt; Maybe FilePath
+forall a. a -&gt; Maybe a
+</span><a href="GHC.Maybe.html#Just"><span class="hs-identifier hs-var">Just</span></a></span><span> </span><span class="annot"><span class="annottext">IO FilePath
+</span><a href="System.Environment.ExecutablePath.html#getExecutablePath"><span class="hs-identifier hs-var">getExecutablePath</span></a></span><span> </span><span class="annot"><span class="annottext">IO (Maybe FilePath)
+-&gt; (IOError -&gt; IO (Maybe FilePath)) -&gt; IO (Maybe FilePath)
+forall e a. Exception e =&gt; IO a -&gt; (e -&gt; IO a) -&gt; IO a
+</span><a href="GHC.IO.html#catch"><span class="hs-operator hs-var">`catch`</span></a></span><span> </span><span class="annot"><span class="annottext">IOError -&gt; IO (Maybe FilePath)
+forall {f :: * -&gt; *} {a}. Applicative f =&gt; IOError -&gt; f (Maybe a)
+</span><a href="#local-6989586621679682139"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-169"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-170"></span><span>  </span><span id="local-6989586621679682139"><span class="annot"><span class="annottext">f :: IOError -&gt; f (Maybe a)
+</span><a href="#local-6989586621679682139"><span class="hs-identifier hs-var hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679682146"><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621679682146"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">IOError -&gt; Bool
+</span><a href="System.IO.Error.html#isDoesNotExistError"><span class="hs-identifier hs-var">isDoesNotExistError</span></a></span><span> </span><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621679682146"><span class="hs-identifier hs-var">e</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; f (Maybe a)
+forall a. a -&gt; f a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><a href="GHC.Base.html#pure"><span class="hs-identifier hs-var">pure</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a
+forall a. Maybe a
+</span><a href="GHC.Maybe.html#Nothing"><span class="hs-identifier hs-var">Nothing</span></a></span><span>
+</span><span id="line-171"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="GHC.Base.html#otherwise"><span class="hs-identifier hs-var">otherwise</span></a></span><span>             </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IOError -&gt; f (Maybe a)
+forall a e. Exception e =&gt; e -&gt; a
+</span><a href="GHC.Exception.html#throw"><span class="hs-identifier hs-var">throw</span></a></span><span> </span><span class="annot"><span class="annottext">IOError
+</span><a href="#local-6989586621679682146"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-172"></span><span>
+</span><span id="line-173"></span><span class="hs-comment">--------------------------------------------------------------------------------</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- Linux</span><span>
+</span><span id="line-175"></span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="hs-pragma">{-# LINE 384 &quot;libraries/base/System/Environment/ExecutablePath.hsc&quot; #-}</span><span class="hs-cpp">
+
+#endif
+</span></pre></body></html>

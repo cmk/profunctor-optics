@@ -1,0 +1,1063 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE QuantifiedConstraints #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TupleSections         #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Profunctor.Optic.Setter</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Setter</span></span><span>
+</span><span id="line-10"></span><span>    </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier">Setter</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier">Setter'</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter"><span class="hs-identifier">Resetter</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter%27"><span class="hs-identifier">Resetter'</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier">setter</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier">ixsetter</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#closing"><span class="hs-identifier">closing</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter"><span class="hs-identifier">resetter</span></a></span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Setter1</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter1"><span class="hs-identifier">Setter1</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter1%27"><span class="hs-identifier">Setter1'</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter1"><span class="hs-identifier">Resetter1</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter1%27"><span class="hs-identifier">Resetter1'</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter1"><span class="hs-identifier">setter1</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter1"><span class="hs-identifier">resetter1</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Optics</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cod"><span class="hs-identifier">cod</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#dom"><span class="hs-identifier">dom</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#fmapped"><span class="hs-identifier">fmapped</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#imappedRep"><span class="hs-identifier">imappedRep</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#contramapped"><span class="hs-identifier">contramapped</span></a></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedM"><span class="hs-identifier">liftedM</span></a></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedA"><span class="hs-identifier">liftedA</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedA"><span class="hs-identifier">reliftedA</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedF"><span class="hs-identifier">reliftedF</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipListed"><span class="hs-identifier">zipListed</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#forwarded"><span class="hs-identifier">forwarded</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#censored"><span class="hs-identifier">censored</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipped"><span class="hs-identifier">zipped</span></a></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modded"><span class="hs-identifier">modded</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cond"><span class="hs-identifier">cond</span></a></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Operators</span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#.~"><span class="hs-operator">(.~)</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#..~"><span class="hs-operator">(..~)</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#over"><span class="hs-identifier">over</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#%25~"><span class="hs-operator">(%~)</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#%25%25~"><span class="hs-operator">(%%~)</span></a></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#overWithKey"><span class="hs-identifier">overWithKey</span></a></span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#%23~"><span class="hs-operator">(#~)</span></a></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#%23%23~"><span class="hs-operator">(##~)</span></a></span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html#reoverWithKey"><span class="hs-identifier">reoverWithKey</span></a></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#set"><span class="hs-identifier">set</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-identifier">sets</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setWithKey"><span class="hs-identifier">setWithKey</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setsWithKey"><span class="hs-identifier">setsWithKey</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reset"><span class="hs-identifier">reset</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-identifier">resets</span></a></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetWithKey"><span class="hs-identifier">resetWithKey</span></a></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetsWithKey"><span class="hs-identifier">resetsWithKey</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><span class="hs-comment">-- * mtl</span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#.%3D"><span class="hs-operator">(.=)</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#..%3D"><span class="hs-operator">(..=)</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#assigns"><span class="hs-identifier">assigns</span></a></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modifies"><span class="hs-identifier">modifies</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#locally"><span class="hs-identifier">locally</span></a></span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#scribe"><span class="hs-identifier">scribe</span></a></span><span>
+</span><span id="line-66"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">liftA</span></span><span class="hs-special">,</span><span class="annot"><span class="hs-identifier">ZipList</span></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Reader</span></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">State</span></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Writer</span></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html"><span class="hs-identifier">Data.Profunctor.Optic.Carrier</span></a></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Import.html"><span class="hs-identifier">Data.Profunctor.Optic.Import</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&amp;&amp;&amp;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-74"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Combinator.html"><span class="hs-identifier">Data.Profunctor.Optic.Combinator</span></a></span><span>
+</span><span id="line-75"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html"><span class="hs-identifier">Data.Profunctor.Optic.Types</span></a></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Iso.html"><span class="hs-identifier">Data.Profunctor.Optic.Iso</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Iso.html#sieved"><span class="hs-identifier">sieved</span></a></span><span class="hs-special">,</span><span class="annot"><a href="Data.Profunctor.Optic.Iso.html#cosieved"><span class="hs-identifier">cosieved</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Traversal.html"><span class="hs-identifier">Data.Profunctor.Optic.Traversal</span></a></span><span>
+</span><span id="line-78"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/djnctns-4.4.4-d856e1d6/share/doc/html/src/Data.Functor.Rep.html"><span class="hs-identifier">Data.Functor.Rep</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">F</span></span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XNoOverloadedStrings</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XFlexibleContexts</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XRankNTypes</span><span>
+</span><span id="line-85"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Category ((&gt;&gt;&gt;))</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Arrow (Kleisli(..))</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Monad.State</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Monad.Reader</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Monad.Writer</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Bool (bool)</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Complex</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Function ((&amp;))</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Rep</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Identity</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Contravariant</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Semigroup</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Tuple (swap)</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- &gt;&gt;&gt; :load Data.Profunctor.Optic</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- &gt;&gt;&gt; import Prelude</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- Setter</span><span>
+</span><span id="line-103"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- | Obtain a 'Setter' from a &lt;http://conal.net/blog/posts/semantic-editor-combinators SEC&gt;.</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- To demote an optic to a semantic edit combinator, use the section @(l ..~)@ or @over l@.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- &gt;&gt;&gt; [(&quot;The&quot;,0),(&quot;quick&quot;,1),(&quot;brown&quot;,1),(&quot;fox&quot;,2)] &amp; setter fmap . first' ..~ Prelude.length</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- [(3,0),(5,1),(5,1),(3,2)]</span><span>
+</span><span id="line-111"></span><span class="hs-comment">--</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- /Caution/: In order for the generated optic to be well-defined,</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- you must ensure that the input function satisfies the following</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- properties:</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- * @abst id &#8801; id@</span><span>
+</span><span id="line-117"></span><span class="hs-comment">--</span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- * @abst f . abst g &#8801; abst (f . g)@</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--</span><span>
+</span><span id="line-120"></span><span class="hs-comment">-- More generally, a profunctor optic must be monoidal as a natural </span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- transformation:</span><span>
+</span><span id="line-122"></span><span class="hs-comment">-- </span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- * @o id &#8801; id@</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- * @o ('Data.Profunctor.Composition.Procompose' p q) &#8801; 'Data.Profunctor.Composition.Procompose' (o p) (o q)@</span><span>
+</span><span id="line-126"></span><span class="hs-comment">--</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- See 'Data.Profunctor.Optic.Property'.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span id="local-6989586621679127481"><span id="local-6989586621679127482"><span id="local-6989586621679127483"><span id="local-6989586621679127484"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-type">setter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127481"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127482"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127483"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127484"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127483"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127484"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127481"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127482"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-130"></span><span id="setter"><span class="annot"><span class="annottext">setter :: forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var hs-var">setter</span></a></span></span><span> </span><span id="local-6989586621679128017"><span class="annot"><span class="annottext">(a -&gt; b) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128017"><span class="hs-identifier hs-var">abst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; s -&gt; t) -&gt; Iso s t (Index s a a) (Index s a b)
+forall a b s t x.
+((a -&gt; b) -&gt; s -&gt; t) -&gt; Iso s t (Index s x x) (Index s a b)
+</span><a href="Data.Profunctor.Optic.Iso.html#sieved"><span class="hs-identifier hs-var">sieved</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128017"><span class="hs-identifier hs-var">abst</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s t (Index s a a) (Index s a b)
+-&gt; (p a b -&gt; p (Index s a a) (Index s a b)) -&gt; p a b -&gt; p s t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Rep p b) -&gt; Index s a a -&gt; Rep p (Index s a b))
+-&gt; p a b -&gt; p (Index s a a) (Index s a b)
+forall (p :: * -&gt; * -&gt; *) a b s t.
+Representable p =&gt;
+((a -&gt; Rep p b) -&gt; s -&gt; Rep p t) -&gt; Optic p s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#represent"><span class="hs-identifier hs-var">represent</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679128020"><span class="annot"><span class="annottext">a -&gt; Rep p b
+</span><a href="#local-6989586621679128020"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Index s a (Rep p b) -&gt; Rep p (Index s a b)
+forall (g :: * -&gt; *) (f :: * -&gt; *) a.
+(Distributive g, Functor f) =&gt;
+f (g a) -&gt; g (f a)
+forall (f :: * -&gt; *) a. Functor f =&gt; f (Rep p a) -&gt; Rep p (f a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dstrbtv-0.6.3-6f6eafb2/share/doc/html/src/Data.Distributive.html#distribute"><span class="hs-identifier hs-var">distribute</span></a></span><span> </span><span class="annot"><span class="annottext">(Index s a (Rep p b) -&gt; Rep p (Index s a b))
+-&gt; (Index s a a -&gt; Index s a (Rep p b))
+-&gt; Index s a a
+-&gt; Rep p (Index s a b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Rep p b) -&gt; Index s a a -&gt; Index s a (Rep p b)
+forall a b. (a -&gt; b) -&gt; Index s a a -&gt; Index s a b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Rep p b
+</span><a href="#local-6989586621679128020"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-131"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-pragma hs-type">setter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- | Build an 'Ixsetter' from an indexed function.</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- 'ixsetter' '.' 'setsWithKey' &#8801; 'id'</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- 'setsWithKey' '.' 'ixsetter' &#8801; 'id'</span><span>
+</span><span id="line-138"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-139"></span><span class="hs-comment">--</span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- /Caution/: In order for the generated optic to be well-defined,</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- you must ensure that the input satisfies the following properties:</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- * @iabst (const id) &#8801; id@</span><span>
+</span><span id="line-144"></span><span class="hs-comment">--</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- * @fmap (iabst $ const f) . (iabst $ const g) &#8801; iabst (const $ f . g)@</span><span>
+</span><span id="line-146"></span><span class="hs-comment">--</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- See 'Data.Profunctor.Optic.Property'.</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-150"></span><span id="local-6989586621679127526"><span id="local-6989586621679127527"><span id="local-6989586621679127528"><span id="local-6989586621679127529"><span id="local-6989586621679127530"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-type">ixsetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127526"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127527"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127528"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127529"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127530"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127526"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127529"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127530"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127527"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127528"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span></span><span>
+</span><span id="line-151"></span><span id="ixsetter"><span class="annot"><span class="annottext">ixsetter :: forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var hs-var">ixsetter</span></a></span></span><span> </span><span id="local-6989586621679128029"><span class="annot"><span class="annottext">(i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128029"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((i, a) -&gt; b) -&gt; (i, s) -&gt; t) -&gt; Setter (i, s) t (i, a) b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">((((i, a) -&gt; b) -&gt; (i, s) -&gt; t) -&gt; Setter (i, s) t (i, a) b)
+-&gt; (((i, a) -&gt; b) -&gt; (i, s) -&gt; t) -&gt; Setter (i, s) t (i, a) b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679128030"><span class="annot"><span class="annottext">(i, a) -&gt; b
+</span><a href="#local-6989586621679128030"><span class="hs-identifier hs-var">iab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128029"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">((i, a) -&gt; b) -&gt; i -&gt; a -&gt; b
+forall a b c. ((a, b) -&gt; c) -&gt; a -&gt; b -&gt; c
+</span><span class="hs-identifier hs-var">curry</span></span><span> </span><span class="annot"><span class="annottext">(i, a) -&gt; b
+</span><a href="#local-6989586621679128030"><span class="hs-identifier hs-var">iab</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(s -&gt; t) -&gt; ((i, s) -&gt; s) -&gt; (i, s) -&gt; t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(i, s) -&gt; s
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span> </span><span>
+</span><span id="line-152"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-pragma hs-type">ixsetter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | Every valid 'Colens' is a 'Setter'.</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--</span><span>
+</span><span id="line-156"></span><span id="local-6989586621679127546"><span id="local-6989586621679127547"><span id="local-6989586621679127548"><span id="local-6989586621679127549"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#closing"><span class="hs-identifier hs-type">closing</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127546"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127547"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127548"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127549"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127546"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127549"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127547"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127548"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-157"></span><span id="closing"><span class="annot"><span class="annottext">closing :: forall s a b t. (((s -&gt; a) -&gt; b) -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#closing"><span class="hs-identifier hs-var hs-var">closing</span></a></span></span><span> </span><span id="local-6989586621679128040"><span class="annot"><span class="annottext">((s -&gt; a) -&gt; b) -&gt; t
+</span><a href="#local-6989586621679128040"><span class="hs-identifier hs-var">sabt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b)
+-&gt; ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679128041"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128041"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span id="local-6989586621679128042"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679128042"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">((s -&gt; a) -&gt; b) -&gt; t
+</span><a href="#local-6989586621679128040"><span class="hs-identifier hs-var">sabt</span></a></span><span> </span><span class="annot"><span class="annottext">(((s -&gt; a) -&gt; b) -&gt; t) -&gt; ((s -&gt; a) -&gt; b) -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679128043"><span class="annot"><span class="annottext">s -&gt; a
+</span><a href="#local-6989586621679128043"><span class="hs-identifier hs-var">sa</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128041"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">s -&gt; a
+</span><a href="#local-6989586621679128043"><span class="hs-identifier hs-var">sa</span></a></span><span> </span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679128042"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-158"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#closing"><span class="hs-pragma hs-type">closing</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">-- | Obtain a 'Resetter' from a &lt;http://conal.net/blog/posts/semantic-editor-combinators SEC&gt;.</span><span>
+</span><span id="line-161"></span><span class="hs-comment">--</span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- /Caution/: In order for the generated optic to be well-defined,</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- you must ensure that the input function satisfies the following</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- properties:</span><span>
+</span><span id="line-165"></span><span class="hs-comment">--</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- * @abst id &#8801; id@</span><span>
+</span><span id="line-167"></span><span class="hs-comment">--</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- * @abst f . abst g &#8801; abst (f . g)@</span><span>
+</span><span id="line-169"></span><span class="hs-comment">--</span><span>
+</span><span id="line-170"></span><span id="local-6989586621679127555"><span id="local-6989586621679127556"><span id="local-6989586621679127557"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter"><span class="hs-identifier hs-type">resetter</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127555"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127556"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127557"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127556"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter"><span class="hs-identifier hs-type">Resetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127557"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127556"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127555"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127556"><span class="hs-identifier hs-type">t</span></a></span></span></span></span><span>
+</span><span id="line-171"></span><span id="resetter"><span class="annot"><span class="annottext">resetter :: forall a t s. ((a -&gt; t) -&gt; s -&gt; t) -&gt; Resetter s t a t
+</span><a href="Data.Profunctor.Optic.Setter.html#resetter"><span class="hs-identifier hs-var hs-var">resetter</span></a></span></span><span> </span><span id="local-6989586621679128060"><span class="annot"><span class="annottext">(a -&gt; t) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128060"><span class="hs-identifier hs-var">abst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; t) -&gt; s -&gt; t) -&gt; Iso s t (Coindex t t a) (Coindex t t t)
+forall a b s t x.
+((a -&gt; b) -&gt; s -&gt; t) -&gt; Iso s t (Coindex t b a) (Coindex t x x)
+</span><a href="Data.Profunctor.Optic.Iso.html#cosieved"><span class="hs-identifier hs-var">cosieved</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; t) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128060"><span class="hs-identifier hs-var">abst</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s t (Coindex t t a) (Coindex t t t)
+-&gt; (p a t -&gt; p (Coindex t t a) (Coindex t t t)) -&gt; p a t -&gt; p s t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Corep p a -&gt; t) -&gt; Corep p (Coindex t t a) -&gt; Coindex t t t)
+-&gt; p a t -&gt; p (Coindex t t a) (Coindex t t t)
+forall (p :: * -&gt; * -&gt; *) a b s t.
+Corepresentable p =&gt;
+((Corep p a -&gt; b) -&gt; Corep p s -&gt; t) -&gt; Optic p s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#corepresent"><span class="hs-identifier hs-var">corepresent</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679128062"><span class="annot"><span class="annottext">Corep p a -&gt; t
+</span><a href="#local-6989586621679128062"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Corep p a -&gt; t) -&gt; Coindex t t (Corep p a) -&gt; Coindex t t t
+forall a b. (a -&gt; b) -&gt; Coindex t t a -&gt; Coindex t t b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Corep p a -&gt; t
+</span><a href="#local-6989586621679128062"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Coindex t t (Corep p a) -&gt; Coindex t t t)
+-&gt; (Corep p (Coindex t t a) -&gt; Coindex t t (Corep p a))
+-&gt; Corep p (Coindex t t a)
+-&gt; Coindex t t t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Corep p (Coindex t t a) -&gt; Coindex t t (Corep p a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a.
+(Traversable t, Applicative f) =&gt;
+t (f a) -&gt; f (t a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+Corep p (f a) -&gt; f (Corep p a)
+</span><span class="hs-identifier hs-var">sequenceA</span></span><span class="hs-special">)</span><span>
+</span><span id="line-172"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter"><span class="hs-pragma hs-type">resetter</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- Setter1</span><span>
+</span><span id="line-176"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-177"></span><span>
+</span><span id="line-178"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-179"></span><span class="hs-comment">--</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-181"></span><span id="local-6989586621679127590"><span id="local-6989586621679127591"><span id="local-6989586621679127592"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter1"><span class="hs-identifier hs-type">setter1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127590"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127591"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127590"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127592"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter1"><span class="hs-identifier hs-type">Setter1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127590"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127592"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127590"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127591"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-182"></span><span id="setter1"><span class="annot"><span class="annottext">setter1 :: forall a b t. ((a -&gt; b) -&gt; a -&gt; t) -&gt; Setter1 a t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter1"><span class="hs-identifier hs-var hs-var">setter1</span></a></span></span><span> </span><span id="local-6989586621679128077"><span class="annot"><span class="annottext">(a -&gt; b) -&gt; a -&gt; t
+</span><a href="#local-6989586621679128077"><span class="hs-identifier hs-var">abst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; a -&gt; t) -&gt; Iso a t (Index a a a) (Index a a b)
+forall a b s t x.
+((a -&gt; b) -&gt; s -&gt; t) -&gt; Iso s t (Index s x x) (Index s a b)
+</span><a href="Data.Profunctor.Optic.Iso.html#sieved"><span class="hs-identifier hs-var">sieved</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; a -&gt; t
+</span><a href="#local-6989586621679128077"><span class="hs-identifier hs-var">abst</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p a t (Index a a a) (Index a a b)
+-&gt; (p a b -&gt; p (Index a a a) (Index a a b)) -&gt; p a b -&gt; p a t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Rep p b) -&gt; Index a a a -&gt; Rep p (Index a a b))
+-&gt; p a b -&gt; p (Index a a a) (Index a a b)
+forall (p :: * -&gt; * -&gt; *) a b s t.
+Representable p =&gt;
+((a -&gt; Rep p b) -&gt; s -&gt; Rep p t) -&gt; Optic p s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#represent"><span class="hs-identifier hs-var">represent</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679128078"><span class="annot"><span class="annottext">a -&gt; Rep p b
+</span><a href="#local-6989586621679128078"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Index a a (Rep p b) -&gt; Rep p (Index a a b)
+forall (g :: * -&gt; *) (f :: * -&gt; *) a.
+(Distributive1 g, Coapply f) =&gt;
+f (g a) -&gt; g (f a)
+forall (f :: * -&gt; *) a. Coapply f =&gt; f (Rep p a) -&gt; Rep p (f a)
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/coapplicative-0.0.2/doc/html/coapplicative/src/Data.Functor.Coapply.html#distribute1"><span class="hs-identifier hs-var">distribute1</span></a></span><span> </span><span class="annot"><span class="annottext">(Index a a (Rep p b) -&gt; Rep p (Index a a b))
+-&gt; (Index a a a -&gt; Index a a (Rep p b))
+-&gt; Index a a a
+-&gt; Rep p (Index a a b)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; Rep p b) -&gt; Index a a a -&gt; Index a a (Rep p b)
+forall a b. (a -&gt; b) -&gt; Index a a a -&gt; Index a a b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; Rep p b
+</span><a href="#local-6989586621679128078"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-183"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setter1"><span class="hs-pragma hs-type">setter1</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-184"></span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-186"></span><span class="hs-comment">--</span><span>
+</span><span id="line-187"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-188"></span><span id="local-6989586621679127607"><span id="local-6989586621679127608"><span id="local-6989586621679127609"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter1"><span class="hs-identifier hs-type">resetter1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127607"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127608"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127609"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127608"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter1"><span class="hs-identifier hs-type">Resetter1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127609"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127608"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127607"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127608"><span class="hs-identifier hs-type">t</span></a></span></span></span></span><span>
+</span><span id="line-189"></span><span id="resetter1"><span class="annot"><span class="annottext">resetter1 :: forall a t s. ((a -&gt; t) -&gt; s -&gt; t) -&gt; Resetter1 s t a t
+</span><a href="Data.Profunctor.Optic.Setter.html#resetter1"><span class="hs-identifier hs-var hs-var">resetter1</span></a></span></span><span> </span><span id="local-6989586621679128093"><span class="annot"><span class="annottext">(a -&gt; t) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128093"><span class="hs-identifier hs-var">abst</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; t) -&gt; s -&gt; t) -&gt; Iso s t (Coindex t t a) (Coindex t t t)
+forall a b s t x.
+((a -&gt; b) -&gt; s -&gt; t) -&gt; Iso s t (Coindex t b a) (Coindex t x x)
+</span><a href="Data.Profunctor.Optic.Iso.html#cosieved"><span class="hs-identifier hs-var">cosieved</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; t) -&gt; s -&gt; t
+</span><a href="#local-6989586621679128093"><span class="hs-identifier hs-var">abst</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s t (Coindex t t a) (Coindex t t t)
+-&gt; (p a t -&gt; p (Coindex t t a) (Coindex t t t)) -&gt; p a t -&gt; p s t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">((Corep p a -&gt; t) -&gt; Corep p (Coindex t t a) -&gt; Coindex t t t)
+-&gt; p a t -&gt; p (Coindex t t a) (Coindex t t t)
+forall (p :: * -&gt; * -&gt; *) a b s t.
+Corepresentable p =&gt;
+((Corep p a -&gt; b) -&gt; Corep p s -&gt; t) -&gt; Optic p s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#corepresent"><span class="hs-identifier hs-var">corepresent</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679128094"><span class="annot"><span class="annottext">Corep p a -&gt; t
+</span><a href="#local-6989586621679128094"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Corep p a -&gt; t) -&gt; Coindex t t (Corep p a) -&gt; Coindex t t t
+forall a b. (a -&gt; b) -&gt; Coindex t t a -&gt; Coindex t t b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="annot"><span class="annottext">Corep p a -&gt; t
+</span><a href="#local-6989586621679128094"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">(Coindex t t (Corep p a) -&gt; Coindex t t t)
+-&gt; (Corep p (Coindex t t a) -&gt; Coindex t t (Corep p a))
+-&gt; Corep p (Coindex t t a)
+-&gt; Coindex t t t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Corep p (Coindex t t a) -&gt; Coindex t t (Corep p a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) b.
+(Traversable1 t, Apply f) =&gt;
+t (f b) -&gt; f (t b)
+forall (f :: * -&gt; *) b. Apply f =&gt; Corep p (f b) -&gt; f (Corep p b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Semigroup.Traversable.Class.html#sequence1"><span class="hs-identifier hs-var">sequence1</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-190"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetter1"><span class="hs-pragma hs-type">resetter1</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-191"></span><span>
+</span><span id="line-192"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- Optics </span><span>
+</span><span id="line-194"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-195"></span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- | Map covariantly over the output of a profunctor.</span><span>
+</span><span id="line-197"></span><span class="hs-comment">--</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- The most common profunctor to use this with is @(-&gt;)@.</span><span>
+</span><span id="line-199"></span><span class="hs-comment">--</span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- (dom ..~ f) g x &#8801; f (g x)</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- cod @(-&gt;) &#8801; 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-204"></span><span class="hs-comment">--</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- &gt;&gt;&gt; (cod ..~ show) length [1,2,3]</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- &quot;3&quot;</span><span>
+</span><span id="line-207"></span><span class="hs-comment">--</span><span>
+</span><span id="line-208"></span><span id="local-6989586621679127624"><span id="local-6989586621679127625"><span id="local-6989586621679127626"><span id="local-6989586621679127627"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cod"><span class="hs-identifier hs-type">cod</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#Profunctor"><span class="hs-identifier hs-type">Profunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127624"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127624"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127625"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127626"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127624"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127625"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127627"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127626"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127627"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-209"></span><span id="cod"><span class="annot"><span class="annottext">cod :: forall (p :: * -&gt; * -&gt; *) r a b.
+Profunctor p =&gt;
+Setter (p r a) (p r b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#cod"><span class="hs-identifier hs-var hs-var">cod</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; p r a -&gt; p r b) -&gt; Setter (p r a) (p r b) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; p r a -&gt; p r b
+forall b c a. (b -&gt; c) -&gt; p a b -&gt; p a c
+forall (p :: * -&gt; * -&gt; *) b c a.
+Profunctor p =&gt;
+(b -&gt; c) -&gt; p a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#rmap"><span class="hs-identifier hs-var">rmap</span></a></span><span>
+</span><span id="line-210"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cod"><span class="hs-pragma hs-type">cod</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- | Map contravariantly over the input of a profunctor.</span><span>
+</span><span id="line-213"></span><span class="hs-comment">--</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- The most common profunctor to use this with is @(-&gt;)@.</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--</span><span>
+</span><span id="line-216"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-217"></span><span class="hs-comment">-- ('dom' '..~' f) g x &#8801; g (f x)</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-219"></span><span class="hs-comment">--</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- &gt;&gt;&gt; (dom ..~ show) length [1,2,3]</span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- 7</span><span>
+</span><span id="line-222"></span><span class="hs-comment">--</span><span>
+</span><span id="line-223"></span><span id="local-6989586621679127637"><span id="local-6989586621679127638"><span id="local-6989586621679127639"><span id="local-6989586621679127640"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#dom"><span class="hs-identifier hs-type">dom</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#Profunctor"><span class="hs-identifier hs-type">Profunctor</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127638"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127639"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127637"><span class="hs-identifier hs-type">p</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127640"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127639"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127640"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127638"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-224"></span><span id="dom"><span class="annot"><span class="annottext">dom :: forall (p :: * -&gt; * -&gt; *) b r a.
+Profunctor p =&gt;
+Setter (p b r) (p a r) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#dom"><span class="hs-identifier hs-var hs-var">dom</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; p b r -&gt; p a r) -&gt; Setter (p b r) (p a r) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; p b r -&gt; p a r
+forall a b c. (a -&gt; b) -&gt; p b c -&gt; p a c
+forall (p :: * -&gt; * -&gt; *) a b c.
+Profunctor p =&gt;
+(a -&gt; b) -&gt; p b c -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#lmap"><span class="hs-identifier hs-var">lmap</span></a></span><span>
+</span><span id="line-225"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#dom"><span class="hs-pragma hs-type">dom</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-226"></span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- | 'Setter' on each value of a functor.</span><span>
+</span><span id="line-228"></span><span class="hs-comment">--</span><span>
+</span><span id="line-229"></span><span id="local-6989586621679127649"><span id="local-6989586621679127650"><span id="local-6989586621679127651"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#fmapped"><span class="hs-identifier hs-type">fmapped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621679127649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127650"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127649"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127651"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127650"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127651"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-230"></span><span id="fmapped"><span class="annot"><span class="annottext">fmapped :: forall (f :: * -&gt; *) a b. Functor f =&gt; Setter (f a) (f b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#fmapped"><span class="hs-identifier hs-var hs-var">fmapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; f a -&gt; f b) -&gt; Setter (f a) (f b) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span>
+</span><span id="line-231"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#fmapped"><span class="hs-pragma hs-type">fmapped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="hs-comment">-- | 'Ixsetter' on each value of a representable functor.</span><span>
+</span><span id="line-234"></span><span class="hs-comment">--</span><span>
+</span><span id="line-235"></span><span class="hs-comment">-- &gt;&gt;&gt; 1 :+ 2 &amp; ixany imappedRep %~ bool 20 10 . getAny</span><span>
+</span><span id="line-236"></span><span class="hs-comment">-- 20 :+ 10</span><span>
+</span><span id="line-237"></span><span class="hs-comment">--</span><span>
+</span><span id="line-238"></span><span id="local-6989586621679127656"><span id="local-6989586621679127659"><span id="local-6989586621679127660"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#imappedRep"><span class="hs-identifier hs-type">imappedRep</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/djnctns-4.4.4-d856e1d6/share/doc/html/src/Data.Functor.Rep.html#Representable"><span class="hs-identifier hs-type">F.Representable</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127656"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/djnctns-4.4.4-d856e1d6/share/doc/html/src/Data.Functor.Rep.html#Rep"><span class="hs-identifier hs-type">F.Rep</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127656"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127656"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127659"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127656"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127660"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127659"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127660"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-239"></span><span id="imappedRep"><span class="annot"><span class="annottext">imappedRep :: forall (f :: * -&gt; *) a b.
+Representable f =&gt;
+Ixsetter (Rep f) (f a) (f b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#imappedRep"><span class="hs-identifier hs-var hs-var">imappedRep</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Rep f -&gt; a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; Ixsetter (Rep f) (f a) (f b) a b
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(Rep f -&gt; a -&gt; b) -&gt; f a -&gt; f b
+forall (r :: * -&gt; *) a a'.
+Representable r =&gt;
+(Rep r -&gt; a -&gt; a') -&gt; r a -&gt; r a'
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/djnctns-4.4.4-d856e1d6/share/doc/html/src/Data.Functor.Rep.html#imapRep"><span class="hs-identifier hs-var">F.imapRep</span></a></span><span>
+</span><span id="line-240"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#imappedRep"><span class="hs-pragma hs-type">imappedRep</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-241"></span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- | 'Setter' on each value of a contravariant functor.</span><span>
+</span><span id="line-243"></span><span class="hs-comment">--</span><span>
+</span><span id="line-244"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- 'Data.Functor.Contravariant.contramap' &#8801; 'over' 'contramapped'</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--</span><span>
+</span><span id="line-248"></span><span class="hs-comment">-- &gt;&gt;&gt; getPredicate (over contramapped (*2) (Predicate even)) 5</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- &gt;&gt;&gt; getOp (over contramapped (*5) (Op show)) 100</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- &quot;500&quot;</span><span>
+</span><span id="line-252"></span><span class="hs-comment">--</span><span>
+</span><span id="line-253"></span><span id="local-6989586621679127669"><span id="local-6989586621679127671"><span id="local-6989586621679127672"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#contramapped"><span class="hs-identifier hs-type">contramapped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Contravariant</span></span><span> </span><span class="annot"><a href="#local-6989586621679127669"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127669"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127671"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127669"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127672"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127672"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127671"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-254"></span><span id="contramapped"><span class="annot"><span class="annottext">contramapped :: forall (f :: * -&gt; *) b a. Contravariant f =&gt; Setter (f b) (f a) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#contramapped"><span class="hs-identifier hs-var hs-var">contramapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; f b -&gt; f a) -&gt; Setter (f b) (f a) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f b -&gt; f a
+forall a' a. (a' -&gt; a) -&gt; f a -&gt; f a'
+forall (f :: * -&gt; *) a' a.
+Contravariant f =&gt;
+(a' -&gt; a) -&gt; f a -&gt; f a'
+</span><span class="hs-identifier hs-var">contramap</span></span><span>
+</span><span id="line-255"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#contramapped"><span class="hs-pragma hs-type">contramapped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-256"></span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- | 'Setter' on each value of a monad.</span><span>
+</span><span id="line-258"></span><span class="hs-comment">--</span><span>
+</span><span id="line-259"></span><span id="local-6989586621679127680"><span id="local-6989586621679127681"><span id="local-6989586621679127682"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedM"><span class="hs-identifier hs-type">liftedM</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679127680"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127680"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127681"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127680"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127682"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127681"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127682"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-260"></span><span id="liftedM"><span class="annot"><span class="annottext">liftedM :: forall (m :: * -&gt; *) a b. Monad m =&gt; Setter (m a) (m b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#liftedM"><span class="hs-identifier hs-var hs-var">liftedM</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; m a -&gt; m b) -&gt; Setter (m a) (m b) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; m a -&gt; m b
+forall (m :: * -&gt; *) a1 r. Monad m =&gt; (a1 -&gt; r) -&gt; m a1 -&gt; m r
+</span><span class="hs-identifier hs-var">liftM</span></span><span>
+</span><span id="line-261"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedM"><span class="hs-pragma hs-type">liftedM</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-262"></span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- | 'Setter' on each value of an applicative.</span><span>
+</span><span id="line-264"></span><span class="hs-comment">--</span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-266"></span><span class="hs-comment">-- 'Control.Applicative.liftA' &#8801; 'setter' 'liftedA'</span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-268"></span><span class="hs-comment">--</span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- &gt;&gt;&gt; setter liftedA Identity [1,2,3]</span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- [Identity 1,Identity 2,Identity 3]</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- &gt;&gt;&gt; set liftedA 2 (Just 1)</span><span>
+</span><span id="line-272"></span><span class="hs-comment">-- Just 2</span><span>
+</span><span id="line-273"></span><span class="hs-comment">--</span><span>
+</span><span id="line-274"></span><span id="local-6989586621679127690"><span id="local-6989586621679127691"><span id="local-6989586621679127692"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedA"><span class="hs-identifier hs-type">liftedA</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679127690"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127690"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127691"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127690"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127692"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127691"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127692"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-275"></span><span id="liftedA"><span class="annot"><span class="annottext">liftedA :: forall (f :: * -&gt; *) a b. Applicative f =&gt; Setter (f a) (f b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#liftedA"><span class="hs-identifier hs-var hs-var">liftedA</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; f a -&gt; f b) -&gt; Setter (f a) (f b) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">liftA</span></span><span>
+</span><span id="line-276"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#liftedA"><span class="hs-pragma hs-type">liftedA</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-279"></span><span class="hs-comment">--</span><span>
+</span><span id="line-280"></span><span id="local-6989586621679127700"><span id="local-6989586621679127701"><span id="local-6989586621679127702"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedA"><span class="hs-identifier hs-type">reliftedA</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679127700"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter"><span class="hs-identifier hs-type">Resetter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127700"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127701"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127700"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127702"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127701"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127702"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-281"></span><span id="reliftedA"><span class="annot"><span class="annottext">reliftedA :: forall (f :: * -&gt; *) a b. Applicative f =&gt; Resetter (f a) (f b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#reliftedA"><span class="hs-identifier hs-var hs-var">reliftedA</span></a></span></span><span> </span><span id="local-6989586621679128172"><span class="annot"><span class="annottext">p a b
+</span><a href="#local-6989586621679128172"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Corep p (f a) -&gt; f b) -&gt; p (f a) (f b)
+forall d c. (Corep p d -&gt; c) -&gt; p d c
+forall (p :: * -&gt; * -&gt; *) d c.
+Corepresentable p =&gt;
+(Corep p d -&gt; c) -&gt; p d c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Rep.html#cotabulate"><span class="hs-identifier hs-var">cotabulate</span></a></span><span> </span><span class="annot"><span class="annottext">((Corep p (f a) -&gt; f b) -&gt; p (f a) (f b))
+-&gt; (Corep p (f a) -&gt; f b) -&gt; p (f a) (f b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Corep p a -&gt; b) -&gt; f (Corep p a) -&gt; f b
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">p a b -&gt; Corep p a -&gt; b
+forall a b. p a b -&gt; Corep p a -&gt; b
+forall (p :: * -&gt; * -&gt; *) (f :: * -&gt; *) a b.
+Cosieve p f =&gt;
+p a b -&gt; f a -&gt; b
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Sieve.html#cosieve"><span class="hs-identifier hs-var">cosieve</span></a></span><span> </span><span class="annot"><span class="annottext">p a b
+</span><a href="#local-6989586621679128172"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(f (Corep p a) -&gt; f b)
+-&gt; (Corep p (f a) -&gt; f (Corep p a)) -&gt; Corep p (f a) -&gt; f b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Corep p (f a) -&gt; f (Corep p a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a.
+(Traversable t, Applicative f) =&gt;
+t (f a) -&gt; f (t a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+Corep p (f a) -&gt; f (Corep p a)
+</span><span class="hs-identifier hs-var">sequenceA</span></span><span>
+</span><span id="line-282"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedA"><span class="hs-pragma hs-type">reliftedA</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-283"></span><span>
+</span><span id="line-284"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-285"></span><span class="hs-comment">--</span><span>
+</span><span id="line-286"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-287"></span><span id="local-6989586621679127716"><span id="local-6989586621679127717"><span id="local-6989586621679127718"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedF"><span class="hs-identifier hs-type">reliftedF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Functor.Bind.Class.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127716"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter1"><span class="hs-identifier hs-type">Resetter1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127716"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127717"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127716"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127718"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127717"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127718"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-288"></span><span id="reliftedF"><span class="annot"><span class="annottext">reliftedF :: forall (f :: * -&gt; *) a b. Apply f =&gt; Resetter1 (f a) (f b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#reliftedF"><span class="hs-identifier hs-var hs-var">reliftedF</span></a></span></span><span> </span><span id="local-6989586621679128189"><span class="annot"><span class="annottext">p a b
+</span><a href="#local-6989586621679128189"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Corep p (f a) -&gt; f b) -&gt; p (f a) (f b)
+forall d c. (Corep p d -&gt; c) -&gt; p d c
+forall (p :: * -&gt; * -&gt; *) d c.
+Corepresentable p =&gt;
+(Corep p d -&gt; c) -&gt; p d c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Rep.html#cotabulate"><span class="hs-identifier hs-var">cotabulate</span></a></span><span> </span><span class="annot"><span class="annottext">((Corep p (f a) -&gt; f b) -&gt; p (f a) (f b))
+-&gt; (Corep p (f a) -&gt; f b) -&gt; p (f a) (f b)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Corep p a -&gt; b) -&gt; f (Corep p a) -&gt; f b
+forall a b. (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">p a b -&gt; Corep p a -&gt; b
+forall a b. p a b -&gt; Corep p a -&gt; b
+forall (p :: * -&gt; * -&gt; *) (f :: * -&gt; *) a b.
+Cosieve p f =&gt;
+p a b -&gt; f a -&gt; b
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Sieve.html#cosieve"><span class="hs-identifier hs-var">cosieve</span></a></span><span> </span><span class="annot"><span class="annottext">p a b
+</span><a href="#local-6989586621679128189"><span class="hs-identifier hs-var">p</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(f (Corep p a) -&gt; f b)
+-&gt; (Corep p (f a) -&gt; f (Corep p a)) -&gt; Corep p (f a) -&gt; f b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Corep p (f a) -&gt; f (Corep p a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) b.
+(Traversable1 t, Apply f) =&gt;
+t (f b) -&gt; f (t b)
+forall (f :: * -&gt; *) b. Apply f =&gt; Corep p (f b) -&gt; f (Corep p b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Semigroup.Traversable.Class.html#sequence1"><span class="hs-identifier hs-var">sequence1</span></a></span><span>
+</span><span id="line-289"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reliftedF"><span class="hs-pragma hs-type">reliftedF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-290"></span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- | Variant of 'reliftedA' specialized to zip-lists.</span><span>
+</span><span id="line-292"></span><span class="hs-comment">--</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- Useful because lists are not 'Control.Coapplicative.Coapplicative'.</span><span>
+</span><span id="line-294"></span><span class="hs-comment">--</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-296"></span><span id="local-6989586621679127725"><span id="local-6989586621679127726"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipListed"><span class="hs-identifier hs-type">zipListed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Resetter"><span class="hs-identifier hs-type">Resetter</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679127725"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679127726"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621679127725"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127726"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-297"></span><span id="zipListed"><span class="annot"><span class="annottext">zipListed :: forall a b (p :: * -&gt; * -&gt; *).
+(Coaffine p, Cotraversing p, Remapping p) =&gt;
+Optic p [a] [b] a b
+</span><a href="Data.Profunctor.Optic.Setter.html#zipListed"><span class="hs-identifier hs-var hs-var">zipListed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([a] -&gt; ZipList a)
+-&gt; (ZipList b -&gt; [b]) -&gt; p (ZipList a) (ZipList b) -&gt; p [a] [b]
+forall a b c d. (a -&gt; b) -&gt; (c -&gt; d) -&gt; p b c -&gt; p a d
+forall (p :: * -&gt; * -&gt; *) a b c d.
+Profunctor p =&gt;
+(a -&gt; b) -&gt; (c -&gt; d) -&gt; p b c -&gt; p a d
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#dimap"><span class="hs-identifier hs-var">dimap</span></a></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; ZipList a
+forall a. [a] -&gt; ZipList a
+</span><span class="hs-identifier hs-var">ZipList</span></span><span> </span><span class="annot"><span class="annottext">ZipList b -&gt; [b]
+forall a. ZipList a -&gt; [a]
+</span><span class="hs-identifier hs-var">getZipList</span></span><span> </span><span class="annot"><span class="annottext">(p (ZipList a) (ZipList b) -&gt; p [a] [b])
+-&gt; (p a b -&gt; p (ZipList a) (ZipList b)) -&gt; p a b -&gt; p [a] [b]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p a b -&gt; p (ZipList a) (ZipList b)
+forall (f :: * -&gt; *) a b. Applicative f =&gt; Resetter (f a) (f b) a b
+Resetter (ZipList a) (ZipList b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#reliftedA"><span class="hs-identifier hs-var">reliftedA</span></a></span><span>
+</span><span id="line-298"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipListed"><span class="hs-pragma hs-type">zipListed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-299"></span><span>
+</span><span id="line-300"></span><span class="hs-comment">-- | 'Setter' on the local environment of a 'Reader'. </span><span>
+</span><span id="line-301"></span><span class="hs-comment">--</span><span>
+</span><span id="line-302"></span><span class="hs-comment">-- Use to lift reader actions into a larger environment:</span><span>
+</span><span id="line-303"></span><span class="hs-comment">--</span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- &gt;&gt;&gt; runReader (ask &amp; forwarded ..~ fst) (1,2)</span><span>
+</span><span id="line-305"></span><span class="hs-comment">-- 1</span><span>
+</span><span id="line-306"></span><span class="hs-comment">--</span><span>
+</span><span id="line-307"></span><span id="local-6989586621679127738"><span id="local-6989586621679127739"><span id="local-6989586621679127740"><span id="local-6989586621679127742"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#forwarded"><span class="hs-identifier hs-type">forwarded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621679127738"><span class="hs-identifier hs-type">r2</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127739"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127740"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="#local-6989586621679127742"><span class="hs-identifier hs-type">r1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127739"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127740"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127742"><span class="hs-identifier hs-type">r1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127738"><span class="hs-identifier hs-type">r2</span></a></span></span></span></span></span><span>
+</span><span id="line-308"></span><span id="forwarded"><span class="annot"><span class="annottext">forwarded :: forall r2 (m :: * -&gt; *) a r1 (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Optic p (ReaderT r2 m a) (ReaderT r1 m a) r1 r2
+</span><a href="Data.Profunctor.Optic.Setter.html#forwarded"><span class="hs-identifier hs-var hs-var">forwarded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((r1 -&gt; r2) -&gt; ReaderT r2 m a -&gt; ReaderT r1 m a)
+-&gt; Setter (ReaderT r2 m a) (ReaderT r1 m a) r1 r2
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(r1 -&gt; r2) -&gt; ReaderT r2 m a -&gt; ReaderT r1 m a
+forall r' r (m :: * -&gt; *) a.
+(r' -&gt; r) -&gt; ReaderT r m a -&gt; ReaderT r' m a
+</span><span class="hs-identifier hs-var">withReaderT</span></span><span>
+</span><span id="line-309"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#forwarded"><span class="hs-pragma hs-type">forwarded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-310"></span><span>
+</span><span id="line-311"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-312"></span><span class="hs-comment">--</span><span>
+</span><span id="line-313"></span><span id="local-6989586621679127752"><span id="local-6989586621679127753"><span id="local-6989586621679127755"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#censored"><span class="hs-identifier hs-type">censored</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Writer.MonadWriter</span></span><span> </span><span class="annot"><a href="#local-6989586621679127752"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127753"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127753"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127755"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127752"><span class="hs-identifier hs-type">w</span></a></span></span></span></span><span>
+</span><span id="line-314"></span><span id="censored"><span class="annot"><span class="annottext">censored :: forall w (m :: * -&gt; *) a. MonadWriter w m =&gt; Setter' (m a) w
+</span><a href="Data.Profunctor.Optic.Setter.html#censored"><span class="hs-identifier hs-var hs-var">censored</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((w -&gt; w) -&gt; m a -&gt; m a) -&gt; Setter (m a) (m a) w w
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(w -&gt; w) -&gt; m a -&gt; m a
+forall w (m :: * -&gt; *) a. MonadWriter w m =&gt; (w -&gt; w) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">Writer.censor</span></span><span>
+</span><span id="line-315"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#censored"><span class="hs-pragma hs-type">censored</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-316"></span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- | 'Setter' on the codomain of a zipping function.</span><span>
+</span><span id="line-318"></span><span class="hs-comment">--</span><span>
+</span><span id="line-319"></span><span class="hs-comment">-- &gt;&gt;&gt; ((,) &amp; zipped ..~ swap) 1 2</span><span>
+</span><span id="line-320"></span><span class="hs-comment">-- (2,1)</span><span>
+</span><span id="line-321"></span><span class="hs-comment">--</span><span>
+</span><span id="line-322"></span><span id="local-6989586621679127764"><span id="local-6989586621679127765"><span id="local-6989586621679127766"><span id="local-6989586621679127767"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipped"><span class="hs-identifier hs-type">zipped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127764"><span class="hs-identifier hs-type">u</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127765"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127766"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127764"><span class="hs-identifier hs-type">u</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127765"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127767"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127766"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127767"><span class="hs-identifier hs-type">b</span></a></span></span></span></span></span><span>
+</span><span id="line-323"></span><span id="zipped"><span class="annot"><span class="annottext">zipped :: forall u v a b (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Optic p (u -&gt; v -&gt; a) (u -&gt; v -&gt; b) a b
+</span><a href="Data.Profunctor.Optic.Setter.html#zipped"><span class="hs-identifier hs-var hs-var">zipped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; (u -&gt; v -&gt; a) -&gt; u -&gt; v -&gt; b)
+-&gt; Setter (u -&gt; v -&gt; a) (u -&gt; v -&gt; b) a b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(((v -&gt; a) -&gt; v -&gt; b) -&gt; (u -&gt; v -&gt; a) -&gt; u -&gt; v -&gt; b)
+-&gt; ((a -&gt; b) -&gt; (v -&gt; a) -&gt; v -&gt; b)
+-&gt; (a -&gt; b)
+-&gt; (u -&gt; v -&gt; a)
+-&gt; u
+-&gt; v
+-&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">(.)</span></span><span class="annot"><span class="annottext">((v -&gt; a) -&gt; v -&gt; b) -&gt; (u -&gt; v -&gt; a) -&gt; u -&gt; v -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">(.)</span></span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (v -&gt; a) -&gt; v -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">(.)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-324"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#zipped"><span class="hs-pragma hs-type">zipped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-325"></span><span>
+</span><span id="line-326"></span><span class="hs-comment">-- | TODO: Document</span><span>
+</span><span id="line-327"></span><span class="hs-comment">--</span><span>
+</span><span id="line-328"></span><span id="local-6989586621679127773"><span id="local-6989586621679127774"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modded"><span class="hs-identifier hs-type">modded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127773"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127773"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127774"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127774"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-329"></span><span id="modded"><span class="annot"><span class="annottext">modded :: forall a b. (a -&gt; Bool) -&gt; Setter' (a -&gt; b) b
+</span><a href="Data.Profunctor.Optic.Setter.html#modded"><span class="hs-identifier hs-var hs-var">modded</span></a></span></span><span> </span><span id="local-6989586621679128233"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679128233"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((b -&gt; b) -&gt; (a -&gt; b) -&gt; a -&gt; b) -&gt; Setter (a -&gt; b) (a -&gt; b) b b
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((b -&gt; b) -&gt; (a -&gt; b) -&gt; a -&gt; b) -&gt; Setter (a -&gt; b) (a -&gt; b) b b)
+-&gt; ((b -&gt; b) -&gt; (a -&gt; b) -&gt; a -&gt; b) -&gt; Setter (a -&gt; b) (a -&gt; b) b b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679128234"><span class="annot"><span class="annottext">b -&gt; b
+</span><a href="#local-6989586621679128234"><span class="hs-identifier hs-var">mods</span></a></span></span><span> </span><span id="local-6989586621679128235"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128235"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679128236"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128236"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679128233"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128236"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">b -&gt; b
+</span><a href="#local-6989586621679128234"><span class="hs-identifier hs-var">mods</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128235"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128236"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128235"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128236"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-330"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modded"><span class="hs-pragma hs-type">modded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-331"></span><span>
+</span><span id="line-332"></span><span class="hs-comment">-- | Apply a function only when the given condition holds.</span><span>
+</span><span id="line-333"></span><span class="hs-comment">--</span><span>
+</span><span id="line-334"></span><span class="hs-comment">-- See also 'Data.Profunctor.Optic.Traversal0.predicated' &amp; 'Data.Profunctor.Optic.Prism.filtered'.</span><span>
+</span><span id="line-335"></span><span class="hs-comment">--</span><span>
+</span><span id="line-336"></span><span id="local-6989586621679127778"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cond"><span class="hs-identifier hs-type">cond</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127778"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127778"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127778"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-337"></span><span id="cond"><span class="annot"><span class="annottext">cond :: forall a. (a -&gt; Bool) -&gt; Setter' a a
+</span><a href="Data.Profunctor.Optic.Setter.html#cond"><span class="hs-identifier hs-var hs-var">cond</span></a></span></span><span> </span><span id="local-6989586621679128243"><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679128243"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; a) -&gt; a -&gt; a) -&gt; Setter a a a a
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((a -&gt; a) -&gt; a -&gt; a) -&gt; Setter a a a a)
+-&gt; ((a -&gt; a) -&gt; a -&gt; a) -&gt; Setter a a a a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679128244"><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679128244"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679128245"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128245"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">a -&gt; Bool
+</span><a href="#local-6989586621679128243"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128245"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a -&gt; a
+</span><a href="#local-6989586621679128244"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128245"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679128245"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-338"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#cond"><span class="hs-pragma hs-type">cond</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-339"></span><span>
+</span><span id="line-340"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-341"></span><span class="hs-comment">-- Operators</span><span>
+</span><span id="line-342"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-343"></span><span>
+</span><span id="line-344"></span><span class="hs-comment">-- | Set the focus of a 'Setter'.</span><span>
+</span><span id="line-345"></span><span class="hs-comment">--</span><span>
+</span><span id="line-346"></span><span class="hs-comment">-- @ </span><span>
+</span><span id="line-347"></span><span class="hs-comment">-- 'set' o y ('set' o x a) &#8801; 'set' o y a</span><span>
+</span><span id="line-348"></span><span class="hs-comment">-- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)</span><span>
+</span><span id="line-349"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-350"></span><span class="hs-comment">--</span><span>
+</span><span id="line-351"></span><span id="local-6989586621679127781"><span id="local-6989586621679127782"><span id="local-6989586621679127783"><span id="local-6989586621679127784"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#set"><span class="hs-identifier hs-type">set</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#ASetter"><span class="hs-identifier hs-type">ASetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127781"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127782"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127783"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127784"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127784"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127781"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127782"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span><span>
+</span><span id="line-352"></span><span id="set"><span class="annot"><span class="annottext">set :: forall s t a b. ASetter s t a b -&gt; b -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#set"><span class="hs-identifier hs-var hs-var">set</span></a></span></span><span> </span><span id="local-6989586621679128246"><span class="annot"><span class="annottext">ASetter s t a b
+</span><a href="#local-6989586621679128246"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128247"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128247"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ASetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall s t a b. ASetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-identifier hs-var">sets</span></a></span><span> </span><span class="annot"><span class="annottext">ASetter s t a b
+</span><a href="#local-6989586621679128246"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; s -&gt; t) -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128247"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-353"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#set"><span class="hs-pragma hs-type">set</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-354"></span><span>
+</span><span id="line-355"></span><span class="hs-comment">-- | Set the focus of a 'Setter'.</span><span>
+</span><span id="line-356"></span><span class="hs-comment">--</span><span>
+</span><span id="line-357"></span><span id="local-6989586621679127790"><span id="local-6989586621679127791"><span id="local-6989586621679127792"><span id="local-6989586621679127793"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-identifier hs-type">sets</span></a></span><span> </span><span class="hs-glyph">::</span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#ASetter"><span class="hs-identifier hs-type">ASetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127790"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127791"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127792"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127793"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127792"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127793"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127790"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127791"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span><span>
+</span><span id="line-358"></span><span id="sets"><span class="annot"><span class="annottext">sets :: forall s t a b. ASetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-identifier hs-var hs-var">sets</span></a></span></span><span> </span><span id="local-6989586621679128258"><span class="annot"><span class="annottext">ASetter s t a b
+</span><a href="#local-6989586621679128258"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Identity t -&gt; t
+forall a. Identity a -&gt; a
+</span><span class="hs-identifier hs-var">runIdentity</span></span><span> </span><span class="annot"><span class="annottext">(Identity t -&gt; t) -&gt; (s -&gt; Identity t) -&gt; s -&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible c b =&gt;
+q b c -&gt; (a -&gt; b) -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible c b) =&gt;
+q b c -&gt; p a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#%23."><span class="hs-operator hs-var">#.</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((s -&gt; Identity t) -&gt; s -&gt; t)
+-&gt; ((a -&gt; Identity b) -&gt; s -&gt; Identity t)
+-&gt; (a -&gt; Identity b)
+-&gt; s
+-&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible c b =&gt;
+q b c -&gt; (a -&gt; b) -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible c b) =&gt;
+q b c -&gt; p a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#%23."><span class="hs-operator hs-var">#.</span></a></span><span> </span><span class="annot"><span class="annottext">ASetter s t a b -&gt; (a -&gt; Identity b) -&gt; s -&gt; Identity t
+forall (f :: * -&gt; *) s t a b.
+ATraversal f s t a b -&gt; (a -&gt; f b) -&gt; s -&gt; f t
+</span><a href="Data.Profunctor.Optic.Traversal.html#traverses"><span class="hs-identifier hs-var">traverses</span></a></span><span> </span><span class="annot"><span class="annottext">ASetter s t a b
+</span><a href="#local-6989586621679128258"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Identity b) -&gt; s -&gt; t)
+-&gt; ((a -&gt; b) -&gt; a -&gt; Identity b) -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible b a =&gt;
+(b -&gt; c) -&gt; q a b -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible b a) =&gt;
+p b c -&gt; q a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#.%23"><span class="hs-operator hs-var">.#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; Identity b
+forall a. a -&gt; Identity a
+</span><span class="hs-identifier hs-var">Identity</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; Identity b) -&gt; (a -&gt; b) -&gt; a -&gt; Identity b
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible c b =&gt;
+q b c -&gt; (a -&gt; b) -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible c b) =&gt;
+q b c -&gt; p a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#%23."><span class="hs-operator hs-var">#.</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-359"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-pragma hs-type">sets</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-360"></span><span>
+</span><span id="line-361"></span><span class="hs-comment">-- | Set the focus of a 'Ixsetter'.</span><span>
+</span><span id="line-362"></span><span class="hs-comment">--</span><span>
+</span><span id="line-363"></span><span class="hs-comment">-- Equivalent to 'setsWithKey' with the current value ignored.</span><span>
+</span><span id="line-364"></span><span class="hs-comment">--</span><span>
+</span><span id="line-365"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-366"></span><span class="hs-comment">-- 'set' o &#8801; 'setWithKey' o '.' 'const'</span><span>
+</span><span id="line-367"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-368"></span><span class="hs-comment">--</span><span>
+</span><span id="line-369"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-370"></span><span id="local-6989586621679127817"><span id="local-6989586621679127818"><span id="local-6989586621679127819"><span id="local-6989586621679127820"><span id="local-6989586621679127821"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setWithKey"><span class="hs-identifier hs-type">setWithKey</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679127817"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#AIxsetter"><span class="hs-identifier hs-type">AIxsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127817"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127818"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127819"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127820"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127821"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127817"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127821"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127818"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127819"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span></span><span>
+</span><span id="line-371"></span><span id="setWithKey"><span class="annot"><span class="annottext">setWithKey :: forall i s t a b.
+Monoid i =&gt;
+AIxsetter i s t a b -&gt; (i -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#setWithKey"><span class="hs-identifier hs-var hs-var">setWithKey</span></a></span></span><span> </span><span id="local-6989586621679128266"><span class="annot"><span class="annottext">AIxsetter i s t a b
+</span><a href="#local-6989586621679128266"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AIxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+forall i s t a b.
+Monoid i =&gt;
+AIxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#setsWithKey"><span class="hs-identifier hs-var">setsWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">AIxsetter i s t a b
+</span><a href="#local-6989586621679128266"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((i -&gt; a -&gt; b) -&gt; s -&gt; t)
+-&gt; ((i -&gt; b) -&gt; i -&gt; a -&gt; b) -&gt; (i -&gt; b) -&gt; s -&gt; t
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; a -&gt; b) -&gt; (i -&gt; b) -&gt; i -&gt; a -&gt; b
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span class="hs-special">)</span><span>
+</span><span id="line-372"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setWithKey"><span class="hs-pragma hs-type">setWithKey</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-373"></span><span>
+</span><span id="line-374"></span><span class="hs-comment">-- | Set the focus of a 'Ixsetter'.</span><span>
+</span><span id="line-375"></span><span class="hs-comment">--</span><span>
+</span><span id="line-376"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-377"></span><span id="local-6989586621679127828"><span id="local-6989586621679127829"><span id="local-6989586621679127830"><span id="local-6989586621679127831"><span id="local-6989586621679127832"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setsWithKey"><span class="hs-identifier hs-type">setsWithKey</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679127828"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#AIxsetter"><span class="hs-identifier hs-type">AIxsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127828"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127829"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127830"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127831"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127832"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127828"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127831"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127832"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127829"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127830"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span></span><span>
+</span><span id="line-378"></span><span id="setsWithKey"><span class="annot"><span class="annottext">setsWithKey :: forall i s t a b.
+Monoid i =&gt;
+AIxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#setsWithKey"><span class="hs-identifier hs-var hs-var">setsWithKey</span></a></span></span><span> </span><span id="local-6989586621679128269"><span class="annot"><span class="annottext">AIxsetter i s t a b
+</span><a href="#local-6989586621679128269"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128270"><span class="annot"><span class="annottext">i -&gt; a -&gt; b
+</span><a href="#local-6989586621679128270"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((i, s) -&gt; t) -&gt; i -&gt; s -&gt; t
+forall a b c. ((a, b) -&gt; c) -&gt; a -&gt; b -&gt; c
+</span><span class="hs-identifier hs-var">curry</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AIxsetter i s t a b -&gt; ((i, a) -&gt; b) -&gt; (i, s) -&gt; t
+forall s t a b. ASetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#sets"><span class="hs-identifier hs-var">sets</span></a></span><span> </span><span class="annot"><span class="annottext">AIxsetter i s t a b
+</span><a href="#local-6989586621679128269"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">(((i, a) -&gt; b) -&gt; (i, s) -&gt; t) -&gt; ((i, a) -&gt; b) -&gt; (i, s) -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(i -&gt; a -&gt; b) -&gt; (i, a) -&gt; b
+forall a b c. (a -&gt; b -&gt; c) -&gt; (a, b) -&gt; c
+</span><span class="hs-identifier hs-var">uncurry</span></span><span> </span><span class="annot"><span class="annottext">i -&gt; a -&gt; b
+</span><a href="#local-6989586621679128270"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">i
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-379"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#setsWithKey"><span class="hs-pragma hs-type">setsWithKey</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-380"></span><span>
+</span><span id="line-381"></span><span class="hs-comment">-- | Set the focus of a 'Resetter'.</span><span>
+</span><span id="line-382"></span><span class="hs-comment">--</span><span>
+</span><span id="line-383"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-384"></span><span class="hs-comment">-- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'</span><span>
+</span><span id="line-385"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-386"></span><span class="hs-comment">--</span><span>
+</span><span id="line-387"></span><span id="local-6989586621679127842"><span id="local-6989586621679127843"><span id="local-6989586621679127844"><span id="local-6989586621679127845"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#reset"><span class="hs-identifier hs-type">reset</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#AResetter"><span class="hs-identifier hs-type">AResetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127842"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127843"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127844"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127845"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127845"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127842"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127843"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span><span>
+</span><span id="line-388"></span><span id="reset"><span class="annot"><span class="annottext">reset :: forall s t a b. AResetter s t a b -&gt; b -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#reset"><span class="hs-identifier hs-var hs-var">reset</span></a></span></span><span> </span><span id="local-6989586621679128273"><span class="annot"><span class="annottext">AResetter s t a b
+</span><a href="#local-6989586621679128273"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128274"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128274"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AResetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall s t a b. AResetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-identifier hs-var">resets</span></a></span><span> </span><span class="annot"><span class="annottext">AResetter s t a b
+</span><a href="#local-6989586621679128273"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; s -&gt; t) -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128274"><span class="hs-identifier hs-var">b</span></a></span><span>
+</span><span id="line-389"></span><span>
+</span><span id="line-390"></span><span class="hs-comment">-- | Set the focus of a 'Resetter'.</span><span>
+</span><span id="line-391"></span><span class="hs-comment">--</span><span>
+</span><span id="line-392"></span><span id="local-6989586621679127851"><span id="local-6989586621679127852"><span id="local-6989586621679127853"><span id="local-6989586621679127854"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-identifier hs-type">resets</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#AResetter"><span class="hs-identifier hs-type">AResetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127851"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127852"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127853"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127854"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127853"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127854"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127851"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127852"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span><span>
+</span><span id="line-393"></span><span id="resets"><span class="annot"><span class="annottext">resets :: forall s t a b. AResetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-identifier hs-var hs-var">resets</span></a></span></span><span> </span><span id="local-6989586621679128283"><span class="annot"><span class="annottext">AResetter s t a b
+</span><a href="#local-6989586621679128283"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Identity s -&gt; t) -&gt; (s -&gt; Identity s) -&gt; s -&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible b a =&gt;
+(b -&gt; c) -&gt; q a b -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible b a) =&gt;
+p b c -&gt; q a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#.%23"><span class="hs-operator hs-var">.#</span></a></span><span> </span><span class="annot"><span class="annottext">s -&gt; Identity s
+forall a. a -&gt; Identity a
+</span><span class="hs-identifier hs-var">Identity</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">((Identity s -&gt; t) -&gt; s -&gt; t)
+-&gt; ((Identity a -&gt; b) -&gt; Identity s -&gt; t)
+-&gt; (Identity a -&gt; b)
+-&gt; s
+-&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible c b =&gt;
+q b c -&gt; (a -&gt; b) -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible c b) =&gt;
+q b c -&gt; p a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#%23."><span class="hs-operator hs-var">#.</span></a></span><span> </span><span class="annot"><span class="annottext">AResetter s t a b -&gt; (Identity a -&gt; b) -&gt; Identity s -&gt; t
+forall (f :: * -&gt; *) s t a b.
+ACotraversal f s t a b -&gt; (f a -&gt; b) -&gt; f s -&gt; t
+</span><a href="Data.Profunctor.Optic.Traversal.html#cotraverses"><span class="hs-identifier hs-var">cotraverses</span></a></span><span> </span><span class="annot"><span class="annottext">AResetter s t a b
+</span><a href="#local-6989586621679128283"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((Identity a -&gt; b) -&gt; s -&gt; t)
+-&gt; ((a -&gt; b) -&gt; Identity a -&gt; b) -&gt; (a -&gt; b) -&gt; s -&gt; t
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible b a =&gt;
+(b -&gt; c) -&gt; q a b -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible b a) =&gt;
+p b c -&gt; q a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#.%23"><span class="hs-operator hs-var">.#</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; (Identity a -&gt; a) -&gt; Identity a -&gt; b
+forall a b c (q :: * -&gt; * -&gt; *).
+Coercible b a =&gt;
+(b -&gt; c) -&gt; q a b -&gt; a -&gt; c
+forall (p :: * -&gt; * -&gt; *) a b c (q :: * -&gt; * -&gt; *).
+(Profunctor p, Coercible b a) =&gt;
+p b c -&gt; q a b -&gt; p a c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Unsafe.html#.%23"><span class="hs-operator hs-var">.#</span></a></span><span> </span><span class="annot"><span class="annottext">Identity a -&gt; a
+forall a. Identity a -&gt; a
+</span><span class="hs-identifier hs-var">runIdentity</span></span><span class="hs-special">)</span><span> </span><span>
+</span><span id="line-394"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-pragma hs-type">resets</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-395"></span><span>
+</span><span id="line-396"></span><span class="hs-comment">-- | Set the focus of a 'Rxsetter'.</span><span>
+</span><span id="line-397"></span><span class="hs-comment">--</span><span>
+</span><span id="line-398"></span><span class="hs-comment">-- Equivalent to 'resetsWithKey' with the current value ignored.</span><span>
+</span><span id="line-399"></span><span class="hs-comment">--</span><span>
+</span><span id="line-400"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-401"></span><span id="local-6989586621679127865"><span id="local-6989586621679127866"><span id="local-6989586621679127867"><span id="local-6989586621679127868"><span id="local-6989586621679127869"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetWithKey"><span class="hs-identifier hs-type">resetWithKey</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679127865"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#ARxsetter"><span class="hs-identifier hs-type">ARxsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127865"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127866"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127867"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127868"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127869"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127865"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127869"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127866"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127867"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span></span><span> </span><span>
+</span><span id="line-402"></span><span id="resetWithKey"><span class="annot"><span class="annottext">resetWithKey :: forall i s t a b.
+Monoid i =&gt;
+ARxsetter i s t a b -&gt; (i -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resetWithKey"><span class="hs-identifier hs-var hs-var">resetWithKey</span></a></span></span><span> </span><span id="local-6989586621679128288"><span class="annot"><span class="annottext">ARxsetter i s t a b
+</span><a href="#local-6989586621679128288"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128289"><span class="annot"><span class="annottext">i -&gt; b
+</span><a href="#local-6989586621679128289"><span class="hs-identifier hs-var">ib</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ARxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+forall i s t a b.
+Monoid i =&gt;
+ARxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resetsWithKey"><span class="hs-identifier hs-var">resetsWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">ARxsetter i s t a b
+</span><a href="#local-6989586621679128288"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; i -&gt; b) -&gt; i -&gt; a -&gt; b
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(i -&gt; b) -&gt; a -&gt; i -&gt; b
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">i -&gt; b
+</span><a href="#local-6989586621679128289"><span class="hs-identifier hs-var">ib</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-403"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetWithKey"><span class="hs-pragma hs-type">resetWithKey</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-404"></span><span>
+</span><span id="line-405"></span><span class="hs-comment">-- | Set the focus of a 'Rxsetter'.</span><span>
+</span><span id="line-406"></span><span class="hs-comment">--</span><span>
+</span><span id="line-407"></span><span class="hs-comment">-- @since 0.0.3</span><span>
+</span><span id="line-408"></span><span id="local-6989586621679127876"><span id="local-6989586621679127877"><span id="local-6989586621679127878"><span id="local-6989586621679127879"><span id="local-6989586621679127880"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetsWithKey"><span class="hs-identifier hs-type">resetsWithKey</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679127876"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#ARxsetter"><span class="hs-identifier hs-type">ARxsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127876"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127877"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127878"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127879"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127880"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127876"><span class="hs-identifier hs-type">i</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127879"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127880"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127877"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127878"><span class="hs-identifier hs-type">t</span></a></span></span></span></span></span></span><span> </span><span>
+</span><span id="line-409"></span><span id="resetsWithKey"><span class="annot"><span class="annottext">resetsWithKey :: forall i s t a b.
+Monoid i =&gt;
+ARxsetter i s t a b -&gt; (i -&gt; a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resetsWithKey"><span class="hs-identifier hs-var hs-var">resetsWithKey</span></a></span></span><span> </span><span id="local-6989586621679128293"><span class="annot"><span class="annottext">ARxsetter i s t a b
+</span><a href="#local-6989586621679128293"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128294"><span class="annot"><span class="annottext">i -&gt; a -&gt; b
+</span><a href="#local-6989586621679128294"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(s -&gt; i -&gt; t) -&gt; i -&gt; s -&gt; t
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ARxsetter i s t a b -&gt; (a -&gt; i -&gt; b) -&gt; s -&gt; i -&gt; t
+forall s t a b. AResetter s t a b -&gt; (a -&gt; b) -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Setter.html#resets"><span class="hs-identifier hs-var">resets</span></a></span><span> </span><span class="annot"><span class="annottext">ARxsetter i s t a b
+</span><a href="#local-6989586621679128293"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">((a -&gt; i -&gt; b) -&gt; s -&gt; i -&gt; t) -&gt; (a -&gt; i -&gt; b) -&gt; s -&gt; i -&gt; t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(i -&gt; a -&gt; b) -&gt; a -&gt; i -&gt; b
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">i -&gt; a -&gt; b
+</span><a href="#local-6989586621679128294"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">i
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-410"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#resetsWithKey"><span class="hs-pragma hs-type">resetsWithKey</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-411"></span><span>
+</span><span id="line-412"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-413"></span><span class="hs-comment">-- Mtl</span><span>
+</span><span id="line-414"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-415"></span><span>
+</span><span id="line-416"></span><span class="hs-keyword">infix</span><span> </span><span class="hs-number">4</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#.%3D"><span class="hs-operator hs-type">.=</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#..%3D"><span class="hs-operator hs-type">..=</span></a></span><span>
+</span><span id="line-417"></span><span>
+</span><span id="line-418"></span><span class="hs-comment">-- | Replace the target(s) of a settable in a monadic state.</span><span>
+</span><span id="line-419"></span><span class="hs-comment">--</span><span>
+</span><span id="line-420"></span><span class="hs-comment">-- This is an infiversion of 'assigns'.</span><span>
+</span><span id="line-421"></span><span class="hs-comment">--</span><span>
+</span><span id="line-422"></span><span class="hs-comment">-- &gt;&gt;&gt; execState (do first' .= 1; second' .= 2) (3,4)</span><span>
+</span><span id="line-423"></span><span class="hs-comment">-- (1,2)</span><span>
+</span><span id="line-424"></span><span class="hs-comment">-- &gt;&gt;&gt; execState (bitraversed .= 3) (1,2)</span><span>
+</span><span id="line-425"></span><span class="hs-comment">-- (3,3)</span><span>
+</span><span id="line-426"></span><span class="hs-comment">--</span><span>
+</span><span id="line-427"></span><span id="local-6989586621679127889"><span id="local-6989586621679127890"><span id="local-6989586621679127892"><span id="local-6989586621679127893"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#.%3D"><span class="hs-operator hs-type">(.=)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621679127889"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127889"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127889"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127892"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127893"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127893"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127890"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-428"></span><span id="local-6989586621679128297"><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128297"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id=".%3D"><span class="annot"><span class="annottext">.= :: forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; b -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#.%3D"><span class="hs-operator hs-var hs-var">.=</span></a></span></span><span> </span><span id="local-6989586621679128298"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128298"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(s -&gt; s) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">State.modify</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128297"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b -&gt; b -&gt; s -&gt; s
+forall s t a b. Optic (-&gt;) s t a b -&gt; b -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Combinator.html#.~"><span class="hs-operator hs-var">.~</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128298"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-429"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">.=</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-430"></span><span>
+</span><span id="line-431"></span><span class="hs-comment">-- | Map over the target(s) of a 'Setter' in a monadic state.</span><span>
+</span><span id="line-432"></span><span class="hs-comment">--</span><span>
+</span><span id="line-433"></span><span class="hs-comment">-- This is an infiversion of 'modifies'.</span><span>
+</span><span id="line-434"></span><span class="hs-comment">--</span><span>
+</span><span id="line-435"></span><span class="hs-comment">-- &gt;&gt;&gt; execState (do just ..= (+1) ) Nothing</span><span>
+</span><span id="line-436"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-437"></span><span class="hs-comment">-- &gt;&gt;&gt; execState (do first' ..= (+1) ;second' ..= (+2)) (1,2)</span><span>
+</span><span id="line-438"></span><span class="hs-comment">-- (2,4)</span><span>
+</span><span id="line-439"></span><span class="hs-comment">-- &gt;&gt;&gt; execState (do bitraversed ..= (+1)) (1,2)</span><span>
+</span><span id="line-440"></span><span class="hs-comment">-- (2,3)</span><span>
+</span><span id="line-441"></span><span class="hs-comment">--</span><span>
+</span><span id="line-442"></span><span id="local-6989586621679127904"><span id="local-6989586621679127905"><span id="local-6989586621679127906"><span id="local-6989586621679127907"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#..%3D"><span class="hs-operator hs-type">(..=)</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621679127904"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127905"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127904"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127904"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127906"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127907"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127906"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127907"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127905"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-443"></span><span id="local-6989586621679128302"><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128302"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="..%3D"><span class="annot"><span class="annottext">..= :: forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; (a -&gt; b) -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#..%3D"><span class="hs-operator hs-var hs-var">..=</span></a></span></span><span> </span><span id="local-6989586621679128303"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128303"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(s -&gt; s) -&gt; m ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">State.modify</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128302"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b -&gt; Optic (-&gt;) s s a b
+forall s t a b. Optic (-&gt;) s t a b -&gt; Optic (-&gt;) s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#..~"><span class="hs-operator hs-var">..~</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128303"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-444"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="hs-pragma">(</span><span class="hs-pragma">..=</span><span class="hs-pragma">)</span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-445"></span><span>
+</span><span id="line-446"></span><span class="hs-comment">-- | A prefix alias for '.='.</span><span>
+</span><span id="line-447"></span><span class="hs-comment">--</span><span>
+</span><span id="line-448"></span><span id="local-6989586621679128304"><span id="local-6989586621679128305"><span id="local-6989586621679128306"><span id="local-6989586621679128307"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#assigns"><span class="hs-identifier hs-type">assigns</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621679128304"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128305"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679128304"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128304"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128306"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128307"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128307"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128305"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-449"></span><span id="assigns"><span class="annot"><span class="annottext">assigns :: forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; b -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#assigns"><span class="hs-identifier hs-var hs-var">assigns</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b -&gt; b -&gt; m ()
+forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; b -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#.%3D"><span class="hs-operator hs-var">(.=)</span></a></span><span>
+</span><span id="line-450"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#assigns"><span class="hs-pragma hs-type">assigns</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-451"></span><span>
+</span><span id="line-452"></span><span class="hs-comment">-- | A prefix alias for '..='</span><span>
+</span><span id="line-453"></span><span class="hs-comment">--</span><span>
+</span><span id="line-454"></span><span id="local-6989586621679128310"><span id="local-6989586621679128311"><span id="local-6989586621679128312"><span id="local-6989586621679128313"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modifies"><span class="hs-identifier hs-type">modifies</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="#local-6989586621679128310"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679128310"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128310"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128312"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679128313"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679128312"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128313"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679128311"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span><span>
+</span><span id="line-455"></span><span id="modifies"><span class="annot"><span class="annottext">modifies :: forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; (a -&gt; b) -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#modifies"><span class="hs-identifier hs-var hs-var">modifies</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b -&gt; (a -&gt; b) -&gt; m ()
+forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+Optic (-&gt;) s s a b -&gt; (a -&gt; b) -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#..%3D"><span class="hs-operator hs-var">(..=)</span></a></span><span>
+</span><span id="line-456"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#modifies"><span class="hs-pragma hs-type">modifies</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-457"></span><span>
+</span><span id="line-458"></span><span class="hs-comment">-- | Modify the value of a 'Reader' environment.</span><span>
+</span><span id="line-459"></span><span class="hs-comment">--</span><span>
+</span><span id="line-460"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-461"></span><span class="hs-comment">-- 'locally' l 'id' a &#8801; a</span><span>
+</span><span id="line-462"></span><span class="hs-comment">-- 'locally' l f '.' locally l g &#8801; 'locally' l (f '.' g)</span><span>
+</span><span id="line-463"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-464"></span><span class="hs-comment">--</span><span>
+</span><span id="line-465"></span><span class="hs-comment">-- &gt;&gt;&gt; (1,1) &amp; locally first' (+1) (uncurry (+))</span><span>
+</span><span id="line-466"></span><span class="hs-comment">-- 3</span><span>
+</span><span id="line-467"></span><span class="hs-comment">-- &gt;&gt;&gt; &quot;,&quot; &amp; locally (setter ($)) (&quot;Hello&quot; &lt;&gt;) (&lt;&gt; &quot; world!&quot;)</span><span>
+</span><span id="line-468"></span><span class="hs-comment">-- &quot;Hello, world!&quot;</span><span>
+</span><span id="line-469"></span><span class="hs-comment">--</span><span>
+</span><span id="line-470"></span><span class="hs-comment">-- Compare 'forwarded'.</span><span>
+</span><span id="line-471"></span><span class="hs-comment">--</span><span>
+</span><span id="line-472"></span><span id="local-6989586621679127924"><span id="local-6989586621679127925"><span id="local-6989586621679127927"><span id="local-6989586621679127928"><span id="local-6989586621679127929"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#locally"><span class="hs-identifier hs-type">locally</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="#local-6989586621679127924"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127925"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127924"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127924"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127927"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127928"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679127927"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127928"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127925"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127929"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127925"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127929"><span class="hs-identifier hs-type">r</span></a></span></span></span></span></span></span><span>
+</span><span id="line-473"></span><span id="locally"><span class="annot"><span class="annottext">locally :: forall s (m :: * -&gt; *) a b r.
+MonadReader s m =&gt;
+Optic (-&gt;) s s a b -&gt; (a -&gt; b) -&gt; m r -&gt; m r
+</span><a href="Data.Profunctor.Optic.Setter.html#locally"><span class="hs-identifier hs-var hs-var">locally</span></a></span></span><span> </span><span id="local-6989586621679128318"><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128318"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128319"><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128319"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(s -&gt; s) -&gt; m r -&gt; m r
+forall a. (s -&gt; s) -&gt; m a -&gt; m a
+forall r (m :: * -&gt; *) a. MonadReader r m =&gt; (r -&gt; r) -&gt; m a -&gt; m a
+</span><span class="hs-identifier hs-var">Reader.local</span></span><span> </span><span class="annot"><span class="annottext">((s -&gt; s) -&gt; m r -&gt; m r) -&gt; (s -&gt; s) -&gt; m r -&gt; m r
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b
+</span><a href="#local-6989586621679128318"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s s a b -&gt; Optic (-&gt;) s s a b
+forall s t a b. Optic (-&gt;) s t a b -&gt; Optic (-&gt;) s t a b
+</span><a href="Data.Profunctor.Optic.Combinator.html#..~"><span class="hs-operator hs-var">..~</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; b
+</span><a href="#local-6989586621679128319"><span class="hs-identifier hs-var">f</span></a></span><span>
+</span><span id="line-474"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#locally"><span class="hs-pragma hs-type">locally</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-475"></span><span>
+</span><span id="line-476"></span><span class="hs-comment">-- | Write to a fragment of a larger 'Writer' format.</span><span>
+</span><span id="line-477"></span><span class="hs-comment">--</span><span>
+</span><span id="line-478"></span><span id="local-6989586621679127938"><span id="local-6989586621679127939"><span id="local-6989586621679127940"><span id="local-6989586621679127941"><span id="local-6989586621679127942"><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#scribe"><span class="hs-identifier hs-type">scribe</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MonadWriter</span></span><span> </span><span class="annot"><a href="#local-6989586621679127938"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127939"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679127940"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Optic"><span class="hs-identifier hs-type">Optic</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679127940"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127938"><span class="hs-identifier hs-type">w</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127941"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679127942"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127942"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679127939"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span></span></span></span></span><span>
+</span><span id="line-479"></span><span id="scribe"><span class="annot"><span class="annottext">scribe :: forall w (m :: * -&gt; *) s a b.
+(MonadWriter w m, Monoid s) =&gt;
+Optic (-&gt;) s w a b -&gt; b -&gt; m ()
+</span><a href="Data.Profunctor.Optic.Setter.html#scribe"><span class="hs-identifier hs-var hs-var">scribe</span></a></span></span><span> </span><span id="local-6989586621679128326"><span class="annot"><span class="annottext">Optic (-&gt;) s w a b
+</span><a href="#local-6989586621679128326"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679128327"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128327"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">w -&gt; m ()
+forall w (m :: * -&gt; *). MonadWriter w m =&gt; w -&gt; m ()
+</span><span class="hs-identifier hs-var">Writer.tell</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">s
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span> </span><span class="annot"><span class="annottext">s -&gt; (s -&gt; w) -&gt; w
+forall a b. a -&gt; (a -&gt; b) -&gt; b
+</span><span class="hs-operator hs-var">&amp;</span></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s w a b
+</span><a href="#local-6989586621679128326"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) s w a b -&gt; b -&gt; s -&gt; w
+forall s t a b. Optic (-&gt;) s t a b -&gt; b -&gt; s -&gt; t
+</span><a href="Data.Profunctor.Optic.Combinator.html#.~"><span class="hs-operator hs-var">.~</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679128327"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-480"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Setter.html#scribe"><span class="hs-pragma hs-type">scribe</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-481"></span></pre></body></html>

@@ -1,0 +1,651 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE QuantifiedConstraints #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TupleSections         #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Map.NonEmpty.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>    </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#fromIxfold1"><span class="hs-identifier">fromIxfold1</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#at"><span class="hs-identifier">at</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#iat"><span class="hs-identifier">iat</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#values"><span class="hs-identifier">values</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#imapped"><span class="hs-identifier">imapped</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifiltered"><span class="hs-identifier">ifiltered</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#itraversed"><span class="hs-identifier">itraversed</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifolded"><span class="hs-identifier">ifolded</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#altered"><span class="hs-identifier">altered</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ialtered"><span class="hs-identifier">ialtered</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#alteredF"><span class="hs-identifier">alteredF</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ialteredF"><span class="hs-identifier">ialteredF</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#adjusted"><span class="hs-identifier">adjusted</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#updated"><span class="hs-identifier">updated</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#updateLooked"><span class="hs-identifier">updateLooked</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMin"><span class="hs-identifier">foundMin</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMax"><span class="hs-identifier">foundMax</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLT"><span class="hs-identifier">lookedLT</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLE"><span class="hs-identifier">lookedLE</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGE"><span class="hs-identifier">lookedGE</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGT"><span class="hs-identifier">lookedGT</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#validated"><span class="hs-identifier">validated</span></a></span><span>
+</span><span id="line-31"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span> </span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Unsafe</span></span><span>
+</span><span id="line-35"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html"><span class="hs-identifier">Data.Map.NonEmpty</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XNoOverloadedStrings</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><span id="line-40"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XFlexibleContexts</span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Char</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.List.NonEmpty</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Map.NonEmpty as Map</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Profunctor.Optic</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- | /O(1)/. Create a 'Map.NEMap' from an 'Ixfold1'.</span><span>
+</span><span id="line-47"></span><span class="hs-comment">--</span><span>
+</span><span id="line-48"></span><span id="local-6989586621679101101"><span id="local-6989586621679101102"><span id="local-6989586621679101104"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#fromIxfold1"><span class="hs-identifier hs-type">fromIxfold1</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101101"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679101101"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Carrier.html#AIxfold"><span class="hs-identifier hs-type">AIxfold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101101"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101102"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101101"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101104"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101102"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101104"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101101"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101102"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-49"></span><span id="fromIxfold1"><span class="annot"><span class="annottext">fromIxfold1 :: forall k a s.
+(Ord k, Monoid k) =&gt;
+AIxfold (Map k a) k s a -&gt; s -&gt; Map k a
+</span><a href="Data.Map.NonEmpty.Optic.html#fromIxfold1"><span class="hs-identifier hs-var hs-var">fromIxfold1</span></a></span></span><span> </span><span id="local-6989586621679101370"><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679101370"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a -&gt; (k -&gt; a -&gt; Map k a) -&gt; s -&gt; Map k a
+forall k r s a.
+Monoid k =&gt;
+AIxfold r k s a -&gt; (k -&gt; a -&gt; r) -&gt; s -&gt; r
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#foldsWithKey"><span class="hs-identifier hs-var">foldsWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679101370"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Unsafe.singleton</span></span><span>
+</span><span id="line-50"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#fromIxfold1"><span class="hs-pragma hs-type">fromIxfold1</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | /O(log n)/. Affine traversal into the value at a key of a 'Map.NEMap'.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((0,&quot;hello&quot;) :| [(1,&quot;world&quot;)]) ^. at 0</span><span>
+</span><span id="line-55"></span><span class="hs-comment">-- &quot;hello&quot;</span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((0,&quot;hello&quot;) :| [(1,&quot;world&quot;)]) ^. at 1</span><span>
+</span><span id="line-57"></span><span class="hs-comment">-- &quot;world&quot;</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((67,'C') :| []) &amp; at 99 ..~ toLower</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- fromList ((67,'C') :| [])</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((67,'C') :| []) &amp; at 67 ..~ toLower</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- fromList ((67,'c') :| [])</span><span>
+</span><span id="line-62"></span><span class="hs-comment">--</span><span>
+</span><span id="line-63"></span><span id="local-6989586621679101115"><span id="local-6989586621679101116"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#at"><span class="hs-identifier hs-type">at</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101115"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101115"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Traversal0%27"><span class="hs-identifier hs-type">Traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101115"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101116"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101116"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-64"></span><span id="at"><span class="annot"><span class="annottext">at :: forall k a. Ord k =&gt; k -&gt; Traversal0' (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#at"><span class="hs-identifier hs-var hs-var">at</span></a></span></span><span> </span><span id="local-6989586621679101378"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101378"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe a)
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; Traversal0 (NEMap k a) (NEMap k a) a a
+forall s a b. (s -&gt; Maybe a) -&gt; (s -&gt; b -&gt; s) -&gt; Traversal0 s s a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversal0%27"><span class="hs-identifier hs-var">traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookup"><span class="hs-identifier hs-var">Map.lookup</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101378"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101378"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#at"><span class="hs-pragma hs-type">at</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at a key of a 'Map.NEMap'.</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((0,&quot;hello&quot;) :| [(1,&quot;world&quot;)]) ^% iat (0 :: Int)</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- (Just 0,&quot;hello&quot;)</span><span>
+</span><span id="line-71"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((1,&quot;world&quot;) :| []) ^% iat (1 :: Int)</span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- (Just 1,&quot;world&quot;)</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((67,'C') :| []) &amp; iat 99 %~ chr</span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- fromList ((67,'C') :| [])</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList ((67,'C') :| []) &amp; iat 67 %%~ const toLower</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- fromList ((67,'c') :| [])</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- &gt;&gt;&gt; iat 2 %%~ (\i x -&gt; if odd i then not x else x) $ Map.fromList ((1,True) :| [(2,False)])</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- fromList ((1,True) :| [(2,False)])</span><span>
+</span><span id="line-79"></span><span class="hs-comment">--</span><span>
+</span><span id="line-80"></span><span id="local-6989586621679101138"><span id="local-6989586621679101139"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#iat"><span class="hs-identifier hs-type">iat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101138"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101138"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101138"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101138"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101139"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101139"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-81"></span><span id="iat"><span class="annot"><span class="annottext">iat :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#iat"><span class="hs-identifier hs-var hs-var">iat</span></a></span></span><span> </span><span id="local-6989586621679101390"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101390"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe (k, a))
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a) -&gt; Ixtraversal0' k (NEMap k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679101392"><span class="annot"><span class="annottext">NEMap k a
+</span><a href="#local-6989586621679101392"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101390"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; (k, a)) -&gt; Maybe a -&gt; Maybe (k, a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookup"><span class="hs-identifier hs-var">Map.lookup</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101390"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">NEMap k a
+</span><a href="#local-6989586621679101392"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101390"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-82"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#iat"><span class="hs-pragma hs-type">iat</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- | /O(n)/. 'Fold1' over the values of a 'Map.NEMap', in ascending key order.</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- Subject to list fusion.</span><span>
+</span><span id="line-87"></span><span class="hs-comment">--</span><span>
+</span><span id="line-88"></span><span class="hs-comment">-- &gt;&gt;&gt; nelists values (Map.fromList ((5,'a') :| [(3,'b')]))</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- 'b' :| &quot;a&quot;</span><span>
+</span><span id="line-90"></span><span class="hs-comment">--</span><span>
+</span><span id="line-91"></span><span id="local-6989586621679101155"><span id="local-6989586621679101156"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#values"><span class="hs-identifier hs-type">values</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Fold1"><span class="hs-identifier hs-type">Fold1</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101155"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101156"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101156"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-92"></span><span id="values"><span class="annot"><span class="annottext">values :: forall k a (p :: * -&gt; * -&gt; *).
+(Strong p, Traversing1 p, CoercingR p) =&gt;
+Optic' p (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#values"><span class="hs-identifier hs-var hs-var">values</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; NonEmpty (k, a)) -&gt; Fold1 (NEMap k a) (k, a)
+forall (f :: * -&gt; *) s a. Foldable1 f =&gt; (s -&gt; f a) -&gt; Fold1 s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#fold1_"><span class="hs-identifier hs-var">fold1_</span></a></span><span> </span><span class="annot"><span class="annottext">NEMap k a -&gt; NonEmpty (k, a)
+forall k a. NEMap k a -&gt; NonEmpty (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#toAscList"><span class="hs-identifier hs-var">Map.toAscList</span></a></span><span> </span><span class="annot"><span class="annottext">Optic' p (NEMap k a) (k, a)
+-&gt; (p a a -&gt; p (k, a) (k, a)) -&gt; p a a -&gt; p (NEMap k a) (NEMap k a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p a a -&gt; p (k, a) (k, a)
+forall a b c. p a b -&gt; p (c, a) (c, b)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Strong p =&gt;
+p a b -&gt; p (c, a) (c, b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Strong.html#second%27"><span class="hs-identifier hs-var">second'</span></a></span><span>
+</span><span id="line-93"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#values"><span class="hs-pragma hs-type">values</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-94"></span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' over the values of a 'Map.NEMap'.</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span id="local-6989586621679101178"><span id="local-6989586621679101179"><span id="local-6989586621679101180"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#imapped"><span class="hs-identifier hs-type">imapped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101178"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101178"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101179"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101178"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101180"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101179"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101180"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-98"></span><span id="imapped"><span class="annot"><span class="annottext">imapped :: forall k a b (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (NEMap k a) (NEMap k b) a b
+</span><a href="Data.Map.NonEmpty.Optic.html#imapped"><span class="hs-identifier hs-var hs-var">imapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; b) -&gt; NEMap k a -&gt; NEMap k b)
+-&gt; Ixsetter k (NEMap k a) (NEMap k b) a b
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; b) -&gt; NEMap k a -&gt; NEMap k b
+forall k a b. (k -&gt; a -&gt; b) -&gt; NEMap k a -&gt; NEMap k b
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#mapWithKey"><span class="hs-identifier hs-var">Map.mapWithKey</span></a></span><span>
+</span><span id="line-99"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#imapped"><span class="hs-pragma hs-type">imapped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' filtering the values of a 'Map.NEMap'.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span id="local-6989586621679101194"><span id="local-6989586621679101195"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifiltered"><span class="hs-identifier hs-type">ifiltered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101194"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101194"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101195"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101194"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101195"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101195"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-104"></span><span id="ifiltered"><span class="annot"><span class="annottext">ifiltered :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (NEMap k a) (Map k a) a Bool
+</span><a href="Data.Map.NonEmpty.Optic.html#ifiltered"><span class="hs-identifier hs-var hs-var">ifiltered</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Bool) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Ixsetter k (NEMap k a) (Map k a) a Bool
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Bool) -&gt; NEMap k a -&gt; Map k a
+forall k a. (k -&gt; a -&gt; Bool) -&gt; NEMap k a -&gt; Map k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#filterWithKey"><span class="hs-identifier hs-var">Map.filterWithKey</span></a></span><span>
+</span><span id="line-105"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifiltered"><span class="hs-pragma hs-type">ifiltered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- | /O(n)/. 'Ixtraversal1' over the values of a 'Map.NEMap'.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span id="local-6989586621679101201"><span id="local-6989586621679101202"><span id="local-6989586621679101203"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#itraversed"><span class="hs-identifier hs-type">itraversed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal1"><span class="hs-identifier hs-type">Ixtraversal1</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101202"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101201"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101203"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101202"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101203"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-110"></span><span id="itraversed"><span class="annot"><span class="annottext">itraversed :: forall k a b. Ord k =&gt; Ixtraversal1 k (NEMap k a) (NEMap k b) a b
+</span><a href="Data.Map.NonEmpty.Optic.html#itraversed"><span class="hs-identifier hs-var hs-var">itraversed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Apply f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; NEMap k a -&gt; f (NEMap k b))
+-&gt; Ixtraversal1 k (NEMap k a) (NEMap k b) a b
+forall k a b s t.
+(forall (f :: * -&gt; *). Apply f =&gt; (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixtraversal1 k s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversalVl1"><span class="hs-identifier hs-var">ixtraversalVl1</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f b) -&gt; NEMap k a -&gt; f (NEMap k b)
+forall (f :: * -&gt; *).
+Apply f =&gt;
+(k -&gt; a -&gt; f b) -&gt; NEMap k a -&gt; f (NEMap k b)
+forall (t :: * -&gt; *) k a b.
+Apply t =&gt;
+(k -&gt; a -&gt; t b) -&gt; NEMap k a -&gt; t (NEMap k b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#traverseWithKey1"><span class="hs-identifier hs-var">Map.traverseWithKey1</span></a></span><span>
+</span><span id="line-111"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#itraversed"><span class="hs-pragma hs-type">itraversed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- | /O(n)/. 'Ixfold1' over the values of a 'Map.NEMap'.</span><span>
+</span><span id="line-114"></span><span class="hs-comment">--</span><span>
+</span><span id="line-115"></span><span id="local-6989586621679101222"><span id="local-6989586621679101223"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifolded"><span class="hs-identifier hs-type">ifolded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixfold"><span class="hs-identifier hs-type">Ixfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101222"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101222"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101223"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101223"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-116"></span><span id="ifolded"><span class="annot"><span class="annottext">ifolded :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Ixoptic' p k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#ifolded"><span class="hs-identifier hs-var hs-var">ifolded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f Any) -&gt; NEMap k a -&gt; f (NEMap k Any))
+-&gt; Ixfold k (NEMap k a) a
+forall k a b s t.
+(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixfold k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#ixfoldVl"><span class="hs-identifier hs-var">ixfoldVl</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f Any) -&gt; NEMap k a -&gt; f (NEMap k Any)
+forall (f :: * -&gt; *).
+Applicative f =&gt;
+(k -&gt; a -&gt; f Any) -&gt; NEMap k a -&gt; f (NEMap k Any)
+forall (t :: * -&gt; *) k a b.
+Applicative t =&gt;
+(k -&gt; a -&gt; t b) -&gt; NEMap k a -&gt; t (NEMap k b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#traverseWithKey"><span class="hs-identifier hs-var">Map.traverseWithKey</span></a></span><span>
+</span><span id="line-117"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ifolded"><span class="hs-pragma hs-type">ifolded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-120"></span><span class="hs-comment">--</span><span>
+</span><span id="line-121"></span><span class="hs-comment">-- 'altered' can be used to insert, delete, or update a value in a 'Map'.</span><span>
+</span><span id="line-122"></span><span class="hs-comment">--</span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ = Nothing</span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 7) f $ Map.fromList ((5,'a') :| [(3,'b')])</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- fromList [(3,'b'),(5,'a')] </span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 5) f $ Map.fromList ((5,'a') :| [(3,'b')])</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- fromList [(3,'b')]</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ = Just &quot;c&quot;</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;c&quot;)]</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.alter'.</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--</span><span>
+</span><span id="line-137"></span><span id="local-6989586621679101240"><span id="local-6989586621679101241"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#altered"><span class="hs-identifier hs-type">altered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101240"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101240"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Setter"><span class="hs-identifier hs-type">Setter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101240"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101241"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101240"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101241"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101241"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101241"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-138"></span><span id="altered"><span class="annot"><span class="annottext">altered :: forall k a.
+Ord k =&gt;
+k -&gt; Setter (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#altered"><span class="hs-identifier hs-var hs-var">altered</span></a></span></span><span> </span><span id="local-6989586621679101449"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101449"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Setter (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+ -&gt; Setter (NEMap k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Setter (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101451"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101451"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#alter"><span class="hs-identifier hs-var">Map.alter</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101451"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101449"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-139"></span><span>
+</span><span id="line-140"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-141"></span><span class="hs-comment">--</span><span>
+</span><span id="line-142"></span><span class="hs-comment">-- 'ialtered' can be used to insert, delete, or update a value in a 'Map'.</span><span>
+</span><span id="line-143"></span><span class="hs-comment">--</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ _ = Nothing</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-148"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;)]</span><span>
+</span><span id="line-149"></span><span class="hs-comment">--</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- &gt;&gt;&gt; let f i _ = if i == 7 then Just &quot;c&quot; else Nothing</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;)]</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.alter'.</span><span>
+</span><span id="line-157"></span><span class="hs-comment">--</span><span>
+</span><span id="line-158"></span><span id="local-6989586621679101252"><span id="local-6989586621679101253"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ialtered"><span class="hs-identifier hs-type">ialtered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101252"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101252"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101252"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101252"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101253"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101252"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101253"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101253"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101253"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-159"></span><span id="ialtered"><span class="annot"><span class="annottext">ialtered :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#ialtered"><span class="hs-identifier hs-var hs-var">ialtered</span></a></span></span><span> </span><span id="local-6989586621679101461"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101461"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Ixsetter k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+ -&gt; Ixsetter k (NEMap k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((k -&gt; Maybe a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Ixsetter k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101462"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101462"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#alter"><span class="hs-identifier hs-var">Map.alter</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101462"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101461"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101461"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- | /O(log n)/. Lens into /Maybe/ of a value at a key of a 'Map.NEMap'.</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--</span><span>
+</span><span id="line-163"></span><span id="local-6989586621679101257"><span id="local-6989586621679101258"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#alteredF"><span class="hs-identifier hs-type">alteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101257"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101257"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Lens"><span class="hs-identifier hs-type">Lens</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101257"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101258"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101257"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101258"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101258"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101258"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-164"></span><span id="alteredF"><span class="annot"><span class="annottext">alteredF :: forall k a.
+Ord k =&gt;
+k -&gt; Lens (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#alteredF"><span class="hs-identifier hs-var hs-var">alteredF</span></a></span></span><span> </span><span id="local-6989586621679101466"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101466"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+-&gt; Lens (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Lens s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#lensVl"><span class="hs-identifier hs-var">lensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+ -&gt; Lens (NEMap k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+-&gt; Lens (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; NEMap k a -&gt; f (Map k a))
+-&gt; k -&gt; (Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; NEMap k a -&gt; f (Map k a)
+forall k (f :: * -&gt; *) a.
+(Ord k, Functor f) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; NEMap k a -&gt; f (Map k a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#alterF"><span class="hs-identifier hs-var">Map.alterF</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101466"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-165"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#alteredF"><span class="hs-pragma hs-type">alteredF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-166"></span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ _ = Just &quot;c&quot;</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialteredF 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialteredF 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;c&quot;)]</span><span>
+</span><span id="line-174"></span><span class="hs-comment">--</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.alterF'.</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--</span><span>
+</span><span id="line-177"></span><span id="local-6989586621679101272"><span id="local-6989586621679101273"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#ialteredF"><span class="hs-identifier hs-type">ialteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101272"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101272"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixlens"><span class="hs-identifier hs-type">Ixlens</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101272"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101272"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101273"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101272"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101273"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101273"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101273"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-178"></span><span id="ialteredF"><span class="annot"><span class="annottext">ialteredF :: forall k a.
+Ord k =&gt;
+k -&gt; Ixlens k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#ialteredF"><span class="hs-identifier hs-var hs-var">ialteredF</span></a></span></span><span> </span><span id="local-6989586621679101475"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101475"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+-&gt; Ixlens k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall k a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixlens k s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#ixlensVl"><span class="hs-identifier hs-var">ixlensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+ -&gt; Ixlens k (NEMap k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; NEMap k a -&gt; f (Map k a))
+-&gt; Ixlens k (NEMap k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101480"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679101480"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; NEMap k a -&gt; f (Map k a)
+forall k (f :: * -&gt; *) a.
+(Ord k, Functor f) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; NEMap k a -&gt; f (Map k a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#alterF"><span class="hs-identifier hs-var">Map.alterF</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679101480"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101475"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101475"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- | /O(log n)/. Adjust a value at a specific key.</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- &gt;&gt;&gt; let f key x = (show key) ++ &quot;:new &quot; ++ x</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (adjusted 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-184"></span><span class="hs-comment">-- fromList ((3,&quot;b&quot;) :| [(5,&quot;5:new a&quot;)])</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (adjusted 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- fromList ((3,&quot;b&quot;) :| [(5,&quot;a&quot;)])</span><span>
+</span><span id="line-187"></span><span class="hs-comment">--</span><span>
+</span><span id="line-188"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.adjustWithKey'.</span><span>
+</span><span id="line-189"></span><span class="hs-comment">--</span><span>
+</span><span id="line-190"></span><span id="local-6989586621679101285"><span id="local-6989586621679101286"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#adjusted"><span class="hs-identifier hs-type">adjusted</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101285"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101285"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101285"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101285"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101286"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101285"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101286"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101286"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101286"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-191"></span><span id="adjusted"><span class="annot"><span class="annottext">adjusted :: forall k a. Ord k =&gt; k -&gt; Ixsetter k (NEMap k a) (NEMap k a) a a
+</span><a href="Data.Map.NonEmpty.Optic.html#adjusted"><span class="hs-identifier hs-var hs-var">adjusted</span></a></span></span><span> </span><span id="local-6989586621679101489"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101489"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; a) -&gt; NEMap k a -&gt; NEMap k a)
+-&gt; Ixsetter k (NEMap k a) (NEMap k a) a a
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; a) -&gt; NEMap k a -&gt; NEMap k a)
+ -&gt; Ixsetter k (NEMap k a) (NEMap k a) a a)
+-&gt; ((k -&gt; a -&gt; a) -&gt; NEMap k a -&gt; NEMap k a)
+-&gt; Ixsetter k (NEMap k a) (NEMap k a) a a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101490"><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679101490"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; a) -&gt; k -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; (k -&gt; a -&gt; a) -&gt; k -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#adjustWithKey"><span class="hs-identifier hs-var">Map.adjustWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679101490"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101489"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-192"></span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- | /O(log n)/. Update a value at a specific key.</span><span>
+</span><span id="line-194"></span><span class="hs-comment">--</span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- If (@f k x@) is 'Nothing', the element is deleted. If it is (@'Just' y@), </span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- the key @k@ is bound to the new value @y@.</span><span>
+</span><span id="line-197"></span><span class="hs-comment">--</span><span>
+</span><span id="line-198"></span><span class="hs-comment">-- &gt;&gt;&gt; let f k x = if x == &quot;a&quot; then Just ((show k) ++ &quot;:new a&quot;) else Nothing</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-200"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;5:new a&quot;)]</span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-202"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 3) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- fromList [(5,&quot;a&quot;)]</span><span>
+</span><span id="line-205"></span><span class="hs-comment">--</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.updateWithKey'.</span><span>
+</span><span id="line-207"></span><span class="hs-comment">--</span><span>
+</span><span id="line-208"></span><span id="local-6989586621679101292"><span id="local-6989586621679101293"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#updated"><span class="hs-identifier hs-type">updated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101292"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101292"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101292"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101292"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101293"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101292"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101293"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101293"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101293"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-209"></span><span id="updated"><span class="annot"><span class="annottext">updated :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (NEMap k a) (Map k a) a (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#updated"><span class="hs-identifier hs-var hs-var">updated</span></a></span></span><span> </span><span id="local-6989586621679101500"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101500"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Ixsetter k (NEMap k a) (Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+ -&gt; Ixsetter k (NEMap k a) (Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; Map k a)
+-&gt; Ixsetter k (NEMap k a) (Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101501"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679101501"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; Map k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#updateWithKey"><span class="hs-identifier hs-var">Map.updateWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679101501"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101500"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-210"></span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- | /O(log n)/. Lookup and update a value at a specific key.</span><span>
+</span><span id="line-212"></span><span class="hs-comment">--</span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- Returns the changed value, if it is updated. Returns the original key value</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- if the map entry is deleted.</span><span>
+</span><span id="line-215"></span><span class="hs-comment">--</span><span>
+</span><span id="line-216"></span><span class="hs-comment">-- &gt;&gt;&gt; let f k x = if x == &quot;a&quot; then Just ((show k) ++ &quot;:new a&quot;) else Nothing</span><span>
+</span><span id="line-217"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 5) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- (Just &quot;5:new a&quot;,fromList [(3,&quot;b&quot;),(5,&quot;5:new a&quot;)])</span><span>
+</span><span id="line-219"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 7) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- (Nothing,fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)])</span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 3) f $ Map.fromList ((5,&quot;a&quot;) :| [(3,&quot;b&quot;)])</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- (Just &quot;b&quot;,fromList [(5,&quot;a&quot;)])</span><span>
+</span><span id="line-223"></span><span class="hs-comment">--</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.updateLookupWithKey'.</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--</span><span>
+</span><span id="line-226"></span><span id="local-6989586621679101299"><span id="local-6989586621679101300"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#updateLooked"><span class="hs-identifier hs-type">updateLooked</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101299"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101299"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101299"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101299"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101300"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101300"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Unsafe.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101299"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101300"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101300"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101300"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-227"></span><span id="updateLooked"><span class="annot"><span class="annottext">updateLooked :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (NEMap k a) (Maybe a, Map k a) a (Maybe a)
+</span><a href="Data.Map.NonEmpty.Optic.html#updateLooked"><span class="hs-identifier hs-var hs-var">updateLooked</span></a></span></span><span> </span><span id="local-6989586621679101511"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101511"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (NEMap k a) (Maybe a, Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; (Maybe a, Map k a))
+ -&gt; Ixsetter k (NEMap k a) (Maybe a, Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; NEMap k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (NEMap k a) (Maybe a, Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101512"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679101512"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; (Maybe a, Map k a)
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; NEMap k a -&gt; (Maybe a, Map k a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#updateLookupWithKey"><span class="hs-identifier hs-var">Map.updateLookupWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679101512"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101511"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-228"></span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- | /O(1)/. 'Ixview' into the value at the minimal key of a 'Map.NEMap'.</span><span>
+</span><span id="line-230"></span><span class="hs-comment">--</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- This function is asymptotically more efficient than 'lookedMin' if you have a non-empty map.</span><span>
+</span><span id="line-232"></span><span class="hs-comment">--</span><span>
+</span><span id="line-233"></span><span id="local-6989586621679101307"><span id="local-6989586621679101308"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMin"><span class="hs-identifier hs-type">foundMin</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixview"><span class="hs-identifier hs-type">Ixview</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101308"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101308"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-234"></span><span id="foundMin"><span class="annot"><span class="annottext">foundMin :: forall k a (p :: * -&gt; * -&gt; *).
+(Strong p, CoercingR p) =&gt;
+Ixoptic' p k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#foundMin"><span class="hs-identifier hs-var hs-var">foundMin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; (k, a)) -&gt; Ixview k (NEMap k a) a
+forall s k a. (s -&gt; (k, a)) -&gt; Ixview k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.View.html#ixto"><span class="hs-identifier hs-var">ixto</span></a></span><span> </span><span class="annot"><span class="annottext">NEMap k a -&gt; (k, a)
+forall k a. NEMap k a -&gt; (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#findMin"><span class="hs-identifier hs-var">Map.findMin</span></a></span><span>
+</span><span id="line-235"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMin"><span class="hs-pragma hs-type">foundMin</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span class="hs-comment">-- | /O(1)/. 'Ixview' into the value at the maximal key of a 'Map.NEMap'.</span><span>
+</span><span id="line-238"></span><span class="hs-comment">--</span><span>
+</span><span id="line-239"></span><span class="hs-comment">-- This function is asymptotically more efficient than 'lookedMax' if you have a non-empty map.</span><span>
+</span><span id="line-240"></span><span class="hs-comment">--</span><span>
+</span><span id="line-241"></span><span id="local-6989586621679101520"><span id="local-6989586621679101521"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMax"><span class="hs-identifier hs-type">foundMax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixview"><span class="hs-identifier hs-type">Ixview</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101520"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101520"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101521"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101521"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-242"></span><span id="foundMax"><span class="annot"><span class="annottext">foundMax :: forall k a (p :: * -&gt; * -&gt; *).
+(Strong p, CoercingR p) =&gt;
+Ixoptic' p k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#foundMax"><span class="hs-identifier hs-var hs-var">foundMax</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; (k, a)) -&gt; Ixview k (NEMap k a) a
+forall s k a. (s -&gt; (k, a)) -&gt; Ixview k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.View.html#ixto"><span class="hs-identifier hs-var">ixto</span></a></span><span> </span><span class="annot"><span class="annottext">NEMap k a -&gt; (k, a)
+forall k a. NEMap k a -&gt; (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#findMax"><span class="hs-identifier hs-var">Map.findMax</span></a></span><span>
+</span><span id="line-243"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#foundMax"><span class="hs-pragma hs-type">foundMax</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-244"></span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.</span><span>
+</span><span id="line-246"></span><span class="hs-comment">--</span><span>
+</span><span id="line-247"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLT 3) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-248"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLT 4) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-251"></span><span class="hs-comment">--</span><span>
+</span><span id="line-252"></span><span id="local-6989586621679101527"><span id="local-6989586621679101528"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLT"><span class="hs-identifier hs-type">lookedLT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101527"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101527"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101527"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101527"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101528"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101528"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-253"></span><span id="lookedLT"><span class="annot"><span class="annottext">lookedLT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#lookedLT"><span class="hs-identifier hs-var hs-var">lookedLT</span></a></span></span><span> </span><span id="local-6989586621679101534"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101534"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe (k, a))
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a) -&gt; Ixtraversal0' k (NEMap k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe (k, a)
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookupLT"><span class="hs-identifier hs-var">Map.lookupLT</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101534"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101534"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span>
+</span><span id="line-254"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLT"><span class="hs-pragma hs-type">lookedLT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-255"></span><span>
+</span><span id="line-256"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the given one.</span><span>
+</span><span id="line-257"></span><span class="hs-comment">--</span><span>
+</span><span id="line-258"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLE 3) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-260"></span><span class="hs-comment">--</span><span>
+</span><span id="line-261"></span><span id="local-6989586621679101536"><span id="local-6989586621679101537"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLE"><span class="hs-identifier hs-type">lookedLE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101536"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101537"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101537"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-262"></span><span id="lookedLE"><span class="annot"><span class="annottext">lookedLE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#lookedLE"><span class="hs-identifier hs-var hs-var">lookedLE</span></a></span></span><span> </span><span id="local-6989586621679101543"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101543"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe (k, a))
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a) -&gt; Ixtraversal0' k (NEMap k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe (k, a)
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookupLE"><span class="hs-identifier hs-var">Map.lookupLE</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101543"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101543"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-263"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedLE"><span class="hs-pragma hs-type">lookedLE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key greater than or equal to the given one.</span><span>
+</span><span id="line-266"></span><span class="hs-comment">--</span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 3) $ Map.fromList ((3,'a') :| [(5,'b')]) </span><span>
+</span><span id="line-268"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-269"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 4) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-270"></span><span class="hs-comment">-- Just (5,'b')</span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 6) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-272"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-273"></span><span class="hs-comment">--</span><span>
+</span><span id="line-274"></span><span id="local-6989586621679101545"><span id="local-6989586621679101546"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGE"><span class="hs-identifier hs-type">lookedGE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101545"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101545"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101545"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101545"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101546"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101546"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-275"></span><span id="lookedGE"><span class="annot"><span class="annottext">lookedGE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#lookedGE"><span class="hs-identifier hs-var hs-var">lookedGE</span></a></span></span><span> </span><span id="local-6989586621679101552"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101552"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe (k, a))
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a) -&gt; Ixtraversal0' k (NEMap k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe (k, a)
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookupGE"><span class="hs-identifier hs-var">Map.lookupGE</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101552"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101552"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-276"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGE"><span class="hs-pragma hs-type">lookedGE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-277"></span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key greater than the given one.</span><span>
+</span><span id="line-279"></span><span class="hs-comment">-- </span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGT 4) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-281"></span><span class="hs-comment">-- Just (5,'b')</span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGT 5) $ Map.fromList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--</span><span>
+</span><span id="line-285"></span><span id="local-6989586621679101554"><span id="local-6989586621679101555"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGT"><span class="hs-identifier hs-type">lookedGT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101554"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101554"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101554"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101554"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101555"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101555"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-286"></span><span id="lookedGT"><span class="annot"><span class="annottext">lookedGT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (NEMap k a) a
+</span><a href="Data.Map.NonEmpty.Optic.html#lookedGT"><span class="hs-identifier hs-var hs-var">lookedGT</span></a></span></span><span> </span><span id="local-6989586621679101561"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101561"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Maybe (k, a))
+-&gt; (NEMap k a -&gt; a -&gt; NEMap k a) -&gt; Ixtraversal0' k (NEMap k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; NEMap k a -&gt; Maybe (k, a)
+forall k a. Ord k =&gt; k -&gt; NEMap k a -&gt; Maybe (k, a)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#lookupGT"><span class="hs-identifier hs-var">Map.lookupGT</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101561"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a)
+-&gt; (a -&gt; NEMap k a -&gt; NEMap k a) -&gt; NEMap k a -&gt; a -&gt; NEMap k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; NEMap k a -&gt; NEMap k a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.html#insert"><span class="hs-identifier hs-var">Map.insert</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101561"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-287"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#lookedGT"><span class="hs-pragma hs-type">lookedGT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-288"></span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- | /O(n)/. Test if the internal map structure is valid.</span><span>
+</span><span id="line-290"></span><span class="hs-comment">--</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- &gt;&gt;&gt; is validated $ Map.fromAscList ((3,'a') :| [(5,'b')])</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- &gt;&gt;&gt; isnt validated $ Map.fromAscList ((5,'a') :| [(3,'b')])</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-295"></span><span class="hs-comment">--</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- See also 'Data.Map.NonEmpty.valid'.</span><span>
+</span><span id="line-297"></span><span class="hs-comment">--</span><span>
+</span><span id="line-298"></span><span id="local-6989586621679101335"><span id="local-6989586621679101336"><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#validated"><span class="hs-identifier hs-type">validated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101335"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Fold0"><span class="hs-identifier hs-type">Fold0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101335"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101336"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#NEMap"><span class="hs-identifier hs-type">Map.NEMap</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101335"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101336"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-299"></span><span id="validated"><span class="annot"><span class="annottext">validated :: forall k a. Ord k =&gt; Fold0 (NEMap k a) (NEMap k a)
+</span><a href="Data.Map.NonEmpty.Optic.html#validated"><span class="hs-identifier hs-var hs-var">validated</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(NEMap k a -&gt; Bool) -&gt; Fold0 (NEMap k a) (NEMap k a)
+forall a. (a -&gt; Bool) -&gt; Fold0 a a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#filtered"><span class="hs-identifier hs-var">filtered</span></a></span><span> </span><span class="annot"><span class="annottext">NEMap k a -&gt; Bool
+forall k a. Ord k =&gt; NEMap k a -&gt; Bool
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/nnmpty-cntnrs-0.3.5.0-0882fedf/share/doc/html/src/Data.Map.NonEmpty.Internal.html#valid"><span class="hs-identifier hs-var">Map.valid</span></a></span><span>
+</span><span id="line-300"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.NonEmpty.Optic.html#validated"><span class="hs-pragma hs-type">validated</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-301"></span></pre></body></html>
