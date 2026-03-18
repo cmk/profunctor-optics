@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-containers/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-containers
 
 Profunctor optics for `containers` types: `Map`, `IntMap`, `Set`,
@@ -34,7 +37,7 @@ The index `k` is typically the key type of the container.
 Indexed optics compose — when you compose two indexed optics,
 the indices compose too (via `Semigroup`).
 
-### Simple example: indexed map traversal
+### Example 1: indexed map traversal
 
 ```haskell
 import Data.Map.Optic
@@ -50,7 +53,7 @@ fromList [(1,"1:a"),(2,"2:b")]
 [(1,"hello"),(2,"world")]
 ```
 
-### Complex example: filtered update with index
+### Example 2: filtered update with index
 
 ```haskell
 import Data.Map.Optic
@@ -87,7 +90,7 @@ Co-indexed optics are less common but arise naturally when
 working with cotraversals and grates, which operate on the
 dual (reconstruction) side.
 
-### Simple example: co-indexed setter
+### Example 1: co-indexed setter
 
 ```haskell
 import Data.Map.Optic
@@ -113,7 +116,7 @@ Traversal0 s t a b = forall p. (Strong p, Choice p) => p a b -> p s t
 Map's `at` is the canonical example: the value at a given
 key might or might not exist.
 
-### Simple example: at a key
+### Example 1: at a key
 
 ```haskell
 import Data.Map.Optic
@@ -128,7 +131,7 @@ import qualified Data.Map as Map
 fromList [(1,'A')]
 ```
 
-### Complex example: nested map access
+### Example 2: nested map access
 
 ```haskell
 import Data.Map.Optic
@@ -168,7 +171,7 @@ Set a    ≅  Mu (SetF a)
 IntSet   ≅  Mu IntSetF
 ```
 
-### Simple example: tree depth
+### Example 1: tree depth
 
 ```haskell
 import Data.Map.Optic
@@ -181,7 +184,7 @@ import qualified Data.Map as Map
 0
 ```
 
-### Complex example: structural analysis
+### Example 2: structural analysis
 
 ```haskell
 import Data.Map.Optic

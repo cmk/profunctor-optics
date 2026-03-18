@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-sequences/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-sequences
 
 Profunctor optics for `MonoTraversable` sequence types.
@@ -30,7 +33,7 @@ class MonoFunctor mono => MonoTraversable mono where
 This package lifts `MonoTraversable` operations into
 profunctor optics.
 
-### Simple example: packing and chunking
+### Example 1: packing and chunking
 
 ```haskell
 import Data.Profunctor.Optic.Sequence
@@ -45,7 +48,7 @@ import Data.Profunctor.Optic
 ["hello world"]
 ```
 
-### Complex example: filtered splitting
+### Example 2: filtered splitting
 
 ```haskell
 import Data.Profunctor.Optic.Sequence
@@ -80,7 +83,7 @@ Pattern synonyms provide bidirectional access to
 representations — you can both match and construct
 via the pattern.
 
-### Simple example: strict/lazy conversion
+### Example 1: strict/lazy conversion
 
 ```haskell
 import Data.Profunctor.Optic.Pattern
@@ -114,7 +117,7 @@ taken' :: ... -> Resetter' s s   -- reset/rebuild the front
 elements one at a time, a resetter reconstructs the whole
 container.
 
-### Simple example: padded (dual of taken)
+### Example 1: padded (dual of taken)
 
 ```haskell
 import Data.Profunctor.Optic.Sequence

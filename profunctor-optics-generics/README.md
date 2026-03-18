@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-generics/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-generics
 
 Newtype-based optics via `Coercible`.
@@ -20,7 +23,7 @@ cost. `wrapped` lifts this into an `Iso`:
 wrapped :: (Coercible s a, Coercible t b) => Iso s t a b
 ```
 
-### Simple example: wrapping and unwrapping
+### Example 1: wrapping and unwrapping
 
 ```haskell
 import Data.Profunctor.Optic.Newtype
@@ -33,7 +36,7 @@ import Data.Monoid (Sum(..))
 Sum {getSum = 42}
 ```
 
-### Complex example: ala
+### Example 2: ala
 
 ```haskell
 import Data.Profunctor.Optic.Newtype

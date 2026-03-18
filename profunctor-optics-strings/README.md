@@ -1,3 +1,6 @@
+[![Haddocks](https://img.shields.io/badge/docs-haddocks-blue)](https://cmk.github.io/profunctor-optics/profunctor-optics-strings/)
+[![CI](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml/badge.svg)](https://github.com/cmk/profunctor-optics/actions/workflows/ci.yml)
+
 # profunctor-optics-strings
 
 Profunctor optics for string-like types: `ByteString`, `Text`,
@@ -39,7 +42,7 @@ a cotraversal uses `Distributive` (simultaneous observation).
 A `Distributive` functor is one where you can "distribute"
 any functor through it — the dual of `Traversable`.
 
-### Simple example: flip all bits
+### Example 1: flip all bits
 
 ```haskell
 import Data.Word.Optic
@@ -61,7 +64,7 @@ and reconstructs the result. Since all bits are observed
 simultaneously (not sequentially), this is a cotraversal,
 not a traversal.
 
-### Complex example: bit manipulation pipeline
+### Example 2: bit manipulation pipeline
 
 ```haskell
 import Data.Word.Optic
@@ -104,7 +107,7 @@ Where a lens gives you `(s -> a, s -> b -> t)` (get + set),
 a grate gives you `((s -> a) -> b) -> t` — "given any way
 to observe `a` from `s`, produce a `b`, and I'll give you `t`".
 
-### Simple example: grate8
+### Example 1: grate8
 
 ```haskell
 import Data.Word.Optic
@@ -119,7 +122,7 @@ import Data.Word.Optic
 0
 ```
 
-### Complex example: bit rotation via grate
+### Example 2: bit rotation via grate
 
 ```haskell
 import Data.Word.Optic
@@ -144,7 +147,7 @@ Iso s t a b = forall p. Profunctor p => p a b -> p s t
 Isos compose in both directions — `view` goes one way,
 `review` goes the other.
 
-### Simple example: strict ↔ lazy ByteString
+### Example 1: strict ↔ lazy ByteString
 
 ```haskell
 import Data.ByteString.Optic
@@ -156,7 +159,7 @@ import Data.Profunctor.Optic
 "hello"     -- :: ByteString
 ```
 
-### Complex example: encode, pack, and shorten
+### Example 2: encode, pack, and shorten
 
 ```haskell
 import Data.Text.Optic
