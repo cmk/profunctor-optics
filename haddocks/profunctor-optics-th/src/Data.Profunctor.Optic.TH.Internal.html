@@ -1,0 +1,660 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE CPP #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span class="hs-cpp">
+
+#ifndef MIN_VERSION_template_haskell
+</span><span class="hs-cpp">#define MIN_VERSION_template_haskell(x,y,z) (defined(__GLASGOW_HASKELL__) &amp;&amp; __GLASGOW_HASKELL__ &gt;= 706)
+</span><span class="hs-cpp">#endif
+</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- Language.Haskell.TH was not marked as Safe before template-haskell-2.12.0</span><span class="hs-cpp">
+#if MIN_VERSION_template_haskell(2,12,0)
+</span><span class="hs-comment">--{-# LANGUAGE Safe #-}</span><span class="hs-cpp">
+#else
+</span><span class="hs-pragma">{-# LANGUAGE Trustworthy #-}</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-15"></span><span class="hs-pragma">{-# LANGUAGE  FlexibleContexts #-}</span><span>
+</span><span id="line-16"></span><span class="hs-pragma">{-# LANGUAGE  FlexibleInstances #-}</span><span>
+</span><span id="line-17"></span><span class="hs-pragma">{-# LANGUAGE  MultiParamTypeClasses #-}</span><span>
+</span><span id="line-18"></span><span class="hs-pragma">{-# LANGUAGE  FunctionalDependencies #-}</span><span>
+</span><span id="line-19"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Profunctor.Optic.TH.Internal</span><span>
+</span><span id="line-20"></span><span class="hs-special">(</span><span>
+</span><span id="line-21"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Name utilities</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasName"><span class="hs-identifier">HasName</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#newNames"><span class="hs-identifier">newNames</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Type variable utilities</span></span><span>
+</span><span id="line-26"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier">HasTypeVars</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-27"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier">typeVars</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#substTypeVars"><span class="hs-identifier">substTypeVars</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="hs-comment">-- * Miscellaneous utilities</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#inlinePragma"><span class="hs-identifier">inlinePragma</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#conAppsT"><span class="hs-identifier">conAppsT</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>  </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType"><span class="hs-identifier">quantifyType</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType%27"><span class="hs-identifier">quantifyType'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">nub</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Functor.Apply.html"><span class="hs-identifier">Data.Functor.Apply</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Functor.Bind.Class.html#Apply"><span class="hs-identifier">Apply</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Language.Haskell.TH</span></span><span class="hs-cpp">
+
+#if __GLASGOW_HASKELL__ &lt; 710
+</span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Control.Applicative</span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Monoid</span><span>
+</span><span id="line-50"></span><span class="hs-keyword">import</span><span>           </span><span class="hs-identifier">Data.Traversable</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">traverse</span><span class="hs-special">)</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | Has a 'Name'</span></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">class</span><span> </span><span id="HasName"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasName"><span class="hs-identifier hs-var">HasName</span></a></span></span><span> </span><span id="local-6989586621679077170"><span class="annot"><a href="#local-6989586621679077170"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-comment">-- | Extract (or modify) the 'Name' of something</span><span>
+</span><span id="line-56"></span><span>  </span><span id="name"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-type">name</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077170"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679077171"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasName"><span class="hs-identifier hs-type">HasName</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TyVarBndr</span></span><span> </span><span class="annot"><a href="#local-6989586621679077171"><span class="hs-identifier hs-type">flag</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621679077345"><span class="annot"><span class="annottext">name :: Lens' (TyVarBndr flag) Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var hs-var hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag))
+-&gt; Lens' (TyVarBndr flag) Name
+forall a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Lens s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#lensVl"><span class="hs-identifier hs-var">lensVl</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag)
+forall (f :: * -&gt; *).
+Functor f =&gt;
+(Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag)
+forall {f :: * -&gt; *} {flag}.
+Functor f =&gt;
+(Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag)
+</span><a href="#local-6989586621679077347"><span class="hs-identifier hs-var">tyVarBndrT</span></a></span><span>
+</span><span id="line-60"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679077347"><span class="annot"><span class="annottext">tyVarBndrT :: (Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag)
+</span><a href="#local-6989586621679077347"><span class="hs-identifier hs-var hs-var">tyVarBndrT</span></a></span></span><span> </span><span id="local-6989586621679077353"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077353"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">PlainTV</span></span><span> </span><span id="local-6989586621679077355"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077355"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679077356"><span class="annot"><span class="annottext">flag
+</span><a href="#local-6989586621679077356"><span class="hs-identifier hs-var">fl</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679077357"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077357"><span class="hs-identifier hs-var">n'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; flag -&gt; TyVarBndr flag
+forall flag. Name -&gt; flag -&gt; TyVarBndr flag
+</span><span class="hs-identifier hs-var">PlainTV</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077357"><span class="hs-identifier hs-var">n'</span></a></span><span> </span><span class="annot"><span class="annottext">flag
+</span><a href="#local-6989586621679077356"><span class="hs-identifier hs-var">fl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; TyVarBndr flag) -&gt; f Name -&gt; f (TyVarBndr flag)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077353"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077355"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-61"></span><span>          </span><span class="annot"><a href="#local-6989586621679077347"><span class="hs-identifier hs-var">tyVarBndrT</span></a></span><span> </span><span id="local-6989586621679077359"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077359"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">KindedTV</span></span><span> </span><span id="local-6989586621679077361"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077361"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679077362"><span class="annot"><span class="annottext">flag
+</span><a href="#local-6989586621679077362"><span class="hs-identifier hs-var">fl</span></a></span></span><span> </span><span id="local-6989586621679077363"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077363"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679077364"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077364"><span class="hs-identifier hs-var">n'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; flag -&gt; Kind -&gt; TyVarBndr flag
+forall flag. Name -&gt; flag -&gt; Kind -&gt; TyVarBndr flag
+</span><span class="hs-identifier hs-var">KindedTV</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077364"><span class="hs-identifier hs-var">n'</span></a></span><span> </span><span class="annot"><span class="annottext">flag
+</span><a href="#local-6989586621679077362"><span class="hs-identifier hs-var">fl</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077363"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; TyVarBndr flag) -&gt; f Name -&gt; f (TyVarBndr flag)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077359"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077361"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasName"><span class="hs-identifier hs-type">HasName</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-64"></span><span>  </span><span id="local-6989586621679077368"><span class="annot"><span class="annottext">name :: Lens' Name Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var hs-var hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">p Name Name -&gt; p Name Name
+forall a. a -&gt; a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- | On @template-haskell-2.11.0.0@ or later, if a 'GadtC' or 'RecGadtC' has</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- multiple 'Name's, the leftmost 'Name' will be chosen.</span><span>
+</span><span id="line-68"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasName"><span class="hs-identifier hs-type">HasName</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Con</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-69"></span><span>  </span><span id="local-6989586621679077376"><span class="annot"><span class="annottext">name :: Lens' Con Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var hs-var hs-var hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (Name -&gt; f Name) -&gt; Con -&gt; f Con)
+-&gt; Lens' Con Name
+forall a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Lens s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#lensVl"><span class="hs-identifier hs-var">lensVl</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; Con -&gt; f Con
+forall (f :: * -&gt; *). Functor f =&gt; (Name -&gt; f Name) -&gt; Con -&gt; f Con
+</span><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-keyword">where</span><span>
+</span><span id="line-71"></span><span>      </span><span id="local-6989586621679077377"><span class="annot"><span class="annottext">conT :: (Name -&gt; f Name) -&gt; Con -&gt; f Con
+</span><a href="#local-6989586621679077377"><span class="hs-identifier hs-var hs-var">conT</span></a></span></span><span> </span><span id="local-6989586621679077394"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077394"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">NormalC</span></span><span> </span><span id="local-6989586621679077396"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077396"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679077397"><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679077397"><span class="hs-identifier hs-var">tys</span></a></span></span><span class="hs-special">)</span><span>       </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; [BangType] -&gt; Con
+</span><span class="hs-operator hs-var">`NormalC`</span></span><span> </span><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679077397"><span class="hs-identifier hs-var">tys</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; f Name -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077394"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077396"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-72"></span><span>      </span><span class="annot"><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span> </span><span id="local-6989586621679077398"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077398"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">RecC</span></span><span> </span><span id="local-6989586621679077400"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077400"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679077401"><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679077401"><span class="hs-identifier hs-var">tys</span></a></span></span><span class="hs-special">)</span><span>          </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; [VarBangType] -&gt; Con
+</span><span class="hs-operator hs-var">`RecC`</span></span><span> </span><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679077401"><span class="hs-identifier hs-var">tys</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; f Name -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077398"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077400"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-73"></span><span>      </span><span class="annot"><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span> </span><span id="local-6989586621679077402"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077402"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">InfixC</span></span><span> </span><span id="local-6989586621679077404"><span class="annot"><span class="annottext">BangType
+</span><a href="#local-6989586621679077404"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679077405"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077405"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679077406"><span class="annot"><span class="annottext">BangType
+</span><a href="#local-6989586621679077406"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span>        </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679077407"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077407"><span class="hs-identifier hs-var">n'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BangType -&gt; Name -&gt; BangType -&gt; Con
+</span><span class="hs-identifier hs-var">InfixC</span></span><span> </span><span class="annot"><span class="annottext">BangType
+</span><a href="#local-6989586621679077404"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077407"><span class="hs-identifier hs-var">n'</span></a></span><span> </span><span class="annot"><span class="annottext">BangType
+</span><a href="#local-6989586621679077406"><span class="hs-identifier hs-var">r</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; f Name -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077402"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077405"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-74"></span><span>      </span><span class="annot"><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span> </span><span id="local-6989586621679077408"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077408"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ForallC</span></span><span> </span><span id="local-6989586621679077410"><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077410"><span class="hs-identifier hs-var">bds</span></a></span></span><span> </span><span id="local-6989586621679077411"><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077411"><span class="hs-identifier hs-var">ctx</span></a></span></span><span> </span><span id="local-6989586621679077412"><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679077412"><span class="hs-identifier hs-var">con</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity] -&gt; Cxt -&gt; Con -&gt; Con
+</span><span class="hs-identifier hs-var">ForallC</span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077410"><span class="hs-identifier hs-var">bds</span></a></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077411"><span class="hs-identifier hs-var">ctx</span></a></span><span> </span><span class="annot"><span class="annottext">(Con -&gt; Con) -&gt; f Con -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Star f Con Con -&gt; Con -&gt; f Con) -&gt; Con -&gt; Star f Con Con -&gt; f Con
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">Star f Con Con -&gt; Con -&gt; f Con
+forall {k} (f :: k -&gt; *) d (c :: k). Star f d c -&gt; d -&gt; f c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#runStar"><span class="hs-identifier hs-var">runStar</span></a></span><span> </span><span class="annot"><span class="annottext">Con
+</span><a href="#local-6989586621679077412"><span class="hs-identifier hs-var">con</span></a></span><span> </span><span class="annot"><span class="annottext">(Star f Con Con -&gt; f Con) -&gt; Star f Con Con -&gt; f Con
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Optic (Star f) Con Con Name Name
+forall t. HasName t =&gt; Lens' t Name
+Lens' Con Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; Star f Name Name
+forall {k} (f :: k -&gt; *) d (c :: k). (d -&gt; f c) -&gt; Star f d c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#Star"><span class="hs-identifier hs-var">Star</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077408"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-75"></span><span>      </span><span class="annot"><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span> </span><span id="local-6989586621679077416"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077416"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">GadtC</span></span><span> </span><span id="local-6989586621679077417"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679077417"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span id="local-6989586621679077418"><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679077418"><span class="hs-identifier hs-var">argTys</span></a></span></span><span> </span><span id="local-6989586621679077419"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077419"><span class="hs-identifier hs-var">retTy</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-76"></span><span>        </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679077420"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077420"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [BangType] -&gt; Kind -&gt; Con
+</span><span class="hs-identifier hs-var">GadtC</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077420"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[BangType]
+</span><a href="#local-6989586621679077418"><span class="hs-identifier hs-var">argTys</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077419"><span class="hs-identifier hs-var">retTy</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; f Name -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077416"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Name] -&gt; Name
+forall a. HasCallStack =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679077417"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span>      </span><span class="annot"><a href="#local-6989586621679077377"><span class="hs-identifier hs-var">conT</span></a></span><span> </span><span id="local-6989586621679077422"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077422"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">RecGadtC</span></span><span> </span><span id="local-6989586621679077423"><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679077423"><span class="hs-identifier hs-var">ns</span></a></span></span><span> </span><span id="local-6989586621679077424"><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679077424"><span class="hs-identifier hs-var">argTys</span></a></span></span><span> </span><span id="local-6989586621679077425"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077425"><span class="hs-identifier hs-var">retTy</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-78"></span><span>        </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679077426"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077426"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [VarBangType] -&gt; Kind -&gt; Con
+</span><span class="hs-identifier hs-var">RecGadtC</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077426"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[VarBangType]
+</span><a href="#local-6989586621679077424"><span class="hs-identifier hs-var">argTys</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077425"><span class="hs-identifier hs-var">retTy</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Con) -&gt; f Name -&gt; f Con
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077422"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[Name] -&gt; Name
+forall a. HasCallStack =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">head</span></span><span> </span><span class="annot"><span class="annottext">[Name]
+</span><a href="#local-6989586621679077423"><span class="hs-identifier hs-var">ns</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><span class="hs-comment">-- | Generate many new names from a given base name.</span></span><span>
+</span><span id="line-81"></span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#newNames"><span class="hs-identifier hs-type">newNames</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-comment">{- ^ base name -}</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><span class="hs-comment">{- ^ count -}</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Q</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">]</span><span>
+</span><span id="line-82"></span><span id="newNames"><span class="annot"><span class="annottext">newNames :: String -&gt; Int -&gt; Q [Name]
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#newNames"><span class="hs-identifier hs-var hs-var">newNames</span></a></span></span><span> </span><span id="local-6989586621679077427"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679077427"><span class="hs-identifier hs-var">base</span></a></span></span><span> </span><span id="local-6989586621679077428"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679077428"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Q Name] -&gt; Q [Name]
+forall (t :: * -&gt; *) (m :: * -&gt; *) a.
+(Traversable t, Monad m) =&gt;
+t (m a) -&gt; m (t a)
+forall (m :: * -&gt; *) a. Monad m =&gt; [m a] -&gt; m [a]
+</span><span class="hs-identifier hs-var">sequence</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">String -&gt; Q Name
+forall (m :: * -&gt; *). Quote m =&gt; String -&gt; m Name
+</span><span class="hs-identifier hs-var">newName</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679077427"><span class="hs-identifier hs-var">base</span></a></span><span class="annot"><span class="annottext">String -&gt; String -&gt; String
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679077431"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679077431"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679077431"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-glyph">..</span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679077428"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">]</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="annot"><span class="hs-comment">-- | Provides for the extraction of free type variables, and alpha renaming.</span></span><span>
+</span><span id="line-85"></span><span class="hs-keyword">class</span><span> </span><span id="HasTypeVars"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-var">HasTypeVars</span></a></span></span><span> </span><span id="local-6989586621679077223"><span class="annot"><a href="#local-6989586621679077223"><span class="hs-identifier hs-type">t</span></a></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-86"></span><span>  </span><span class="hs-comment">-- When performing substitution into this traversal you're not allowed</span><span>
+</span><span id="line-87"></span><span>  </span><span class="hs-comment">-- to substitute in a name that is bound internally or you'll violate</span><span>
+</span><span id="line-88"></span><span>  </span><span class="hs-comment">-- the 'Traversal' laws, when in doubt generate your names with 'newName'.</span><span>
+</span><span id="line-89"></span><span>  </span><span id="typeVarsEx"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-type">typeVarsEx</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Traversal%27"><span class="hs-identifier hs-type">Traversal'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077223"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span>
+</span><span id="line-90"></span><span>
+</span><span id="line-91"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679077224"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">TyVarBndr</span></span><span> </span><span class="annot"><a href="#local-6989586621679077224"><span class="hs-identifier hs-type">flag</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-92"></span><span>  </span><span id="local-6989586621679077440"><span class="annot"><span class="annottext">typeVarsEx :: Set Name -&gt; Traversal' (TyVarBndr flag) Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var hs-var hs-var hs-var">typeVarsEx</span></a></span></span><span> </span><span id="local-6989586621679077441"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077441"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative' f =&gt;
+ (Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag))
+-&gt; Traversal' (TyVarBndr flag) Name
+forall a b s t.
+(forall (f :: * -&gt; *). Applicative' f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Traversal s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversalVl"><span class="hs-identifier hs-var">traversalVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Applicative' f =&gt;
+  (Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag))
+ -&gt; Traversal' (TyVarBndr flag) Name)
+-&gt; (forall (f :: * -&gt; *).
+    Applicative' f =&gt;
+    (Name -&gt; f Name) -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag))
+-&gt; Traversal' (TyVarBndr flag) Name
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679077457"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077457"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679077458"><span class="annot"><span class="annottext">TyVarBndr flag
+</span><a href="#local-6989586621679077458"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">TyVarBndr flag
+</span><a href="#local-6989586621679077458"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">TyVarBndr flag -&gt; AView Name (TyVarBndr flag) Name -&gt; Name
+forall s a. s -&gt; AView a s a -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.View.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">AView Name (TyVarBndr flag) Name
+forall t. HasName t =&gt; Lens' t Name
+Lens' (TyVarBndr flag) Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var">name</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077441"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">TyVarBndr flag -&gt; f (TyVarBndr flag)
+forall a. a -&gt; f a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">TyVarBndr flag
+</span><a href="#local-6989586621679077458"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">(Star f (TyVarBndr flag) (TyVarBndr flag)
+ -&gt; TyVarBndr flag -&gt; f (TyVarBndr flag))
+-&gt; TyVarBndr flag
+-&gt; Star f (TyVarBndr flag) (TyVarBndr flag)
+-&gt; f (TyVarBndr flag)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">Star f (TyVarBndr flag) (TyVarBndr flag)
+-&gt; TyVarBndr flag -&gt; f (TyVarBndr flag)
+forall {k} (f :: k -&gt; *) d (c :: k). Star f d c -&gt; d -&gt; f c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#runStar"><span class="hs-identifier hs-var">runStar</span></a></span><span> </span><span class="annot"><span class="annottext">TyVarBndr flag
+</span><a href="#local-6989586621679077458"><span class="hs-identifier hs-var">b</span></a></span><span> </span><span class="annot"><span class="annottext">(Star f (TyVarBndr flag) (TyVarBndr flag) -&gt; f (TyVarBndr flag))
+-&gt; Star f (TyVarBndr flag) (TyVarBndr flag) -&gt; f (TyVarBndr flag)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Optic (Star f) (TyVarBndr flag) (TyVarBndr flag) Name Name
+forall t. HasName t =&gt; Lens' t Name
+Lens' (TyVarBndr flag) Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#name"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; Star f Name Name
+forall {k} (f :: k -&gt; *) d (c :: k). (d -&gt; f c) -&gt; Star f d c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#Star"><span class="hs-identifier hs-var">Star</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077457"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-95"></span><span>  </span><span id="local-6989586621679077467"><span class="annot"><span class="annottext">typeVarsEx :: Set Name -&gt; Traversal' Name Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var hs-var hs-var hs-var">typeVarsEx</span></a></span></span><span> </span><span id="local-6989586621679077468"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077468"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative' f =&gt;
+ (Name -&gt; f Name) -&gt; Name -&gt; f Name)
+-&gt; Traversal' Name Name
+forall a b s t.
+(forall (f :: * -&gt; *). Applicative' f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Traversal s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversalVl"><span class="hs-identifier hs-var">traversalVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Applicative' f =&gt;
+  (Name -&gt; f Name) -&gt; Name -&gt; f Name)
+ -&gt; Traversal' Name Name)
+-&gt; (forall (f :: * -&gt; *).
+    Applicative' f =&gt;
+    (Name -&gt; f Name) -&gt; Name -&gt; f Name)
+-&gt; Traversal' Name Name
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679077473"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077473"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679077474"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077474"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077474"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077468"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+forall a. a -&gt; f a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077474"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077473"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077474"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-keyword">instance</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>  </span><span id="local-6989586621679077481"><span class="annot"><span class="annottext">typeVarsEx :: Set Name -&gt; Traversal' Kind Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var hs-var hs-var hs-var">typeVarsEx</span></a></span></span><span> </span><span id="local-6989586621679077482"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative' f =&gt;
+ (Name -&gt; f Name) -&gt; Kind -&gt; f Kind)
+-&gt; Traversal' Kind Name
+forall a b s t.
+(forall (f :: * -&gt; *). Applicative' f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Traversal s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversalVl"><span class="hs-identifier hs-var">traversalVl</span></a></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall {f :: * -&gt; *}.
+(Applicative f, Apply f) =&gt;
+(Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall (f :: * -&gt; *).
+Applicative' f =&gt;
+(Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+</span><a href="#local-6989586621679077483"><span class="hs-identifier hs-var">tyT</span></a></span><span>
+</span><span id="line-99"></span><span>    </span><span class="hs-keyword">where</span><span> </span><span>
+</span><span id="line-100"></span><span>      </span><span id="local-6989586621679077253"><span id="local-6989586621679077254"><span class="annot"><a href="#local-6989586621679077489"><span class="hs-identifier hs-type">typeVarsEx'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Applicative</span></span><span> </span><span class="annot"><a href="#local-6989586621679077253"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/smgrpds-6.0.2-42e63b15/share/doc/html/src/Data.Functor.Bind.Class.html#Apply"><span class="hs-identifier hs-type">Apply</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077253"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077254"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679077253"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679077254"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679077253"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077254"><span class="hs-identifier hs-type">t</span></a></span></span></span><span>
+</span><span id="line-101"></span><span>      </span><span id="local-6989586621679077489"><span class="annot"><span class="annottext">typeVarsEx' :: forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var hs-var">typeVarsEx'</span></a></span></span><span> </span><span id="local-6989586621679077505"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077505"><span class="hs-identifier hs-var">s'</span></a></span></span><span> </span><span id="local-6989586621679077506"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077506"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Star f t t -&gt; t -&gt; f t
+forall {k} (f :: k -&gt; *) d (c :: k). Star f d c -&gt; d -&gt; f c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#runStar"><span class="hs-identifier hs-var">runStar</span></a></span><span> </span><span class="annot"><span class="annottext">(Star f t t -&gt; t -&gt; f t) -&gt; Star f t t -&gt; t -&gt; f t
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Traversal' t Name
+forall t. HasTypeVars t =&gt; Set Name -&gt; Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var">typeVarsEx</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077505"><span class="hs-identifier hs-var">s'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Name -&gt; f Name) -&gt; Star f Name Name
+forall {k} (f :: k -&gt; *) d (c :: k). (d -&gt; f c) -&gt; Star f d c
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Types.html#Star"><span class="hs-identifier hs-var">Star</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077506"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span> </span><span>
+</span><span id="line-103"></span><span>      </span><span id="local-6989586621679077483"><span class="annot"><span class="annottext">tyT :: (Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+</span><a href="#local-6989586621679077483"><span class="hs-identifier hs-var hs-var">tyT</span></a></span></span><span> </span><span id="local-6989586621679077538"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077538"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">VarT</span></span><span> </span><span id="local-6989586621679077540"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077540"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">VarT</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Kind) -&gt; f Name -&gt; f Kind
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Name -&gt; f Name
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077538"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077540"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-104"></span><span>      </span><span class="annot"><a href="#local-6989586621679077483"><span class="hs-identifier hs-var">tyT</span></a></span><span> </span><span id="local-6989586621679077541"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077541"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">AppT</span></span><span> </span><span id="local-6989586621679077543"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077543"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679077544"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077544"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">AppT</span></span><span> </span><span class="annot"><span class="annottext">(Kind -&gt; Kind -&gt; Kind) -&gt; f Kind -&gt; f (Kind -&gt; Kind)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077541"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077543"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">f (Kind -&gt; Kind) -&gt; f Kind -&gt; f Kind
+forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077541"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077544"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-105"></span><span>      </span><span class="annot"><a href="#local-6989586621679077483"><span class="hs-identifier hs-var">tyT</span></a></span><span> </span><span id="local-6989586621679077545"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077545"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">SigT</span></span><span> </span><span id="local-6989586621679077547"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077547"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span id="local-6989586621679077548"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077548"><span class="hs-identifier hs-var">k</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-operator hs-var">`SigT`</span></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077548"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(Kind -&gt; Kind) -&gt; f Kind -&gt; f Kind
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077545"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077547"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-106"></span><span>      </span><span class="annot"><a href="#local-6989586621679077483"><span class="hs-identifier hs-var">tyT</span></a></span><span> </span><span id="local-6989586621679077549"><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077549"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ForallT</span></span><span> </span><span id="local-6989586621679077551"><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077551"><span class="hs-identifier hs-var">bs</span></a></span></span><span> </span><span id="local-6989586621679077552"><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077552"><span class="hs-identifier hs-var">ctx</span></a></span></span><span> </span><span id="local-6989586621679077553"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077553"><span class="hs-identifier hs-var">ty</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity] -&gt; Cxt -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">ForallT</span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077551"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">(Cxt -&gt; Kind -&gt; Kind) -&gt; f Cxt -&gt; f (Kind -&gt; Kind)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Cxt -&gt; f Cxt
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077554"><span class="hs-identifier hs-var">s'</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077549"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077552"><span class="hs-identifier hs-var">ctx</span></a></span><span> </span><span class="annot"><span class="annottext">f (Kind -&gt; Kind) -&gt; f Kind -&gt; f Kind
+forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
+forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; (Name -&gt; f Name) -&gt; Kind -&gt; f Kind
+forall (f :: * -&gt; *) t.
+(Applicative f, Apply f, HasTypeVars t) =&gt;
+Set Name -&gt; (Name -&gt; f Name) -&gt; t -&gt; f t
+</span><a href="#local-6989586621679077489"><span class="hs-identifier hs-var">typeVarsEx'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077554"><span class="hs-identifier hs-var">s'</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><a href="#local-6989586621679077549"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077553"><span class="hs-identifier hs-var">ty</span></a></span><span> </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679077554"><span class="annot"><span class="annottext">s' :: Set Name
+</span><a href="#local-6989586621679077554"><span class="hs-identifier hs-var hs-var">s'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077482"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Set Name -&gt; Set Name
+forall a. Ord a =&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-operator hs-var">`Set.union`</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; Set Name
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077551"><span class="hs-identifier hs-var">bs</span></a></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+-&gt; AFold (Endo [Name]) [TyVarBndr Specificity] Name -&gt; [Name]
+forall s a. s -&gt; AFold (Endo [a]) s a -&gt; [a]
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#%5E.."><span class="hs-operator hs-var">^..</span></a></span><span> </span><span class="annot"><span class="annottext">AFold (Endo [Name]) [TyVarBndr Specificity] Name
+forall t. HasTypeVars t =&gt; Traversal' t Name
+Traversal' [TyVarBndr Specificity] Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier hs-var">typeVars</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span><span>      </span><span class="annot"><a href="#local-6989586621679077483"><span class="hs-identifier hs-var">tyT</span></a></span><span> </span><span class="annot"><span class="annottext">Name -&gt; f Name
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679077578"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077578"><span class="hs-identifier hs-var">t</span></a></span></span><span>                   </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Kind -&gt; f Kind
+forall a. a -&gt; f a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077578"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span>
+</span><span id="line-110"></span><span class="hs-comment">{-
+typeSelf :: Traversal' Type Type
+typeSelf = traversalVl $ \f -&gt; \case
+  ForallT tyVarBndrs ctx ty -&gt;
+    let go (KindedTV nam kind) = KindedTV &lt;$&gt; pure nam &lt;*&gt; f kind
+        go (PlainTV nam)       = pure (PlainTV nam)
+    in ForallT &lt;$&gt; traverse go tyVarBndrs &lt;*&gt; traverse f ctx &lt;*&gt; f ty
+  AppT ty1 ty2              -&gt; AppT &lt;$&gt; f ty1 &lt;*&gt; f ty2
+  SigT ty kind              -&gt; SigT &lt;$&gt; f ty &lt;*&gt; f kind
+  InfixT ty1 nam ty2        -&gt; InfixT &lt;$&gt; f ty1 &lt;*&gt; pure nam &lt;*&gt; f ty2
+  UInfixT ty1 nam ty2       -&gt; UInfixT &lt;$&gt; f ty1 &lt;*&gt; pure nam &lt;*&gt; f ty2
+  ParensT ty                -&gt; ParensT &lt;$&gt; f ty
+  ty                        -&gt; pure ty
+-}</span><span class="hs-cpp">
+#if !MIN_VERSION_template_haskell(2,10,0)
+</span><span class="hs-keyword">instance</span><span> </span><span class="hs-identifier">HasTypeVars</span><span> </span><span class="hs-identifier">Pred</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-identifier">typeVarsEx</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">traversalVl</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">ClassP</span><span> </span><span class="hs-identifier">n</span><span> </span><span class="hs-identifier">ts</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">ClassP</span><span> </span><span class="hs-identifier">n</span><span> </span><span class="hs-operator">&lt;$&gt;</span><span> </span><span class="hs-identifier">typeVarsEx</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">ts</span><span>
+</span><span id="line-127"></span><span>  </span><span class="hs-identifier">typeVarsEx</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-identifier">traversalVl</span><span> </span><span class="hs-operator">$</span><span> </span><span class="hs-glyph">\</span><span class="hs-identifier">f</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">EqualP</span><span> </span><span class="hs-identifier">l</span><span> </span><span class="hs-identifier">r</span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-identifier">EqualP</span><span> </span><span class="hs-operator">&lt;$&gt;</span><span> </span><span class="hs-identifier">typeVarsEx</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">l</span><span> </span><span class="hs-operator">&lt;*&gt;</span><span> </span><span class="hs-identifier">typeVarsEx</span><span> </span><span class="hs-identifier">s</span><span> </span><span class="hs-identifier">f</span><span> </span><span class="hs-identifier">r</span><span class="hs-cpp">
+#endif
+</span><span>
+</span><span id="line-130"></span><span class="hs-comment">{-
+instance HasTypeVars Con where
+  typeVarsEx s = traversalVl $ \f (NormalC n ts) -&gt;
+    NormalC n &lt;$&gt; (traverse . t32) (typeVarsEx s f) ts
+  typeVarsEx s = traversalVl $ \f (RecC n ts) -&gt;
+    RecC n &lt;$&gt; (traverse . t33) (typeVarsEx s f) ts -- traversed . t33 etc
+  typeVarsEx s = traversalVl $ \f (InfixC l n r) -&gt;
+    InfixC &lt;$&gt; g l &lt;*&gt; pure n &lt;*&gt; g r
+      where g (i, t) = (,) i &lt;$&gt; typeVarsEx s f t
+  typeVarsEx s = traversalVl $ \f (ForallC bs ctx c) -&gt;
+    ForallC bs &lt;$&gt; typeVarsEx s' f ctx &lt;*&gt; typeVarsEx s' f c
+      where s' = s `Set.union` Set.fromList (bs ^.. typeVars)
+#if MIN_VERSION_template_haskell(2,11,0)
+  typeVarsEx s = traversalVl $ \f (GadtC ns argTys retTy) -&gt;
+    GadtC ns &lt;$&gt; (traverse . t32) (typeVarsEx s f) argTys
+             &lt;*&gt; typeVarsEx s f retTy
+  typeVarsEx s = traversalVl $ \f (RecGadtC ns argTys retTy) -&gt;
+    RecGadtC ns &lt;$&gt; (traverse . t33) (typeVarsEx s f) argTys
+                &lt;*&gt; typeVarsEx s f retTy
+#endif
+-}</span><span>
+</span><span id="line-151"></span><span>
+</span><span id="line-152"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679077261"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077261"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679077261"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-153"></span><span>  </span><span id="local-6989586621679077589"><span class="annot"><span class="annottext">typeVarsEx :: Set Name -&gt; Traversal' [t] Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var hs-var hs-var hs-var">typeVarsEx</span></a></span></span><span> </span><span id="local-6989586621679077590"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077590"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Optic p [t] [t] t t
+forall (f :: * -&gt; *) a b.
+Traversable f =&gt;
+Traversal (f a) (f b) a b
+Traversal [t] [t] t t
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversed"><span class="hs-identifier hs-var">traversed</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p [t] [t] t t
+-&gt; (p Name Name -&gt; p t t) -&gt; p Name Name -&gt; p [t] [t]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Traversal' t Name
+forall t. HasTypeVars t =&gt; Set Name -&gt; Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var">typeVarsEx</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077590"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-154"></span><span>
+</span><span id="line-155"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679077284"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077284"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679077284"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">)</span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-156"></span><span>  </span><span id="local-6989586621679077605"><span class="annot"><span class="annottext">typeVarsEx :: Set Name -&gt; Traversal' (Maybe t) Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var hs-var hs-var hs-var">typeVarsEx</span></a></span></span><span> </span><span id="local-6989586621679077606"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077606"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Optic p (Maybe t) (Maybe t) t t
+forall (f :: * -&gt; *) a b.
+Traversable f =&gt;
+Traversal (f a) (f b) a b
+Traversal (Maybe t) (Maybe t) t t
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversed"><span class="hs-identifier hs-var">traversed</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p (Maybe t) (Maybe t) t t
+-&gt; (p Name Name -&gt; p t t) -&gt; p Name Name -&gt; p (Maybe t) (Maybe t)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Traversal' t Name
+forall t. HasTypeVars t =&gt; Set Name -&gt; Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var">typeVarsEx</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077606"><span class="hs-identifier hs-var">s</span></a></span><span>
+</span><span id="line-157"></span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- Traverse /free/ type variables</span><span>
+</span><span id="line-159"></span><span id="local-6989586621679077274"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier hs-type">typeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077274"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Traversal%27"><span class="hs-identifier hs-type">Traversal'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077274"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span></span><span>
+</span><span id="line-160"></span><span id="typeVars"><span class="annot"><span class="annottext">typeVars :: forall t. HasTypeVars t =&gt; Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier hs-var hs-var">typeVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Traversal' t Name
+forall t. HasTypeVars t =&gt; Set Name -&gt; Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVarsEx"><span class="hs-identifier hs-var">typeVarsEx</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Monoid a =&gt; a
+</span><span class="hs-identifier hs-var">mempty</span></span><span>
+</span><span id="line-161"></span><span>
+</span><span id="line-162"></span><span class="hs-comment">-- Substitute using a map of names in for /free/ type variables</span><span>
+</span><span id="line-163"></span><span id="local-6989586621679077290"><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#substTypeVars"><span class="hs-identifier hs-type">substTypeVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#HasTypeVars"><span class="hs-identifier hs-type">HasTypeVars</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679077290"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679077290"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679077290"><span class="hs-identifier hs-type">t</span></a></span></span><span>
+</span><span id="line-164"></span><span id="substTypeVars"><span class="annot"><span class="annottext">substTypeVars :: forall t. HasTypeVars t =&gt; Map Name Name -&gt; t -&gt; t
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#substTypeVars"><span class="hs-identifier hs-var hs-var">substTypeVars</span></a></span></span><span> </span><span id="local-6989586621679077633"><span class="annot"><span class="annottext">Map Name Name
+</span><a href="#local-6989586621679077633"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) t t Name Name -&gt; Optic (-&gt;) t t Name Name
+forall s t a b. Optic (-&gt;) s t a b -&gt; Optic (-&gt;) s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Combinator.html#over"><span class="hs-identifier hs-var">over</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) t t Name Name
+forall t. HasTypeVars t =&gt; Traversal' t Name
+Traversal' t Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier hs-var">typeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (-&gt;) t t Name Name -&gt; Optic (-&gt;) t t Name Name
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679077635"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077635"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Name -&gt; Maybe Name -&gt; Name
+forall a. a -&gt; Maybe a -&gt; a
+</span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077635"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Map Name Name -&gt; Maybe Name
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077635"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Map Name Name
+</span><a href="#local-6989586621679077633"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-165"></span><span>
+</span><span id="line-166"></span><span class="annot"><span class="hs-comment">-- | Generate an INLINE pragma.</span></span><span>
+</span><span id="line-167"></span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#inlinePragma"><span class="hs-identifier hs-type">inlinePragma</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">DecQ</span></span><span class="hs-special">]</span><span>
+</span><span id="line-168"></span><span id="inlinePragma"><span class="annot"><span class="annottext">inlinePragma :: Name -&gt; [DecQ]
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#inlinePragma"><span class="hs-identifier hs-var hs-var">inlinePragma</span></a></span></span><span> </span><span id="local-6989586621679077638"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077638"><span class="hs-identifier hs-var">methodName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Name -&gt; Inline -&gt; RuleMatch -&gt; Phases -&gt; DecQ
+forall (m :: * -&gt; *).
+Quote m =&gt;
+Name -&gt; Inline -&gt; RuleMatch -&gt; Phases -&gt; m Dec
+</span><span class="hs-identifier hs-var">pragInlD</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077638"><span class="hs-identifier hs-var">methodName</span></a></span><span> </span><span class="annot"><span class="annottext">Inline
+</span><span class="hs-identifier hs-var">Inline</span></span><span> </span><span class="annot"><span class="annottext">RuleMatch
+</span><span class="hs-identifier hs-var">FunLike</span></span><span> </span><span class="annot"><span class="annottext">Phases
+</span><span class="hs-identifier hs-var">AllPhases</span></span><span class="hs-special">]</span><span>
+</span><span id="line-169"></span><span>
+</span><span id="line-170"></span><span class="annot"><span class="hs-comment">-- | Apply arguments to a type constructor.</span></span><span>
+</span><span id="line-171"></span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#conAppsT"><span class="hs-identifier hs-type">conAppsT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-172"></span><span id="conAppsT"><span class="annot"><span class="annottext">conAppsT :: Name -&gt; Cxt -&gt; Kind
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#conAppsT"><span class="hs-identifier hs-var hs-var">conAppsT</span></a></span></span><span> </span><span id="local-6989586621679077639"><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077639"><span class="hs-identifier hs-var">conName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Kind -&gt; Kind -&gt; Kind) -&gt; Kind -&gt; Cxt -&gt; Kind
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) b a.
+Foldable t =&gt;
+(b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldl</span></span><span> </span><span class="annot"><span class="annottext">Kind -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">AppT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Kind
+</span><span class="hs-identifier hs-var">ConT</span></span><span> </span><span class="annot"><span class="annottext">Name
+</span><a href="#local-6989586621679077639"><span class="hs-identifier hs-var">conName</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-173"></span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- | Template Haskell wants type variables declared in a forall, so we find</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- all free type variables in a given type and declare them.</span><span>
+</span><span id="line-176"></span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType"><span class="hs-identifier hs-type">quantifyType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Cxt</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-177"></span><span id="quantifyType"><span class="annot"><span class="annottext">quantifyType :: Cxt -&gt; Kind -&gt; Kind
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType"><span class="hs-identifier hs-var hs-var">quantifyType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set Name -&gt; Cxt -&gt; Kind -&gt; Kind
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType%27"><span class="hs-identifier hs-var">quantifyType'</span></a></span><span> </span><span class="annot"><span class="annottext">Set Name
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.empty</span></span><span>
+</span><span id="line-178"></span><span>
+</span><span id="line-179"></span><span class="hs-comment">-- | This function works like 'quantifyType' except that it takes a list of</span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- variables to exclude from quantification.</span><span>
+</span><span id="line-181"></span><span class="annot"><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType%27"><span class="hs-identifier hs-type">quantifyType'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Name</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Cxt</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Type</span></span><span>
+</span><span id="line-182"></span><span id="quantifyType%27"><span class="annot"><span class="annottext">quantifyType' :: Set Name -&gt; Cxt -&gt; Kind -&gt; Kind
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#quantifyType%27"><span class="hs-identifier hs-var hs-var">quantifyType'</span></a></span></span><span> </span><span id="local-6989586621679077643"><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077643"><span class="hs-identifier hs-var">exclude</span></a></span></span><span> </span><span id="local-6989586621679077644"><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077644"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span id="local-6989586621679077645"><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077645"><span class="hs-identifier hs-var">t</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity] -&gt; Cxt -&gt; Kind -&gt; Kind
+</span><span class="hs-identifier hs-var">ForallT</span></span><span> </span><span class="annot"><span class="annottext">[TyVarBndr Specificity]
+</span><a href="#local-6989586621679077646"><span class="hs-identifier hs-var">vs</span></a></span><span> </span><span class="annot"><span class="annottext">Cxt
+</span><a href="#local-6989586621679077644"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077645"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-183"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-184"></span><span>    </span><span id="local-6989586621679077646"><span class="annot"><span class="annottext">vs :: [TyVarBndr Specificity]
+</span><a href="#local-6989586621679077646"><span class="hs-identifier hs-var hs-var">vs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Name -&gt; TyVarBndr Specificity)
+-&gt; [Name] -&gt; [TyVarBndr Specificity]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Specificity -&gt; TyVarBndr Specificity
+forall flag. Name -&gt; flag -&gt; TyVarBndr flag
+</span><span class="hs-operator hs-var">`PlainTV`</span></span><span> </span><span class="annot"><span class="annottext">Specificity
+</span><span class="hs-identifier hs-var">SpecifiedSpec</span></span><span class="hs-special">)</span><span>
+</span><span id="line-185"></span><span>       </span><span class="annot"><span class="annottext">([Name] -&gt; [TyVarBndr Specificity])
+-&gt; [Name] -&gt; [TyVarBndr Specificity]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Bool) -&gt; [Name] -&gt; [Name]
+forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Name -&gt; Set Name -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-operator hs-var">`Set.notMember`</span></span><span> </span><span class="annot"><span class="annottext">Set Name
+</span><a href="#local-6989586621679077643"><span class="hs-identifier hs-var">exclude</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-186"></span><span>       </span><span class="annot"><span class="annottext">([Name] -&gt; [Name]) -&gt; [Name] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Name] -&gt; [Name]
+forall a. Eq a =&gt; [a] -&gt; [a]
+</span><span class="hs-identifier hs-var">nub</span></span><span> </span><span class="hs-comment">-- stable order</span><span>
+</span><span id="line-187"></span><span>       </span><span class="annot"><span class="annottext">([Name] -&gt; [Name]) -&gt; [Name] -&gt; [Name]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">AFold (Endo [Name]) Kind Name -&gt; Kind -&gt; [Name]
+forall a s. AFold (Endo [a]) s a -&gt; s -&gt; [a]
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#lists"><span class="hs-identifier hs-var">lists</span></a></span><span> </span><span class="annot"><span class="annottext">AFold (Endo [Name]) Kind Name
+forall t. HasTypeVars t =&gt; Traversal' t Name
+Traversal' Kind Name
+</span><a href="Data.Profunctor.Optic.TH.Internal.html#typeVars"><span class="hs-identifier hs-var">typeVars</span></a></span><span> </span><span class="annot"><span class="annottext">Kind
+</span><a href="#local-6989586621679077645"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-188"></span></pre></body></html>

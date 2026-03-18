@@ -1,0 +1,1090 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE DeriveFoldable #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE DeriveFunctor #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE DeriveTraversable #-}</span><span>
+</span><span id="line-4"></span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- | Pattern functors for @containers@ types.</span><span>
+</span><span id="line-6"></span><span class="hs-comment">--</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- These mirror the internal structure of 'Data.Map.Map',</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- 'Data.IntMap.IntMap', 'Data.Set.Set', and 'Data.IntSet.IntSet',</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- enabling recursion schemes from @scheme-extensions@ to operate</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- on their tree structure.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Map k v   &#8773;  Mu (MapF k v)</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- IntMap a  &#8773;  Mu (IntMapF a)</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- Set a     &#8773;  Mu (SetF a)</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- IntSet    &#8773;  Mu IntSetF</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- Use 'toMapF'\/'fromMapF' etc. to convert between the container</span><span>
+</span><span id="line-20"></span><span class="hs-comment">-- types and their fixed-point representations.</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Container.Pattern</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Map</span></span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#MapF"><span class="hs-identifier">MapF</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier">toMapF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#fromMapF"><span class="hs-identifier">fromMapF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="hs-comment">-- * IntMap</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#IntMapF"><span class="hs-identifier">IntMapF</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#toIntMapF"><span class="hs-identifier">toIntMapF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#fromIntMapF"><span class="hs-identifier">fromIntMapF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Set</span></span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#SetF"><span class="hs-identifier">SetF</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#toSetF"><span class="hs-identifier">toSetF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#fromSetF"><span class="hs-identifier">fromSetF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="hs-comment">-- * IntSet</span></span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#IntSetF"><span class="hs-identifier">IntSetF</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#toIntSetF"><span class="hs-identifier">toIntSetF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><a href="Data.Container.Pattern.html#fromIntSetF"><span class="hs-identifier">fromIntSetF</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Fixed.html"><span class="hs-identifier">Data.Functor.Fixed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier">Mu</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html"><span class="hs-identifier">Data.Functor.Foldable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier">fold</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier">unfold</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Internal</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-47"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntMap.Internal</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntMap</span></span><span>
+</span><span id="line-48"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set.Internal</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.IntSet.Internal</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">IntSet</span></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- Map</span><span>
+</span><span id="line-53"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-54"></span><span>
+</span><span id="line-55"></span><span class="annot"><span class="hs-comment">-- | Pattern functor for 'Data.Map.Map'.</span></span><span>
+</span><span id="line-56"></span><span class="hs-keyword">data</span><span> </span><span id="MapF"><span class="annot"><a href="Data.Container.Pattern.html#MapF"><span class="hs-identifier hs-var">MapF</span></a></span></span><span> </span><span id="local-6989586621679100250"><span class="annot"><a href="#local-6989586621679100250"><span class="hs-identifier hs-type">k</span></a></span></span><span> </span><span id="local-6989586621679100251"><span class="annot"><a href="#local-6989586621679100251"><span class="hs-identifier hs-type">v</span></a></span></span><span> </span><span id="local-6989586621679100252"><span class="annot"><a href="#local-6989586621679100252"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="MapTip"><span class="annot"><a href="Data.Container.Pattern.html#MapTip"><span class="hs-identifier hs-var">MapTip</span></a></span></span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="MapBin"><span class="annot"><a href="Data.Container.Pattern.html#MapBin"><span class="hs-identifier hs-var">MapBin</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="#local-6989586621679100250"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100251"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100252"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100252"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679100362"><span id="local-6989586621679100364"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; MapF k v a -&gt; MapF k v b)
+-&gt; (forall a b. a -&gt; MapF k v b -&gt; MapF k v a)
+-&gt; Functor (MapF k v)
+forall a b. a -&gt; MapF k v b -&gt; MapF k v a
+forall a b. (a -&gt; b) -&gt; MapF k v a -&gt; MapF k v b
+forall k v a b. a -&gt; MapF k v b -&gt; MapF k v a
+forall k v a b. (a -&gt; b) -&gt; MapF k v a -&gt; MapF k v b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall k v a b. (a -&gt; b) -&gt; MapF k v a -&gt; MapF k v b
+fmap :: forall a b. (a -&gt; b) -&gt; MapF k v a -&gt; MapF k v b
+$c&lt;$ :: forall k v a b. a -&gt; MapF k v b -&gt; MapF k v a
+&lt;$ :: forall a b. a -&gt; MapF k v b -&gt; MapF k v a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100368"><span id="local-6989586621679100374"><span id="local-6989586621679100379"><span id="local-6989586621679100384"><span id="local-6989586621679100386"><span id="local-6989586621679100389"><span id="local-6989586621679100392"><span id="local-6989586621679100395"><span id="local-6989586621679100398"><span id="local-6989586621679100401"><span id="local-6989586621679100404"><span id="local-6989586621679100406"><span id="local-6989586621679100409"><span id="local-6989586621679100414"><span id="local-6989586621679100419"><span id="local-6989586621679100424"><span id="local-6989586621679100429"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; MapF k v m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a)
+-&gt; (forall a. MapF k v a -&gt; [a])
+-&gt; (forall a. MapF k v a -&gt; Bool)
+-&gt; (forall a. MapF k v a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; MapF k v a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; MapF k v a -&gt; a)
+-&gt; (forall a. Ord a =&gt; MapF k v a -&gt; a)
+-&gt; (forall a. Num a =&gt; MapF k v a -&gt; a)
+-&gt; (forall a. Num a =&gt; MapF k v a -&gt; a)
+-&gt; Foldable (MapF k v)
+forall a. Eq a =&gt; a -&gt; MapF k v a -&gt; Bool
+forall a. Num a =&gt; MapF k v a -&gt; a
+forall a. Ord a =&gt; MapF k v a -&gt; a
+forall m. Monoid m =&gt; MapF k v m -&gt; m
+forall a. MapF k v a -&gt; Bool
+forall a. MapF k v a -&gt; Int
+forall a. MapF k v a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+forall k v a. Eq a =&gt; a -&gt; MapF k v a -&gt; Bool
+forall k v a. Num a =&gt; MapF k v a -&gt; a
+forall k v a. Ord a =&gt; MapF k v a -&gt; a
+forall k v m. Monoid m =&gt; MapF k v m -&gt; m
+forall k v a. MapF k v a -&gt; Bool
+forall k v a. MapF k v a -&gt; Int
+forall k v a. MapF k v a -&gt; [a]
+forall k v a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+forall k v m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+forall k v b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+forall k v a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall k v m. Monoid m =&gt; MapF k v m -&gt; m
+fold :: forall m. Monoid m =&gt; MapF k v m -&gt; m
+$cfoldMap :: forall k v m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+$cfoldMap' :: forall k v m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; MapF k v a -&gt; m
+$cfoldr :: forall k v a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+$cfoldr' :: forall k v a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+$cfoldl :: forall k v b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+$cfoldl' :: forall k v b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; MapF k v a -&gt; b
+$cfoldr1 :: forall k v a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+$cfoldl1 :: forall k v a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; MapF k v a -&gt; a
+$ctoList :: forall k v a. MapF k v a -&gt; [a]
+toList :: forall a. MapF k v a -&gt; [a]
+$cnull :: forall k v a. MapF k v a -&gt; Bool
+null :: forall a. MapF k v a -&gt; Bool
+$clength :: forall k v a. MapF k v a -&gt; Int
+length :: forall a. MapF k v a -&gt; Int
+$celem :: forall k v a. Eq a =&gt; a -&gt; MapF k v a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; MapF k v a -&gt; Bool
+$cmaximum :: forall k v a. Ord a =&gt; MapF k v a -&gt; a
+maximum :: forall a. Ord a =&gt; MapF k v a -&gt; a
+$cminimum :: forall k v a. Ord a =&gt; MapF k v a -&gt; a
+minimum :: forall a. Ord a =&gt; MapF k v a -&gt; a
+$csum :: forall k v a. Num a =&gt; MapF k v a -&gt; a
+sum :: forall a. Num a =&gt; MapF k v a -&gt; a
+$cproduct :: forall k v a. Num a =&gt; MapF k v a -&gt; a
+product :: forall a. Num a =&gt; MapF k v a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100439"><span id="local-6989586621679100444"><span id="local-6989586621679100450"><span id="local-6989586621679100455"><span class="annot"><span class="annottext">Functor (MapF k v)
+Foldable (MapF k v)
+(Functor (MapF k v), Foldable (MapF k v)) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; MapF k v a -&gt; f (MapF k v b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    MapF k v (f a) -&gt; f (MapF k v a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; MapF k v a -&gt; m (MapF k v b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    MapF k v (m a) -&gt; m (MapF k v a))
+-&gt; Traversable (MapF k v)
+forall k v. Functor (MapF k v)
+forall k v. Foldable (MapF k v)
+forall k v (m :: * -&gt; *) a.
+Monad m =&gt;
+MapF k v (m a) -&gt; m (MapF k v a)
+forall k v (f :: * -&gt; *) a.
+Applicative f =&gt;
+MapF k v (f a) -&gt; f (MapF k v a)
+forall k v (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; MapF k v a -&gt; m (MapF k v b)
+forall k v (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; MapF k v a -&gt; f (MapF k v b)
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; MapF k v (m a) -&gt; m (MapF k v a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+MapF k v (f a) -&gt; f (MapF k v a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; MapF k v a -&gt; m (MapF k v b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; MapF k v a -&gt; f (MapF k v b)
+$ctraverse :: forall k v (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; MapF k v a -&gt; f (MapF k v b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; MapF k v a -&gt; f (MapF k v b)
+$csequenceA :: forall k v (f :: * -&gt; *) a.
+Applicative f =&gt;
+MapF k v (f a) -&gt; f (MapF k v a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+MapF k v (f a) -&gt; f (MapF k v a)
+$cmapM :: forall k v (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; MapF k v a -&gt; m (MapF k v b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; MapF k v a -&gt; m (MapF k v b)
+$csequence :: forall k v (m :: * -&gt; *) a.
+Monad m =&gt;
+MapF k v (m a) -&gt; m (MapF k v a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; MapF k v (m a) -&gt; m (MapF k v a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100464"><span id="local-6989586621679100474"><span id="local-6989586621679100478"><span class="annot"><span class="annottext">Int -&gt; MapF k v r -&gt; ShowS
+[MapF k v r] -&gt; ShowS
+MapF k v r -&gt; String
+(Int -&gt; MapF k v r -&gt; ShowS)
+-&gt; (MapF k v r -&gt; String)
+-&gt; ([MapF k v r] -&gt; ShowS)
+-&gt; Show (MapF k v r)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall k v r.
+(Show k, Show v, Show r) =&gt;
+Int -&gt; MapF k v r -&gt; ShowS
+forall k v r. (Show k, Show v, Show r) =&gt; [MapF k v r] -&gt; ShowS
+forall k v r. (Show k, Show v, Show r) =&gt; MapF k v r -&gt; String
+$cshowsPrec :: forall k v r.
+(Show k, Show v, Show r) =&gt;
+Int -&gt; MapF k v r -&gt; ShowS
+showsPrec :: Int -&gt; MapF k v r -&gt; ShowS
+$cshow :: forall k v r. (Show k, Show v, Show r) =&gt; MapF k v r -&gt; String
+show :: MapF k v r -&gt; String
+$cshowList :: forall k v r. (Show k, Show v, Show r) =&gt; [MapF k v r] -&gt; ShowS
+showList :: [MapF k v r] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- | Unfold a 'Map.Map' into @Mu (MapF k v)@.</span></span><span>
+</span><span id="line-62"></span><span id="local-6989586621679100239"><span id="local-6989586621679100240"><span class="annot"><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier hs-type">toMapF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679100239"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100240"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#MapF"><span class="hs-identifier hs-type">MapF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100239"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100240"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-63"></span><span id="toMapF"><span class="annot"><span class="annottext">toMapF :: forall k v. Map k v -&gt; Mu (MapF k v)
+</span><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier hs-var hs-var">toMapF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Coalgebra (MapF k v) (Map k v) -&gt; Map k v -&gt; Mu (MapF k v)
+forall (f :: * -&gt; *) a. Functor f =&gt; Coalgebra f a -&gt; a -&gt; Mu f
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier hs-var">unfold</span></a></span><span> </span><span class="annot"><span class="annottext">Coalgebra (MapF k v) (Map k v)
+forall {k} {v}. Map k v -&gt; MapF k v (Map k v)
+</span><a href="#local-6989586621679100482"><span class="hs-identifier hs-var">coalg</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>    </span><span id="local-6989586621679100482"><span class="annot"><span class="annottext">coalg :: Map k v -&gt; MapF k v (Map k v)
+</span><a href="#local-6989586621679100482"><span class="hs-identifier hs-var hs-var">coalg</span></a></span></span><span> </span><span class="annot"><span class="annottext">Map k v
+</span><span class="hs-identifier hs-var">Map.Tip</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MapF k v (Map k v)
+forall k v r. MapF k v r
+</span><a href="Data.Container.Pattern.html#MapTip"><span class="hs-identifier hs-var">MapTip</span></a></span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><a href="#local-6989586621679100482"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Bin</span></span><span> </span><span id="local-6989586621679100485"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100485"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span id="local-6989586621679100486"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679100486"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679100487"><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679100487"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621679100488"><span class="annot"><span class="annottext">Map k v
+</span><a href="#local-6989586621679100488"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100489"><span class="annot"><span class="annottext">Map k v
+</span><a href="#local-6989586621679100489"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; k -&gt; v -&gt; Map k v -&gt; Map k v -&gt; MapF k v (Map k v)
+forall k v r. Int -&gt; k -&gt; v -&gt; r -&gt; r -&gt; MapF k v r
+</span><a href="Data.Container.Pattern.html#MapBin"><span class="hs-identifier hs-var">MapBin</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100485"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679100486"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">v
+</span><a href="#local-6989586621679100487"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Map k v
+</span><a href="#local-6989586621679100488"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Map k v
+</span><a href="#local-6989586621679100489"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="annot"><span class="hs-comment">-- | Fold a @Mu (MapF k v)@ back into 'Map.Map'.</span></span><span>
+</span><span id="line-69"></span><span id="local-6989586621679100253"><span id="local-6989586621679100254"><span class="annot"><a href="Data.Container.Pattern.html#fromMapF"><span class="hs-identifier hs-type">fromMapF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#MapF"><span class="hs-identifier hs-type">MapF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100253"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100254"><span class="hs-identifier hs-type">v</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679100253"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100254"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-70"></span><span id="fromMapF"><span class="annot"><span class="annottext">fromMapF :: forall k v. Mu (MapF k v) -&gt; Map k v
+</span><a href="Data.Container.Pattern.html#fromMapF"><span class="hs-identifier hs-var hs-var">fromMapF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) (Map k v) -&gt; Mu (MapF k v) -&gt; Map k v
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) (Map k v)
+forall {k} {a}. MapF k a (Map k a) -&gt; Map k a
+</span><a href="#local-6989586621679100490"><span class="hs-identifier hs-var">alg</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-72"></span><span>    </span><span id="local-6989586621679100490"><span class="annot"><span class="annottext">alg :: MapF k a (Map k a) -&gt; Map k a
+</span><a href="#local-6989586621679100490"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">MapF k a (Map k a)
+</span><a href="Data.Container.Pattern.html#MapTip"><span class="hs-identifier hs-var">MapTip</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map k a
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.Tip</span></span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="#local-6989586621679100490"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#MapBin"><span class="hs-identifier hs-type">MapBin</span></a></span><span> </span><span id="local-6989586621679100491"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100491"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span id="local-6989586621679100492"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679100492"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679100493"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100493"><span class="hs-identifier hs-var">v</span></a></span></span><span> </span><span id="local-6989586621679100494"><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679100494"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100495"><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679100495"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a -&gt; Map k a
+forall k a. Int -&gt; k -&gt; a -&gt; Map k a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.Bin</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100491"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679100492"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100493"><span class="hs-identifier hs-var">v</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679100494"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679100495"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- IntMap</span><span>
+</span><span id="line-77"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-78"></span><span>
+</span><span id="line-79"></span><span class="annot"><span class="hs-comment">-- | Pattern functor for 'Data.IntMap.IntMap'.</span></span><span>
+</span><span id="line-80"></span><span class="hs-keyword">data</span><span> </span><span id="IntMapF"><span class="annot"><a href="Data.Container.Pattern.html#IntMapF"><span class="hs-identifier hs-var">IntMapF</span></a></span></span><span> </span><span id="local-6989586621679100291"><span class="annot"><a href="#local-6989586621679100291"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621679100292"><span class="annot"><a href="#local-6989586621679100292"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="IntMapNil"><span class="annot"><a href="Data.Container.Pattern.html#IntMapNil"><span class="hs-identifier hs-var">IntMapNil</span></a></span></span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IntMapTip"><span class="annot"><a href="Data.Container.Pattern.html#IntMapTip"><span class="hs-identifier hs-var">IntMapTip</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntMap.Key</span></span><span> </span><span class="annot"><a href="#local-6989586621679100291"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IntMapBin"><span class="annot"><a href="Data.Container.Pattern.html#IntMapBin"><span class="hs-identifier hs-var">IntMapBin</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntMap.Prefix</span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntMap.Mask</span></span><span> </span><span class="annot"><a href="#local-6989586621679100292"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100292"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679100503"><span id="local-6989586621679100505"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; IntMapF a a -&gt; IntMapF a b)
+-&gt; (forall a b. a -&gt; IntMapF a b -&gt; IntMapF a a)
+-&gt; Functor (IntMapF a)
+forall a b. a -&gt; IntMapF a b -&gt; IntMapF a a
+forall a b. (a -&gt; b) -&gt; IntMapF a a -&gt; IntMapF a b
+forall a a b. a -&gt; IntMapF a b -&gt; IntMapF a a
+forall a a b. (a -&gt; b) -&gt; IntMapF a a -&gt; IntMapF a b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a a b. (a -&gt; b) -&gt; IntMapF a a -&gt; IntMapF a b
+fmap :: forall a b. (a -&gt; b) -&gt; IntMapF a a -&gt; IntMapF a b
+$c&lt;$ :: forall a a b. a -&gt; IntMapF a b -&gt; IntMapF a a
+&lt;$ :: forall a b. a -&gt; IntMapF a b -&gt; IntMapF a a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100508"><span id="local-6989586621679100514"><span id="local-6989586621679100520"><span id="local-6989586621679100525"><span id="local-6989586621679100527"><span id="local-6989586621679100530"><span id="local-6989586621679100533"><span id="local-6989586621679100536"><span id="local-6989586621679100539"><span id="local-6989586621679100542"><span id="local-6989586621679100545"><span id="local-6989586621679100547"><span id="local-6989586621679100550"><span id="local-6989586621679100555"><span id="local-6989586621679100560"><span id="local-6989586621679100565"><span id="local-6989586621679100570"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; IntMapF a m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a)
+-&gt; (forall a. IntMapF a a -&gt; [a])
+-&gt; (forall a. IntMapF a a -&gt; Bool)
+-&gt; (forall a. IntMapF a a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; IntMapF a a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; IntMapF a a -&gt; a)
+-&gt; (forall a. Ord a =&gt; IntMapF a a -&gt; a)
+-&gt; (forall a. Num a =&gt; IntMapF a a -&gt; a)
+-&gt; (forall a. Num a =&gt; IntMapF a a -&gt; a)
+-&gt; Foldable (IntMapF a)
+forall a. Eq a =&gt; a -&gt; IntMapF a a -&gt; Bool
+forall a. Num a =&gt; IntMapF a a -&gt; a
+forall a. Ord a =&gt; IntMapF a a -&gt; a
+forall m. Monoid m =&gt; IntMapF a m -&gt; m
+forall a. IntMapF a a -&gt; Bool
+forall a. IntMapF a a -&gt; Int
+forall a. IntMapF a a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+forall a a. Eq a =&gt; a -&gt; IntMapF a a -&gt; Bool
+forall a a. Num a =&gt; IntMapF a a -&gt; a
+forall a a. Ord a =&gt; IntMapF a a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+forall a m. Monoid m =&gt; IntMapF a m -&gt; m
+forall a a. IntMapF a a -&gt; Bool
+forall a a. IntMapF a a -&gt; Int
+forall a a. IntMapF a a -&gt; [a]
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+forall a a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall a m. Monoid m =&gt; IntMapF a m -&gt; m
+fold :: forall m. Monoid m =&gt; IntMapF a m -&gt; m
+$cfoldMap :: forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+$cfoldMap' :: forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntMapF a a -&gt; m
+$cfoldr :: forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+$cfoldr' :: forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+$cfoldl :: forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+$cfoldl' :: forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntMapF a a -&gt; b
+$cfoldr1 :: forall a a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+$cfoldl1 :: forall a a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntMapF a a -&gt; a
+$ctoList :: forall a a. IntMapF a a -&gt; [a]
+toList :: forall a. IntMapF a a -&gt; [a]
+$cnull :: forall a a. IntMapF a a -&gt; Bool
+null :: forall a. IntMapF a a -&gt; Bool
+$clength :: forall a a. IntMapF a a -&gt; Int
+length :: forall a. IntMapF a a -&gt; Int
+$celem :: forall a a. Eq a =&gt; a -&gt; IntMapF a a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; IntMapF a a -&gt; Bool
+$cmaximum :: forall a a. Ord a =&gt; IntMapF a a -&gt; a
+maximum :: forall a. Ord a =&gt; IntMapF a a -&gt; a
+$cminimum :: forall a a. Ord a =&gt; IntMapF a a -&gt; a
+minimum :: forall a. Ord a =&gt; IntMapF a a -&gt; a
+$csum :: forall a a. Num a =&gt; IntMapF a a -&gt; a
+sum :: forall a. Num a =&gt; IntMapF a a -&gt; a
+$cproduct :: forall a a. Num a =&gt; IntMapF a a -&gt; a
+product :: forall a. Num a =&gt; IntMapF a a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100579"><span id="local-6989586621679100585"><span id="local-6989586621679100591"><span id="local-6989586621679100596"><span class="annot"><span class="annottext">Functor (IntMapF a)
+Foldable (IntMapF a)
+(Functor (IntMapF a), Foldable (IntMapF a)) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; IntMapF a a -&gt; f (IntMapF a b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    IntMapF a (f a) -&gt; f (IntMapF a a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; IntMapF a a -&gt; m (IntMapF a b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    IntMapF a (m a) -&gt; m (IntMapF a a))
+-&gt; Traversable (IntMapF a)
+forall a. Functor (IntMapF a)
+forall a. Foldable (IntMapF a)
+forall a (m :: * -&gt; *) a.
+Monad m =&gt;
+IntMapF a (m a) -&gt; m (IntMapF a a)
+forall a (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntMapF a (f a) -&gt; f (IntMapF a a)
+forall a (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntMapF a a -&gt; m (IntMapF a b)
+forall a (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntMapF a a -&gt; f (IntMapF a b)
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a.
+Monad m =&gt;
+IntMapF a (m a) -&gt; m (IntMapF a a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntMapF a (f a) -&gt; f (IntMapF a a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntMapF a a -&gt; m (IntMapF a b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntMapF a a -&gt; f (IntMapF a b)
+$ctraverse :: forall a (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntMapF a a -&gt; f (IntMapF a b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntMapF a a -&gt; f (IntMapF a b)
+$csequenceA :: forall a (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntMapF a (f a) -&gt; f (IntMapF a a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntMapF a (f a) -&gt; f (IntMapF a a)
+$cmapM :: forall a (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntMapF a a -&gt; m (IntMapF a b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntMapF a a -&gt; m (IntMapF a b)
+$csequence :: forall a (m :: * -&gt; *) a.
+Monad m =&gt;
+IntMapF a (m a) -&gt; m (IntMapF a a)
+sequence :: forall (m :: * -&gt; *) a.
+Monad m =&gt;
+IntMapF a (m a) -&gt; m (IntMapF a a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100603"><span id="local-6989586621679100613"><span id="local-6989586621679100617"><span class="annot"><span class="annottext">Int -&gt; IntMapF a r -&gt; ShowS
+[IntMapF a r] -&gt; ShowS
+IntMapF a r -&gt; String
+(Int -&gt; IntMapF a r -&gt; ShowS)
+-&gt; (IntMapF a r -&gt; String)
+-&gt; ([IntMapF a r] -&gt; ShowS)
+-&gt; Show (IntMapF a r)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall a r. (Show a, Show r) =&gt; Int -&gt; IntMapF a r -&gt; ShowS
+forall a r. (Show a, Show r) =&gt; [IntMapF a r] -&gt; ShowS
+forall a r. (Show a, Show r) =&gt; IntMapF a r -&gt; String
+$cshowsPrec :: forall a r. (Show a, Show r) =&gt; Int -&gt; IntMapF a r -&gt; ShowS
+showsPrec :: Int -&gt; IntMapF a r -&gt; ShowS
+$cshow :: forall a r. (Show a, Show r) =&gt; IntMapF a r -&gt; String
+show :: IntMapF a r -&gt; String
+$cshowList :: forall a r. (Show a, Show r) =&gt; [IntMapF a r] -&gt; ShowS
+showList :: [IntMapF a r] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><span class="hs-comment">-- | Unfold an 'IntMap.IntMap' into @Mu (IntMapF a)@.</span></span><span>
+</span><span id="line-87"></span><span id="local-6989586621679100287"><span class="annot"><a href="Data.Container.Pattern.html#toIntMapF"><span class="hs-identifier hs-type">toIntMapF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap.IntMap</span></span><span> </span><span class="annot"><a href="#local-6989586621679100287"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntMapF"><span class="hs-identifier hs-type">IntMapF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100287"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-88"></span><span id="toIntMapF"><span class="annot"><span class="annottext">toIntMapF :: forall a. IntMap a -&gt; Mu (IntMapF a)
+</span><a href="Data.Container.Pattern.html#toIntMapF"><span class="hs-identifier hs-var hs-var">toIntMapF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Coalgebra (IntMapF a) (IntMap a) -&gt; IntMap a -&gt; Mu (IntMapF a)
+forall (f :: * -&gt; *) a. Functor f =&gt; Coalgebra f a -&gt; a -&gt; Mu f
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier hs-var">unfold</span></a></span><span> </span><span class="annot"><span class="annottext">Coalgebra (IntMapF a) (IntMap a)
+forall {a}. IntMap a -&gt; IntMapF a (IntMap a)
+</span><a href="#local-6989586621679100620"><span class="hs-identifier hs-var">coalg</span></a></span><span>
+</span><span id="line-89"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-90"></span><span>    </span><span id="local-6989586621679100620"><span class="annot"><span class="annottext">coalg :: IntMap a -&gt; IntMapF a (IntMap a)
+</span><a href="#local-6989586621679100620"><span class="hs-identifier hs-var hs-var">coalg</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><span class="hs-identifier hs-var">IntMap.Nil</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMapF a (IntMap a)
+forall a r. IntMapF a r
+</span><a href="Data.Container.Pattern.html#IntMapNil"><span class="hs-identifier hs-var">IntMapNil</span></a></span><span>
+</span><span id="line-91"></span><span>    </span><span class="annot"><a href="#local-6989586621679100620"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap.Tip</span></span><span> </span><span id="local-6989586621679100623"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100623"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679100624"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100624"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; IntMapF a (IntMap a)
+forall a r. Int -&gt; a -&gt; IntMapF a r
+</span><a href="Data.Container.Pattern.html#IntMapTip"><span class="hs-identifier hs-var">IntMapTip</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100623"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100624"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-92"></span><span>    </span><span class="annot"><a href="#local-6989586621679100620"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntMap.Bin</span></span><span> </span><span id="local-6989586621679100626"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100626"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100627"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100627"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621679100628"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100628"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100629"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100629"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; IntMap a -&gt; IntMap a -&gt; IntMapF a (IntMap a)
+forall a r. Int -&gt; Int -&gt; r -&gt; r -&gt; IntMapF a r
+</span><a href="Data.Container.Pattern.html#IntMapBin"><span class="hs-identifier hs-var">IntMapBin</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100626"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100627"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100628"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100629"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="annot"><span class="hs-comment">-- | Fold a @Mu (IntMapF a)@ back into 'IntMap.IntMap'.</span></span><span>
+</span><span id="line-95"></span><span id="local-6989586621679100293"><span class="annot"><a href="Data.Container.Pattern.html#fromIntMapF"><span class="hs-identifier hs-type">fromIntMapF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntMapF"><span class="hs-identifier hs-type">IntMapF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100293"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntMap.IntMap</span></span><span> </span><span class="annot"><a href="#local-6989586621679100293"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-96"></span><span id="fromIntMapF"><span class="annot"><span class="annottext">fromIntMapF :: forall a. Mu (IntMapF a) -&gt; IntMap a
+</span><a href="Data.Container.Pattern.html#fromIntMapF"><span class="hs-identifier hs-var hs-var">fromIntMapF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra (IntMapF a) (IntMap a) -&gt; Mu (IntMapF a) -&gt; IntMap a
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra (IntMapF a) (IntMap a)
+forall {a}. IntMapF a (IntMap a) -&gt; IntMap a
+</span><a href="#local-6989586621679100630"><span class="hs-identifier hs-var">alg</span></a></span><span>
+</span><span id="line-97"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-98"></span><span>    </span><span id="local-6989586621679100630"><span class="annot"><span class="annottext">alg :: IntMapF a (IntMap a) -&gt; IntMap a
+</span><a href="#local-6989586621679100630"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntMapF a (IntMap a)
+</span><a href="Data.Container.Pattern.html#IntMapNil"><span class="hs-identifier hs-var">IntMapNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntMap a
+forall a. IntMap a
+</span><span class="hs-identifier hs-var">IntMap.Nil</span></span><span>
+</span><span id="line-99"></span><span>    </span><span class="annot"><a href="#local-6989586621679100630"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntMapTip"><span class="hs-identifier hs-type">IntMapTip</span></a></span><span> </span><span id="local-6989586621679100631"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100631"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679100632"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100632"><span class="hs-identifier hs-var">v</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; IntMap a
+forall a. Int -&gt; a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.Tip</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100631"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100632"><span class="hs-identifier hs-var">v</span></a></span><span>
+</span><span id="line-100"></span><span>    </span><span class="annot"><a href="#local-6989586621679100630"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntMapBin"><span class="hs-identifier hs-type">IntMapBin</span></a></span><span> </span><span id="local-6989586621679100633"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100633"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100634"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100634"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621679100635"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100635"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100636"><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100636"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; IntMap a -&gt; IntMap a -&gt; IntMap a
+forall a. Int -&gt; Int -&gt; IntMap a -&gt; IntMap a -&gt; IntMap a
+</span><span class="hs-identifier hs-var">IntMap.Bin</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100633"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100634"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100635"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">IntMap a
+</span><a href="#local-6989586621679100636"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- Set</span><span>
+</span><span id="line-104"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-105"></span><span>
+</span><span id="line-106"></span><span class="annot"><span class="hs-comment">-- | Pattern functor for 'Data.Set.Set'.</span></span><span>
+</span><span id="line-107"></span><span class="hs-keyword">data</span><span> </span><span id="SetF"><span class="annot"><a href="Data.Container.Pattern.html#SetF"><span class="hs-identifier hs-var">SetF</span></a></span></span><span> </span><span id="local-6989586621679100324"><span class="annot"><a href="#local-6989586621679100324"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span id="local-6989586621679100325"><span class="annot"><a href="#local-6989586621679100325"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-108"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="SetTip"><span class="annot"><a href="Data.Container.Pattern.html#SetTip"><span class="hs-identifier hs-var">SetTip</span></a></span></span><span>
+</span><span id="line-109"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="SetBin"><span class="annot"><a href="Data.Container.Pattern.html#SetBin"><span class="hs-identifier hs-var">SetBin</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="#local-6989586621679100324"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100325"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100325"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-110"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679100640"><span id="local-6989586621679100642"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; SetF a a -&gt; SetF a b)
+-&gt; (forall a b. a -&gt; SetF a b -&gt; SetF a a) -&gt; Functor (SetF a)
+forall a b. a -&gt; SetF a b -&gt; SetF a a
+forall a b. (a -&gt; b) -&gt; SetF a a -&gt; SetF a b
+forall a a b. a -&gt; SetF a b -&gt; SetF a a
+forall a a b. (a -&gt; b) -&gt; SetF a a -&gt; SetF a b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a a b. (a -&gt; b) -&gt; SetF a a -&gt; SetF a b
+fmap :: forall a b. (a -&gt; b) -&gt; SetF a a -&gt; SetF a b
+$c&lt;$ :: forall a a b. a -&gt; SetF a b -&gt; SetF a a
+&lt;$ :: forall a b. a -&gt; SetF a b -&gt; SetF a a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100645"><span id="local-6989586621679100651"><span id="local-6989586621679100656"><span id="local-6989586621679100661"><span id="local-6989586621679100663"><span id="local-6989586621679100666"><span id="local-6989586621679100669"><span id="local-6989586621679100672"><span id="local-6989586621679100675"><span id="local-6989586621679100678"><span id="local-6989586621679100681"><span id="local-6989586621679100683"><span id="local-6989586621679100686"><span id="local-6989586621679100691"><span id="local-6989586621679100696"><span id="local-6989586621679100701"><span id="local-6989586621679100706"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; SetF a m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a)
+-&gt; (forall a. SetF a a -&gt; [a])
+-&gt; (forall a. SetF a a -&gt; Bool)
+-&gt; (forall a. SetF a a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; SetF a a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; SetF a a -&gt; a)
+-&gt; (forall a. Ord a =&gt; SetF a a -&gt; a)
+-&gt; (forall a. Num a =&gt; SetF a a -&gt; a)
+-&gt; (forall a. Num a =&gt; SetF a a -&gt; a)
+-&gt; Foldable (SetF a)
+forall a. Eq a =&gt; a -&gt; SetF a a -&gt; Bool
+forall a. Num a =&gt; SetF a a -&gt; a
+forall a. Ord a =&gt; SetF a a -&gt; a
+forall m. Monoid m =&gt; SetF a m -&gt; m
+forall a. SetF a a -&gt; Bool
+forall a. SetF a a -&gt; Int
+forall a. SetF a a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+forall a a. Eq a =&gt; a -&gt; SetF a a -&gt; Bool
+forall a a. Num a =&gt; SetF a a -&gt; a
+forall a a. Ord a =&gt; SetF a a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+forall a m. Monoid m =&gt; SetF a m -&gt; m
+forall a a. SetF a a -&gt; Bool
+forall a a. SetF a a -&gt; Int
+forall a a. SetF a a -&gt; [a]
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+forall a a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall a m. Monoid m =&gt; SetF a m -&gt; m
+fold :: forall m. Monoid m =&gt; SetF a m -&gt; m
+$cfoldMap :: forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+$cfoldMap' :: forall a m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; SetF a a -&gt; m
+$cfoldr :: forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+$cfoldr' :: forall a a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+$cfoldl :: forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+$cfoldl' :: forall a b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; SetF a a -&gt; b
+$cfoldr1 :: forall a a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+$cfoldl1 :: forall a a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; SetF a a -&gt; a
+$ctoList :: forall a a. SetF a a -&gt; [a]
+toList :: forall a. SetF a a -&gt; [a]
+$cnull :: forall a a. SetF a a -&gt; Bool
+null :: forall a. SetF a a -&gt; Bool
+$clength :: forall a a. SetF a a -&gt; Int
+length :: forall a. SetF a a -&gt; Int
+$celem :: forall a a. Eq a =&gt; a -&gt; SetF a a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; SetF a a -&gt; Bool
+$cmaximum :: forall a a. Ord a =&gt; SetF a a -&gt; a
+maximum :: forall a. Ord a =&gt; SetF a a -&gt; a
+$cminimum :: forall a a. Ord a =&gt; SetF a a -&gt; a
+minimum :: forall a. Ord a =&gt; SetF a a -&gt; a
+$csum :: forall a a. Num a =&gt; SetF a a -&gt; a
+sum :: forall a. Num a =&gt; SetF a a -&gt; a
+$cproduct :: forall a a. Num a =&gt; SetF a a -&gt; a
+product :: forall a. Num a =&gt; SetF a a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100715"><span id="local-6989586621679100720"><span id="local-6989586621679100726"><span id="local-6989586621679100731"><span class="annot"><span class="annottext">Functor (SetF a)
+Foldable (SetF a)
+(Functor (SetF a), Foldable (SetF a)) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; SetF a a -&gt; f (SetF a b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    SetF a (f a) -&gt; f (SetF a a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; SetF a a -&gt; m (SetF a b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    SetF a (m a) -&gt; m (SetF a a))
+-&gt; Traversable (SetF a)
+forall a. Functor (SetF a)
+forall a. Foldable (SetF a)
+forall a (m :: * -&gt; *) a. Monad m =&gt; SetF a (m a) -&gt; m (SetF a a)
+forall a (f :: * -&gt; *) a.
+Applicative f =&gt;
+SetF a (f a) -&gt; f (SetF a a)
+forall a (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SetF a a -&gt; m (SetF a b)
+forall a (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SetF a a -&gt; f (SetF a b)
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; SetF a (m a) -&gt; m (SetF a a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+SetF a (f a) -&gt; f (SetF a a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SetF a a -&gt; m (SetF a b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SetF a a -&gt; f (SetF a b)
+$ctraverse :: forall a (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SetF a a -&gt; f (SetF a b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; SetF a a -&gt; f (SetF a b)
+$csequenceA :: forall a (f :: * -&gt; *) a.
+Applicative f =&gt;
+SetF a (f a) -&gt; f (SetF a a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+SetF a (f a) -&gt; f (SetF a a)
+$cmapM :: forall a (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SetF a a -&gt; m (SetF a b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; SetF a a -&gt; m (SetF a b)
+$csequence :: forall a (m :: * -&gt; *) a. Monad m =&gt; SetF a (m a) -&gt; m (SetF a a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; SetF a (m a) -&gt; m (SetF a a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100738"><span id="local-6989586621679100745"><span id="local-6989586621679100749"><span class="annot"><span class="annottext">Int -&gt; SetF a r -&gt; ShowS
+[SetF a r] -&gt; ShowS
+SetF a r -&gt; String
+(Int -&gt; SetF a r -&gt; ShowS)
+-&gt; (SetF a r -&gt; String) -&gt; ([SetF a r] -&gt; ShowS) -&gt; Show (SetF a r)
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+forall a r. (Show a, Show r) =&gt; Int -&gt; SetF a r -&gt; ShowS
+forall a r. (Show a, Show r) =&gt; [SetF a r] -&gt; ShowS
+forall a r. (Show a, Show r) =&gt; SetF a r -&gt; String
+$cshowsPrec :: forall a r. (Show a, Show r) =&gt; Int -&gt; SetF a r -&gt; ShowS
+showsPrec :: Int -&gt; SetF a r -&gt; ShowS
+$cshow :: forall a r. (Show a, Show r) =&gt; SetF a r -&gt; String
+show :: SetF a r -&gt; String
+$cshowList :: forall a r. (Show a, Show r) =&gt; [SetF a r] -&gt; ShowS
+showList :: [SetF a r] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="annot"><span class="hs-comment">-- | Unfold a 'Set.Set' into @Mu (SetF a)@.</span></span><span>
+</span><span id="line-113"></span><span id="local-6989586621679100320"><span class="annot"><a href="Data.Container.Pattern.html#toSetF"><span class="hs-identifier hs-type">toSetF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="#local-6989586621679100320"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#SetF"><span class="hs-identifier hs-type">SetF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100320"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-114"></span><span id="toSetF"><span class="annot"><span class="annottext">toSetF :: forall a. Set a -&gt; Mu (SetF a)
+</span><a href="Data.Container.Pattern.html#toSetF"><span class="hs-identifier hs-var hs-var">toSetF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Coalgebra (SetF a) (Set a) -&gt; Set a -&gt; Mu (SetF a)
+forall (f :: * -&gt; *) a. Functor f =&gt; Coalgebra f a -&gt; a -&gt; Mu f
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier hs-var">unfold</span></a></span><span> </span><span class="annot"><span class="annottext">Coalgebra (SetF a) (Set a)
+forall {a}. Set a -&gt; SetF a (Set a)
+</span><a href="#local-6989586621679100752"><span class="hs-identifier hs-var">coalg</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-116"></span><span>    </span><span id="local-6989586621679100752"><span class="annot"><span class="annottext">coalg :: Set a -&gt; SetF a (Set a)
+</span><a href="#local-6989586621679100752"><span class="hs-identifier hs-var hs-var">coalg</span></a></span></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><span class="hs-identifier hs-var">Set.Tip</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SetF a (Set a)
+forall a r. SetF a r
+</span><a href="Data.Container.Pattern.html#SetTip"><span class="hs-identifier hs-var">SetTip</span></a></span><span>
+</span><span id="line-117"></span><span>    </span><span class="annot"><a href="#local-6989586621679100752"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set.Bin</span></span><span> </span><span id="local-6989586621679100755"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100755"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span id="local-6989586621679100756"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100756"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679100757"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100757"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100758"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100758"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; Set a -&gt; Set a -&gt; SetF a (Set a)
+forall a r. Int -&gt; a -&gt; r -&gt; r -&gt; SetF a r
+</span><a href="Data.Container.Pattern.html#SetBin"><span class="hs-identifier hs-var">SetBin</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100755"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100756"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100757"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100758"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="annot"><span class="hs-comment">-- | Fold a @Mu (SetF a)@ back into 'Set.Set'.</span></span><span>
+</span><span id="line-120"></span><span id="local-6989586621679100326"><span class="annot"><a href="Data.Container.Pattern.html#fromSetF"><span class="hs-identifier hs-type">fromSetF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#SetF"><span class="hs-identifier hs-type">SetF</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100326"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="#local-6989586621679100326"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-121"></span><span id="fromSetF"><span class="annot"><span class="annottext">fromSetF :: forall a. Mu (SetF a) -&gt; Set a
+</span><a href="Data.Container.Pattern.html#fromSetF"><span class="hs-identifier hs-var hs-var">fromSetF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra (SetF a) (Set a) -&gt; Mu (SetF a) -&gt; Set a
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra (SetF a) (Set a)
+forall {a}. SetF a (Set a) -&gt; Set a
+</span><a href="#local-6989586621679100759"><span class="hs-identifier hs-var">alg</span></a></span><span>
+</span><span id="line-122"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-123"></span><span>    </span><span id="local-6989586621679100759"><span class="annot"><span class="annottext">alg :: SetF a (Set a) -&gt; Set a
+</span><a href="#local-6989586621679100759"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">SetF a (Set a)
+</span><a href="Data.Container.Pattern.html#SetTip"><span class="hs-identifier hs-var">SetTip</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Set a
+forall a. Set a
+</span><span class="hs-identifier hs-var">Set.Tip</span></span><span>
+</span><span id="line-124"></span><span>    </span><span class="annot"><a href="#local-6989586621679100759"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#SetBin"><span class="hs-identifier hs-type">SetBin</span></a></span><span> </span><span id="local-6989586621679100760"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100760"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span id="local-6989586621679100761"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100761"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679100762"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100762"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100763"><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100763"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; a -&gt; Set a -&gt; Set a -&gt; Set a
+forall a. Int -&gt; a -&gt; Set a -&gt; Set a -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.Bin</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100760"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679100761"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100762"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">Set a
+</span><a href="#local-6989586621679100763"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-125"></span><span>
+</span><span id="line-126"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- IntSet</span><span>
+</span><span id="line-128"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-129"></span><span>
+</span><span id="line-130"></span><span class="annot"><span class="hs-comment">-- | Pattern functor for 'Data.IntSet.IntSet'.</span></span><span>
+</span><span id="line-131"></span><span class="hs-keyword">data</span><span> </span><span id="IntSetF"><span class="annot"><a href="Data.Container.Pattern.html#IntSetF"><span class="hs-identifier hs-var">IntSetF</span></a></span></span><span> </span><span id="local-6989586621679100346"><span class="annot"><a href="#local-6989586621679100346"><span class="hs-identifier hs-type">r</span></a></span></span><span>
+</span><span id="line-132"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="IntSetNil"><span class="annot"><a href="Data.Container.Pattern.html#IntSetNil"><span class="hs-identifier hs-var">IntSetNil</span></a></span></span><span>
+</span><span id="line-133"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IntSetTip"><span class="annot"><a href="Data.Container.Pattern.html#IntSetTip"><span class="hs-identifier hs-var">IntSetTip</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntSet.Prefix</span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntSet.BitMap</span></span><span>
+</span><span id="line-134"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="IntSetBin"><span class="annot"><a href="Data.Container.Pattern.html#IntSetBin"><span class="hs-identifier hs-var">IntSetBin</span></a></span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntSet.Prefix</span></span><span> </span><span class="hs-pragma">{-# UNPACK</span><span> </span><span class="hs-pragma">#-}</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">IntSet.Mask</span></span><span> </span><span class="annot"><a href="#local-6989586621679100346"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679100346"><span class="hs-identifier hs-type">r</span></a></span><span>
+</span><span id="line-135"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679100770"><span id="local-6989586621679100772"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; IntSetF a -&gt; IntSetF b)
+-&gt; (forall a b. a -&gt; IntSetF b -&gt; IntSetF a) -&gt; Functor IntSetF
+forall a b. a -&gt; IntSetF b -&gt; IntSetF a
+forall a b. (a -&gt; b) -&gt; IntSetF a -&gt; IntSetF b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; IntSetF a -&gt; IntSetF b
+fmap :: forall a b. (a -&gt; b) -&gt; IntSetF a -&gt; IntSetF b
+$c&lt;$ :: forall a b. a -&gt; IntSetF b -&gt; IntSetF a
+&lt;$ :: forall a b. a -&gt; IntSetF b -&gt; IntSetF a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100774"><span id="local-6989586621679100780"><span id="local-6989586621679100786"><span id="local-6989586621679100791"><span id="local-6989586621679100793"><span id="local-6989586621679100796"><span id="local-6989586621679100799"><span id="local-6989586621679100802"><span id="local-6989586621679100805"><span id="local-6989586621679100808"><span id="local-6989586621679100811"><span id="local-6989586621679100813"><span id="local-6989586621679100816"><span id="local-6989586621679100821"><span id="local-6989586621679100826"><span id="local-6989586621679100831"><span id="local-6989586621679100836"><span class="annot"><span class="annottext">(forall m. Monoid m =&gt; IntSetF m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a)
+-&gt; (forall a. IntSetF a -&gt; [a])
+-&gt; (forall a. IntSetF a -&gt; Bool)
+-&gt; (forall a. IntSetF a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; IntSetF a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; IntSetF a -&gt; a)
+-&gt; (forall a. Ord a =&gt; IntSetF a -&gt; a)
+-&gt; (forall a. Num a =&gt; IntSetF a -&gt; a)
+-&gt; (forall a. Num a =&gt; IntSetF a -&gt; a)
+-&gt; Foldable IntSetF
+forall a. Eq a =&gt; a -&gt; IntSetF a -&gt; Bool
+forall a. Num a =&gt; IntSetF a -&gt; a
+forall a. Ord a =&gt; IntSetF a -&gt; a
+forall m. Monoid m =&gt; IntSetF m -&gt; m
+forall a. IntSetF a -&gt; Bool
+forall a. IntSetF a -&gt; Int
+forall a. IntSetF a -&gt; [a]
+forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+forall (t :: * -&gt; *).
+(forall m. Monoid m =&gt; t m -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall m a. Monoid m =&gt; (a -&gt; m) -&gt; t a -&gt; m)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; t a -&gt; b)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. (a -&gt; a -&gt; a) -&gt; t a -&gt; a)
+-&gt; (forall a. t a -&gt; [a])
+-&gt; (forall a. t a -&gt; Bool)
+-&gt; (forall a. t a -&gt; Int)
+-&gt; (forall a. Eq a =&gt; a -&gt; t a -&gt; Bool)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Ord a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; (forall a. Num a =&gt; t a -&gt; a)
+-&gt; Foldable t
+$cfold :: forall m. Monoid m =&gt; IntSetF m -&gt; m
+fold :: forall m. Monoid m =&gt; IntSetF m -&gt; m
+$cfoldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m
+foldMap :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m
+$cfoldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m
+foldMap' :: forall m a. Monoid m =&gt; (a -&gt; m) -&gt; IntSetF a -&gt; m
+$cfoldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+foldr :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+$cfoldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+foldr' :: forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+$cfoldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+foldl :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+$cfoldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; IntSetF a -&gt; b
+$cfoldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a
+foldr1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a
+$cfoldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a
+foldl1 :: forall a. (a -&gt; a -&gt; a) -&gt; IntSetF a -&gt; a
+$ctoList :: forall a. IntSetF a -&gt; [a]
+toList :: forall a. IntSetF a -&gt; [a]
+$cnull :: forall a. IntSetF a -&gt; Bool
+null :: forall a. IntSetF a -&gt; Bool
+$clength :: forall a. IntSetF a -&gt; Int
+length :: forall a. IntSetF a -&gt; Int
+$celem :: forall a. Eq a =&gt; a -&gt; IntSetF a -&gt; Bool
+elem :: forall a. Eq a =&gt; a -&gt; IntSetF a -&gt; Bool
+$cmaximum :: forall a. Ord a =&gt; IntSetF a -&gt; a
+maximum :: forall a. Ord a =&gt; IntSetF a -&gt; a
+$cminimum :: forall a. Ord a =&gt; IntSetF a -&gt; a
+minimum :: forall a. Ord a =&gt; IntSetF a -&gt; a
+$csum :: forall a. Num a =&gt; IntSetF a -&gt; a
+sum :: forall a. Num a =&gt; IntSetF a -&gt; a
+$cproduct :: forall a. Num a =&gt; IntSetF a -&gt; a
+product :: forall a. Num a =&gt; IntSetF a -&gt; a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Foldable</span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100845"><span id="local-6989586621679100851"><span id="local-6989586621679100857"><span id="local-6989586621679100862"><span class="annot"><span class="annottext">Functor IntSetF
+Foldable IntSetF
+(Functor IntSetF, Foldable IntSetF) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; IntSetF a -&gt; f (IntSetF b))
+-&gt; (forall (f :: * -&gt; *) a.
+    Applicative f =&gt;
+    IntSetF (f a) -&gt; f (IntSetF a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; IntSetF a -&gt; m (IntSetF b))
+-&gt; (forall (m :: * -&gt; *) a.
+    Monad m =&gt;
+    IntSetF (m a) -&gt; m (IntSetF a))
+-&gt; Traversable IntSetF
+forall (t :: * -&gt; *).
+(Functor t, Foldable t) =&gt;
+(forall (f :: * -&gt; *) a b.
+ Applicative f =&gt;
+ (a -&gt; f b) -&gt; t a -&gt; f (t b))
+-&gt; (forall (f :: * -&gt; *) a. Applicative f =&gt; t (f a) -&gt; f (t a))
+-&gt; (forall (m :: * -&gt; *) a b.
+    Monad m =&gt;
+    (a -&gt; m b) -&gt; t a -&gt; m (t b))
+-&gt; (forall (m :: * -&gt; *) a. Monad m =&gt; t (m a) -&gt; m (t a))
+-&gt; Traversable t
+forall (m :: * -&gt; *) a. Monad m =&gt; IntSetF (m a) -&gt; m (IntSetF a)
+forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntSetF (f a) -&gt; f (IntSetF a)
+forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntSetF a -&gt; m (IntSetF b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntSetF a -&gt; f (IntSetF b)
+$ctraverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntSetF a -&gt; f (IntSetF b)
+traverse :: forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; IntSetF a -&gt; f (IntSetF b)
+$csequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntSetF (f a) -&gt; f (IntSetF a)
+sequenceA :: forall (f :: * -&gt; *) a.
+Applicative f =&gt;
+IntSetF (f a) -&gt; f (IntSetF a)
+$cmapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntSetF a -&gt; m (IntSetF b)
+mapM :: forall (m :: * -&gt; *) a b.
+Monad m =&gt;
+(a -&gt; m b) -&gt; IntSetF a -&gt; m (IntSetF b)
+$csequence :: forall (m :: * -&gt; *) a. Monad m =&gt; IntSetF (m a) -&gt; m (IntSetF a)
+sequence :: forall (m :: * -&gt; *) a. Monad m =&gt; IntSetF (m a) -&gt; m (IntSetF a)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Traversable</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679100868"><span id="local-6989586621679100879"><span id="local-6989586621679100883"><span class="annot"><span class="annottext">Int -&gt; IntSetF r -&gt; ShowS
+[IntSetF r] -&gt; ShowS
+IntSetF r -&gt; String
+(Int -&gt; IntSetF r -&gt; ShowS)
+-&gt; (IntSetF r -&gt; String)
+-&gt; ([IntSetF r] -&gt; ShowS)
+-&gt; Show (IntSetF r)
+forall r. Show r =&gt; Int -&gt; IntSetF r -&gt; ShowS
+forall r. Show r =&gt; [IntSetF r] -&gt; ShowS
+forall r. Show r =&gt; IntSetF r -&gt; String
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: forall r. Show r =&gt; Int -&gt; IntSetF r -&gt; ShowS
+showsPrec :: Int -&gt; IntSetF r -&gt; ShowS
+$cshow :: forall r. Show r =&gt; IntSetF r -&gt; String
+show :: IntSetF r -&gt; String
+$cshowList :: forall r. Show r =&gt; [IntSetF r] -&gt; ShowS
+showList :: [IntSetF r] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span><span>
+</span><span id="line-137"></span><span class="annot"><span class="hs-comment">-- | Unfold an 'IntSet.IntSet' into @Mu IntSetF@.</span></span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Data.Container.Pattern.html#toIntSetF"><span class="hs-identifier hs-type">toIntSetF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet.IntSet</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="Data.Container.Pattern.html#IntSetF"><span class="hs-identifier hs-type">IntSetF</span></a></span><span>
+</span><span id="line-139"></span><span id="toIntSetF"><span class="annot"><span class="annottext">toIntSetF :: IntSet -&gt; Mu IntSetF
+</span><a href="Data.Container.Pattern.html#toIntSetF"><span class="hs-identifier hs-var hs-var">toIntSetF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Coalgebra IntSetF IntSet -&gt; IntSet -&gt; Mu IntSetF
+forall (f :: * -&gt; *) a. Functor f =&gt; Coalgebra f a -&gt; a -&gt; Mu f
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier hs-var">unfold</span></a></span><span> </span><span class="annot"><span class="annottext">Coalgebra IntSetF IntSet
+</span><a href="#local-6989586621679100885"><span class="hs-identifier hs-var">coalg</span></a></span><span>
+</span><span id="line-140"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-141"></span><span>    </span><span id="local-6989586621679100885"><span class="annot"><span class="annottext">coalg :: Coalgebra IntSetF IntSet
+</span><a href="#local-6989586621679100885"><span class="hs-identifier hs-var hs-var">coalg</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><span class="hs-identifier hs-var">IntSet.Nil</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSetF IntSet
+forall r. IntSetF r
+</span><a href="Data.Container.Pattern.html#IntSetNil"><span class="hs-identifier hs-var">IntSetNil</span></a></span><span>
+</span><span id="line-142"></span><span>    </span><span class="annot"><a href="#local-6989586621679100885"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntSet.Tip</span></span><span> </span><span id="local-6989586621679100888"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100888"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100889"><span class="annot"><span class="annottext">BitMap
+</span><a href="#local-6989586621679100889"><span class="hs-identifier hs-var">bm</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; BitMap -&gt; IntSetF IntSet
+forall r. Int -&gt; BitMap -&gt; IntSetF r
+</span><a href="Data.Container.Pattern.html#IntSetTip"><span class="hs-identifier hs-var">IntSetTip</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100888"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">BitMap
+</span><a href="#local-6989586621679100889"><span class="hs-identifier hs-var">bm</span></a></span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><a href="#local-6989586621679100885"><span class="hs-identifier hs-var">coalg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">IntSet.Bin</span></span><span> </span><span id="local-6989586621679100891"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100891"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100892"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100892"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621679100893"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100893"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100894"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100894"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; IntSet -&gt; Coalgebra IntSetF IntSet
+forall r. Int -&gt; Int -&gt; r -&gt; r -&gt; IntSetF r
+</span><a href="Data.Container.Pattern.html#IntSetBin"><span class="hs-identifier hs-var">IntSetBin</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100891"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100892"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100893"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100894"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span class="annot"><span class="hs-comment">-- | Fold a @Mu IntSetF@ back into 'IntSet.IntSet'.</span></span><span>
+</span><span id="line-146"></span><span class="annot"><a href="Data.Container.Pattern.html#fromIntSetF"><span class="hs-identifier hs-type">fromIntSetF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="Data.Container.Pattern.html#IntSetF"><span class="hs-identifier hs-type">IntSetF</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IntSet.IntSet</span></span><span>
+</span><span id="line-147"></span><span id="fromIntSetF"><span class="annot"><span class="annottext">fromIntSetF :: Mu IntSetF -&gt; IntSet
+</span><a href="Data.Container.Pattern.html#fromIntSetF"><span class="hs-identifier hs-var hs-var">fromIntSetF</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra IntSetF IntSet -&gt; Mu IntSetF -&gt; IntSet
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra IntSetF IntSet
+</span><a href="#local-6989586621679100895"><span class="hs-identifier hs-var">alg</span></a></span><span>
+</span><span id="line-148"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-149"></span><span>    </span><span id="local-6989586621679100895"><span class="annot"><span class="annottext">alg :: Algebra IntSetF IntSet
+</span><a href="#local-6989586621679100895"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">IntSetF IntSet
+</span><a href="Data.Container.Pattern.html#IntSetNil"><span class="hs-identifier hs-var">IntSetNil</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><span class="hs-identifier hs-var">IntSet.Nil</span></span><span>
+</span><span id="line-150"></span><span>    </span><span class="annot"><a href="#local-6989586621679100895"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntSetTip"><span class="hs-identifier hs-type">IntSetTip</span></a></span><span> </span><span id="local-6989586621679100896"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100896"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100897"><span class="annot"><span class="annottext">BitMap
+</span><a href="#local-6989586621679100897"><span class="hs-identifier hs-var">bm</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; BitMap -&gt; IntSet
+</span><span class="hs-identifier hs-var">IntSet.Tip</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100896"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">BitMap
+</span><a href="#local-6989586621679100897"><span class="hs-identifier hs-var">bm</span></a></span><span>
+</span><span id="line-151"></span><span>    </span><span class="annot"><a href="#local-6989586621679100895"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#IntSetBin"><span class="hs-identifier hs-type">IntSetBin</span></a></span><span> </span><span id="local-6989586621679100898"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100898"><span class="hs-identifier hs-var">p</span></a></span></span><span> </span><span id="local-6989586621679100899"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100899"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621679100900"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100900"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679100901"><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100901"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; IntSet -&gt; IntSet -&gt; IntSet
+</span><span class="hs-identifier hs-var">IntSet.Bin</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100898"><span class="hs-identifier hs-var">p</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679100899"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100900"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">IntSet
+</span><a href="#local-6989586621679100901"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-152"></span></pre></body></html>

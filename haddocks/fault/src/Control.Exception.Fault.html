@@ -1,0 +1,107 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="annot"><span class="hs-comment">{- | Composable exception handlers.
+
+A 'Fault' is a profunctor @Either SomeException a -&gt; b@ &#8212; a computation
+that receives a value or an exception and produces a result. The 'Category',
+'Arrow', and profunctor instances give you composition, and '(&lt;!&gt;)' gives
+you exception-specific overrides.
+
+@
+handler :: Fault Request Response
+handler = ignore processRequest
+      \&lt;!\&gt; handle \@TimeoutException (\\_ -&gt; defaultResponse)
+      \&lt;!\&gt; handle \@AuthException (\\_ -&gt; forbidden403)
+
+runFault handler request
+@
+
+== Running handlers in IO
+
+Use 'withFaultIO' or 'withFault' to run a pure handler on a monadic action:
+
+@
+withFaultIO handler (readFile &quot;config.yaml&quot;)
+@
+
+== Modules
+
+* &quot;Control.Exception.Fault.Type&quot; &#8212; 'Fault' and 'Defect' types, construction, composition, retry, tracing.
+* &quot;Control.Exception.Fault.Wrap&quot; &#8212; Exception wrappers: 'AnnotatedException', 'CallStackException', 'DisplayedException', sync\/async.
+* &quot;Control.Exception.Fault.Throw&quot; &#8212; Type-safe throw ('NotInIO'), 'throwDefect', 'displayExceptions'.
+* &quot;Control.Exception.Fault.Catch&quot; &#8212; Lifted catch\/try\/bracket\/mask (sync-safe, no @exceptions@ dep).
+* &quot;Control.Exception.Fault.Class&quot; &#8212; Re-exports: 'Exception', 'MonadIO', 'MonadUnliftIO', 'HasCallStack', 'NFData'.
+-}</span></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Control.Exception.Fault</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#Fault"><span class="hs-identifier">Fault</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#ignore"><span class="hs-identifier">ignore</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#accept"><span class="hs-identifier">accept</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#handle"><span class="hs-identifier">handle</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#fallback"><span class="hs-identifier">fallback</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#handleAll"><span class="hs-identifier">handleAll</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#handleDefect"><span class="hs-identifier">handleDefect</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#retry"><span class="hs-identifier">retry</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#retryWhen"><span class="hs-identifier">retryWhen</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Evaluation</span></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#recover"><span class="hs-identifier">recover</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#runFault"><span class="hs-identifier">runFault</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#runFault%27"><span class="hs-identifier">runFault'</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#evaluate"><span class="hs-identifier">evaluate</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-50"></span><span>    </span><span>
+</span><span id="line-51"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Running handlers in IO</span></span><span>
+</span><span id="line-52"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFault"><span class="hs-identifier">withFault</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-53"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultIO"><span class="hs-identifier">withFaultIO</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-54"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultMasked"><span class="hs-identifier">withFaultMasked</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultBracket"><span class="hs-identifier">withFaultBracket</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Combinators</span></span><span>
+</span><span id="line-58"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#%3C%21%3E"><span class="hs-operator">(&lt;!&gt;)</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-59"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#decide"><span class="hs-identifier">decide</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-60"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#choice"><span class="hs-identifier">choice</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-61"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#refault"><span class="hs-identifier">refault</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Tracing</span></span><span>
+</span><span id="line-64"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#trace"><span class="hs-identifier">trace</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-65"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Type.html#annotate"><span class="hs-identifier">annotate</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-66"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#displayExceptions"><span class="hs-identifier">displayExceptions</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Catching and cleanup</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="hs-comment">-- | See &quot;Control.Exception.Fault.Catch&quot; for the full API.</span></span><span>
+</span><span id="line-70"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#try"><span class="hs-identifier">try</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-71"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#tryAny"><span class="hs-identifier">tryAny</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-72"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#catch"><span class="hs-identifier">catch</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-73"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#bracket"><span class="hs-identifier">bracket</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-74"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#finally"><span class="hs-identifier">finally</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-75"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#onException"><span class="hs-identifier">onException</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-76"></span><span>    </span><span>
+</span><span id="line-77"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Throwing</span></span><span>
+</span><span id="line-78"></span><span>    </span><span class="annot"><span class="hs-comment">-- | See &quot;Control.Exception.Fault.Throw&quot; for the full API.</span></span><span>
+</span><span id="line-79"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIO"><span class="hs-identifier">throwIO</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-80"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwDefect"><span class="hs-identifier">throwDefect</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-81"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIODefect"><span class="hs-identifier">throwIODefect</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-82"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwLeft"><span class="hs-identifier">throwLeft</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-83"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIOLeft"><span class="hs-identifier">throwIOLeft</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-84"></span><span>    </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#NotInIO"><span class="hs-identifier">NotInIO</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-85"></span><span>    </span><span>
+</span><span id="line-86"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Exception wrappers</span></span><span>
+</span><span id="line-87"></span><span>    </span><span class="annot"><span class="hs-comment">-- | See &quot;Control.Exception.Fault.Wrap&quot; for the full API.</span></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Wrap.html"><span class="hs-identifier">Control.Exception.Fault.Wrap</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-89"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Classes and common types</span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="annot"><span class="hs-comment">-- | See &quot;Control.Exception.Fault.Class&quot; for the full API.</span></span><span>
+</span><span id="line-91"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Class.html"><span class="hs-identifier">Control.Exception.Fault.Class</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-92"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Class.html"><span class="hs-identifier">Control.Exception.Fault.Class</span></a></span><span>
+</span><span id="line-95"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Type.html"><span class="hs-identifier">Control.Exception.Fault.Type</span></a></span><span>
+</span><span id="line-96"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Wrap.html"><span class="hs-identifier">Control.Exception.Fault.Wrap</span></a></span><span>
+</span><span id="line-97"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html"><span class="hs-identifier">Control.Exception.Fault.Throw</span></a></span><span>
+</span><span id="line-98"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIO"><span class="hs-identifier">throwIO</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwDefect"><span class="hs-identifier">throwDefect</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIODefect"><span class="hs-identifier">throwIODefect</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwLeft"><span class="hs-identifier">throwLeft</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#throwIOLeft"><span class="hs-identifier">throwIOLeft</span></a></span><span>
+</span><span id="line-99"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#NotInIO"><span class="hs-identifier">NotInIO</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Throw.html#displayExceptions"><span class="hs-identifier">displayExceptions</span></a></span><span>
+</span><span id="line-100"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html"><span class="hs-identifier">Control.Exception.Fault.Catch</span></a></span><span>
+</span><span id="line-102"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultIO"><span class="hs-identifier">withFaultIO</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFault"><span class="hs-identifier">withFault</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultMasked"><span class="hs-identifier">withFaultMasked</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#withFaultBracket"><span class="hs-identifier">withFaultBracket</span></a></span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#catch"><span class="hs-identifier">catch</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#try"><span class="hs-identifier">try</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#tryAny"><span class="hs-identifier">tryAny</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#bracket"><span class="hs-identifier">bracket</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#finally"><span class="hs-identifier">finally</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#onException"><span class="hs-identifier">onException</span></a></span><span>
+</span><span id="line-105"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Control.Exception.Fault.Catch.html#evaluate"><span class="hs-identifier">evaluate</span></a></span><span>
+</span><span id="line-106"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-107"></span></pre></body></html>

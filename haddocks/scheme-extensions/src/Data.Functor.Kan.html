@@ -1,0 +1,581 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Kan extension connections for 'Fmt' and 'Fix'.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- This module makes explicit the categorical structure underlying</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- the library:</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- * __Day convolution__: @(%)@ is Day convolution of @(-&gt;) m@.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--   'fold2' enables parallel folds over two structures.</span><span>
+</span><span id="line-10"></span><span class="hs-comment">--   'equalDay'/'compareDay' are structural equality/ordering.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- * __Yoneda__: fuses chains of 'Data.Fmt.Fixed.hoist' into a</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--   single traversal. @forall a. Fmt m a a &#8773; m@ is the Yoneda</span><span>
+</span><span id="line-14"></span><span class="hs-comment">--   lemma.</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- * __Codensity__: right-associates monadic binds for efficient</span><span>
+</span><span id="line-17"></span><span class="hs-comment">--   tree building. @Codensity ((-&gt;) m) &#8773; State m@.</span><span>
+</span><span id="line-18"></span><span class="hs-comment">--</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- * __Ran/Lan__: right/left Kan extensions. @Ran u Identity a &#8773;</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--   (Rep u, a)@ for Representable @u@ &#8212; the foundation for</span><span>
+</span><span id="line-21"></span><span class="hs-comment">--   indexed cotraversals in profunctor-optics-strings.</span><span>
+</span><span id="line-22"></span><span class="hs-comment">--</span><span>
+</span><span id="line-23"></span><span class="hs-comment">-- * __Density__: comonad from @Lan f f@ (dual of Codensity).</span><span>
+</span><span id="line-24"></span><span class="hs-comment">--</span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- * __Curried__: right adjoint to Day (@Day f -| Curried f@).</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--   This is what makes 'Fmt' m's 'Data.Profunctor.Closed' instance</span><span>
+</span><span id="line-27"></span><span class="hs-comment">--   work.</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Functor.Kan</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Day convolution</span></span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#equalDay"><span class="hs-identifier">equalDay</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#compareDay"><span class="hs-identifier">compareDay</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#recursiveEq"><span class="hs-identifier">recursiveEq</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#recursiveOrd"><span class="hs-identifier">recursiveOrd</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Yoneda (hoist fusion)</span></span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier">YonedaFix</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#liftYonedaFix"><span class="hs-identifier">liftYonedaFix</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#mapYonedaFix"><span class="hs-identifier">mapYonedaFix</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#lowerYonedaFix"><span class="hs-identifier">lowerYonedaFix</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Codensity</span></span><span>
+</span><span id="line-42"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#foldMCodensity"><span class="hs-identifier">foldMCodensity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-43"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#codensityToState"><span class="hs-identifier">codensityToState</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-44"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#stateToCodensity"><span class="hs-identifier">stateToCodensity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#codensityToStateT"><span class="hs-identifier">codensityToStateT</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><a href="Data.Functor.Kan.html#stateTToCodensity"><span class="hs-identifier">stateTToCodensity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-comment">-- codensityToComposedRep and composedRepToCodensity</span><span>
+</span><span id="line-48"></span><span>    </span><span class="hs-comment">-- are re-exported via module Control.Monad.Codensity</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Re-exports</span></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html"><span class="hs-identifier">Data.Functor.Day</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-52"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Yoneda.html"><span class="hs-identifier">Data.Functor.Yoneda</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-53"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html"><span class="hs-identifier">Control.Monad.Codensity</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-54"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Kan.Ran.html"><span class="hs-identifier">Data.Functor.Kan.Ran</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Kan.Lan.html"><span class="hs-identifier">Data.Functor.Kan.Lan</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Comonad.Density.html"><span class="hs-identifier">Control.Comonad.Density</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.Curried.html"><span class="hs-identifier">Data.Functor.Day.Curried</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-58"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-59"></span><span>
+</span><span id="line-60"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Comonad.Density.html"><span class="hs-identifier">Control.Comonad.Density</span></a></span><span>
+</span><span id="line-61"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html"><span class="hs-identifier">Control.Monad.Codensity</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#improve"><span class="hs-identifier">improve</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Trans.State.Strict</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">StateT</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">toList</span></span><span class="hs-special">)</span><span>
+</span><span id="line-64"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Functor.Pattern.html"><span class="hs-identifier">Data.Functor.Pattern</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Pattern.html#Cons"><span class="hs-identifier">Cons</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-65"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Compose</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Compose</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-66"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Functor.Fixed.html"><span class="hs-identifier">Data.Functor.Fixed</span></a></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Functor.Foldable.html"><span class="hs-identifier">Data.Functor.Foldable</span></a></span><span>
+</span><span id="line-68"></span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor.Classes</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Eq1</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Ord1</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html"><span class="hs-identifier">Data.Functor.Day</span></a></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.Curried.html"><span class="hs-identifier">Data.Functor.Day.Curried</span></a></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Kan.Lan.html"><span class="hs-identifier">Data.Functor.Kan.Lan</span></a></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Kan.Ran.html"><span class="hs-identifier">Data.Functor.Kan.Ran</span></a></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Yoneda.html"><span class="hs-identifier">Data.Functor.Yoneda</span></a></span><span>
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- Day convolution</span><span>
+</span><span id="line-78"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- | Structural equality via Day convolution.</span><span>
+</span><span id="line-81"></span><span class="hs-comment">--</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- Pairs up two @f@-layers element-by-element and checks that:</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- 1. The shapes match (via @eqF@)</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- 2. All paired elements satisfy the combining function</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- This is 'liftEq' decomposed into its Day components:</span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- @Day f f Bool@ is &quot;two layers paired with a boolean combiner&quot;.</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-91"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Classes</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- &gt;&gt;&gt; equalDay (liftEq (==)) (Day (Cons 1 True) (Cons 1 True) (&amp;&amp;))</span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Classes</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- &gt;&gt;&gt; equalDay (liftEq (==)) (Day (Cons 1 True) (Cons 2 True) (&amp;&amp;))</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- False</span><span>
+</span><span id="line-97"></span><span class="hs-comment">--</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- __Connection:__ @Eq1 f@ is exactly the structure needed to</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- evaluate @Day f f Bool@ &#8212; it pairs elements and combines</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- with a boolean function. This is Day convolution specialized</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- to the @Bool@ monoid under @(&amp;&amp;)@.</span><span>
+</span><span id="line-102"></span><span id="local-6989586621679091171"><span class="annot"><a href="Data.Functor.Kan.html#equalDay"><span class="hs-identifier hs-type">equalDay</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621679091171"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq1</span></span><span> </span><span class="annot"><a href="#local-6989586621679091171"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091171"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091171"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-103"></span><span id="equalDay"><span class="annot"><span class="annottext">equalDay :: forall (f :: * -&gt; *). (Foldable f, Eq1 f) =&gt; Day f f Bool -&gt; Bool
+</span><a href="Data.Functor.Kan.html#equalDay"><span class="hs-identifier hs-var hs-var">equalDay</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span id="local-6989586621679091331"><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091331"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621679091332"><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091332"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span id="local-6989586621679091333"><span class="annot"><span class="annottext">b -&gt; c -&gt; Bool
+</span><a href="#local-6989586621679091333"><span class="hs-identifier hs-var">fn</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-104"></span><span>    </span><span class="annot"><span class="annottext">(b -&gt; c -&gt; Bool) -&gt; f b -&gt; f c -&gt; Bool
+forall a b. (a -&gt; b -&gt; Bool) -&gt; f a -&gt; f b -&gt; Bool
+forall (f :: * -&gt; *) a b.
+Eq1 f =&gt;
+(a -&gt; b -&gt; Bool) -&gt; f a -&gt; f b -&gt; Bool
+</span><span class="hs-identifier hs-var">liftEq</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091331"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091332"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-105"></span><span>        </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">[Bool] -&gt; Bool
+forall (t :: * -&gt; *). Foldable t =&gt; t Bool -&gt; Bool
+</span><span class="hs-identifier hs-var">and</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(b -&gt; c -&gt; Bool) -&gt; [b] -&gt; [c] -&gt; [Bool]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; c -&gt; Bool
+</span><a href="#local-6989586621679091333"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f b -&gt; [b]
+forall a. f a -&gt; [a]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091331"><span class="hs-identifier hs-var">f1</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f c -&gt; [c]
+forall a. f a -&gt; [a]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091332"><span class="hs-identifier hs-var">f2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- | Structural ordering via Day convolution.</span><span>
+</span><span id="line-108"></span><span class="hs-comment">--</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- Like 'equalDay' but produces an 'Ordering'.</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-113"></span><span class="hs-comment">-- &gt;&gt;&gt; compareDay (Day (Cons 1 EQ) (Cons 2 EQ) (&lt;&gt;))</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- LT</span><span>
+</span><span id="line-115"></span><span class="hs-comment">--</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- __Connection:__ @Ord1 f@ provides the Day structure for</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- @Ordering@ under @(&lt;&gt;)@.</span><span>
+</span><span id="line-118"></span><span id="local-6989586621679091186"><span class="annot"><a href="Data.Functor.Kan.html#compareDay"><span class="hs-identifier hs-type">compareDay</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621679091186"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord1</span></span><span> </span><span class="annot"><a href="#local-6989586621679091186"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091186"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091186"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span><span>
+</span><span id="line-119"></span><span id="compareDay"><span class="annot"><span class="annottext">compareDay :: forall (f :: * -&gt; *).
+(Foldable f, Ord1 f) =&gt;
+Day f f Ordering -&gt; Ordering
+</span><a href="Data.Functor.Kan.html#compareDay"><span class="hs-identifier hs-var hs-var">compareDay</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-type">Day</span></a></span><span> </span><span id="local-6989586621679091346"><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091346"><span class="hs-identifier hs-var">f1</span></a></span></span><span> </span><span id="local-6989586621679091347"><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091347"><span class="hs-identifier hs-var">f2</span></a></span></span><span> </span><span id="local-6989586621679091348"><span class="annot"><span class="annottext">b -&gt; c -&gt; Ordering
+</span><a href="#local-6989586621679091348"><span class="hs-identifier hs-var">fn</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-120"></span><span>    </span><span class="annot"><span class="annottext">(b -&gt; c -&gt; Ordering) -&gt; f b -&gt; f c -&gt; Ordering
+forall a b. (a -&gt; b -&gt; Ordering) -&gt; f a -&gt; f b -&gt; Ordering
+forall (f :: * -&gt; *) a b.
+Ord1 f =&gt;
+(a -&gt; b -&gt; Ordering) -&gt; f a -&gt; f b -&gt; Ordering
+</span><span class="hs-identifier hs-var">liftCompare</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="annot"><span class="annottext">b
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">c
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Ordering
+</span><span class="hs-identifier hs-var">EQ</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091346"><span class="hs-identifier hs-var">f1</span></a></span><span> </span><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091347"><span class="hs-identifier hs-var">f2</span></a></span><span>
+</span><span id="line-121"></span><span>        </span><span class="annot"><span class="annottext">Ordering -&gt; Ordering -&gt; Ordering
+forall a. Semigroup a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">&lt;&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Ordering] -&gt; Ordering
+forall a. Monoid a =&gt; [a] -&gt; a
+</span><span class="hs-identifier hs-var">mconcat</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(b -&gt; c -&gt; Ordering) -&gt; [b] -&gt; [c] -&gt; [Ordering]
+forall a b c. (a -&gt; b -&gt; c) -&gt; [a] -&gt; [b] -&gt; [c]
+</span><span class="hs-identifier hs-var">zipWith</span></span><span> </span><span class="annot"><span class="annottext">b -&gt; c -&gt; Ordering
+</span><a href="#local-6989586621679091348"><span class="hs-identifier hs-var">fn</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f b -&gt; [b]
+forall a. f a -&gt; [a]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">f b
+</span><a href="#local-6989586621679091346"><span class="hs-identifier hs-var">f1</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f c -&gt; [c]
+forall a. f a -&gt; [a]
+forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; [a]
+</span><span class="hs-identifier hs-var">toList</span></span><span> </span><span class="annot"><span class="annottext">f c
+</span><a href="#local-6989586621679091347"><span class="hs-identifier hs-var">f2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | Recursive equality via 'fold2' and 'equalDay'.</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span class="hs-comment">-- Compares two @Mu f@ values layer by layer using Day</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- convolution. Equivalent to @(==)@ from the @Eq (Mu f)@</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- instance, but expressed explicitly via Day.</span><span>
+</span><span id="line-128"></span><span class="hs-comment">--</span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- &gt;&gt;&gt; recursiveEq (fromList [1,2,3 :: Int]) (fromList [1,2,3])</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- &gt;&gt;&gt; recursiveEq (fromList [1,2,3 :: Int]) (fromList [1,2,4])</span><span>
+</span><span id="line-134"></span><span class="hs-comment">-- False</span><span>
+</span><span id="line-135"></span><span class="hs-comment">--</span><span>
+</span><span id="line-136"></span><span class="hs-comment">-- __Connection:__ this is @fold2 (equalDay (liftEq (==)))@ &#8212;</span><span>
+</span><span id="line-137"></span><span class="hs-comment">-- the Eq instance decomposed into its Day + fold components.</span><span>
+</span><span id="line-138"></span><span id="local-6989586621679091196"><span class="annot"><a href="Data.Functor.Kan.html#recursiveEq"><span class="hs-identifier hs-type">recursiveEq</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621679091196"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621679091196"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Eq1</span></span><span> </span><span class="annot"><a href="#local-6989586621679091196"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091196"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091196"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span><span>
+</span><span id="line-139"></span><span id="recursiveEq"><span class="annot"><span class="annottext">recursiveEq :: forall (f :: * -&gt; *).
+(Functor f, Foldable f, Eq1 f) =&gt;
+Mu f -&gt; Mu f -&gt; Bool
+</span><a href="Data.Functor.Kan.html#recursiveEq"><span class="hs-identifier hs-var hs-var">recursiveEq</span></a></span></span><span> </span><span id="local-6989586621679091360"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091360"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679091361"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091361"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Day f f Bool -&gt; Bool
+forall (f :: * -&gt; *). (Foldable f, Eq1 f) =&gt; Day f f Bool -&gt; Bool
+</span><a href="Data.Functor.Kan.html#equalDay"><span class="hs-identifier hs-var">equalDay</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f (Mu f) -&gt; f (Mu f) -&gt; (Mu f -&gt; Mu f -&gt; Bool) -&gt; Day f f Bool
+forall (f :: * -&gt; *) (g :: * -&gt; *) a b c.
+f b -&gt; g c -&gt; (b -&gt; c -&gt; a) -&gt; Day f g a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-var">Day</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mu f -&gt; f (Mu f)
+forall (f :: * -&gt; *). Functor f =&gt; Mu f -&gt; f (Mu f)
+</span><a href="Data.Functor.Fixed.html#unwrap"><span class="hs-identifier hs-var">unwrap</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091360"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mu f -&gt; f (Mu f)
+forall (f :: * -&gt; *). Functor f =&gt; Mu f -&gt; f (Mu f)
+</span><a href="Data.Functor.Fixed.html#unwrap"><span class="hs-identifier hs-var">unwrap</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091361"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679091363"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091363"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679091364"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091364"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Mu f -&gt; Mu f -&gt; Bool
+forall (f :: * -&gt; *).
+(Functor f, Foldable f, Eq1 f) =&gt;
+Mu f -&gt; Mu f -&gt; Bool
+</span><a href="Data.Functor.Kan.html#recursiveEq"><span class="hs-identifier hs-var">recursiveEq</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091363"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091364"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- | Recursive ordering via Day convolution.</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- &gt;&gt;&gt; recursiveOrd (fromList [1,2,3 :: Int]) (fromList [1,2,4])</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- LT</span><span>
+</span><span id="line-147"></span><span id="local-6989586621679091205"><span class="annot"><a href="Data.Functor.Kan.html#recursiveOrd"><span class="hs-identifier hs-type">recursiveOrd</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Functor</span></span><span> </span><span class="annot"><a href="#local-6989586621679091205"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Foldable</span></span><span> </span><span class="annot"><a href="#local-6989586621679091205"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord1</span></span><span> </span><span class="annot"><a href="#local-6989586621679091205"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091205"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091205"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ordering</span></span></span><span>
+</span><span id="line-148"></span><span id="recursiveOrd"><span class="annot"><span class="annottext">recursiveOrd :: forall (f :: * -&gt; *).
+(Functor f, Foldable f, Ord1 f) =&gt;
+Mu f -&gt; Mu f -&gt; Ordering
+</span><a href="Data.Functor.Kan.html#recursiveOrd"><span class="hs-identifier hs-var hs-var">recursiveOrd</span></a></span></span><span> </span><span id="local-6989586621679091375"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091375"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679091376"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091376"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Day f f Ordering -&gt; Ordering
+forall (f :: * -&gt; *).
+(Foldable f, Ord1 f) =&gt;
+Day f f Ordering -&gt; Ordering
+</span><a href="Data.Functor.Kan.html#compareDay"><span class="hs-identifier hs-var">compareDay</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">f (Mu f)
+-&gt; f (Mu f) -&gt; (Mu f -&gt; Mu f -&gt; Ordering) -&gt; Day f f Ordering
+forall (f :: * -&gt; *) (g :: * -&gt; *) a b c.
+f b -&gt; g c -&gt; (b -&gt; c -&gt; a) -&gt; Day f g a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Data.Functor.Day.html#Day"><span class="hs-identifier hs-var">Day</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mu f -&gt; f (Mu f)
+forall (f :: * -&gt; *). Functor f =&gt; Mu f -&gt; f (Mu f)
+</span><a href="Data.Functor.Fixed.html#unwrap"><span class="hs-identifier hs-var">unwrap</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091375"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Mu f -&gt; f (Mu f)
+forall (f :: * -&gt; *). Functor f =&gt; Mu f -&gt; f (Mu f)
+</span><a href="Data.Functor.Fixed.html#unwrap"><span class="hs-identifier hs-var">unwrap</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091376"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679091377"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091377"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679091378"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091378"><span class="hs-identifier hs-var">b</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Mu f -&gt; Mu f -&gt; Ordering
+forall (f :: * -&gt; *).
+(Functor f, Foldable f, Ord1 f) =&gt;
+Mu f -&gt; Mu f -&gt; Ordering
+</span><a href="Data.Functor.Kan.html#recursiveOrd"><span class="hs-identifier hs-var">recursiveOrd</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091377"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091378"><span class="hs-identifier hs-var">b</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-149"></span><span>
+</span><span id="line-150"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- Yoneda</span><span>
+</span><span id="line-152"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-153"></span><span>
+</span><span id="line-154"></span><span class="hs-comment">-- | Yoneda-encoded natural transformation accumulator for 'Fix'.</span><span>
+</span><span id="line-155"></span><span class="hs-comment">--</span><span>
+</span><span id="line-156"></span><span class="hs-comment">-- @YonedaFix f g@ holds a @Mu f@ together with a pending</span><span>
+</span><span id="line-157"></span><span class="hs-comment">-- natural transformation @f ~&gt; g@. Multiple transformations</span><span>
+</span><span id="line-158"></span><span class="hs-comment">-- compose via 'mapYonedaFix' in O(1) (function composition).</span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- The actual traversal happens once at 'lowerYonedaFix'.</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- Without Yoneda:</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-164"></span><span class="hs-comment">-- hoist n3 . hoist n2 . hoist n1   -- 3 full traversals</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- With Yoneda:</span><span>
+</span><span id="line-168"></span><span class="hs-comment">--</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-170"></span><span class="hs-comment">-- lowerYonedaFix . mapYonedaFix n3 . mapYonedaFix n2 . mapYonedaFix n1 . liftYonedaFix</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- -- 1 traversal</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-173"></span><span class="hs-comment">--</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- __Connection:__ this is the Yoneda lemma for the functor</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- category @[Hask, Hask]@: natural transformations out of</span><span>
+</span><span id="line-176"></span><span class="hs-comment">-- @f@ are equivalent to @f@ itself. Accumulating them as</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- function composition defers the cost.</span><span>
+</span><span id="line-178"></span><span class="hs-keyword">data</span><span> </span><span id="YonedaFix"><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-var">YonedaFix</span></a></span></span><span> </span><span id="local-6989586621679091211"><span class="annot"><a href="#local-6989586621679091211"><span class="hs-identifier hs-type">f</span></a></span></span><span> </span><span id="local-6989586621679091212"><span class="annot"><a href="#local-6989586621679091212"><span class="hs-identifier hs-type">g</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="YonedaFix"><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-var">YonedaFix</span></a></span></span><span> </span><span class="hs-special">(</span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679091210"><span class="annot"><a href="#local-6989586621679091210"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="#local-6989586621679091211"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091210"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679091212"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091210"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091211"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-179"></span><span>
+</span><span id="line-180"></span><span class="hs-comment">-- | Lift a 'Fix' into 'YonedaFix' with the identity transformation.</span><span>
+</span><span id="line-181"></span><span class="hs-comment">--</span><span>
+</span><span id="line-182"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-184"></span><span class="hs-comment">-- &gt;&gt;&gt; let xs = fromList [1, 2, 3 :: Int]</span><span>
+</span><span id="line-185"></span><span class="hs-comment">-- &gt;&gt;&gt; toList (lowerYonedaFix (liftYonedaFix xs))</span><span>
+</span><span id="line-186"></span><span class="hs-comment">-- [1,2,3]</span><span>
+</span><span id="line-187"></span><span id="local-6989586621679091207"><span class="annot"><a href="Data.Functor.Kan.html#liftYonedaFix"><span class="hs-identifier hs-type">liftYonedaFix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091207"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091207"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091207"><span class="hs-identifier hs-type">f</span></a></span></span><span>
+</span><span id="line-188"></span><span id="liftYonedaFix"><span class="annot"><span class="annottext">liftYonedaFix :: forall (f :: * -&gt; *). Mu f -&gt; YonedaFix f f
+</span><a href="Data.Functor.Kan.html#liftYonedaFix"><span class="hs-identifier hs-var hs-var">liftYonedaFix</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall a. f a -&gt; f a) -&gt; Mu f -&gt; YonedaFix f f
+forall (f :: * -&gt; *) (g :: * -&gt; *).
+(forall a. f a -&gt; g a) -&gt; Mu f -&gt; YonedaFix f g
+</span><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-var">YonedaFix</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f a
+forall a. a -&gt; a
+forall a. f a -&gt; f a
+</span><span class="hs-identifier hs-var">id</span></span><span>
+</span><span id="line-189"></span><span>
+</span><span id="line-190"></span><span class="hs-comment">-- | Apply a natural transformation in O(1) (just composition).</span><span>
+</span><span id="line-191"></span><span class="hs-comment">--</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-194"></span><span class="hs-comment">-- &gt;&gt;&gt; let xs = fromList [1, 2, 3 :: Int]</span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- &gt;&gt;&gt; let inc Nil = Nil; inc (Cons a r) = Cons (a + 1) r</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- &gt;&gt;&gt; toList (lowerYonedaFix (mapYonedaFix inc (liftYonedaFix xs)))</span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- [2,3,4]</span><span>
+</span><span id="line-198"></span><span id="local-6989586621679091215"><span id="local-6989586621679091217"><span id="local-6989586621679091218"><span class="annot"><a href="Data.Functor.Kan.html#mapYonedaFix"><span class="hs-identifier hs-type">mapYonedaFix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="hs-keyword">forall</span><span> </span><span id="local-6989586621679091216"><span class="annot"><a href="#local-6989586621679091216"><span class="hs-identifier hs-type">a</span></a></span></span><span class="hs-operator">.</span><span> </span><span class="annot"><a href="#local-6989586621679091215"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091216"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679091217"><span class="hs-identifier hs-type">h</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091216"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091218"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091215"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091218"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091217"><span class="hs-identifier hs-type">h</span></a></span></span></span></span><span>
+</span><span id="line-199"></span><span id="mapYonedaFix"><span class="annot"><span class="annottext">mapYonedaFix :: forall (g :: * -&gt; *) (h :: * -&gt; *) (f :: * -&gt; *).
+(forall a. g a -&gt; h a) -&gt; YonedaFix f g -&gt; YonedaFix f h
+</span><a href="Data.Functor.Kan.html#mapYonedaFix"><span class="hs-identifier hs-var hs-var">mapYonedaFix</span></a></span></span><span> </span><span id="local-6989586621679091381"><span class="annot"><span class="annottext">forall a. g a -&gt; h a
+</span><a href="#local-6989586621679091381"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span id="local-6989586621679091382"><span class="annot"><span class="annottext">forall a. f a -&gt; g a
+</span><a href="#local-6989586621679091382"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span id="local-6989586621679091383"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091383"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall a. f a -&gt; h a) -&gt; Mu f -&gt; YonedaFix f h
+forall (f :: * -&gt; *) (g :: * -&gt; *).
+(forall a. f a -&gt; g a) -&gt; Mu f -&gt; YonedaFix f g
+</span><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-var">YonedaFix</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">g a -&gt; h a
+forall a. g a -&gt; h a
+</span><a href="#local-6989586621679091381"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">(g a -&gt; h a) -&gt; (f a -&gt; g a) -&gt; f a -&gt; h a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">f a -&gt; g a
+forall a. f a -&gt; g a
+</span><a href="#local-6989586621679091382"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091383"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- | Lower the accumulated transformation, performing a single traversal.</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--</span><span>
+</span><span id="line-203"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-204"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- &gt;&gt;&gt; let xs = fromList [1, 2, 3 :: Int]</span><span>
+</span><span id="line-206"></span><span class="hs-comment">-- &gt;&gt;&gt; let inc Nil = Nil; inc (Cons a r) = Cons (a + 1) r</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- &gt;&gt;&gt; toList (lowerYonedaFix (mapYonedaFix inc (mapYonedaFix inc (liftYonedaFix xs))))</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- [3,4,5]</span><span>
+</span><span id="line-209"></span><span id="local-6989586621679091226"><span id="local-6989586621679091227"><span class="annot"><a href="Data.Functor.Kan.html#lowerYonedaFix"><span class="hs-identifier hs-type">lowerYonedaFix</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091226"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091227"><span class="hs-identifier hs-type">g</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091227"><span class="hs-identifier hs-type">g</span></a></span></span></span><span>
+</span><span id="line-210"></span><span id="lowerYonedaFix"><span class="annot"><span class="annottext">lowerYonedaFix :: forall (f :: * -&gt; *) (g :: * -&gt; *). YonedaFix f g -&gt; Mu g
+</span><a href="Data.Functor.Kan.html#lowerYonedaFix"><span class="hs-identifier hs-var hs-var">lowerYonedaFix</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Kan.html#YonedaFix"><span class="hs-identifier hs-type">YonedaFix</span></a></span><span> </span><span id="local-6989586621679091385"><span class="annot"><span class="annottext">forall a. f a -&gt; g a
+</span><a href="#local-6989586621679091385"><span class="hs-identifier hs-var">n</span></a></span></span><span> </span><span id="local-6989586621679091386"><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091386"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall a. f a -&gt; g a) -&gt; Mu f -&gt; Mu g
+forall (f :: * -&gt; *) (g :: * -&gt; *).
+(forall a. f a -&gt; g a) -&gt; Mu f -&gt; Mu g
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#hoistMu"><span class="hs-identifier hs-var">hoistMu</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; g a
+forall a. f a -&gt; g a
+</span><a href="#local-6989586621679091385"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Mu f
+</span><a href="#local-6989586621679091386"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-211"></span><span>
+</span><span id="line-212"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- Codensity</span><span>
+</span><span id="line-214"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-215"></span><span>
+</span><span id="line-216"></span><span class="hs-comment">-- | Monadic fold accelerated by 'Codensity'.</span><span>
+</span><span id="line-217"></span><span class="hs-comment">--</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- Standard 'Data.Fmt.Fixed.foldM' can be O(n^2) on deep</span><span>
+</span><span id="line-219"></span><span class="hs-comment">-- left-nested trees because @(&gt;&gt;=)@ associates to the left.</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- 'Codensity' right-associates the binds:</span><span>
+</span><span id="line-221"></span><span class="hs-comment">--</span><span>
+</span><span id="line-222"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- foldMCodensity alg = lowerCodensity . foldM (Codensity . alg)</span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Pattern</span><span>
+</span><span id="line-228"></span><span class="hs-comment">-- &gt;&gt;&gt; let xs = fromList [1, 2, 3 :: Int]</span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- &gt;&gt;&gt; foldMCodensity (\case Nil -&gt; pure 0; Cons a b -&gt; pure (a + b)) xs :: Maybe Int</span><span>
+</span><span id="line-230"></span><span class="hs-comment">-- Just 6</span><span>
+</span><span id="line-231"></span><span class="hs-comment">--</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- __Connection:__ @Codensity m a = forall b. (a -&gt; m b) -&gt; m b@.</span><span>
+</span><span id="line-233"></span><span class="hs-comment">-- This is the CPS transform of @m@ &#8212; it right-associates binds,</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- turning O(n^2) left-nested @&gt;&gt;=@ into O(n).</span><span>
+</span><span id="line-235"></span><span id="local-6989586621679091234"><span id="local-6989586621679091235"><span id="local-6989586621679091236"><span class="annot"><a href="Data.Functor.Kan.html#foldMCodensity"><span class="hs-identifier hs-type">foldMCodensity</span></a></span><span>
+</span><span id="line-236"></span><span>    </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Traversable</span></span><span> </span><span class="annot"><a href="#local-6989586621679091234"><span class="hs-identifier hs-type">f</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679091235"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-237"></span><span>    </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Fixed.html#AlgebraM"><span class="hs-identifier hs-type">AlgebraM</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091235"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091234"><span class="hs-identifier hs-type">f</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091236"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-238"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier hs-type">Mu</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091234"><span class="hs-identifier hs-type">f</span></a></span><span>
+</span><span id="line-239"></span><span>    </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679091235"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091236"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-240"></span><span id="foldMCodensity"><span class="annot"><span class="annottext">foldMCodensity :: forall (f :: * -&gt; *) (m :: * -&gt; *) a.
+(Traversable f, Monad m) =&gt;
+AlgebraM m f a -&gt; Mu f -&gt; m a
+</span><a href="Data.Functor.Kan.html#foldMCodensity"><span class="hs-identifier hs-var hs-var">foldMCodensity</span></a></span></span><span> </span><span id="local-6989586621679091400"><span class="annot"><span class="annottext">AlgebraM m f a
+</span><a href="#local-6989586621679091400"><span class="hs-identifier hs-var">alg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Codensity m a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; Codensity f a -&gt; f a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#lowerCodensity"><span class="hs-identifier hs-var">lowerCodensity</span></a></span><span> </span><span class="annot"><span class="annottext">(Codensity m a -&gt; m a) -&gt; (Mu f -&gt; Codensity m a) -&gt; Mu f -&gt; m a
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Algebra f (Codensity m a) -&gt; Mu f -&gt; Codensity m a
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra f (Codensity m a)
+</span><a href="#local-6989586621679091403"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-241"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-242"></span><span>    </span><span id="local-6989586621679091403"><span class="annot"><span class="annottext">go :: Algebra f (Codensity m a)
+</span><a href="#local-6989586621679091403"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679091404"><span class="annot"><span class="annottext">f (Codensity m a)
+</span><a href="#local-6989586621679091404"><span class="hs-identifier hs-var">fa</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall b. (a -&gt; m b) -&gt; m b) -&gt; Codensity m a
+forall k (m :: k -&gt; *) a.
+(forall (b :: k). (a -&gt; m b) -&gt; m b) -&gt; Codensity m a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-var">Codensity</span></a></span><span> </span><span class="annot"><span class="annottext">((forall b. (a -&gt; m b) -&gt; m b) -&gt; Codensity m a)
+-&gt; (forall b. (a -&gt; m b) -&gt; m b) -&gt; Codensity m a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679091415"><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621679091415"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-243"></span><span>        </span><span id="local-6989586621679091416"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091416"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">AlgebraM m f a
+</span><a href="#local-6989586621679091400"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="annot"><span class="annottext">AlgebraM m f a -&gt; m (f a) -&gt; m a
+forall (m :: * -&gt; *) a b. Monad m =&gt; (a -&gt; m b) -&gt; m a -&gt; m b
+</span><span class="hs-operator hs-var">=&lt;&lt;</span></span><span> </span><span class="annot"><span class="annottext">(Codensity m a -&gt; m a) -&gt; f (Codensity m a) -&gt; m (f a)
+forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
+(Traversable t, Applicative f) =&gt;
+(a -&gt; f b) -&gt; t a -&gt; f (t b)
+forall (f :: * -&gt; *) a b.
+Applicative f =&gt;
+(a -&gt; f b) -&gt; f a -&gt; f (f b)
+</span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span id="local-6989586621679091419"><span class="annot"><span class="annottext">forall b. (a -&gt; m b) -&gt; m b
+</span><a href="#local-6989586621679091419"><span class="hs-identifier hs-var">c</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m a) -&gt; m a
+forall b. (a -&gt; m b) -&gt; m b
+</span><a href="#local-6989586621679091419"><span class="hs-identifier hs-var">c</span></a></span><span> </span><span class="annot"><span class="annottext">a -&gt; m a
+forall a. a -&gt; m a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">f (Codensity m a)
+</span><a href="#local-6989586621679091404"><span class="hs-identifier hs-var">fa</span></a></span><span>
+</span><span id="line-244"></span><span>        </span><span class="annot"><span class="annottext">a -&gt; m b
+</span><a href="#local-6989586621679091415"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091416"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-245"></span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- | Convert between @Codensity ((-&gt;) m)@ and @State m@.</span><span>
+</span><span id="line-247"></span><span class="hs-comment">--</span><span>
+</span><span id="line-248"></span><span class="hs-comment">-- @Codensity ((-&gt;) m) a = forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b@</span><span>
+</span><span id="line-249"></span><span class="hs-comment">--</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- This is isomorphic to @State m a = m -&gt; (a, m)@ &#8212; both</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- are &quot;computations that read and transform an @m@ environment.&quot;</span><span>
+</span><span id="line-252"></span><span class="hs-comment">--</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-254"></span><span class="hs-comment">-- &gt;&gt;&gt; codensityToState (Codensity (\k m -&gt; k (m + 1) (m * 2))) (10 :: Int)</span><span>
+</span><span id="line-255"></span><span class="hs-comment">-- (11,20)</span><span>
+</span><span id="line-256"></span><span class="hs-comment">--</span><span>
+</span><span id="line-257"></span><span class="hs-comment">-- __Connection:__ @Codensity@ of a representable functor @(-&gt;) m@</span><span>
+</span><span id="line-258"></span><span class="hs-comment">-- gives the state monad for @m@. This is because</span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- @Ran ((-&gt;) m) ((-&gt;) m) &#8773; (-&gt;) m &#8728; (-&gt;) m &#8773; State m@.</span><span>
+</span><span id="line-260"></span><span id="local-6989586621679091266"><span id="local-6989586621679091267"><span class="annot"><a href="Data.Functor.Kan.html#codensityToState"><span class="hs-identifier hs-type">codensityToState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091266"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091267"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679091266"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679091267"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679091266"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-261"></span><span id="codensityToState"><span class="annot"><span class="annottext">codensityToState :: forall m a. Codensity ((-&gt;) m) a -&gt; m -&gt; (a, m)
+</span><a href="Data.Functor.Kan.html#codensityToState"><span class="hs-identifier hs-var hs-var">codensityToState</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span id="local-6989586621679091420"><span class="annot"><span class="annottext">forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b
+</span><a href="#local-6989586621679091420"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679091421"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091421"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(a -&gt; m -&gt; (a, m)) -&gt; m -&gt; (a, m)
+forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b
+</span><a href="#local-6989586621679091420"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679091422"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091422"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679091423"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091423"><span class="hs-identifier hs-var">m'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091422"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091423"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091421"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-262"></span><span>
+</span><span id="line-263"></span><span class="hs-comment">-- | Inverse of 'codensityToState'.</span><span>
+</span><span id="line-264"></span><span class="hs-comment">--</span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-266"></span><span class="hs-comment">-- &gt;&gt;&gt; stateToCodensity (\m -&gt; (m + 1, m * 2)) `codensityToState` (10 :: Int)</span><span>
+</span><span id="line-267"></span><span class="hs-comment">-- (11,20)</span><span>
+</span><span id="line-268"></span><span id="local-6989586621679091270"><span id="local-6989586621679091271"><span class="annot"><a href="Data.Functor.Kan.html#stateToCodensity"><span class="hs-identifier hs-type">stateToCodensity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679091270"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679091271"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679091270"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091270"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091271"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-269"></span><span id="stateToCodensity"><span class="annot"><span class="annottext">stateToCodensity :: forall m a. (m -&gt; (a, m)) -&gt; Codensity ((-&gt;) m) a
+</span><a href="Data.Functor.Kan.html#stateToCodensity"><span class="hs-identifier hs-var hs-var">stateToCodensity</span></a></span></span><span> </span><span id="local-6989586621679091424"><span class="annot"><span class="annottext">m -&gt; (a, m)
+</span><a href="#local-6989586621679091424"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b) -&gt; Codensity ((-&gt;) m) a
+forall k (m :: k -&gt; *) a.
+(forall (b :: k). (a -&gt; m b) -&gt; m b) -&gt; Codensity m a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-var">Codensity</span></a></span><span> </span><span class="annot"><span class="annottext">((forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b) -&gt; Codensity ((-&gt;) m) a)
+-&gt; (forall b. (a -&gt; m -&gt; b) -&gt; m -&gt; b) -&gt; Codensity ((-&gt;) m) a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679091425"><span class="annot"><span class="annottext">a -&gt; m -&gt; b
+</span><a href="#local-6989586621679091425"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679091426"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091426"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679091427"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091427"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679091428"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091428"><span class="hs-identifier hs-var">m'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">m -&gt; (a, m)
+</span><a href="#local-6989586621679091424"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091426"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">a -&gt; m -&gt; b
+</span><a href="#local-6989586621679091425"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091427"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091428"><span class="hs-identifier hs-var">m'</span></a></span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- | Convert @Codensity (Compose ((-&gt;) m) n)@ to @StateT m n@.</span><span>
+</span><span id="line-272"></span><span class="hs-comment">--</span><span>
+</span><span id="line-273"></span><span class="hs-comment">-- The higher-kinded generalization of 'codensityToState':</span><span>
+</span><span id="line-274"></span><span class="hs-comment">--</span><span>
+</span><span id="line-275"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- Codensity ((-&gt;) m)             a  &#8773;  State  m   a</span><span>
+</span><span id="line-277"></span><span class="hs-comment">-- Codensity (Compose ((-&gt;) m) n) a  &#8773;  StateT m n a</span><span>
+</span><span id="line-278"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-279"></span><span class="hs-comment">--</span><span>
+</span><span id="line-280"></span><span class="hs-comment">-- Unwrapping:</span><span>
+</span><span id="line-281"></span><span class="hs-comment">--</span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-283"></span><span class="hs-comment">-- Codensity (Compose ((-&gt;) m) n) a</span><span>
+</span><span id="line-284"></span><span class="hs-comment">--   = forall b. (a -&gt; m -&gt; n b) -&gt; m -&gt; n b</span><span>
+</span><span id="line-285"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-286"></span><span class="hs-comment">--</span><span>
+</span><span id="line-287"></span><span class="hs-comment">-- which is @StateT m n@ in CPS form.</span><span>
+</span><span id="line-288"></span><span class="hs-comment">--</span><span>
+</span><span id="line-289"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-290"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Monad.Trans.State.Strict</span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- &gt;&gt;&gt; let c = Codensity $ \k m -&gt; k (m + 1) (m * 2) :: Codensity (Compose ((-&gt;) Int) Identity) Int</span><span>
+</span><span id="line-292"></span><span class="hs-comment">-- &gt;&gt;&gt; runStateT (codensityToStateT c) 10</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- Identity (11,20)</span><span>
+</span><span id="line-294"></span><span class="hs-comment">--</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- __Connection:__ for any 'Representable' @u@ with @Rep u = r@:</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- @Codensity (Compose u n) &#8773; StateT r n@. With @u = (-&gt;) m@,</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- @Rep = m@, this gives @StateT m n@. With @u = ShortByteString@,</span><span>
+</span><span id="line-298"></span><span class="hs-comment">-- @Rep = Int@, you get @StateT Int n@ &#8212; an effectful indexed</span><span>
+</span><span id="line-299"></span><span class="hs-comment">-- traversal state machine.</span><span>
+</span><span id="line-300"></span><span id="local-6989586621679091275"><span id="local-6989586621679091276"><span id="local-6989586621679091278"><span class="annot"><a href="Data.Functor.Kan.html#codensityToStateT"><span class="hs-identifier hs-type">codensityToStateT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679091275"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Compose</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091276"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091275"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091278"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621679091276"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091275"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091278"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-301"></span><span id="codensityToStateT"><span class="annot"><span class="annottext">codensityToStateT :: forall (n :: * -&gt; *) m a.
+Monad n =&gt;
+Codensity (Compose ((-&gt;) m) n) a -&gt; StateT m n a
+</span><a href="Data.Functor.Kan.html#codensityToStateT"><span class="hs-identifier hs-var hs-var">codensityToStateT</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span id="local-6989586621679091432"><span class="annot"><span class="annottext">forall b. (a -&gt; Compose ((-&gt;) m) n b) -&gt; Compose ((-&gt;) m) n b
+</span><a href="#local-6989586621679091432"><span class="hs-identifier hs-var">f</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(m -&gt; n (a, m)) -&gt; StateT m n a
+forall s (m :: * -&gt; *) a. (s -&gt; m (a, s)) -&gt; StateT s m a
+</span><span class="hs-identifier hs-var">StateT</span></span><span> </span><span class="annot"><span class="annottext">((m -&gt; n (a, m)) -&gt; StateT m n a)
+-&gt; (m -&gt; n (a, m)) -&gt; StateT m n a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679091434"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091434"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-302"></span><span>    </span><span class="annot"><span class="annottext">Compose ((-&gt;) m) n (a, m) -&gt; m -&gt; n (a, m)
+forall {k1} {k2} (f :: k1 -&gt; *) (g :: k2 -&gt; k1) (a :: k2).
+Compose f g a -&gt; f (g a)
+</span><span class="hs-identifier hs-var">getCompose</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Compose ((-&gt;) m) n (a, m)) -&gt; Compose ((-&gt;) m) n (a, m)
+forall b. (a -&gt; Compose ((-&gt;) m) n b) -&gt; Compose ((-&gt;) m) n b
+</span><a href="#local-6989586621679091432"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679091436"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091436"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(m -&gt; n (a, m)) -&gt; Compose ((-&gt;) m) n (a, m)
+forall {k} {k1} (f :: k -&gt; *) (g :: k1 -&gt; k) (a :: k1).
+f (g a) -&gt; Compose f g a
+</span><span class="hs-identifier hs-var">Compose</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679091438"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091438"><span class="hs-identifier hs-var">m'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(a, m) -&gt; n (a, m)
+forall a. a -&gt; n a
+forall (f :: * -&gt; *) a. Applicative f =&gt; a -&gt; f a
+</span><span class="hs-identifier hs-var">pure</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091436"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091438"><span class="hs-identifier hs-var">m'</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091434"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- | Inverse of 'codensityToStateT'.</span><span>
+</span><span id="line-305"></span><span class="hs-comment">--</span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Functor.Kan</span><span>
+</span><span id="line-307"></span><span class="hs-comment">-- &gt;&gt;&gt; import Control.Monad.Trans.State.Strict</span><span>
+</span><span id="line-308"></span><span class="hs-comment">-- &gt;&gt;&gt; codensityToState (stateTToCodensity (state (\m -&gt; (m + 1, m * 2)))) (10 :: Int)</span><span>
+</span><span id="line-309"></span><span class="hs-comment">-- (11,20)</span><span>
+</span><span id="line-310"></span><span id="local-6989586621679091296"><span id="local-6989586621679091297"><span id="local-6989586621679091298"><span class="annot"><a href="Data.Functor.Kan.html#stateTToCodensity"><span class="hs-identifier hs-type">stateTToCodensity</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monad</span></span><span> </span><span class="annot"><a href="#local-6989586621679091296"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="#local-6989586621679091297"><span class="hs-identifier hs-type">m</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091296"><span class="hs-identifier hs-type">n</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679091298"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-type">Codensity</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Compose</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="hs-glyph">-&gt;</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091297"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091296"><span class="hs-identifier hs-type">n</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679091298"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-311"></span><span id="stateTToCodensity"><span class="annot"><span class="annottext">stateTToCodensity :: forall (n :: * -&gt; *) m a.
+Monad n =&gt;
+StateT m n a -&gt; Codensity (Compose ((-&gt;) m) n) a
+</span><a href="Data.Functor.Kan.html#stateTToCodensity"><span class="hs-identifier hs-var hs-var">stateTToCodensity</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span id="local-6989586621679091440"><span class="annot"><span class="annottext">m -&gt; n (a, m)
+</span><a href="#local-6989586621679091440"><span class="hs-identifier hs-var">st</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall b. (a -&gt; Compose ((-&gt;) m) n b) -&gt; Compose ((-&gt;) m) n b)
+-&gt; Codensity (Compose ((-&gt;) m) n) a
+forall k (m :: k -&gt; *) a.
+(forall (b :: k). (a -&gt; m b) -&gt; m b) -&gt; Codensity m a
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/kn-xtnsns-5.2.8-ba568a3f/share/doc/html/src/Control.Monad.Codensity.html#Codensity"><span class="hs-identifier hs-var">Codensity</span></a></span><span> </span><span class="annot"><span class="annottext">((forall b. (a -&gt; Compose ((-&gt;) m) n b) -&gt; Compose ((-&gt;) m) n b)
+ -&gt; Codensity (Compose ((-&gt;) m) n) a)
+-&gt; (forall b. (a -&gt; Compose ((-&gt;) m) n b) -&gt; Compose ((-&gt;) m) n b)
+-&gt; Codensity (Compose ((-&gt;) m) n) a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679091442"><span class="annot"><span class="annottext">a -&gt; Compose ((-&gt;) m) n b
+</span><a href="#local-6989586621679091442"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-312"></span><span>    </span><span class="annot"><span class="annottext">(m -&gt; n b) -&gt; Compose ((-&gt;) m) n b
+forall {k} {k1} (f :: k -&gt; *) (g :: k1 -&gt; k) (a :: k1).
+f (g a) -&gt; Compose f g a
+</span><span class="hs-identifier hs-var">Compose</span></span><span> </span><span class="annot"><span class="annottext">((m -&gt; n b) -&gt; Compose ((-&gt;) m) n b)
+-&gt; (m -&gt; n b) -&gt; Compose ((-&gt;) m) n b
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679091443"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091443"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">m -&gt; n (a, m)
+</span><a href="#local-6989586621679091440"><span class="hs-identifier hs-var">st</span></a></span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091443"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">n (a, m) -&gt; ((a, m) -&gt; n b) -&gt; n b
+forall a b. n a -&gt; (a -&gt; n b) -&gt; n b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679091444"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091444"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679091445"><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091445"><span class="hs-identifier hs-var">m'</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Compose ((-&gt;) m) n b -&gt; m -&gt; n b
+forall {k1} {k2} (f :: k1 -&gt; *) (g :: k2 -&gt; k1) (a :: k2).
+Compose f g a -&gt; f (g a)
+</span><span class="hs-identifier hs-var">getCompose</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Compose ((-&gt;) m) n b
+</span><a href="#local-6989586621679091442"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679091444"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">m
+</span><a href="#local-6989586621679091445"><span class="hs-identifier hs-var">m'</span></a></span><span>
+</span><span id="line-313"></span></pre></body></html>

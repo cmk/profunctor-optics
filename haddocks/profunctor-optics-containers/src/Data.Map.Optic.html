@@ -1,0 +1,767 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE QuantifiedConstraints #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TupleSections         #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Map.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-9"></span><span>    </span><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier">fromIxfold</span></a></span><span>
+</span><span id="line-10"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-identifier">at</span></a></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#iat"><span class="hs-identifier">iat</span></a></span><span>
+</span><span id="line-12"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-identifier">values</span></a></span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#imapped"><span class="hs-identifier">imapped</span></a></span><span>
+</span><span id="line-14"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ifiltered"><span class="hs-identifier">ifiltered</span></a></span><span>
+</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#itraversed"><span class="hs-identifier">itraversed</span></a></span><span>
+</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ifolded"><span class="hs-identifier">ifolded</span></a></span><span>
+</span><span id="line-17"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-identifier">altered</span></a></span><span>
+</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ialtered"><span class="hs-identifier">ialtered</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier">alteredF</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ialteredF"><span class="hs-identifier">ialteredF</span></a></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier">adjusted</span></a></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-identifier">updated</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier">updateLooked</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier">lookedMin</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier">lookedMax</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier">lookedLT</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier">lookedLE</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier">lookedGE</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier">lookedGT</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-identifier">validated</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Structural (via pattern functor)</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#depth"><span class="hs-identifier">depth</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#sizes"><span class="hs-identifier">sizes</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#rebalanced"><span class="hs-identifier">rebalanced</span></a></span><span>
+</span><span id="line-35"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Container.Pattern.html"><span class="hs-identifier">Data.Container.Pattern</span></a></span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Fixed.html"><span class="hs-identifier">Data.Functor.Fixed</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/dt-fx-0.3.4-4b626dc8/share/doc/html/src/Data.Fix.html#Mu"><span class="hs-identifier">Mu</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html"><span class="hs-identifier">Data.Functor.Foldable</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier">fold</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#unfold"><span class="hs-identifier">unfold</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#refold"><span class="hs-identifier">refold</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-41"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-43"></span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-45"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XNoOverloadedStrings</span><span>
+</span><span id="line-46"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XFlexibleContexts</span><span>
+</span><span id="line-48"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Char</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Map as Map</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Profunctor.Optic</span><span>
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span id="local-6989586621679101571"><span id="local-6989586621679101572"><span id="local-6989586621679101574"><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier hs-type">fromIxfold</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101571"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679101571"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Carrier.html#AIxfold"><span class="hs-identifier hs-type">AIxfold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101571"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101572"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101571"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101574"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101572"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101574"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101571"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101572"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-55"></span><span id="fromIxfold"><span class="annot"><span class="annottext">fromIxfold :: forall k a s.
+(Ord k, Monoid k) =&gt;
+AIxfold (Map k a) k s a -&gt; s -&gt; Map k a
+</span><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier hs-var hs-var">fromIxfold</span></a></span></span><span> </span><span id="local-6989586621679101872"><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679101872"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a -&gt; (k -&gt; a -&gt; Map k a) -&gt; s -&gt; Map k a
+forall k r s a.
+Monoid k =&gt;
+AIxfold r k s a -&gt; (k -&gt; a -&gt; r) -&gt; s -&gt; r
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#foldsWithKey"><span class="hs-identifier hs-var">foldsWithKey</span></a></span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679101872"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span>
+</span><span id="line-56"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-pragma hs-type">fromIxfold</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.</span><span>
+</span><span id="line-59"></span><span class="hs-comment">--</span><span>
+</span><span id="line-60"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(1,&quot;world&quot;)] ^. at 0</span><span>
+</span><span id="line-61"></span><span class="hs-comment">-- &quot;&quot;</span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(1,&quot;world&quot;)] ^. at 1</span><span>
+</span><span id="line-63"></span><span class="hs-comment">-- &quot;world&quot;</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(67,'C')] &amp; at 99 ..~ toLower</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- fromList [(67,'C')]</span><span>
+</span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(67,'C')] &amp; at 67 ..~ toLower</span><span>
+</span><span id="line-67"></span><span class="hs-comment">-- fromList [(67,'c')]</span><span>
+</span><span id="line-68"></span><span class="hs-comment">--</span><span>
+</span><span id="line-69"></span><span id="local-6989586621679101585"><span id="local-6989586621679101586"><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-identifier hs-type">at</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101585"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101585"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Traversal0%27"><span class="hs-identifier hs-type">Traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101585"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101586"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101586"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-70"></span><span id="at"><span class="annot"><span class="annottext">at :: forall k a. Ord k =&gt; k -&gt; Traversal0' (Map k a) a
+</span><a href="Data.Map.Optic.html#at"><span class="hs-identifier hs-var hs-var">at</span></a></span></span><span> </span><span id="local-6989586621679101880"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101880"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe a)
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Traversal0 (Map k a) (Map k a) a a
+forall s a b. (s -&gt; Maybe a) -&gt; (s -&gt; b -&gt; s) -&gt; Traversal0 s s a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#traversal0%27"><span class="hs-identifier hs-var">traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101880"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101880"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-71"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-pragma hs-type">at</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at a key of a 'Map.Map'.</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(1,&quot;world&quot;)] ^% iat 0 </span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- (Nothing,&quot;&quot;)</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(1,&quot;world&quot;)] ^% iat 1</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- (Just 1,&quot;world&quot;)</span><span>
+</span><span id="line-79"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(67,'C')] &amp; iat 99 %~ chr</span><span>
+</span><span id="line-80"></span><span class="hs-comment">-- fromList [(67,'C')]</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(67,'C')] &amp; iat 67 %%~ const toLower</span><span>
+</span><span id="line-82"></span><span class="hs-comment">-- fromList [(67,'c')]</span><span>
+</span><span id="line-83"></span><span class="hs-comment">-- &gt;&gt;&gt; iat 2 %%~ (\i x -&gt; if odd i then not x else x) $ Map.fromList [(1,True),(2,False)]</span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- fromList [(1,True),(2,False)]</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span id="local-6989586621679101607"><span id="local-6989586621679101608"><span class="annot"><a href="Data.Map.Optic.html#iat"><span class="hs-identifier hs-type">iat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101607"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101607"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101607"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101607"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101608"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101608"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-87"></span><span id="iat"><span class="annot"><span class="annottext">iat :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#iat"><span class="hs-identifier hs-var hs-var">iat</span></a></span></span><span> </span><span id="local-6989586621679101892"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101892"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679101894"><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679101894"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101892"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; (k, a)) -&gt; Maybe a -&gt; Maybe (k, a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101892"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679101894"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101892"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-88"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#iat"><span class="hs-pragma hs-type">iat</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="hs-comment">-- | /O(n)/. 'Fold' over the values of a 'Map.Map', in ascending key order.</span><span>
+</span><span id="line-91"></span><span class="hs-comment">--</span><span>
+</span><span id="line-92"></span><span class="hs-comment">-- Subject to list fusion.</span><span>
+</span><span id="line-93"></span><span class="hs-comment">--</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- &gt;&gt;&gt; lists values $ Map.fromList [(1,3),(2,4)]</span><span>
+</span><span id="line-95"></span><span class="hs-comment">-- [3,4]</span><span>
+</span><span id="line-96"></span><span class="hs-comment">--</span><span>
+</span><span id="line-97"></span><span id="local-6989586621679101623"><span id="local-6989586621679101624"><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-identifier hs-type">values</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101623"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101624"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101624"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-98"></span><span id="values"><span class="annot"><span class="annottext">values :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Optic' p (Map k a) a
+</span><a href="Data.Map.Optic.html#values"><span class="hs-identifier hs-var hs-var">values</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; [(k, a)]) -&gt; Fold (Map k a) (k, a)
+forall (f :: * -&gt; *) s a. Foldable f =&gt; (s -&gt; f a) -&gt; Fold s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#fold_"><span class="hs-identifier hs-var">fold_</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; [(k, a)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toAscList</span></span><span> </span><span class="annot"><span class="annottext">Optic' p (Map k a) (k, a)
+-&gt; (p a a -&gt; p (k, a) (k, a)) -&gt; p a a -&gt; p (Map k a) (Map k a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p a a -&gt; p (k, a) (k, a)
+forall a b c. p a b -&gt; p (c, a) (c, b)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Strong p =&gt;
+p a b -&gt; p (c, a) (c, b)
+</span><a href="file:///Users/cmk/.local/state/cabal/store/ghc-9.6.7/prfnctrs-5.6.3-56a83ad5/share/doc/html/src/Data.Profunctor.Strong.html#second%27"><span class="hs-identifier hs-var">second'</span></a></span><span>
+</span><span id="line-99"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-pragma hs-type">values</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-102"></span><span class="hs-comment">--</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &gt;&gt;&gt; iover imapped (+) $ Map.fromList [(1,3),(2,4)]</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- fromList [(1,4),(2,6)]</span><span>
+</span><span id="line-105"></span><span class="hs-comment">--</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- See also 'Data.Map.mapWithKey'.</span><span>
+</span><span id="line-107"></span><span class="hs-comment">--</span><span>
+</span><span id="line-108"></span><span id="local-6989586621679101647"><span id="local-6989586621679101648"><span id="local-6989586621679101649"><span class="annot"><a href="Data.Map.Optic.html#imapped"><span class="hs-identifier hs-type">imapped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101647"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101647"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101648"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101647"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101649"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101648"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101649"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-109"></span><span id="imapped"><span class="annot"><span class="annottext">imapped :: forall k a b (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (Map k a) (Map k b) a b
+</span><a href="Data.Map.Optic.html#imapped"><span class="hs-identifier hs-var hs-var">imapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b)
+-&gt; Ixsetter k (Map k a) (Map k b) a b
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+forall k a b. (k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.mapWithKey</span></span><span>
+</span><span id="line-110"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#imapped"><span class="hs-pragma hs-type">imapped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-111"></span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' filtering the values of a 'Map.Map'.</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span id="local-6989586621679101663"><span id="local-6989586621679101664"><span class="annot"><a href="Data.Map.Optic.html#ifiltered"><span class="hs-identifier hs-type">ifiltered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101663"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101663"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101664"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101663"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101664"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101664"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-115"></span><span id="ifiltered"><span class="annot"><span class="annottext">ifiltered :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (Map k a) (Map k a) a Bool
+</span><a href="Data.Map.Optic.html#ifiltered"><span class="hs-identifier hs-var hs-var">ifiltered</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a Bool
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span>
+</span><span id="line-116"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ifiltered"><span class="hs-pragma hs-type">ifiltered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span class="hs-comment">-- | /O(n)/. 'Ixtraversal' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-119"></span><span class="hs-comment">--</span><span>
+</span><span id="line-120"></span><span id="local-6989586621679101670"><span id="local-6989586621679101671"><span id="local-6989586621679101672"><span class="annot"><a href="Data.Map.Optic.html#itraversed"><span class="hs-identifier hs-type">itraversed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101670"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101670"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101670"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101671"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101670"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101672"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101671"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101672"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-121"></span><span id="itraversed"><span class="annot"><span class="annottext">itraversed :: forall k a b. Ord k =&gt; Ixtraversal k (Map k a) (Map k b) a b
+</span><a href="Data.Map.Optic.html#itraversed"><span class="hs-identifier hs-var hs-var">itraversed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b))
+-&gt; Ixtraversal k (Map k a) (Map k b) a b
+forall k a b s t.
+(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixtraversal k s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversalVl"><span class="hs-identifier hs-var">ixtraversalVl</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b)
+forall (f :: * -&gt; *).
+Applicative f =&gt;
+(k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b)
+forall (t :: * -&gt; *) k a b.
+Applicative t =&gt;
+(k -&gt; a -&gt; t b) -&gt; Map k a -&gt; t (Map k b)
+</span><span class="hs-identifier hs-var">Map.traverseWithKey</span></span><span>
+</span><span id="line-122"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#itraversed"><span class="hs-pragma hs-type">itraversed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="hs-comment">-- | /O(n)/. 'Ixfold' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-125"></span><span class="hs-comment">--</span><span>
+</span><span id="line-126"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-127"></span><span class="hs-comment">-- fromIxfold ifolded &#8801; id</span><span>
+</span><span id="line-128"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-129"></span><span class="hs-comment">--</span><span>
+</span><span id="line-130"></span><span class="hs-comment">-- &gt;&gt;&gt; ilists ifolded $ Map.fromList [(1,3),(2,4)]</span><span>
+</span><span id="line-131"></span><span class="hs-comment">-- [(1,3),(2,4)]</span><span>
+</span><span id="line-132"></span><span class="hs-comment">-- &gt;&gt;&gt; ilists ifolded $ Map.empty </span><span>
+</span><span id="line-133"></span><span class="hs-comment">-- []</span><span>
+</span><span id="line-134"></span><span class="hs-comment">--</span><span>
+</span><span id="line-135"></span><span id="local-6989586621679101690"><span id="local-6989586621679101691"><span class="annot"><a href="Data.Map.Optic.html#ifolded"><span class="hs-identifier hs-type">ifolded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixfold"><span class="hs-identifier hs-type">Ixfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101690"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101690"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101691"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101691"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-136"></span><span id="ifolded"><span class="annot"><span class="annottext">ifolded :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#ifolded"><span class="hs-identifier hs-var hs-var">ifolded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any))
+-&gt; Ixfold k (Map k a) a
+forall k a b s t.
+(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixfold k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#ixfoldVl"><span class="hs-identifier hs-var">ixfoldVl</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any)
+forall (f :: * -&gt; *).
+Applicative f =&gt;
+(k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any)
+forall (t :: * -&gt; *) k a b.
+Applicative t =&gt;
+(k -&gt; a -&gt; t b) -&gt; Map k a -&gt; t (Map k b)
+</span><span class="hs-identifier hs-var">Map.traverseWithKey</span></span><span>
+</span><span id="line-137"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ifolded"><span class="hs-pragma hs-type">ifolded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-138"></span><span>
+</span><span id="line-139"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-140"></span><span class="hs-comment">--</span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- 'altered' can be used to insert, delete, or update a value in a 'Map'.</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ = Nothing</span><span>
+</span><span id="line-144"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-145"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-146"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;)]</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--</span><span>
+</span><span id="line-149"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ = Just &quot;c&quot;</span><span>
+</span><span id="line-150"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-151"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-152"></span><span class="hs-comment">-- &gt;&gt;&gt; over (altered 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;c&quot;)]</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--</span><span>
+</span><span id="line-155"></span><span class="hs-comment">-- See also 'Data.Map.alter'.</span><span>
+</span><span id="line-156"></span><span class="hs-comment">--</span><span>
+</span><span id="line-157"></span><span id="local-6989586621679101704"><span id="local-6989586621679101705"><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-identifier hs-type">altered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101704"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101704"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101704"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101705"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101705"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-158"></span><span id="altered"><span class="annot"><span class="annottext">altered :: forall k a. Ord k =&gt; k -&gt; Setter' (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#altered"><span class="hs-identifier hs-var hs-var">altered</span></a></span></span><span> </span><span id="local-6989586621679101951"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101951"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101953"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101953"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.alter</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101953"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101951"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-159"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-pragma hs-type">altered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-160"></span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-162"></span><span class="hs-comment">--</span><span>
+</span><span id="line-163"></span><span class="hs-comment">-- 'ialtered' can be used to insert, delete, or update a value in a 'Map'.</span><span>
+</span><span id="line-164"></span><span class="hs-comment">--</span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ _ = Nothing</span><span>
+</span><span id="line-166"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-167"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-168"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-169"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;)]</span><span>
+</span><span id="line-170"></span><span class="hs-comment">--</span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- &gt;&gt;&gt; let f i _ = if i == 7 then Just &quot;c&quot; else Nothing</span><span>
+</span><span id="line-172"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-173"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-174"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialtered 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-175"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;)]</span><span>
+</span><span id="line-176"></span><span class="hs-comment">--</span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- See also 'Data.Map.alter'.</span><span>
+</span><span id="line-178"></span><span class="hs-comment">--</span><span>
+</span><span id="line-179"></span><span id="local-6989586621679101717"><span id="local-6989586621679101718"><span class="annot"><a href="Data.Map.Optic.html#ialtered"><span class="hs-identifier hs-type">ialtered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101717"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101717"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter%27"><span class="hs-identifier hs-type">Ixsetter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101717"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101717"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101718"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101718"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-180"></span><span id="ialtered"><span class="annot"><span class="annottext">ialtered :: forall k a. Ord k =&gt; k -&gt; Ixsetter' k (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#ialtered"><span class="hs-identifier hs-var hs-var">ialtered</span></a></span></span><span> </span><span id="local-6989586621679101963"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101963"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101964"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101964"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.alter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679101964"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101963"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101963"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-181"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ialtered"><span class="hs-pragma hs-type">ialtered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- | /O(log n)/. Lens into /Maybe/ of a value at a key of a 'Map.Map'.</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span id="local-6989586621679101723"><span id="local-6989586621679101724"><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier hs-type">alteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101723"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101723"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101723"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101724"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101724"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-186"></span><span id="alteredF"><span class="annot"><span class="annottext">alteredF :: forall k a. Ord k =&gt; k -&gt; Lens' (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier hs-var hs-var">alteredF</span></a></span></span><span> </span><span id="local-6989586621679101968"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101968"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Lens s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#lensVl"><span class="hs-identifier hs-var">lensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+ -&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a))
+-&gt; k -&gt; (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+forall (f :: * -&gt; *) k a.
+(Functor f, Ord k) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+</span><span class="hs-identifier hs-var">Map.alterF</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101968"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-187"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-pragma hs-type">alteredF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key.</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--</span><span>
+</span><span id="line-191"></span><span class="hs-comment">-- &gt;&gt;&gt; let f _ _ = Just &quot;c&quot;</span><span>
+</span><span id="line-192"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialteredF 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-193"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;),(7,&quot;c&quot;)]</span><span>
+</span><span id="line-194"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (ialteredF 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;c&quot;)]</span><span>
+</span><span id="line-196"></span><span class="hs-comment">-- &gt;&gt;&gt; Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)] ^%% ialteredF 5 </span><span>
+</span><span id="line-197"></span><span class="hs-comment">-- [(5,Just &quot;a&quot;)]</span><span>
+</span><span id="line-198"></span><span class="hs-comment">--</span><span>
+</span><span id="line-199"></span><span class="hs-comment">-- See also 'Data.Map.alterF'.</span><span>
+</span><span id="line-200"></span><span class="hs-comment">--</span><span>
+</span><span id="line-201"></span><span id="local-6989586621679101739"><span id="local-6989586621679101740"><span class="annot"><a href="Data.Map.Optic.html#ialteredF"><span class="hs-identifier hs-type">ialteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101739"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101739"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixlens%27"><span class="hs-identifier hs-type">Ixlens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101739"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101739"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101740"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101740"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-202"></span><span id="ialteredF"><span class="annot"><span class="annottext">ialteredF :: forall k a. Ord k =&gt; k -&gt; Ixlens' k (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#ialteredF"><span class="hs-identifier hs-var hs-var">ialteredF</span></a></span></span><span> </span><span id="local-6989586621679101977"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101977"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall k a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixlens k s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#ixlensVl"><span class="hs-identifier hs-var">ixlensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+ -&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101982"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679101982"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+forall (f :: * -&gt; *) k a.
+(Functor f, Ord k) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+</span><span class="hs-identifier hs-var">Map.alterF</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679101982"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101977"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101977"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-203"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ialteredF"><span class="hs-pragma hs-type">ialteredF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-204"></span><span>
+</span><span id="line-205"></span><span class="hs-comment">-- | /O(log n)/. Adjust a value at a specific key.</span><span>
+</span><span id="line-206"></span><span class="hs-comment">--</span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- &gt;&gt;&gt; let f key x = (show key) ++ &quot;:new &quot; ++ x</span><span>
+</span><span id="line-208"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (adjusted 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-209"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;5:new a&quot;)]</span><span>
+</span><span id="line-210"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (adjusted 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-211"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-212"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (adjusted 7) f Map.empty</span><span>
+</span><span id="line-213"></span><span class="hs-comment">-- fromList []</span><span>
+</span><span id="line-214"></span><span class="hs-comment">--</span><span>
+</span><span id="line-215"></span><span class="hs-comment">-- See also 'Data.Map.adjustWithKey'.</span><span>
+</span><span id="line-216"></span><span class="hs-comment">--</span><span>
+</span><span id="line-217"></span><span id="local-6989586621679101753"><span id="local-6989586621679101754"><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier hs-type">adjusted</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101753"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101753"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter%27"><span class="hs-identifier hs-type">Ixsetter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101753"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101753"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101754"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101754"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-218"></span><span id="adjusted"><span class="annot"><span class="annottext">adjusted :: forall k a. Ord k =&gt; k -&gt; Ixsetter' k (Map k a) a
+</span><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier hs-var hs-var">adjusted</span></a></span></span><span> </span><span id="local-6989586621679101991"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101991"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a a
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) a a)
+-&gt; ((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679101992"><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679101992"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; (k -&gt; a -&gt; a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.adjustWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679101992"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679101991"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-219"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-pragma hs-type">adjusted</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-220"></span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- | /O(log n)/. Update a value at a specific key.</span><span>
+</span><span id="line-222"></span><span class="hs-comment">--</span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- If (@f k x@) is 'Nothing', the element is deleted. If it is (@'Just' y@), </span><span>
+</span><span id="line-224"></span><span class="hs-comment">-- the key @k@ is bound to the new value @y@.</span><span>
+</span><span id="line-225"></span><span class="hs-comment">--</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- &gt;&gt;&gt; let f k x = if x == &quot;a&quot; then Just ((show k) ++ &quot;:new a&quot;) else Nothing</span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-228"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;5:new a&quot;)]</span><span>
+</span><span id="line-229"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-230"></span><span class="hs-comment">-- fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)]</span><span>
+</span><span id="line-231"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updated 3) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-232"></span><span class="hs-comment">-- fromList [(5,&quot;a&quot;)]</span><span>
+</span><span id="line-233"></span><span class="hs-comment">--</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- See also 'Data.Map.updateWithKey'.</span><span>
+</span><span id="line-235"></span><span class="hs-comment">--</span><span>
+</span><span id="line-236"></span><span id="local-6989586621679101760"><span id="local-6989586621679101761"><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-identifier hs-type">updated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101760"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101760"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101760"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101760"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101760"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101761"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101761"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-237"></span><span id="updated"><span class="annot"><span class="annottext">updated :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+</span><a href="Data.Map.Optic.html#updated"><span class="hs-identifier hs-var hs-var">updated</span></a></span></span><span> </span><span id="local-6989586621679102002"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102002"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679102003"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679102003"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; (k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.updateWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679102003"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102002"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-238"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-pragma hs-type">updated</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-239"></span><span>
+</span><span id="line-240"></span><span class="hs-comment">-- | /O(log n)/. Lookup and update a value at a specific key.</span><span>
+</span><span id="line-241"></span><span class="hs-comment">--</span><span>
+</span><span id="line-242"></span><span class="hs-comment">-- Returns the changed value, if it is updated. Returns the original key value</span><span>
+</span><span id="line-243"></span><span class="hs-comment">-- if the map entry is deleted.</span><span>
+</span><span id="line-244"></span><span class="hs-comment">--</span><span>
+</span><span id="line-245"></span><span class="hs-comment">-- &gt;&gt;&gt; let f k x = if x == &quot;a&quot; then Just ((show k) ++ &quot;:new a&quot;) else Nothing</span><span>
+</span><span id="line-246"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 5) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-247"></span><span class="hs-comment">-- (Just &quot;5:new a&quot;,fromList [(3,&quot;b&quot;),(5,&quot;5:new a&quot;)])</span><span>
+</span><span id="line-248"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 7) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- (Nothing,fromList [(3,&quot;b&quot;),(5,&quot;a&quot;)])</span><span>
+</span><span id="line-250"></span><span class="hs-comment">-- &gt;&gt;&gt; iover (updateLooked 3) f $ Map.fromList [(5,&quot;a&quot;), (3,&quot;b&quot;)]</span><span>
+</span><span id="line-251"></span><span class="hs-comment">-- (Just &quot;b&quot;,fromList [(5,&quot;a&quot;)])</span><span>
+</span><span id="line-252"></span><span class="hs-comment">--</span><span>
+</span><span id="line-253"></span><span class="hs-comment">-- See also 'Data.Map.updateLookupWithKey'.</span><span>
+</span><span id="line-254"></span><span class="hs-comment">--</span><span>
+</span><span id="line-255"></span><span id="local-6989586621679101767"><span id="local-6989586621679101768"><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier hs-type">updateLooked</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101767"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679101767"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101767"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101767"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101768"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101768"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101767"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101768"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101768"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679101768"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-256"></span><span id="updateLooked"><span class="annot"><span class="annottext">updateLooked :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+</span><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier hs-var hs-var">updateLooked</span></a></span></span><span> </span><span id="local-6989586621679102013"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102013"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+ -&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679102014"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679102014"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; (Maybe a, Map k a)
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; (Maybe a, Map k a)
+</span><span class="hs-identifier hs-var">Map.updateLookupWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679102014"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102013"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-257"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-pragma hs-type">updateLooked</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-258"></span><span>
+</span><span id="line-259"></span><span class="hs-comment">-- | /O(log n)/. 'Ixoption' into the value at the minimal key of a 'Map.Map'.</span><span>
+</span><span id="line-260"></span><span class="hs-comment">--</span><span>
+</span><span id="line-261"></span><span id="local-6989586621679101775"><span id="local-6989586621679101776"><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier hs-type">lookedMin</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixfold0"><span class="hs-identifier hs-type">Ixfold0</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101775"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101775"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101776"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679101776"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-262"></span><span id="lookedMin"><span class="annot"><span class="annottext">lookedMin :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier hs-var hs-var">lookedMin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a)) -&gt; Ixfold0 k (Map k a) a
+forall s k a. (s -&gt; Maybe (k, a)) -&gt; Ixfold0 k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#ixfold0"><span class="hs-identifier hs-var">ixfold0</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Maybe (k, a)
+forall k a. Map k a -&gt; Maybe (k, a)
+</span><span class="hs-identifier hs-var">Map.lookupMin</span></span><span>
+</span><span id="line-263"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-pragma hs-type">lookedMin</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-264"></span><span>
+</span><span id="line-265"></span><span class="hs-comment">-- | /O(log n)/. 'Ixoption' into the value at the maximal key of a 'Map.Map'.</span><span>
+</span><span id="line-266"></span><span class="hs-comment">--</span><span>
+</span><span id="line-267"></span><span id="local-6989586621679102022"><span id="local-6989586621679102023"><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier hs-type">lookedMax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixfold0"><span class="hs-identifier hs-type">Ixfold0</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679102022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679102023"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-268"></span><span id="lookedMax"><span class="annot"><span class="annottext">lookedMax :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier hs-var hs-var">lookedMax</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a)) -&gt; Ixfold0 k (Map k a) a
+forall s k a. (s -&gt; Maybe (k, a)) -&gt; Ixfold0 k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#ixfold0"><span class="hs-identifier hs-var">ixfold0</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Maybe (k, a)
+forall k a. Map k a -&gt; Maybe (k, a)
+</span><span class="hs-identifier hs-var">Map.lookupMax</span></span><span>
+</span><span id="line-269"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-pragma hs-type">lookedMax</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-270"></span><span>
+</span><span id="line-271"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.</span><span>
+</span><span id="line-272"></span><span class="hs-comment">--</span><span>
+</span><span id="line-273"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLT 3) (Map.fromList [(3,'a'), (5,'b')])</span><span>
+</span><span id="line-274"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-275"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLT 4) (Map.fromList [(3,'a'), (5,'b')])</span><span>
+</span><span id="line-276"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-277"></span><span class="hs-comment">--</span><span>
+</span><span id="line-278"></span><span id="local-6989586621679102029"><span id="local-6989586621679102030"><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier hs-type">lookedLT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679102029"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679102029"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102029"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679102029"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102030"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679102030"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-279"></span><span id="lookedLT"><span class="annot"><span class="annottext">lookedLT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier hs-var hs-var">lookedLT</span></a></span></span><span> </span><span id="local-6989586621679102036"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102036"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupLT</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102036"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102036"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-280"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-pragma hs-type">lookedLT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-281"></span><span>
+</span><span id="line-282"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the given one.</span><span>
+</span><span id="line-283"></span><span class="hs-comment">--</span><span>
+</span><span id="line-284"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedLE 3) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-285"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-286"></span><span class="hs-comment">--</span><span>
+</span><span id="line-287"></span><span id="local-6989586621679102038"><span id="local-6989586621679102039"><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier hs-type">lookedLE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679102038"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679102038"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102038"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679102038"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102039"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679102039"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-288"></span><span id="lookedLE"><span class="annot"><span class="annottext">lookedLE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier hs-var hs-var">lookedLE</span></a></span></span><span> </span><span id="local-6989586621679102045"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102045"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupLE</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102045"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102045"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-289"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-pragma hs-type">lookedLE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-290"></span><span>
+</span><span id="line-291"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key greater than or equal to the given one.</span><span>
+</span><span id="line-292"></span><span class="hs-comment">--</span><span>
+</span><span id="line-293"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 3) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-294"></span><span class="hs-comment">-- Just (3,'a')</span><span>
+</span><span id="line-295"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 4) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-296"></span><span class="hs-comment">-- Just (5,'b')</span><span>
+</span><span id="line-297"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGE 6) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-298"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-299"></span><span class="hs-comment">--</span><span>
+</span><span id="line-300"></span><span id="local-6989586621679102047"><span id="local-6989586621679102048"><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier hs-type">lookedGE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679102047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679102047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679102047"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102048"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679102048"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-301"></span><span id="lookedGE"><span class="annot"><span class="annottext">lookedGE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier hs-var hs-var">lookedGE</span></a></span></span><span> </span><span id="local-6989586621679102054"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102054"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupGE</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102054"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102054"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-302"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-pragma hs-type">lookedGE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-303"></span><span>
+</span><span id="line-304"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key greater than the given one.</span><span>
+</span><span id="line-305"></span><span class="hs-comment">-- </span><span>
+</span><span id="line-306"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGT 4) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-307"></span><span class="hs-comment">-- Just (5,'b')</span><span>
+</span><span id="line-308"></span><span class="hs-comment">-- &gt;&gt;&gt; ipreview (lookedGT 5) $ Map.fromList [(3,'a'), (5,'b')]</span><span>
+</span><span id="line-309"></span><span class="hs-comment">-- Nothing</span><span>
+</span><span id="line-310"></span><span class="hs-comment">--</span><span>
+</span><span id="line-311"></span><span id="local-6989586621679102056"><span id="local-6989586621679102057"><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier hs-type">lookedGT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679102056"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679102056"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102056"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679102056"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679102057"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679102057"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-312"></span><span id="lookedGT"><span class="annot"><span class="annottext">lookedGT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier hs-var hs-var">lookedGT</span></a></span></span><span> </span><span id="local-6989586621679102063"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102063"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupGT</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102063"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679102063"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-313"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-pragma hs-type">lookedGT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-314"></span><span>
+</span><span id="line-315"></span><span class="hs-comment">-- | /O(n)/. Test if the internal map structure is valid.</span><span>
+</span><span id="line-316"></span><span class="hs-comment">--</span><span>
+</span><span id="line-317"></span><span class="hs-comment">-- &gt;&gt;&gt; is validated (Map.fromAscList [(3,&quot;b&quot;), (5,&quot;a&quot;)])</span><span>
+</span><span id="line-318"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-319"></span><span class="hs-comment">-- &gt;&gt;&gt; isnt validated (Map.fromAscList [(5,&quot;a&quot;), (3,&quot;b&quot;)])</span><span>
+</span><span id="line-320"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-321"></span><span class="hs-comment">--</span><span>
+</span><span id="line-322"></span><span class="hs-comment">-- See also 'Data.Map.valid'.</span><span>
+</span><span id="line-323"></span><span class="hs-comment">--</span><span>
+</span><span id="line-324"></span><span id="local-6989586621679101803"><span id="local-6989586621679101804"><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-identifier hs-type">validated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679101803"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Fold0"><span class="hs-identifier hs-type">Fold0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101803"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101804"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101803"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101804"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-325"></span><span id="validated"><span class="annot"><span class="annottext">validated :: forall k a. Ord k =&gt; Fold0 (Map k a) (Map k a)
+</span><a href="Data.Map.Optic.html#validated"><span class="hs-identifier hs-var hs-var">validated</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Bool) -&gt; Fold0 (Map k a) (Map k a)
+forall a. (a -&gt; Bool) -&gt; Fold0 a a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Fold.html#filtered"><span class="hs-identifier hs-var">filtered</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Bool
+forall k a. Ord k =&gt; Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.valid</span></span><span>
+</span><span id="line-326"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-pragma hs-type">validated</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-327"></span><span>
+</span><span id="line-328"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-329"></span><span class="hs-comment">-- Structural (via pattern functor)</span><span>
+</span><span id="line-330"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-331"></span><span>
+</span><span id="line-332"></span><span class="hs-comment">-- | Compute the depth of a 'Map.Map' using its tree structure.</span><span>
+</span><span id="line-333"></span><span class="hs-comment">--</span><span>
+</span><span id="line-334"></span><span class="hs-comment">-- This operates on the internal BST representation via 'MapF',</span><span>
+</span><span id="line-335"></span><span class="hs-comment">-- something not possible with the standard Map API.</span><span>
+</span><span id="line-336"></span><span class="hs-comment">--</span><span>
+</span><span id="line-337"></span><span class="hs-comment">-- &gt;&gt;&gt; depth (Map.fromList [(1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e')])</span><span>
+</span><span id="line-338"></span><span class="hs-comment">-- 3</span><span>
+</span><span id="line-339"></span><span class="hs-comment">--</span><span>
+</span><span id="line-340"></span><span id="local-6989586621679101812"><span id="local-6989586621679101813"><span class="annot"><a href="Data.Map.Optic.html#depth"><span class="hs-identifier hs-type">depth</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101812"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101813"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span></span><span>
+</span><span id="line-341"></span><span id="depth"><span class="annot"><span class="annottext">depth :: forall k v. Map k v -&gt; Int
+</span><a href="Data.Map.Optic.html#depth"><span class="hs-identifier hs-var hs-var">depth</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) Int -&gt; Mu (MapF k v) -&gt; Int
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) Int
+forall {a} {k} {v}. (Num a, Ord a) =&gt; MapF k v a -&gt; a
+</span><a href="#local-6989586621679102077"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="annot"><span class="annottext">(Mu (MapF k v) -&gt; Int)
+-&gt; (Map k v -&gt; Mu (MapF k v)) -&gt; Map k v -&gt; Int
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map k v -&gt; Mu (MapF k v)
+forall k v. Map k v -&gt; Mu (MapF k v)
+</span><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier hs-var">toMapF</span></a></span><span>
+</span><span id="line-342"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-343"></span><span>    </span><span id="local-6989586621679102077"><span class="annot"><span class="annottext">alg :: MapF k v a -&gt; a
+</span><a href="#local-6989586621679102077"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">MapF k v a
+</span><a href="Data.Container.Pattern.html#MapTip"><span class="hs-identifier hs-var">MapTip</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">0</span></span><span>
+</span><span id="line-344"></span><span>    </span><span class="annot"><a href="#local-6989586621679102077"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#MapBin"><span class="hs-identifier hs-type">MapBin</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">v
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679102090"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679102090"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679102091"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679102091"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-number">1</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; a -&gt; a
+forall a. Ord a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-identifier hs-var">max</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679102090"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679102091"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-345"></span><span>
+</span><span id="line-346"></span><span class="hs-comment">-- | Collect the sizes stored at each internal node.</span><span>
+</span><span id="line-347"></span><span class="hs-comment">--</span><span>
+</span><span id="line-348"></span><span class="hs-comment">-- Useful for inspecting or validating the balance invariant.</span><span>
+</span><span id="line-349"></span><span class="hs-comment">--</span><span>
+</span><span id="line-350"></span><span class="hs-comment">-- &gt;&gt;&gt; sizes (Map.fromList [(1,'a'),(2,'b'),(3,'c')])</span><span>
+</span><span id="line-351"></span><span class="hs-comment">-- [3,1,1]</span><span>
+</span><span id="line-352"></span><span class="hs-comment">--</span><span>
+</span><span id="line-353"></span><span id="local-6989586621679101828"><span id="local-6989586621679101829"><span class="annot"><a href="Data.Map.Optic.html#sizes"><span class="hs-identifier hs-type">sizes</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101828"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101829"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-354"></span><span id="sizes"><span class="annot"><span class="annottext">sizes :: forall k v. Map k v -&gt; [Int]
+</span><a href="Data.Map.Optic.html#sizes"><span class="hs-identifier hs-var hs-var">sizes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) [Int] -&gt; Mu (MapF k v) -&gt; [Int]
+forall (f :: * -&gt; *) a. Algebra f a -&gt; Mu f -&gt; a
+</span><a href="file:///Users/cmk/Documents/Code/haskell/profunctor-optics/dist-newstyle/build/x86_64-osx/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Foldable.html#fold"><span class="hs-identifier hs-var">fold</span></a></span><span> </span><span class="annot"><span class="annottext">Algebra (MapF k v) [Int]
+forall {k} {v}. MapF k v [Int] -&gt; [Int]
+</span><a href="#local-6989586621679102094"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="annot"><span class="annottext">(Mu (MapF k v) -&gt; [Int])
+-&gt; (Map k v -&gt; Mu (MapF k v)) -&gt; Map k v -&gt; [Int]
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map k v -&gt; Mu (MapF k v)
+forall k v. Map k v -&gt; Mu (MapF k v)
+</span><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier hs-var">toMapF</span></a></span><span>
+</span><span id="line-355"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-356"></span><span>    </span><span id="local-6989586621679102094"><span class="annot"><span class="annottext">alg :: MapF k v [Int] -&gt; [Int]
+</span><a href="#local-6989586621679102094"><span class="hs-identifier hs-var hs-var">alg</span></a></span></span><span> </span><span class="annot"><span class="annottext">MapF k v [Int]
+</span><a href="Data.Container.Pattern.html#MapTip"><span class="hs-identifier hs-var">MapTip</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-357"></span><span>    </span><span class="annot"><a href="#local-6989586621679102094"><span class="hs-identifier hs-var">alg</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Container.Pattern.html#MapBin"><span class="hs-identifier hs-type">MapBin</span></a></span><span> </span><span id="local-6989586621679102095"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679102095"><span class="hs-identifier hs-var">sz</span></a></span></span><span> </span><span class="annot"><span class="annottext">k
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">v
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679102096"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679102096"><span class="hs-identifier hs-var">l</span></a></span></span><span> </span><span id="local-6989586621679102097"><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679102097"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679102095"><span class="hs-identifier hs-var">sz</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; [Int] -&gt; [Int]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679102096"><span class="hs-identifier hs-var">l</span></a></span><span> </span><span class="annot"><span class="annottext">[Int] -&gt; [Int] -&gt; [Int]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Int]
+</span><a href="#local-6989586621679102097"><span class="hs-identifier hs-var">r</span></a></span><span>
+</span><span id="line-358"></span><span>
+</span><span id="line-359"></span><span class="hs-comment">-- | Rebuild a 'Map.Map' from its pattern functor representation.</span><span>
+</span><span id="line-360"></span><span class="hs-comment">--</span><span>
+</span><span id="line-361"></span><span class="hs-comment">-- @rebalanced = fromMapF . toMapF@</span><span>
+</span><span id="line-362"></span><span class="hs-comment">--</span><span>
+</span><span id="line-363"></span><span class="hs-comment">-- Since 'Map.Bin' preserves the original sizes, this is the</span><span>
+</span><span id="line-364"></span><span class="hs-comment">-- identity. Useful as a building block for transformations</span><span>
+</span><span id="line-365"></span><span class="hs-comment">-- that modify the tree structure then reconstruct.</span><span>
+</span><span id="line-366"></span><span class="hs-comment">--</span><span>
+</span><span id="line-367"></span><span id="local-6989586621679101835"><span id="local-6989586621679101836"><span class="annot"><a href="Data.Map.Optic.html#rebalanced"><span class="hs-identifier hs-type">rebalanced</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101835"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101836"><span class="hs-identifier hs-type">v</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679101835"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679101836"><span class="hs-identifier hs-type">v</span></a></span></span></span><span>
+</span><span id="line-368"></span><span id="rebalanced"><span class="annot"><span class="annottext">rebalanced :: forall k v. Map k v -&gt; Map k v
+</span><a href="Data.Map.Optic.html#rebalanced"><span class="hs-identifier hs-var hs-var">rebalanced</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Mu (MapF k v) -&gt; Map k v
+forall k v. Mu (MapF k v) -&gt; Map k v
+</span><a href="Data.Container.Pattern.html#fromMapF"><span class="hs-identifier hs-var">fromMapF</span></a></span><span> </span><span class="annot"><span class="annottext">(Mu (MapF k v) -&gt; Map k v)
+-&gt; (Map k v -&gt; Mu (MapF k v)) -&gt; Map k v -&gt; Map k v
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Map k v -&gt; Mu (MapF k v)
+forall k v. Map k v -&gt; Mu (MapF k v)
+</span><a href="Data.Container.Pattern.html#toMapF"><span class="hs-identifier hs-var">toMapF</span></a></span><span>
+</span><span id="line-369"></span></pre></body></html>
