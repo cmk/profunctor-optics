@@ -1,4 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RankNTypes #-}
 
 -- | Profunctor optics for 'Text'.
 --
@@ -21,6 +23,14 @@ module Data.Text.Optic (
 
     -- * UTF-8 encoding
     utf8,
+
+    -- * Splitting
+    lined,
+    worded,
+    splitOn,
+
+    -- * Element traversal
+    chars,
 ) where
 
 import Data.ByteString (ByteString)
@@ -53,3 +63,21 @@ packed = iso T.pack T.unpack
 -- variant, use 'TE.decodeUtf8'' and handle the error.
 utf8 :: Iso' Text ByteString
 utf8 = iso TE.encodeUtf8 TE.decodeUtf8
+
+-- | Split on newlines.
+lined :: Iso' Text [Text]
+lined = iso T.lines (T.intercalate "\n")
+
+-- | Split on spaces.
+worded :: Iso' Text [Text]
+worded = iso T.words (T.intercalate " ")
+
+-- | Split on an arbitrary delimiter.
+splitOn :: Text -> Iso' Text [Text]
+splitOn delim = iso (T.splitOn delim) (T.intercalate delim)
+
+-- | Traversal over individual characters.
+--
+-- @chars = re packed . traversed@
+chars :: Traversal' Text Char
+chars = re packed . traversed

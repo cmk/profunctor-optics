@@ -331,7 +331,7 @@ matching sca cbt = dimap sca cbt . second'
 -- | Obtain a 'Colens' from its free tensor representation.
 --
 -- >>> fib = comatching (uncurry L.take . swap) (id &&& L.reverse) --fib :: Colens Int [Int] [Int] [Int]
--- >>> 10 & fib ..~ \xs -> 1 : 1 : Prelude.zipWith (+) xs (Prelude.tail xs)
+-- >>> 10 & fib ..~ \xs -> 1 : 1 : Prelude.zipWith (+) xs (drop 1 xs)
 -- [89,55,34,21,13,8,5,3,2,1,1]
 --
 comatching :: ((c , s) -> a) -> (b -> (c , t)) -> Colens s t a b
