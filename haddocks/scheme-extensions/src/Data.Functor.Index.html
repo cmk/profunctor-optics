@@ -1,0 +1,975 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span id="local-6989586621679089360"><span id="local-6989586621679089361"><span id="local-6989586621679089362"><span id="local-6989586621679089363"><span id="local-6989586621679089364"><span id="local-6989586621679089365"><span id="local-6989586621679089366"><span id="local-6989586621679089367"><span id="local-6989586621679089368"><span id="local-6989586621679089369"></span></span></span></span></span></span></span></span></span></span><span class="hs-pragma">{-# LANGUAGE DeriveGeneric #-}</span><span>
+</span><span id="line-2"></span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- | Fixed-size index types for 'Representable' functors.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- Each @IN@ type has exactly @N@ inhabitants, making @(-&gt;) IN@</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- a 'Representable' functor with @Rep = IN@. This gives</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- cotraversals\/grates over fixed-size types:</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Word8  &#8773;  I8  -&gt; Bool   (8 bits)</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- Word16 &#8773;  I16 -&gt; Bool   (16 bits)</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- Word32 &#8773;  I32 -&gt; Bool   (32 bits)</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- Word64 &#8773;  I64 -&gt; Bool   (64 bits)</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-15"></span><span class="hs-comment">--</span><span>
+</span><span id="line-16"></span><span class="hs-comment">-- The isos 'toBits8'\/'fromBits8' etc. witness these equivalences.</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- Compose with the @(-&gt;) IN@ cotraversal to get bit-level access.</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Functor.Index</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-19"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Index types</span></span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#I4"><span class="hs-identifier">I4</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#I8"><span class="hs-identifier">I8</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#I16"><span class="hs-identifier">I16</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#I32"><span class="hs-identifier">I32</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#I64"><span class="hs-identifier">I64</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Word &#8773; (IN -&gt; Bool) isos</span></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#toBits8"><span class="hs-identifier">toBits8</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#fromBits8"><span class="hs-identifier">fromBits8</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#toBits16"><span class="hs-identifier">toBits16</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#fromBits16"><span class="hs-identifier">fromBits16</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#toBits32"><span class="hs-identifier">toBits32</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#fromBits32"><span class="hs-identifier">fromBits32</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#toBits64"><span class="hs-identifier">toBits64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><a href="Data.Functor.Index.html#fromBits64"><span class="hs-identifier">fromBits64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Bits</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">testBit</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">setBit</span></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word16</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word32</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">)</span><span>
+</span><span id="line-39"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-42"></span><span class="hs-comment">-- Index types</span><span>
+</span><span id="line-43"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-44"></span><span>
+</span><span id="line-45"></span><span class="annot"><span class="hs-comment">-- | 4-element index type. Represents a nibble (half-byte).</span></span><span>
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="I4"><span class="annot"><a href="Data.Functor.Index.html#I4"><span class="hs-identifier hs-var">I4</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="I41"><span class="annot"><a href="Data.Functor.Index.html#I41"><span class="hs-identifier hs-var">I41</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I42"><span class="annot"><a href="Data.Functor.Index.html#I42"><span class="hs-identifier hs-var">I42</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I43"><span class="annot"><a href="Data.Functor.Index.html#I43"><span class="hs-identifier hs-var">I43</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I44"><span class="annot"><a href="Data.Functor.Index.html#I44"><span class="hs-identifier hs-var">I44</span></a></span></span><span>
+</span><span id="line-47"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679089429"><span id="local-6989586621679089431"><span class="annot"><span class="annottext">I4 -&gt; I4 -&gt; Bool
+(I4 -&gt; I4 -&gt; Bool) -&gt; (I4 -&gt; I4 -&gt; Bool) -&gt; Eq I4
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: I4 -&gt; I4 -&gt; Bool
+== :: I4 -&gt; I4 -&gt; Bool
+$c/= :: I4 -&gt; I4 -&gt; Bool
+/= :: I4 -&gt; I4 -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089438"><span id="local-6989586621679089440"><span id="local-6989586621679089442"><span id="local-6989586621679089446"><span id="local-6989586621679089449"><span id="local-6989586621679089452"><span id="local-6989586621679089455"><span class="annot"><span class="annottext">Eq I4
+Eq I4 =&gt;
+(I4 -&gt; I4 -&gt; Ordering)
+-&gt; (I4 -&gt; I4 -&gt; Bool)
+-&gt; (I4 -&gt; I4 -&gt; Bool)
+-&gt; (I4 -&gt; I4 -&gt; Bool)
+-&gt; (I4 -&gt; I4 -&gt; Bool)
+-&gt; (I4 -&gt; I4 -&gt; I4)
+-&gt; (I4 -&gt; I4 -&gt; I4)
+-&gt; Ord I4
+I4 -&gt; I4 -&gt; Bool
+I4 -&gt; I4 -&gt; Ordering
+I4 -&gt; I4 -&gt; I4
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: I4 -&gt; I4 -&gt; Ordering
+compare :: I4 -&gt; I4 -&gt; Ordering
+$c&lt; :: I4 -&gt; I4 -&gt; Bool
+&lt; :: I4 -&gt; I4 -&gt; Bool
+$c&lt;= :: I4 -&gt; I4 -&gt; Bool
+&lt;= :: I4 -&gt; I4 -&gt; Bool
+$c&gt; :: I4 -&gt; I4 -&gt; Bool
+&gt; :: I4 -&gt; I4 -&gt; Bool
+$c&gt;= :: I4 -&gt; I4 -&gt; Bool
+&gt;= :: I4 -&gt; I4 -&gt; Bool
+$cmax :: I4 -&gt; I4 -&gt; I4
+max :: I4 -&gt; I4 -&gt; I4
+$cmin :: I4 -&gt; I4 -&gt; I4
+min :: I4 -&gt; I4 -&gt; I4
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089459"><span id="local-6989586621679089461"><span id="local-6989586621679089465"><span class="annot"><span class="annottext">Int -&gt; I4 -&gt; ShowS
+[I4] -&gt; ShowS
+I4 -&gt; String
+(Int -&gt; I4 -&gt; ShowS)
+-&gt; (I4 -&gt; String) -&gt; ([I4] -&gt; ShowS) -&gt; Show I4
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; I4 -&gt; ShowS
+showsPrec :: Int -&gt; I4 -&gt; ShowS
+$cshow :: I4 -&gt; String
+show :: I4 -&gt; String
+$cshowList :: [I4] -&gt; ShowS
+showList :: [I4] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089469"><span id="local-6989586621679089473"><span id="local-6989586621679089476"><span id="local-6989586621679089483"><span class="annot"><span class="annottext">ReadPrec [I4]
+ReadPrec I4
+Int -&gt; ReadS I4
+ReadS [I4]
+(Int -&gt; ReadS I4)
+-&gt; ReadS [I4] -&gt; ReadPrec I4 -&gt; ReadPrec [I4] -&gt; Read I4
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS I4
+readsPrec :: Int -&gt; ReadS I4
+$creadList :: ReadS [I4]
+readList :: ReadS [I4]
+$creadPrec :: ReadPrec I4
+readPrec :: ReadPrec I4
+$creadListPrec :: ReadPrec [I4]
+readListPrec :: ReadPrec [I4]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089487"><span id="local-6989586621679089495"><span id="local-6989586621679089501"><span id="local-6989586621679089511"><span id="local-6989586621679089513"><span id="local-6989586621679089517"><span id="local-6989586621679089521"><span id="local-6989586621679089525"><span class="annot"><span class="annottext">Int -&gt; I4
+I4 -&gt; Int
+I4 -&gt; [I4]
+I4 -&gt; I4
+I4 -&gt; I4 -&gt; [I4]
+I4 -&gt; I4 -&gt; I4 -&gt; [I4]
+(I4 -&gt; I4)
+-&gt; (I4 -&gt; I4)
+-&gt; (Int -&gt; I4)
+-&gt; (I4 -&gt; Int)
+-&gt; (I4 -&gt; [I4])
+-&gt; (I4 -&gt; I4 -&gt; [I4])
+-&gt; (I4 -&gt; I4 -&gt; [I4])
+-&gt; (I4 -&gt; I4 -&gt; I4 -&gt; [I4])
+-&gt; Enum I4
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: I4 -&gt; I4
+succ :: I4 -&gt; I4
+$cpred :: I4 -&gt; I4
+pred :: I4 -&gt; I4
+$ctoEnum :: Int -&gt; I4
+toEnum :: Int -&gt; I4
+$cfromEnum :: I4 -&gt; Int
+fromEnum :: I4 -&gt; Int
+$cenumFrom :: I4 -&gt; [I4]
+enumFrom :: I4 -&gt; [I4]
+$cenumFromThen :: I4 -&gt; I4 -&gt; [I4]
+enumFromThen :: I4 -&gt; I4 -&gt; [I4]
+$cenumFromTo :: I4 -&gt; I4 -&gt; [I4]
+enumFromTo :: I4 -&gt; I4 -&gt; [I4]
+$cenumFromThenTo :: I4 -&gt; I4 -&gt; I4 -&gt; [I4]
+enumFromThenTo :: I4 -&gt; I4 -&gt; I4 -&gt; [I4]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089529"><span id="local-6989586621679089531"><span class="annot"><span class="annottext">I4
+I4 -&gt; I4 -&gt; Bounded I4
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: I4
+minBound :: I4
+$cmaxBound :: I4
+maxBound :: I4
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089535"><span id="local-6989586621679089537"><span class="annot"><span class="annottext">(forall x. I4 -&gt; Rep I4 x)
+-&gt; (forall x. Rep I4 x -&gt; I4) -&gt; Generic I4
+forall x. Rep I4 x -&gt; I4
+forall x. I4 -&gt; Rep I4 x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. I4 -&gt; Rep I4 x
+from :: forall x. I4 -&gt; Rep I4 x
+$cto :: forall x. Rep I4 x -&gt; I4
+to :: forall x. Rep I4 x -&gt; I4
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="annot"><span class="hs-comment">-- | 8-element index type. Represents bit positions in a 'Word8'.</span></span><span>
+</span><span id="line-50"></span><span class="hs-keyword">data</span><span> </span><span id="I8"><span class="annot"><a href="Data.Functor.Index.html#I8"><span class="hs-identifier hs-var">I8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="I81"><span class="annot"><a href="Data.Functor.Index.html#I81"><span class="hs-identifier hs-var">I81</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I82"><span class="annot"><a href="Data.Functor.Index.html#I82"><span class="hs-identifier hs-var">I82</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I83"><span class="annot"><a href="Data.Functor.Index.html#I83"><span class="hs-identifier hs-var">I83</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I84"><span class="annot"><a href="Data.Functor.Index.html#I84"><span class="hs-identifier hs-var">I84</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I85"><span class="annot"><a href="Data.Functor.Index.html#I85"><span class="hs-identifier hs-var">I85</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I86"><span class="annot"><a href="Data.Functor.Index.html#I86"><span class="hs-identifier hs-var">I86</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I87"><span class="annot"><a href="Data.Functor.Index.html#I87"><span class="hs-identifier hs-var">I87</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I88"><span class="annot"><a href="Data.Functor.Index.html#I88"><span class="hs-identifier hs-var">I88</span></a></span></span><span>
+</span><span id="line-51"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679089549"><span id="local-6989586621679089551"><span class="annot"><span class="annottext">I8 -&gt; I8 -&gt; Bool
+(I8 -&gt; I8 -&gt; Bool) -&gt; (I8 -&gt; I8 -&gt; Bool) -&gt; Eq I8
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: I8 -&gt; I8 -&gt; Bool
+== :: I8 -&gt; I8 -&gt; Bool
+$c/= :: I8 -&gt; I8 -&gt; Bool
+/= :: I8 -&gt; I8 -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089557"><span id="local-6989586621679089559"><span id="local-6989586621679089561"><span id="local-6989586621679089565"><span id="local-6989586621679089568"><span id="local-6989586621679089571"><span id="local-6989586621679089574"><span class="annot"><span class="annottext">Eq I8
+Eq I8 =&gt;
+(I8 -&gt; I8 -&gt; Ordering)
+-&gt; (I8 -&gt; I8 -&gt; Bool)
+-&gt; (I8 -&gt; I8 -&gt; Bool)
+-&gt; (I8 -&gt; I8 -&gt; Bool)
+-&gt; (I8 -&gt; I8 -&gt; Bool)
+-&gt; (I8 -&gt; I8 -&gt; I8)
+-&gt; (I8 -&gt; I8 -&gt; I8)
+-&gt; Ord I8
+I8 -&gt; I8 -&gt; Bool
+I8 -&gt; I8 -&gt; Ordering
+I8 -&gt; I8 -&gt; I8
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: I8 -&gt; I8 -&gt; Ordering
+compare :: I8 -&gt; I8 -&gt; Ordering
+$c&lt; :: I8 -&gt; I8 -&gt; Bool
+&lt; :: I8 -&gt; I8 -&gt; Bool
+$c&lt;= :: I8 -&gt; I8 -&gt; Bool
+&lt;= :: I8 -&gt; I8 -&gt; Bool
+$c&gt; :: I8 -&gt; I8 -&gt; Bool
+&gt; :: I8 -&gt; I8 -&gt; Bool
+$c&gt;= :: I8 -&gt; I8 -&gt; Bool
+&gt;= :: I8 -&gt; I8 -&gt; Bool
+$cmax :: I8 -&gt; I8 -&gt; I8
+max :: I8 -&gt; I8 -&gt; I8
+$cmin :: I8 -&gt; I8 -&gt; I8
+min :: I8 -&gt; I8 -&gt; I8
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089577"><span id="local-6989586621679089579"><span id="local-6989586621679089583"><span class="annot"><span class="annottext">Int -&gt; I8 -&gt; ShowS
+[I8] -&gt; ShowS
+I8 -&gt; String
+(Int -&gt; I8 -&gt; ShowS)
+-&gt; (I8 -&gt; String) -&gt; ([I8] -&gt; ShowS) -&gt; Show I8
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; I8 -&gt; ShowS
+showsPrec :: Int -&gt; I8 -&gt; ShowS
+$cshow :: I8 -&gt; String
+show :: I8 -&gt; String
+$cshowList :: [I8] -&gt; ShowS
+showList :: [I8] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089586"><span id="local-6989586621679089590"><span id="local-6989586621679089593"><span id="local-6989586621679089603"><span class="annot"><span class="annottext">ReadPrec [I8]
+ReadPrec I8
+Int -&gt; ReadS I8
+ReadS [I8]
+(Int -&gt; ReadS I8)
+-&gt; ReadS [I8] -&gt; ReadPrec I8 -&gt; ReadPrec [I8] -&gt; Read I8
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS I8
+readsPrec :: Int -&gt; ReadS I8
+$creadList :: ReadS [I8]
+readList :: ReadS [I8]
+$creadPrec :: ReadPrec I8
+readPrec :: ReadPrec I8
+$creadListPrec :: ReadPrec [I8]
+readListPrec :: ReadPrec [I8]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089606"><span id="local-6989586621679089612"><span id="local-6989586621679089618"><span id="local-6989586621679089626"><span id="local-6989586621679089628"><span id="local-6989586621679089631"><span id="local-6989586621679089635"><span id="local-6989586621679089638"><span class="annot"><span class="annottext">Int -&gt; I8
+I8 -&gt; Int
+I8 -&gt; [I8]
+I8 -&gt; I8
+I8 -&gt; I8 -&gt; [I8]
+I8 -&gt; I8 -&gt; I8 -&gt; [I8]
+(I8 -&gt; I8)
+-&gt; (I8 -&gt; I8)
+-&gt; (Int -&gt; I8)
+-&gt; (I8 -&gt; Int)
+-&gt; (I8 -&gt; [I8])
+-&gt; (I8 -&gt; I8 -&gt; [I8])
+-&gt; (I8 -&gt; I8 -&gt; [I8])
+-&gt; (I8 -&gt; I8 -&gt; I8 -&gt; [I8])
+-&gt; Enum I8
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: I8 -&gt; I8
+succ :: I8 -&gt; I8
+$cpred :: I8 -&gt; I8
+pred :: I8 -&gt; I8
+$ctoEnum :: Int -&gt; I8
+toEnum :: Int -&gt; I8
+$cfromEnum :: I8 -&gt; Int
+fromEnum :: I8 -&gt; Int
+$cenumFrom :: I8 -&gt; [I8]
+enumFrom :: I8 -&gt; [I8]
+$cenumFromThen :: I8 -&gt; I8 -&gt; [I8]
+enumFromThen :: I8 -&gt; I8 -&gt; [I8]
+$cenumFromTo :: I8 -&gt; I8 -&gt; [I8]
+enumFromTo :: I8 -&gt; I8 -&gt; [I8]
+$cenumFromThenTo :: I8 -&gt; I8 -&gt; I8 -&gt; [I8]
+enumFromThenTo :: I8 -&gt; I8 -&gt; I8 -&gt; [I8]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089641"><span id="local-6989586621679089643"><span class="annot"><span class="annottext">I8
+I8 -&gt; I8 -&gt; Bounded I8
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: I8
+minBound :: I8
+$cmaxBound :: I8
+maxBound :: I8
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089645"><span id="local-6989586621679089647"><span class="annot"><span class="annottext">(forall x. I8 -&gt; Rep I8 x)
+-&gt; (forall x. Rep I8 x -&gt; I8) -&gt; Generic I8
+forall x. Rep I8 x -&gt; I8
+forall x. I8 -&gt; Rep I8 x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. I8 -&gt; Rep I8 x
+from :: forall x. I8 -&gt; Rep I8 x
+$cto :: forall x. Rep I8 x -&gt; I8
+to :: forall x. Rep I8 x -&gt; I8
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><span class="hs-comment">-- | 16-element index type. Represents bit positions in a 'Word16'.</span></span><span>
+</span><span id="line-54"></span><span class="hs-keyword">data</span><span> </span><span id="I16"><span class="annot"><a href="Data.Functor.Index.html#I16"><span class="hs-identifier hs-var">I16</span></a></span></span><span>
+</span><span id="line-55"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="I161"><span class="annot"><a href="Data.Functor.Index.html#I161"><span class="hs-identifier hs-var">I161</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I162"><span class="annot"><a href="Data.Functor.Index.html#I162"><span class="hs-identifier hs-var">I162</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I163"><span class="annot"><a href="Data.Functor.Index.html#I163"><span class="hs-identifier hs-var">I163</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I164"><span class="annot"><a href="Data.Functor.Index.html#I164"><span class="hs-identifier hs-var">I164</span></a></span></span><span>
+</span><span id="line-56"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I165"><span class="annot"><a href="Data.Functor.Index.html#I165"><span class="hs-identifier hs-var">I165</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I166"><span class="annot"><a href="Data.Functor.Index.html#I166"><span class="hs-identifier hs-var">I166</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I167"><span class="annot"><a href="Data.Functor.Index.html#I167"><span class="hs-identifier hs-var">I167</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I168"><span class="annot"><a href="Data.Functor.Index.html#I168"><span class="hs-identifier hs-var">I168</span></a></span></span><span>
+</span><span id="line-57"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I169"><span class="annot"><a href="Data.Functor.Index.html#I169"><span class="hs-identifier hs-var">I169</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I1610"><span class="annot"><a href="Data.Functor.Index.html#I1610"><span class="hs-identifier hs-var">I1610</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I1611"><span class="annot"><a href="Data.Functor.Index.html#I1611"><span class="hs-identifier hs-var">I1611</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I1612"><span class="annot"><a href="Data.Functor.Index.html#I1612"><span class="hs-identifier hs-var">I1612</span></a></span></span><span>
+</span><span id="line-58"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I1613"><span class="annot"><a href="Data.Functor.Index.html#I1613"><span class="hs-identifier hs-var">I1613</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I1614"><span class="annot"><a href="Data.Functor.Index.html#I1614"><span class="hs-identifier hs-var">I1614</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I1615"><span class="annot"><a href="Data.Functor.Index.html#I1615"><span class="hs-identifier hs-var">I1615</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I1616"><span class="annot"><a href="Data.Functor.Index.html#I1616"><span class="hs-identifier hs-var">I1616</span></a></span></span><span>
+</span><span id="line-59"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679089666"><span id="local-6989586621679089668"><span class="annot"><span class="annottext">I16 -&gt; I16 -&gt; Bool
+(I16 -&gt; I16 -&gt; Bool) -&gt; (I16 -&gt; I16 -&gt; Bool) -&gt; Eq I16
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: I16 -&gt; I16 -&gt; Bool
+== :: I16 -&gt; I16 -&gt; Bool
+$c/= :: I16 -&gt; I16 -&gt; Bool
+/= :: I16 -&gt; I16 -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089674"><span id="local-6989586621679089676"><span id="local-6989586621679089678"><span id="local-6989586621679089682"><span id="local-6989586621679089685"><span id="local-6989586621679089688"><span id="local-6989586621679089691"><span class="annot"><span class="annottext">Eq I16
+Eq I16 =&gt;
+(I16 -&gt; I16 -&gt; Ordering)
+-&gt; (I16 -&gt; I16 -&gt; Bool)
+-&gt; (I16 -&gt; I16 -&gt; Bool)
+-&gt; (I16 -&gt; I16 -&gt; Bool)
+-&gt; (I16 -&gt; I16 -&gt; Bool)
+-&gt; (I16 -&gt; I16 -&gt; I16)
+-&gt; (I16 -&gt; I16 -&gt; I16)
+-&gt; Ord I16
+I16 -&gt; I16 -&gt; Bool
+I16 -&gt; I16 -&gt; Ordering
+I16 -&gt; I16 -&gt; I16
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: I16 -&gt; I16 -&gt; Ordering
+compare :: I16 -&gt; I16 -&gt; Ordering
+$c&lt; :: I16 -&gt; I16 -&gt; Bool
+&lt; :: I16 -&gt; I16 -&gt; Bool
+$c&lt;= :: I16 -&gt; I16 -&gt; Bool
+&lt;= :: I16 -&gt; I16 -&gt; Bool
+$c&gt; :: I16 -&gt; I16 -&gt; Bool
+&gt; :: I16 -&gt; I16 -&gt; Bool
+$c&gt;= :: I16 -&gt; I16 -&gt; Bool
+&gt;= :: I16 -&gt; I16 -&gt; Bool
+$cmax :: I16 -&gt; I16 -&gt; I16
+max :: I16 -&gt; I16 -&gt; I16
+$cmin :: I16 -&gt; I16 -&gt; I16
+min :: I16 -&gt; I16 -&gt; I16
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089694"><span id="local-6989586621679089696"><span id="local-6989586621679089700"><span class="annot"><span class="annottext">Int -&gt; I16 -&gt; ShowS
+[I16] -&gt; ShowS
+I16 -&gt; String
+(Int -&gt; I16 -&gt; ShowS)
+-&gt; (I16 -&gt; String) -&gt; ([I16] -&gt; ShowS) -&gt; Show I16
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; I16 -&gt; ShowS
+showsPrec :: Int -&gt; I16 -&gt; ShowS
+$cshow :: I16 -&gt; String
+show :: I16 -&gt; String
+$cshowList :: [I16] -&gt; ShowS
+showList :: [I16] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089703"><span id="local-6989586621679089707"><span id="local-6989586621679089710"><span id="local-6989586621679089728"><span class="annot"><span class="annottext">ReadPrec [I16]
+ReadPrec I16
+Int -&gt; ReadS I16
+ReadS [I16]
+(Int -&gt; ReadS I16)
+-&gt; ReadS [I16] -&gt; ReadPrec I16 -&gt; ReadPrec [I16] -&gt; Read I16
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS I16
+readsPrec :: Int -&gt; ReadS I16
+$creadList :: ReadS [I16]
+readList :: ReadS [I16]
+$creadPrec :: ReadPrec I16
+readPrec :: ReadPrec I16
+$creadListPrec :: ReadPrec [I16]
+readListPrec :: ReadPrec [I16]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089731"><span id="local-6989586621679089737"><span id="local-6989586621679089743"><span id="local-6989586621679089751"><span id="local-6989586621679089753"><span id="local-6989586621679089756"><span id="local-6989586621679089760"><span id="local-6989586621679089763"><span class="annot"><span class="annottext">Int -&gt; I16
+I16 -&gt; Int
+I16 -&gt; [I16]
+I16 -&gt; I16
+I16 -&gt; I16 -&gt; [I16]
+I16 -&gt; I16 -&gt; I16 -&gt; [I16]
+(I16 -&gt; I16)
+-&gt; (I16 -&gt; I16)
+-&gt; (Int -&gt; I16)
+-&gt; (I16 -&gt; Int)
+-&gt; (I16 -&gt; [I16])
+-&gt; (I16 -&gt; I16 -&gt; [I16])
+-&gt; (I16 -&gt; I16 -&gt; [I16])
+-&gt; (I16 -&gt; I16 -&gt; I16 -&gt; [I16])
+-&gt; Enum I16
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: I16 -&gt; I16
+succ :: I16 -&gt; I16
+$cpred :: I16 -&gt; I16
+pred :: I16 -&gt; I16
+$ctoEnum :: Int -&gt; I16
+toEnum :: Int -&gt; I16
+$cfromEnum :: I16 -&gt; Int
+fromEnum :: I16 -&gt; Int
+$cenumFrom :: I16 -&gt; [I16]
+enumFrom :: I16 -&gt; [I16]
+$cenumFromThen :: I16 -&gt; I16 -&gt; [I16]
+enumFromThen :: I16 -&gt; I16 -&gt; [I16]
+$cenumFromTo :: I16 -&gt; I16 -&gt; [I16]
+enumFromTo :: I16 -&gt; I16 -&gt; [I16]
+$cenumFromThenTo :: I16 -&gt; I16 -&gt; I16 -&gt; [I16]
+enumFromThenTo :: I16 -&gt; I16 -&gt; I16 -&gt; [I16]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089766"><span id="local-6989586621679089768"><span class="annot"><span class="annottext">I16
+I16 -&gt; I16 -&gt; Bounded I16
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: I16
+minBound :: I16
+$cmaxBound :: I16
+maxBound :: I16
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089770"><span id="local-6989586621679089772"><span class="annot"><span class="annottext">(forall x. I16 -&gt; Rep I16 x)
+-&gt; (forall x. Rep I16 x -&gt; I16) -&gt; Generic I16
+forall x. Rep I16 x -&gt; I16
+forall x. I16 -&gt; Rep I16 x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. I16 -&gt; Rep I16 x
+from :: forall x. I16 -&gt; Rep I16 x
+$cto :: forall x. Rep I16 x -&gt; I16
+to :: forall x. Rep I16 x -&gt; I16
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-60"></span><span>
+</span><span id="line-61"></span><span class="annot"><span class="hs-comment">-- | 32-element index type. Represents bit positions in a 'Word32'.</span></span><span>
+</span><span id="line-62"></span><span class="hs-keyword">data</span><span> </span><span id="I32"><span class="annot"><a href="Data.Functor.Index.html#I32"><span class="hs-identifier hs-var">I32</span></a></span></span><span>
+</span><span id="line-63"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="I321"><span class="annot"><a href="Data.Functor.Index.html#I321"><span class="hs-identifier hs-var">I321</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I322"><span class="annot"><a href="Data.Functor.Index.html#I322"><span class="hs-identifier hs-var">I322</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I323"><span class="annot"><a href="Data.Functor.Index.html#I323"><span class="hs-identifier hs-var">I323</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I324"><span class="annot"><a href="Data.Functor.Index.html#I324"><span class="hs-identifier hs-var">I324</span></a></span></span><span>
+</span><span id="line-64"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I325"><span class="annot"><a href="Data.Functor.Index.html#I325"><span class="hs-identifier hs-var">I325</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I326"><span class="annot"><a href="Data.Functor.Index.html#I326"><span class="hs-identifier hs-var">I326</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I327"><span class="annot"><a href="Data.Functor.Index.html#I327"><span class="hs-identifier hs-var">I327</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I328"><span class="annot"><a href="Data.Functor.Index.html#I328"><span class="hs-identifier hs-var">I328</span></a></span></span><span>
+</span><span id="line-65"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I329"><span class="annot"><a href="Data.Functor.Index.html#I329"><span class="hs-identifier hs-var">I329</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I3210"><span class="annot"><a href="Data.Functor.Index.html#I3210"><span class="hs-identifier hs-var">I3210</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3211"><span class="annot"><a href="Data.Functor.Index.html#I3211"><span class="hs-identifier hs-var">I3211</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3212"><span class="annot"><a href="Data.Functor.Index.html#I3212"><span class="hs-identifier hs-var">I3212</span></a></span></span><span>
+</span><span id="line-66"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I3213"><span class="annot"><a href="Data.Functor.Index.html#I3213"><span class="hs-identifier hs-var">I3213</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3214"><span class="annot"><a href="Data.Functor.Index.html#I3214"><span class="hs-identifier hs-var">I3214</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3215"><span class="annot"><a href="Data.Functor.Index.html#I3215"><span class="hs-identifier hs-var">I3215</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3216"><span class="annot"><a href="Data.Functor.Index.html#I3216"><span class="hs-identifier hs-var">I3216</span></a></span></span><span>
+</span><span id="line-67"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I3217"><span class="annot"><a href="Data.Functor.Index.html#I3217"><span class="hs-identifier hs-var">I3217</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3218"><span class="annot"><a href="Data.Functor.Index.html#I3218"><span class="hs-identifier hs-var">I3218</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3219"><span class="annot"><a href="Data.Functor.Index.html#I3219"><span class="hs-identifier hs-var">I3219</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3220"><span class="annot"><a href="Data.Functor.Index.html#I3220"><span class="hs-identifier hs-var">I3220</span></a></span></span><span>
+</span><span id="line-68"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I3221"><span class="annot"><a href="Data.Functor.Index.html#I3221"><span class="hs-identifier hs-var">I3221</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3222"><span class="annot"><a href="Data.Functor.Index.html#I3222"><span class="hs-identifier hs-var">I3222</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3223"><span class="annot"><a href="Data.Functor.Index.html#I3223"><span class="hs-identifier hs-var">I3223</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3224"><span class="annot"><a href="Data.Functor.Index.html#I3224"><span class="hs-identifier hs-var">I3224</span></a></span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I3225"><span class="annot"><a href="Data.Functor.Index.html#I3225"><span class="hs-identifier hs-var">I3225</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3226"><span class="annot"><a href="Data.Functor.Index.html#I3226"><span class="hs-identifier hs-var">I3226</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3227"><span class="annot"><a href="Data.Functor.Index.html#I3227"><span class="hs-identifier hs-var">I3227</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3228"><span class="annot"><a href="Data.Functor.Index.html#I3228"><span class="hs-identifier hs-var">I3228</span></a></span></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I3229"><span class="annot"><a href="Data.Functor.Index.html#I3229"><span class="hs-identifier hs-var">I3229</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3230"><span class="annot"><a href="Data.Functor.Index.html#I3230"><span class="hs-identifier hs-var">I3230</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3231"><span class="annot"><a href="Data.Functor.Index.html#I3231"><span class="hs-identifier hs-var">I3231</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I3232"><span class="annot"><a href="Data.Functor.Index.html#I3232"><span class="hs-identifier hs-var">I3232</span></a></span></span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679089807"><span id="local-6989586621679089809"><span class="annot"><span class="annottext">I32 -&gt; I32 -&gt; Bool
+(I32 -&gt; I32 -&gt; Bool) -&gt; (I32 -&gt; I32 -&gt; Bool) -&gt; Eq I32
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: I32 -&gt; I32 -&gt; Bool
+== :: I32 -&gt; I32 -&gt; Bool
+$c/= :: I32 -&gt; I32 -&gt; Bool
+/= :: I32 -&gt; I32 -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089815"><span id="local-6989586621679089817"><span id="local-6989586621679089819"><span id="local-6989586621679089823"><span id="local-6989586621679089826"><span id="local-6989586621679089829"><span id="local-6989586621679089832"><span class="annot"><span class="annottext">Eq I32
+Eq I32 =&gt;
+(I32 -&gt; I32 -&gt; Ordering)
+-&gt; (I32 -&gt; I32 -&gt; Bool)
+-&gt; (I32 -&gt; I32 -&gt; Bool)
+-&gt; (I32 -&gt; I32 -&gt; Bool)
+-&gt; (I32 -&gt; I32 -&gt; Bool)
+-&gt; (I32 -&gt; I32 -&gt; I32)
+-&gt; (I32 -&gt; I32 -&gt; I32)
+-&gt; Ord I32
+I32 -&gt; I32 -&gt; Bool
+I32 -&gt; I32 -&gt; Ordering
+I32 -&gt; I32 -&gt; I32
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: I32 -&gt; I32 -&gt; Ordering
+compare :: I32 -&gt; I32 -&gt; Ordering
+$c&lt; :: I32 -&gt; I32 -&gt; Bool
+&lt; :: I32 -&gt; I32 -&gt; Bool
+$c&lt;= :: I32 -&gt; I32 -&gt; Bool
+&lt;= :: I32 -&gt; I32 -&gt; Bool
+$c&gt; :: I32 -&gt; I32 -&gt; Bool
+&gt; :: I32 -&gt; I32 -&gt; Bool
+$c&gt;= :: I32 -&gt; I32 -&gt; Bool
+&gt;= :: I32 -&gt; I32 -&gt; Bool
+$cmax :: I32 -&gt; I32 -&gt; I32
+max :: I32 -&gt; I32 -&gt; I32
+$cmin :: I32 -&gt; I32 -&gt; I32
+min :: I32 -&gt; I32 -&gt; I32
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089835"><span id="local-6989586621679089837"><span id="local-6989586621679089841"><span class="annot"><span class="annottext">Int -&gt; I32 -&gt; ShowS
+[I32] -&gt; ShowS
+I32 -&gt; String
+(Int -&gt; I32 -&gt; ShowS)
+-&gt; (I32 -&gt; String) -&gt; ([I32] -&gt; ShowS) -&gt; Show I32
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; I32 -&gt; ShowS
+showsPrec :: Int -&gt; I32 -&gt; ShowS
+$cshow :: I32 -&gt; String
+show :: I32 -&gt; String
+$cshowList :: [I32] -&gt; ShowS
+showList :: [I32] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089844"><span id="local-6989586621679089848"><span id="local-6989586621679089851"><span id="local-6989586621679089885"><span class="annot"><span class="annottext">ReadPrec [I32]
+ReadPrec I32
+Int -&gt; ReadS I32
+ReadS [I32]
+(Int -&gt; ReadS I32)
+-&gt; ReadS [I32] -&gt; ReadPrec I32 -&gt; ReadPrec [I32] -&gt; Read I32
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS I32
+readsPrec :: Int -&gt; ReadS I32
+$creadList :: ReadS [I32]
+readList :: ReadS [I32]
+$creadPrec :: ReadPrec I32
+readPrec :: ReadPrec I32
+$creadListPrec :: ReadPrec [I32]
+readListPrec :: ReadPrec [I32]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089888"><span id="local-6989586621679089894"><span id="local-6989586621679089900"><span id="local-6989586621679089908"><span id="local-6989586621679089910"><span id="local-6989586621679089913"><span id="local-6989586621679089917"><span id="local-6989586621679089920"><span class="annot"><span class="annottext">Int -&gt; I32
+I32 -&gt; Int
+I32 -&gt; [I32]
+I32 -&gt; I32
+I32 -&gt; I32 -&gt; [I32]
+I32 -&gt; I32 -&gt; I32 -&gt; [I32]
+(I32 -&gt; I32)
+-&gt; (I32 -&gt; I32)
+-&gt; (Int -&gt; I32)
+-&gt; (I32 -&gt; Int)
+-&gt; (I32 -&gt; [I32])
+-&gt; (I32 -&gt; I32 -&gt; [I32])
+-&gt; (I32 -&gt; I32 -&gt; [I32])
+-&gt; (I32 -&gt; I32 -&gt; I32 -&gt; [I32])
+-&gt; Enum I32
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: I32 -&gt; I32
+succ :: I32 -&gt; I32
+$cpred :: I32 -&gt; I32
+pred :: I32 -&gt; I32
+$ctoEnum :: Int -&gt; I32
+toEnum :: Int -&gt; I32
+$cfromEnum :: I32 -&gt; Int
+fromEnum :: I32 -&gt; Int
+$cenumFrom :: I32 -&gt; [I32]
+enumFrom :: I32 -&gt; [I32]
+$cenumFromThen :: I32 -&gt; I32 -&gt; [I32]
+enumFromThen :: I32 -&gt; I32 -&gt; [I32]
+$cenumFromTo :: I32 -&gt; I32 -&gt; [I32]
+enumFromTo :: I32 -&gt; I32 -&gt; [I32]
+$cenumFromThenTo :: I32 -&gt; I32 -&gt; I32 -&gt; [I32]
+enumFromThenTo :: I32 -&gt; I32 -&gt; I32 -&gt; [I32]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089923"><span id="local-6989586621679089925"><span class="annot"><span class="annottext">I32
+I32 -&gt; I32 -&gt; Bounded I32
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: I32
+minBound :: I32
+$cmaxBound :: I32
+maxBound :: I32
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679089927"><span id="local-6989586621679089929"><span class="annot"><span class="annottext">(forall x. I32 -&gt; Rep I32 x)
+-&gt; (forall x. Rep I32 x -&gt; I32) -&gt; Generic I32
+forall x. Rep I32 x -&gt; I32
+forall x. I32 -&gt; Rep I32 x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. I32 -&gt; Rep I32 x
+from :: forall x. I32 -&gt; Rep I32 x
+$cto :: forall x. Rep I32 x -&gt; I32
+to :: forall x. Rep I32 x -&gt; I32
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="annot"><span class="hs-comment">-- | 64-element index type. Represents bit positions in a 'Word64'.</span></span><span>
+</span><span id="line-74"></span><span class="hs-keyword">data</span><span> </span><span id="I64"><span class="annot"><a href="Data.Functor.Index.html#I64"><span class="hs-identifier hs-var">I64</span></a></span></span><span>
+</span><span id="line-75"></span><span>    </span><span class="hs-glyph">=</span><span> </span><span id="I641"><span class="annot"><a href="Data.Functor.Index.html#I641"><span class="hs-identifier hs-var">I641</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I642"><span class="annot"><a href="Data.Functor.Index.html#I642"><span class="hs-identifier hs-var">I642</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I643"><span class="annot"><a href="Data.Functor.Index.html#I643"><span class="hs-identifier hs-var">I643</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I644"><span class="annot"><a href="Data.Functor.Index.html#I644"><span class="hs-identifier hs-var">I644</span></a></span></span><span>
+</span><span id="line-76"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I645"><span class="annot"><a href="Data.Functor.Index.html#I645"><span class="hs-identifier hs-var">I645</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I646"><span class="annot"><a href="Data.Functor.Index.html#I646"><span class="hs-identifier hs-var">I646</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I647"><span class="annot"><a href="Data.Functor.Index.html#I647"><span class="hs-identifier hs-var">I647</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I648"><span class="annot"><a href="Data.Functor.Index.html#I648"><span class="hs-identifier hs-var">I648</span></a></span></span><span>
+</span><span id="line-77"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I649"><span class="annot"><a href="Data.Functor.Index.html#I649"><span class="hs-identifier hs-var">I649</span></a></span></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="I6410"><span class="annot"><a href="Data.Functor.Index.html#I6410"><span class="hs-identifier hs-var">I6410</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6411"><span class="annot"><a href="Data.Functor.Index.html#I6411"><span class="hs-identifier hs-var">I6411</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6412"><span class="annot"><a href="Data.Functor.Index.html#I6412"><span class="hs-identifier hs-var">I6412</span></a></span></span><span>
+</span><span id="line-78"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6413"><span class="annot"><a href="Data.Functor.Index.html#I6413"><span class="hs-identifier hs-var">I6413</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6414"><span class="annot"><a href="Data.Functor.Index.html#I6414"><span class="hs-identifier hs-var">I6414</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6415"><span class="annot"><a href="Data.Functor.Index.html#I6415"><span class="hs-identifier hs-var">I6415</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6416"><span class="annot"><a href="Data.Functor.Index.html#I6416"><span class="hs-identifier hs-var">I6416</span></a></span></span><span>
+</span><span id="line-79"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6417"><span class="annot"><a href="Data.Functor.Index.html#I6417"><span class="hs-identifier hs-var">I6417</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6418"><span class="annot"><a href="Data.Functor.Index.html#I6418"><span class="hs-identifier hs-var">I6418</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6419"><span class="annot"><a href="Data.Functor.Index.html#I6419"><span class="hs-identifier hs-var">I6419</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6420"><span class="annot"><a href="Data.Functor.Index.html#I6420"><span class="hs-identifier hs-var">I6420</span></a></span></span><span>
+</span><span id="line-80"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6421"><span class="annot"><a href="Data.Functor.Index.html#I6421"><span class="hs-identifier hs-var">I6421</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6422"><span class="annot"><a href="Data.Functor.Index.html#I6422"><span class="hs-identifier hs-var">I6422</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6423"><span class="annot"><a href="Data.Functor.Index.html#I6423"><span class="hs-identifier hs-var">I6423</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6424"><span class="annot"><a href="Data.Functor.Index.html#I6424"><span class="hs-identifier hs-var">I6424</span></a></span></span><span>
+</span><span id="line-81"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6425"><span class="annot"><a href="Data.Functor.Index.html#I6425"><span class="hs-identifier hs-var">I6425</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6426"><span class="annot"><a href="Data.Functor.Index.html#I6426"><span class="hs-identifier hs-var">I6426</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6427"><span class="annot"><a href="Data.Functor.Index.html#I6427"><span class="hs-identifier hs-var">I6427</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6428"><span class="annot"><a href="Data.Functor.Index.html#I6428"><span class="hs-identifier hs-var">I6428</span></a></span></span><span>
+</span><span id="line-82"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6429"><span class="annot"><a href="Data.Functor.Index.html#I6429"><span class="hs-identifier hs-var">I6429</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6430"><span class="annot"><a href="Data.Functor.Index.html#I6430"><span class="hs-identifier hs-var">I6430</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6431"><span class="annot"><a href="Data.Functor.Index.html#I6431"><span class="hs-identifier hs-var">I6431</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6432"><span class="annot"><a href="Data.Functor.Index.html#I6432"><span class="hs-identifier hs-var">I6432</span></a></span></span><span>
+</span><span id="line-83"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6433"><span class="annot"><a href="Data.Functor.Index.html#I6433"><span class="hs-identifier hs-var">I6433</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6434"><span class="annot"><a href="Data.Functor.Index.html#I6434"><span class="hs-identifier hs-var">I6434</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6435"><span class="annot"><a href="Data.Functor.Index.html#I6435"><span class="hs-identifier hs-var">I6435</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6436"><span class="annot"><a href="Data.Functor.Index.html#I6436"><span class="hs-identifier hs-var">I6436</span></a></span></span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6437"><span class="annot"><a href="Data.Functor.Index.html#I6437"><span class="hs-identifier hs-var">I6437</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6438"><span class="annot"><a href="Data.Functor.Index.html#I6438"><span class="hs-identifier hs-var">I6438</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6439"><span class="annot"><a href="Data.Functor.Index.html#I6439"><span class="hs-identifier hs-var">I6439</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6440"><span class="annot"><a href="Data.Functor.Index.html#I6440"><span class="hs-identifier hs-var">I6440</span></a></span></span><span>
+</span><span id="line-85"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6441"><span class="annot"><a href="Data.Functor.Index.html#I6441"><span class="hs-identifier hs-var">I6441</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6442"><span class="annot"><a href="Data.Functor.Index.html#I6442"><span class="hs-identifier hs-var">I6442</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6443"><span class="annot"><a href="Data.Functor.Index.html#I6443"><span class="hs-identifier hs-var">I6443</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6444"><span class="annot"><a href="Data.Functor.Index.html#I6444"><span class="hs-identifier hs-var">I6444</span></a></span></span><span>
+</span><span id="line-86"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6445"><span class="annot"><a href="Data.Functor.Index.html#I6445"><span class="hs-identifier hs-var">I6445</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6446"><span class="annot"><a href="Data.Functor.Index.html#I6446"><span class="hs-identifier hs-var">I6446</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6447"><span class="annot"><a href="Data.Functor.Index.html#I6447"><span class="hs-identifier hs-var">I6447</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6448"><span class="annot"><a href="Data.Functor.Index.html#I6448"><span class="hs-identifier hs-var">I6448</span></a></span></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6449"><span class="annot"><a href="Data.Functor.Index.html#I6449"><span class="hs-identifier hs-var">I6449</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6450"><span class="annot"><a href="Data.Functor.Index.html#I6450"><span class="hs-identifier hs-var">I6450</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6451"><span class="annot"><a href="Data.Functor.Index.html#I6451"><span class="hs-identifier hs-var">I6451</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6452"><span class="annot"><a href="Data.Functor.Index.html#I6452"><span class="hs-identifier hs-var">I6452</span></a></span></span><span>
+</span><span id="line-88"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6453"><span class="annot"><a href="Data.Functor.Index.html#I6453"><span class="hs-identifier hs-var">I6453</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6454"><span class="annot"><a href="Data.Functor.Index.html#I6454"><span class="hs-identifier hs-var">I6454</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6455"><span class="annot"><a href="Data.Functor.Index.html#I6455"><span class="hs-identifier hs-var">I6455</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6456"><span class="annot"><a href="Data.Functor.Index.html#I6456"><span class="hs-identifier hs-var">I6456</span></a></span></span><span>
+</span><span id="line-89"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6457"><span class="annot"><a href="Data.Functor.Index.html#I6457"><span class="hs-identifier hs-var">I6457</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6458"><span class="annot"><a href="Data.Functor.Index.html#I6458"><span class="hs-identifier hs-var">I6458</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6459"><span class="annot"><a href="Data.Functor.Index.html#I6459"><span class="hs-identifier hs-var">I6459</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6460"><span class="annot"><a href="Data.Functor.Index.html#I6460"><span class="hs-identifier hs-var">I6460</span></a></span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-glyph">|</span><span> </span><span id="I6461"><span class="annot"><a href="Data.Functor.Index.html#I6461"><span class="hs-identifier hs-var">I6461</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6462"><span class="annot"><a href="Data.Functor.Index.html#I6462"><span class="hs-identifier hs-var">I6462</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6463"><span class="annot"><a href="Data.Functor.Index.html#I6463"><span class="hs-identifier hs-var">I6463</span></a></span></span><span> </span><span class="hs-glyph">|</span><span> </span><span id="I6464"><span class="annot"><a href="Data.Functor.Index.html#I6464"><span class="hs-identifier hs-var">I6464</span></a></span></span><span>
+</span><span id="line-91"></span><span>    </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679089996"><span id="local-6989586621679089998"><span class="annot"><span class="annottext">I64 -&gt; I64 -&gt; Bool
+(I64 -&gt; I64 -&gt; Bool) -&gt; (I64 -&gt; I64 -&gt; Bool) -&gt; Eq I64
+forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
+$c== :: I64 -&gt; I64 -&gt; Bool
+== :: I64 -&gt; I64 -&gt; Bool
+$c/= :: I64 -&gt; I64 -&gt; Bool
+/= :: I64 -&gt; I64 -&gt; Bool
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090004"><span id="local-6989586621679090006"><span id="local-6989586621679090008"><span id="local-6989586621679090012"><span id="local-6989586621679090015"><span id="local-6989586621679090018"><span id="local-6989586621679090021"><span class="annot"><span class="annottext">Eq I64
+Eq I64 =&gt;
+(I64 -&gt; I64 -&gt; Ordering)
+-&gt; (I64 -&gt; I64 -&gt; Bool)
+-&gt; (I64 -&gt; I64 -&gt; Bool)
+-&gt; (I64 -&gt; I64 -&gt; Bool)
+-&gt; (I64 -&gt; I64 -&gt; Bool)
+-&gt; (I64 -&gt; I64 -&gt; I64)
+-&gt; (I64 -&gt; I64 -&gt; I64)
+-&gt; Ord I64
+I64 -&gt; I64 -&gt; Bool
+I64 -&gt; I64 -&gt; Ordering
+I64 -&gt; I64 -&gt; I64
+forall a.
+Eq a =&gt;
+(a -&gt; a -&gt; Ordering)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; Bool)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; (a -&gt; a -&gt; a)
+-&gt; Ord a
+$ccompare :: I64 -&gt; I64 -&gt; Ordering
+compare :: I64 -&gt; I64 -&gt; Ordering
+$c&lt; :: I64 -&gt; I64 -&gt; Bool
+&lt; :: I64 -&gt; I64 -&gt; Bool
+$c&lt;= :: I64 -&gt; I64 -&gt; Bool
+&lt;= :: I64 -&gt; I64 -&gt; Bool
+$c&gt; :: I64 -&gt; I64 -&gt; Bool
+&gt; :: I64 -&gt; I64 -&gt; Bool
+$c&gt;= :: I64 -&gt; I64 -&gt; Bool
+&gt;= :: I64 -&gt; I64 -&gt; Bool
+$cmax :: I64 -&gt; I64 -&gt; I64
+max :: I64 -&gt; I64 -&gt; I64
+$cmin :: I64 -&gt; I64 -&gt; I64
+min :: I64 -&gt; I64 -&gt; I64
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Ord</span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090024"><span id="local-6989586621679090026"><span id="local-6989586621679090030"><span class="annot"><span class="annottext">Int -&gt; I64 -&gt; ShowS
+[I64] -&gt; ShowS
+I64 -&gt; String
+(Int -&gt; I64 -&gt; ShowS)
+-&gt; (I64 -&gt; String) -&gt; ([I64] -&gt; ShowS) -&gt; Show I64
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; I64 -&gt; ShowS
+showsPrec :: Int -&gt; I64 -&gt; ShowS
+$cshow :: I64 -&gt; String
+show :: I64 -&gt; String
+$cshowList :: [I64] -&gt; ShowS
+showList :: [I64] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090033"><span id="local-6989586621679090037"><span id="local-6989586621679090040"><span id="local-6989586621679090106"><span class="annot"><span class="annottext">ReadPrec [I64]
+ReadPrec I64
+Int -&gt; ReadS I64
+ReadS [I64]
+(Int -&gt; ReadS I64)
+-&gt; ReadS [I64] -&gt; ReadPrec I64 -&gt; ReadPrec [I64] -&gt; Read I64
+forall a.
+(Int -&gt; ReadS a)
+-&gt; ReadS [a] -&gt; ReadPrec a -&gt; ReadPrec [a] -&gt; Read a
+$creadsPrec :: Int -&gt; ReadS I64
+readsPrec :: Int -&gt; ReadS I64
+$creadList :: ReadS [I64]
+readList :: ReadS [I64]
+$creadPrec :: ReadPrec I64
+readPrec :: ReadPrec I64
+$creadListPrec :: ReadPrec [I64]
+readListPrec :: ReadPrec [I64]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Read</span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090109"><span id="local-6989586621679090115"><span id="local-6989586621679090121"><span id="local-6989586621679090129"><span id="local-6989586621679090131"><span id="local-6989586621679090134"><span id="local-6989586621679090138"><span id="local-6989586621679090141"><span class="annot"><span class="annottext">Int -&gt; I64
+I64 -&gt; Int
+I64 -&gt; [I64]
+I64 -&gt; I64
+I64 -&gt; I64 -&gt; [I64]
+I64 -&gt; I64 -&gt; I64 -&gt; [I64]
+(I64 -&gt; I64)
+-&gt; (I64 -&gt; I64)
+-&gt; (Int -&gt; I64)
+-&gt; (I64 -&gt; Int)
+-&gt; (I64 -&gt; [I64])
+-&gt; (I64 -&gt; I64 -&gt; [I64])
+-&gt; (I64 -&gt; I64 -&gt; [I64])
+-&gt; (I64 -&gt; I64 -&gt; I64 -&gt; [I64])
+-&gt; Enum I64
+forall a.
+(a -&gt; a)
+-&gt; (a -&gt; a)
+-&gt; (Int -&gt; a)
+-&gt; (a -&gt; Int)
+-&gt; (a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; [a])
+-&gt; (a -&gt; a -&gt; a -&gt; [a])
+-&gt; Enum a
+$csucc :: I64 -&gt; I64
+succ :: I64 -&gt; I64
+$cpred :: I64 -&gt; I64
+pred :: I64 -&gt; I64
+$ctoEnum :: Int -&gt; I64
+toEnum :: Int -&gt; I64
+$cfromEnum :: I64 -&gt; Int
+fromEnum :: I64 -&gt; Int
+$cenumFrom :: I64 -&gt; [I64]
+enumFrom :: I64 -&gt; [I64]
+$cenumFromThen :: I64 -&gt; I64 -&gt; [I64]
+enumFromThen :: I64 -&gt; I64 -&gt; [I64]
+$cenumFromTo :: I64 -&gt; I64 -&gt; [I64]
+enumFromTo :: I64 -&gt; I64 -&gt; [I64]
+$cenumFromThenTo :: I64 -&gt; I64 -&gt; I64 -&gt; [I64]
+enumFromThenTo :: I64 -&gt; I64 -&gt; I64 -&gt; [I64]
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Enum</span></span></span></span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090144"><span id="local-6989586621679090146"><span class="annot"><span class="annottext">I64
+I64 -&gt; I64 -&gt; Bounded I64
+forall a. a -&gt; a -&gt; Bounded a
+$cminBound :: I64
+minBound :: I64
+$cmaxBound :: I64
+maxBound :: I64
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Bounded</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679090148"><span id="local-6989586621679090150"><span class="annot"><span class="annottext">(forall x. I64 -&gt; Rep I64 x)
+-&gt; (forall x. Rep I64 x -&gt; I64) -&gt; Generic I64
+forall x. Rep I64 x -&gt; I64
+forall x. I64 -&gt; Rep I64 x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. I64 -&gt; Rep I64 x
+from :: forall x. I64 -&gt; Rep I64 x
+$cto :: forall x. Rep I64 x -&gt; I64
+to :: forall x. Rep I64 x -&gt; I64
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- Word &#8773; (IN -&gt; Bool) isos</span><span>
+</span><span id="line-95"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- | Decompose a 'Word8' into its 8 bits.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- @toBits8 w i = testBit w (fromEnum i)@</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span class="hs-comment">-- &gt;&gt;&gt; toBits8 0xFF I1</span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- True</span><span>
+</span><span id="line-103"></span><span class="hs-comment">-- &gt;&gt;&gt; toBits8 0x00 I1</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- False</span><span>
+</span><span id="line-105"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#toBits8"><span class="hs-pragma hs-type">toBits8</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-106"></span><span class="annot"><a href="Data.Functor.Index.html#toBits8"><span class="hs-identifier hs-type">toBits8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#I8"><span class="hs-identifier hs-type">I8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-107"></span><span id="toBits8"><span class="annot"><span class="annottext">toBits8 :: Word8 -&gt; I8 -&gt; Bool
+</span><a href="Data.Functor.Index.html#toBits8"><span class="hs-identifier hs-var hs-var">toBits8</span></a></span></span><span> </span><span id="local-6989586621679090152"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679090152"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679090153"><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679090153"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-identifier hs-var">testBit</span></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679090152"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I8 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679090153"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- | Reconstruct a 'Word8' from 8 bits.</span><span>
+</span><span id="line-110"></span><span class="hs-comment">--</span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- @fromBits8 . toBits8 = id@</span><span>
+</span><span id="line-112"></span><span class="hs-comment">-- @toBits8 . fromBits8 = id@</span><span>
+</span><span id="line-113"></span><span class="hs-comment">--</span><span>
+</span><span id="line-114"></span><span class="hs-comment">-- &gt;&gt;&gt; fromBits8 (const True)</span><span>
+</span><span id="line-115"></span><span class="hs-comment">-- 255</span><span>
+</span><span id="line-116"></span><span class="hs-comment">-- &gt;&gt;&gt; fromBits8 (const False)</span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- 0</span><span>
+</span><span id="line-118"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#fromBits8"><span class="hs-pragma hs-type">fromBits8</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-119"></span><span class="annot"><a href="Data.Functor.Index.html#fromBits8"><span class="hs-identifier hs-type">fromBits8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Index.html#I8"><span class="hs-identifier hs-type">I8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span>
+</span><span id="line-120"></span><span id="fromBits8"><span class="annot"><span class="annottext">fromBits8 :: (I8 -&gt; Bool) -&gt; Word8
+</span><a href="Data.Functor.Index.html#fromBits8"><span class="hs-identifier hs-var hs-var">fromBits8</span></a></span></span><span> </span><span id="local-6989586621679090155"><span class="annot"><span class="annottext">I8 -&gt; Bool
+</span><a href="#local-6989586621679090155"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; I8 -&gt; Word8) -&gt; Word8 -&gt; [I8] -&gt; Word8
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; I8 -&gt; Word8
+forall {a}. Bits a =&gt; a -&gt; I8 -&gt; a
+</span><a href="#local-6989586621679090157"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">I8
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">I8
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-121"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-122"></span><span>    </span><span id="local-6989586621679090157"><span class="annot"><span class="annottext">go :: a -&gt; I8 -&gt; a
+</span><a href="#local-6989586621679090157"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679090166"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090166"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679090167"><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679090167"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">I8 -&gt; Bool
+</span><a href="#local-6989586621679090155"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679090167"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">setBit</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090166"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I8 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679090167"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090166"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-123"></span><span>
+</span><span id="line-124"></span><span class="annot"><span class="hs-comment">-- | Decompose a 'Word16' into its 16 bits.</span></span><span>
+</span><span id="line-125"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#toBits16"><span class="hs-pragma hs-type">toBits16</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-126"></span><span class="annot"><a href="Data.Functor.Index.html#toBits16"><span class="hs-identifier hs-type">toBits16</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#I16"><span class="hs-identifier hs-type">I16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-127"></span><span id="toBits16"><span class="annot"><span class="annottext">toBits16 :: Word16 -&gt; I16 -&gt; Bool
+</span><a href="Data.Functor.Index.html#toBits16"><span class="hs-identifier hs-var hs-var">toBits16</span></a></span></span><span> </span><span id="local-6989586621679090168"><span class="annot"><span class="annottext">Word16
+</span><a href="#local-6989586621679090168"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679090169"><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679090169"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word16 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-identifier hs-var">testBit</span></span><span> </span><span class="annot"><span class="annottext">Word16
+</span><a href="#local-6989586621679090168"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I16 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679090169"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="annot"><span class="hs-comment">-- | Reconstruct a 'Word16' from 16 bits.</span></span><span>
+</span><span id="line-130"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#fromBits16"><span class="hs-pragma hs-type">fromBits16</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-131"></span><span class="annot"><a href="Data.Functor.Index.html#fromBits16"><span class="hs-identifier hs-type">fromBits16</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Index.html#I16"><span class="hs-identifier hs-type">I16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span>
+</span><span id="line-132"></span><span id="fromBits16"><span class="annot"><span class="annottext">fromBits16 :: (I16 -&gt; Bool) -&gt; Word16
+</span><a href="Data.Functor.Index.html#fromBits16"><span class="hs-identifier hs-var hs-var">fromBits16</span></a></span></span><span> </span><span id="local-6989586621679090170"><span class="annot"><span class="annottext">I16 -&gt; Bool
+</span><a href="#local-6989586621679090170"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word16 -&gt; I16 -&gt; Word16) -&gt; Word16 -&gt; [I16] -&gt; Word16
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">Word16 -&gt; I16 -&gt; Word16
+forall {a}. Bits a =&gt; a -&gt; I16 -&gt; a
+</span><a href="#local-6989586621679090171"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Word16
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">I16
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">I16
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-133"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-134"></span><span>    </span><span id="local-6989586621679090171"><span class="annot"><span class="annottext">go :: a -&gt; I16 -&gt; a
+</span><a href="#local-6989586621679090171"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679090177"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090177"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679090178"><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679090178"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">I16 -&gt; Bool
+</span><a href="#local-6989586621679090170"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679090178"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">setBit</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090177"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I16 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679090178"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090177"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-135"></span><span>
+</span><span id="line-136"></span><span class="annot"><span class="hs-comment">-- | Decompose a 'Word32' into its 32 bits.</span></span><span>
+</span><span id="line-137"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#toBits32"><span class="hs-pragma hs-type">toBits32</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-138"></span><span class="annot"><a href="Data.Functor.Index.html#toBits32"><span class="hs-identifier hs-type">toBits32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#I32"><span class="hs-identifier hs-type">I32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-139"></span><span id="toBits32"><span class="annot"><span class="annottext">toBits32 :: Word32 -&gt; I32 -&gt; Bool
+</span><a href="Data.Functor.Index.html#toBits32"><span class="hs-identifier hs-var hs-var">toBits32</span></a></span></span><span> </span><span id="local-6989586621679090179"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621679090179"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679090180"><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679090180"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-identifier hs-var">testBit</span></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621679090179"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I32 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679090180"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="annot"><span class="hs-comment">-- | Reconstruct a 'Word32' from 32 bits.</span></span><span>
+</span><span id="line-142"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#fromBits32"><span class="hs-pragma hs-type">fromBits32</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-143"></span><span class="annot"><a href="Data.Functor.Index.html#fromBits32"><span class="hs-identifier hs-type">fromBits32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Index.html#I32"><span class="hs-identifier hs-type">I32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span>
+</span><span id="line-144"></span><span id="fromBits32"><span class="annot"><span class="annottext">fromBits32 :: (I32 -&gt; Bool) -&gt; Word32
+</span><a href="Data.Functor.Index.html#fromBits32"><span class="hs-identifier hs-var hs-var">fromBits32</span></a></span></span><span> </span><span id="local-6989586621679090181"><span class="annot"><span class="annottext">I32 -&gt; Bool
+</span><a href="#local-6989586621679090181"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; I32 -&gt; Word32) -&gt; Word32 -&gt; [I32] -&gt; Word32
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; I32 -&gt; Word32
+forall {a}. Bits a =&gt; a -&gt; I32 -&gt; a
+</span><a href="#local-6989586621679090182"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">I32
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">I32
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-146"></span><span>    </span><span id="local-6989586621679090182"><span class="annot"><span class="annottext">go :: a -&gt; I32 -&gt; a
+</span><a href="#local-6989586621679090182"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679090188"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090188"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679090189"><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679090189"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">I32 -&gt; Bool
+</span><a href="#local-6989586621679090181"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679090189"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">setBit</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090188"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I32 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679090189"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090188"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-147"></span><span>
+</span><span id="line-148"></span><span class="annot"><span class="hs-comment">-- | Decompose a 'Word64' into its 64 bits.</span></span><span>
+</span><span id="line-149"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#toBits64"><span class="hs-pragma hs-type">toBits64</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-150"></span><span class="annot"><a href="Data.Functor.Index.html#toBits64"><span class="hs-identifier hs-type">toBits64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#I64"><span class="hs-identifier hs-type">I64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-151"></span><span id="toBits64"><span class="annot"><span class="annottext">toBits64 :: Word64 -&gt; I64 -&gt; Bool
+</span><a href="Data.Functor.Index.html#toBits64"><span class="hs-identifier hs-var hs-var">toBits64</span></a></span></span><span> </span><span id="local-6989586621679090190"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621679090190"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span id="local-6989586621679090191"><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679090191"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; Int -&gt; Bool
+forall a. Bits a =&gt; a -&gt; Int -&gt; Bool
+</span><span class="hs-identifier hs-var">testBit</span></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621679090190"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I64 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679090191"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="annot"><span class="hs-comment">-- | Reconstruct a 'Word64' from 64 bits.</span></span><span>
+</span><span id="line-154"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Functor.Index.html#fromBits64"><span class="hs-pragma hs-type">fromBits64</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-155"></span><span class="annot"><a href="Data.Functor.Index.html#fromBits64"><span class="hs-identifier hs-type">fromBits64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Functor.Index.html#I64"><span class="hs-identifier hs-type">I64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span>
+</span><span id="line-156"></span><span id="fromBits64"><span class="annot"><span class="annottext">fromBits64 :: (I64 -&gt; Bool) -&gt; Word64
+</span><a href="Data.Functor.Index.html#fromBits64"><span class="hs-identifier hs-var hs-var">fromBits64</span></a></span></span><span> </span><span id="local-6989586621679090192"><span class="annot"><span class="annottext">I64 -&gt; Bool
+</span><a href="#local-6989586621679090192"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; I64 -&gt; Word64) -&gt; Word64 -&gt; [I64] -&gt; Word64
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; I64 -&gt; Word64
+forall {a}. Bits a =&gt; a -&gt; I64 -&gt; a
+</span><a href="#local-6989586621679090193"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><span class="hs-number">0</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">I64
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">minBound</span></span><span> </span><span class="hs-glyph">..</span><span> </span><span class="annot"><span class="annottext">I64
+forall a. Bounded a =&gt; a
+</span><span class="hs-identifier hs-var">maxBound</span></span><span class="hs-special">]</span><span>
+</span><span id="line-157"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-158"></span><span>    </span><span id="local-6989586621679090193"><span class="annot"><span class="annottext">go :: a -&gt; I64 -&gt; a
+</span><a href="#local-6989586621679090193"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679090199"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090199"><span class="hs-identifier hs-var">acc</span></a></span></span><span> </span><span id="local-6989586621679090200"><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679090200"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">I64 -&gt; Bool
+</span><a href="#local-6989586621679090192"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679090200"><span class="hs-identifier hs-var">i</span></a></span><span> </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">a -&gt; Int -&gt; a
+forall a. Bits a =&gt; a -&gt; Int -&gt; a
+</span><span class="hs-identifier hs-var">setBit</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090199"><span class="hs-identifier hs-var">acc</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">I64 -&gt; Int
+forall a. Enum a =&gt; a -&gt; Int
+</span><span class="hs-identifier hs-var">fromEnum</span></span><span> </span><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679090200"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090199"><span class="hs-identifier hs-var">acc</span></a></span><span>
+</span><span id="line-159"></span><span>
+</span><span id="line-160"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-161"></span><span class="hs-comment">-- Helpers</span><span>
+</span><span id="line-162"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-163"></span><span>
+</span><span id="line-164"></span><span id="local-6989586621679089349"><span id="local-6989586621679089350"><span class="annot"><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-type">foldl'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679089349"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679089350"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679089349"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679089349"><span class="hs-identifier hs-type">b</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679089350"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679089349"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-165"></span><span id="foldl%27"><span class="annot"><span class="annottext">foldl' :: forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var hs-var">foldl'</span></a></span></span><span> </span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679090201"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090201"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090201"><span class="hs-identifier hs-var">z</span></a></span><span>
+</span><span id="line-166"></span><span class="annot"><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span id="local-6989586621679090202"><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+</span><a href="#local-6989586621679090202"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679090203"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090203"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679090204"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090204"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span> </span><span id="local-6989586621679090205"><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679090205"><span class="hs-identifier hs-var">xs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679090206"><span class="annot"><span class="annottext">z' :: b
+</span><a href="#local-6989586621679090206"><span class="hs-identifier hs-var hs-var">z'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+</span><a href="#local-6989586621679090202"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090203"><span class="hs-identifier hs-var">z</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679090204"><span class="hs-identifier hs-var">x</span></a></span><span> </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090206"><span class="hs-identifier hs-var">z'</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; b -&gt; b
+forall a b. a -&gt; b -&gt; b
+</span><span class="hs-operator hs-var">`seq`</span></span><span> </span><span class="annot"><span class="annottext">(b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall b a. (b -&gt; a -&gt; b) -&gt; b -&gt; [a] -&gt; b
+</span><a href="Data.Functor.Index.html#foldl%27"><span class="hs-identifier hs-var">foldl'</span></a></span><span> </span><span class="annot"><span class="annottext">b -&gt; a -&gt; b
+</span><a href="#local-6989586621679090202"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679090206"><span class="hs-identifier hs-var">z'</span></a></span><span> </span><span class="annot"><span class="annottext">[a]
+</span><a href="#local-6989586621679090205"><span class="hs-identifier hs-var">xs</span></a></span><span>
+</span><span id="line-167"></span></pre></body></html>
