@@ -6,6 +6,7 @@ import Hedgehog
 import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
+import Control.Applicative (liftA2)
 import Data.Bits (complement)
 import Data.Functor.Index
 import Data.Profunctor.Optic

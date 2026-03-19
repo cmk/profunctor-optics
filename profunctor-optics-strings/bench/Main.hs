@@ -4,6 +4,7 @@ module Main (main) where
 
 import Criterion.Main
 
+import Control.Applicative (liftA2)
 import Data.Bits (complement, xor)
 
 import qualified Data.ByteString as BS
