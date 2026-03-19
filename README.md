@@ -5,7 +5,7 @@
 
 A compact optics library compatible with the typeclasses in [profunctors](https://hackage.haskell.org/package/profunctors).
 
-See the [profunctor-optics README](profunctor-optics/README.md) for details.
+See the [profunctor-optics README](profunctor-optics/README.md) & library READMEs for details.
 
 ## Packages
 
