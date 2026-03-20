@@ -6,6 +6,7 @@ packages:
     profunctor-optics-strings/
     profunctor-optics-containers/
     profunctor-optics-generics/
+    profunctor-optics-sort/
     profunctor-optics-th/
 
 optional-packages:

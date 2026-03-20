@@ -1,0 +1,49 @@
+cabal-version: 2.0
+
+name:           profunctor-optics-sort
+version:        0.0.1
+synopsis:       Profunctor-based sorting and grouping optics.
+description:
+  Profunctor sort with separated key, input, and output parameters.
+  Three variants exploring the design space: Sort1 (non-empty in, can fail),
+  Sort2 (non-empty in, groups can be empty), and Sort3 (representable in/out).
+
+category:       Data, Lenses, Profunctors
+stability:      Experimental
+homepage:       https://github.com/cmk/profunctor-optics
+bug-reports:    https://github.com/cmk/profunctor-optics/issues
+author:         Chris McKinlay
+maintainer:     Chris McKinlay
+copyright:      2019-2026 Chris McKinlay
+license:        BSD3
+build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/cmk/profunctor-optics
+
+library
+  exposed-modules:
+      Data.Profunctor.Sort
+      Data.Profunctor.Optic.Sort
+      Data.Profunctor.Optic.Import
+
+  default-language: Haskell2010
+
+  hs-source-dirs:
+      src
+
+  default-extensions:
+      RankNTypes
+      TupleSections
+      TypeFamilies
+      TypeOperators
+
+  ghc-options: -Wall
+
+  build-depends:
+      base                   >= 4.16   && < 5.0
+    , coapplicative          >= 0.0.2
+    , containers             >= 0.5
+    , profunctors            >= 5.4
+    , profunctor-optics      >= 0.0.3
