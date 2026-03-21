@@ -49,3 +49,27 @@ library
     , containers             >= 0.5
     , profunctors            >= 5.4
     , profunctor-optics      >= 0.0.3
+
+test-suite properties
+  type:              exitcode-stdio-1.0
+  main-is:           Main.hs
+  other-modules:     Test.Prop.Sort
+  ghc-options:       -Wall -threaded
+  hs-source-dirs:    test
+  default-language:  Haskell2010
+
+  default-extensions:
+      FlexibleContexts
+      MultiParamTypeClasses
+      RankNTypes
+      TupleSections
+      TypeFamilies
+      TypeOperators
+
+  build-depends:
+      base
+    , coapplicative
+    , hedgehog               >= 1.0
+    , profunctors
+    , profunctor-optics
+    , profunctor-optics-sort
