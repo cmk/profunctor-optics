@@ -597,14 +597,13 @@ prop_P44_mergingOf_custom = property $ do
 ---------------------------------------------------------------------
 
 -- P45: sortedMatched plugs a Sort3 into Merge.merge as WhenMatched
--- sortedMatched feeds inp = const (k, (x,y)), so inp anything = (k, (x,y))
+-- i = (), so the carrier calls inp () to get (k, (x,y))
 prop_P45_sortedMatched :: Property
 prop_P45_sortedMatched = property $ do
     let m1 = Map.fromList [(1, "a"), (2, "b")]
         m2 = Map.fromList [(2, "x"), (3, "y")]
-        -- Carrier: extract the pair from inp and concatenate
-        concatT :: Sort3 (String, String) () Int (String, String) String
-        concatT = Sort3 $ \inp _j _k -> let (_, (x, y)) = inp undefined in x ++ y
+        concatT :: Sort3 () () Int (String, String) String
+        concatT = Sort3 $ \inp _j _k -> let (_, (x, y)) = inp () in x ++ y
         result = Merge.merge
                    Merge.dropMissing
                    Merge.dropMissing
@@ -613,13 +612,13 @@ prop_P45_sortedMatched = property $ do
     result === Map.fromList [(2, "bx")]
 
 -- P46: sortedMissing plugs a Sort3 into Merge.merge as WhenMissing
--- sortedMissing feeds inp = const (k, x), so inp anything = (k, x)
+-- i = (), so the carrier calls inp () to get (k, x)
 prop_P46_sortedMissing :: Property
 prop_P46_sortedMissing = property $ do
     let m1 = Map.fromList [(1, "a"), (2, "b")]
         m2 = Map.fromList [(2, "x"), (3, "y")]
-        upper :: Sort3 String () Int String String
-        upper = Sort3 $ \inp _j _k -> map toUpper (snd (inp undefined))
+        upper :: Sort3 () () Int String String
+        upper = Sort3 $ \inp _j _k -> map toUpper (snd (inp ()))
         result = Merge.merge
                    (sortedMissing upper ())
                    Merge.dropMissing
@@ -635,12 +634,12 @@ prop_P47_sort3_full_merge :: Property
 prop_P47_sort3_full_merge = property $ do
     let m1 = Map.fromList [(1, 10), (2, 20)] :: Map.Map Int Int
         m2 = Map.fromList [(2, 200), (3, 300)] :: Map.Map Int Int
-        leftT :: Sort3 Int () Int Int Int
-        leftT = Sort3 $ \inp _j _k -> negate (snd (inp undefined))
-        rightT :: Sort3 Int () Int Int Int
-        rightT = Sort3 $ \inp _j _k -> snd (inp undefined) * 2
-        matchT :: Sort3 (Int, Int) () Int (Int, Int) Int
-        matchT = Sort3 $ \inp _j _k -> let (_, (x, y)) = inp undefined in x + y
+        leftT :: Sort3 () () Int Int Int
+        leftT = Sort3 $ \inp _j _k -> negate (snd (inp ()))
+        rightT :: Sort3 () () Int Int Int
+        rightT = Sort3 $ \inp _j _k -> snd (inp ()) * 2
+        matchT :: Sort3 () () Int (Int, Int) Int
+        matchT = Sort3 $ \inp _j _k -> let (_, (x, y)) = inp () in x + y
         result = Merge.merge
                    (sortedMissing leftT ())
                    (sortedMissing rightT ())
