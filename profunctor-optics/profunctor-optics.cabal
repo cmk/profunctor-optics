@@ -57,6 +57,9 @@ library
 
       Data.List.Optic
       Data.Map.Optic
+      Data.Set.Optic
+      Data.IntMap.Optic
+      Data.IntSet.Optic
       Data.Sequence.Optic
       Data.Tree.Optic
 
@@ -117,6 +120,9 @@ test-suite properties
   other-modules:     Test.Carrier
                    , Test.Data.List.Optic
                    , Test.Data.Map.Optic
+                   , Test.Data.Set.Optic
+                   , Test.Data.IntMap.Optic
+                   , Test.Data.IntSet.Optic
                    , Test.Data.Profunctor.Optic.Sort
                    , Test.Data.Sequence.Optic
                    , Test.Data.Tree.Optic

@@ -33,6 +33,9 @@ module Data.Map.Optic (
   , lookedGE
   , lookedGT
   , validated
+    -- * Lazy variants
+  , altered'
+  , ialtered'
     -- * Sort-based operators
   , toMapOfL
   , countingOfL
@@ -54,6 +57,7 @@ import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
 import qualified Data.Map.Lazy as Map
+import qualified Data.Map.Strict as MapS
 import qualified Data.Map.Merge.Strict as Merge
 import Prelude
 
@@ -108,13 +112,13 @@ ifolded = ixfoldVl Map.traverseWithKey
 -- | /O(log n)/. Alter the value at a specific key.
 --
 altered :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered k = setter $ \ab -> Map.alter ab k
+altered k = setter $ \ab -> MapS.alter ab k
 {-# INLINE altered #-}
 
 -- | /O(log n)/. Indexed alter.
 --
 ialtered :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ialtered k = ixsetter $ \kab -> Map.alter (kab k) k
+ialtered k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ialtered #-}
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
@@ -188,6 +192,22 @@ lookedGT k = ixtraversal0' (Map.lookupGT k) (flip $ Map.insert k)
 validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = filtered Map.valid
 {-# INLINE validated #-}
+
+---------------------------------------------------------------------
+-- Lazy variants
+---------------------------------------------------------------------
+
+-- | /O(log n)/. Lazy alter (values not forced on insert).
+--
+altered' :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
+altered' k = setter $ \ab -> Map.alter ab k
+{-# INLINE altered' #-}
+
+-- | /O(log n)/. Lazy indexed alter.
+--
+ialtered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
+ialtered' k = ixsetter $ \kab -> Map.alter (kab k) k
+{-# INLINE ialtered' #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators
