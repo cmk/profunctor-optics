@@ -682,6 +682,50 @@ prop_P74_countingHashOf_agrees = property $ do
     ordCounts === hashCounts
 
 ---------------------------------------------------------------------
+-- P90–P94: List variants
+---------------------------------------------------------------------
+
+-- P90: sortingOfL on empty = []
+prop_P90_sortingOfL_empty :: Property
+prop_P90_sortingOfL_empty = property $ do
+    let result = sortingOfL fstL ([] :: [(Int, String)])
+    result === []
+
+-- P91: sortingOfL agrees with sortingOf for non-empty
+prop_P91_sortingOfL_agrees :: Property
+prop_P91_sortingOfL_agrees = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let ne = NE.fromList xs
+        viaL = sortingOfL fstL xs
+        viaNE = map NE.toList $ sortingOf fstL ne
+    viaL === viaNE
+
+-- P92: nubbingOfL returns one per key
+prop_P92_nubbingOfL :: Property
+prop_P92_nubbingOfL = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let result = nubbingOfL fstL xs
+        keys = map (^. fstL) result
+    keys === L.nub keys
+
+-- P93: toMapOfL keys = set of focused values
+prop_P93_toMapOfL :: Property
+prop_P93_toMapOfL = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let m = toMapOfL fstL xs
+        mapKeys = Map.keysSet m
+        inputKeys = Map.keysSet $ Map.fromList [(fst s, ()) | s <- xs]
+    mapKeys === inputKeys
+
+-- P94: sortingString preserves all chars
+prop_P94_sortingString :: Property
+prop_P94_sortingString = property $ do
+    s <- forAll $ Gen.string (Range.linear 1 50) Gen.alpha
+    let result = sortingString id s
+        totalChars = sum $ fmap length result
+    totalChars === length s
+
+---------------------------------------------------------------------
 -- P57: Optic composition through Sort
 ---------------------------------------------------------------------
 

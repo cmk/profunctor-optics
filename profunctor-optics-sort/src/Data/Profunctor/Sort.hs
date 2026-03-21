@@ -31,19 +31,14 @@ module Data.Profunctor.Sort
   ( -- * Sort (re-exported from profunctor-optics core)
     Sort(..)
   , runSort
-
-    -- * Sort composition
   , (%.)
   , bindSort
   , catSort
-
-    -- * Sort construction
   , sortC
   , remapSort
-
-    -- * Sort sum-type combinators
   , eitherSort
   , maybeSort
+  , zipsSorting
 
     -- * Sort carriers (Ord)
   , mkSort
@@ -65,122 +60,21 @@ module Data.Profunctor.Sort
 
   ) where
 
-import Control.Arrow (first, second)
+import Control.Arrow (second)
 import Data.Either (lefts, rights)
 import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
-import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
+import Data.Profunctor.Optic.Carrier (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort, zipsSorting)
 
 import Data.Functor.Coapply (Coapply(..))
 
-import qualified Control.Category as C
 import qualified Data.List.NonEmpty as NE
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 
--- Sort type and instances are re-exported from
+-- Sort type, instances, and combinators are re-exported from
 -- Data.Profunctor.Optic.Carrier (profunctor-optics core).
-
----------------------------------------------------------------------
--- Sort composition
----------------------------------------------------------------------
-
--- | Indexed bind: inspect the key at each position and choose
--- a continuation.
---
--- Unlike Fmt's @bind@ (which sees one monoid value), this is
--- position-dependent: the callback @f@ receives the key at
--- position @i@, chooses a Sort, and runs it on the same input.
---
--- @
--- 'bindSort' m f = Sort $ \\inp ->
---   unSort m (\\i -> let (k, _) = inp i in (k, 'unSort' (f k) inp))
--- @
---
-{-# INLINE bindSort #-}
-bindSort :: Sort i k a b -> (k -> Sort i k a' a) -> Sort i k a' b
-bindSort (Sort m) f = Sort $ \inp ->
-  m (\i -> let (k, _) = inp i in (k, unSort (f k) inp))
-
--- | Pipeline two Sort passes.
---
--- @f %. g@ runs @g@ on the full input to produce a single @b@,
--- then @f@ sees that @b@ at every position, paired with the
--- original keys (unchanged). The key @k@ is threaded through,
--- not accumulated — no 'Semigroup' constraint needed.
---
--- @
--- (f '%. g) '%.' h = f '%. (g '%. h)
--- @
---
-infixr 9 %.
-{-# INLINE (%.) #-}
-(%.) :: Sort i k b c -> Sort i k a b -> Sort i k a c
-Sort f %. Sort g = Sort $ \inp ->
-  f (\i -> (fst (inp i), g inp))
-
--- | Fold multiple Sort passes via '%.'.
---
--- Analogous to Fmt's @cat@. Requires 'Monoid' @i@ and 'Monoid' @k@
--- for @Category@ 'id' (the seed of the fold).
---
-{-# INLINE catSort #-}
-catSort :: (Monoid i, Foldable f) => f (Sort i k a a) -> Sort i k a a
-catSort = foldr (%.) C.id
-
----------------------------------------------------------------------
--- Sort construction
----------------------------------------------------------------------
-
--- | Constant: embed a key-value pair.
---
--- Analogous to Fmt's @fmt@.
-{-# INLINE sortC #-}
-sortC :: (k, a) -> Sort i k a (k, a)
-sortC ka = Sort $ const ka
-
--- Note: Fmt's @fmt1 :: (a -> m) -> Fmt1 m s a@ doesn't translate to
--- Sort. In Fmt, @m@ is both the index and the monoid — the value
--- @a@ flows through the same channel as the accumulator. In Sort,
--- @i@ (index) and @k@ (key) are separated, so there's no single
--- @(a -> k)@ that serves as both \"extract key\" and \"provide value\".
--- Use 'sortC' for constants or 'mkSort'/'mkSortN' for carriers.
-
--- | Remap keys. @remapSort f@ transforms a @Sort@ that groups
--- by @k2@ into one that groups by @k1@, applying @f@ to map
--- keys from @k1@ to @k2@ in the input.
---
--- Analogous to Fmt's @refmt@.
-{-# INLINE remapSort #-}
-remapSort :: (k1 -> k2) -> Sort i k2 a b -> Sort i k1 a b
-remapSort f (Sort g) = Sort $ \inp -> g (first f . inp)
-
----------------------------------------------------------------------
--- Sort sum-type combinators
----------------------------------------------------------------------
-
--- | Sort an Either: apply left sort to Lefts, right sort to Rights.
--- Samples at 'mempty' to decide the branch.
---
--- Analogous to Fmt's @either1@.
-{-# INLINE eitherSort #-}
-eitherSort :: Monoid i => Sort i k a c -> Sort i k b c -> Sort i k (Either a b) c
-eitherSort (Sort l) (Sort r) = Sort $ \inp ->
-  case snd (inp mempty) of
-    Left a0  -> l (\i -> second (either id (const a0)) (inp i))
-    Right b0 -> r (\i -> second (either (const b0) id) (inp i))
-
--- | Sort a Maybe: apply sort to Justs, use default for Nothings.
--- Samples at 'mempty' to decide.
---
--- Analogous to Fmt's @maybe1@.
-{-# INLINE maybeSort #-}
-maybeSort :: Monoid i => c -> Sort i k a c -> Sort i k (Maybe a) c
-maybeSort def (Sort f) = Sort $ \inp ->
-  case snd (inp mempty) of
-    Nothing -> def
-    Just a0 -> f (\i -> second (maybe a0 id) (inp i))
 
 ---------------------------------------------------------------------
 -- Sort carriers
