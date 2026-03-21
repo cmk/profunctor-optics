@@ -25,7 +25,11 @@ import Data.Profunctor.Choice (left')
 import Data.Word (Word8)
 import Data.Word.Optic (grate8, bits8, ibits8)
 
+import Data.Array.IArray (Array, listArray, elems)
+import qualified Data.Array.IArray as IA
 import qualified Data.ByteString as BS
+import Data.Primitive.PrimArray (PrimArray, primArrayFromList, indexPrimArray, sizeofPrimArray)
+import qualified Data.Vector.Unboxed as VU
 import qualified Data.ByteString.Char8 as B8
 import Data.Char (isUpper, isLower)
 import Data.Functor.Index (I8(..))
@@ -603,6 +607,43 @@ prop_P78_groupTaggedRep = property $ do
         resultKeys = Map.keysSet result
         inputKeys = Map.keysSet $ Map.fromList [(k, ()) | k <- ks]
     resultKeys === inputKeys
+
+---------------------------------------------------------------------
+-- P64–P68: Per-backend sort tests
+---------------------------------------------------------------------
+
+-- P64: sortingPrimArray groups by key
+prop_P64_sortingPrimArray :: Property
+prop_P64_sortingPrimArray = property $ do
+    let arr = primArrayFromList [3, 1, 2, 1, 3 :: Int]
+        result = sortingPrimArray (`mod` 2) arr
+    Map.keys result === [0, 1]
+    -- even group: [2], odd group: [3,1,1,3]
+    fmap sizeofPrimArray result === Map.fromList [(0, 1), (1, 4)]
+
+-- P65: sortingPrimArray preserves element count
+prop_P65_sortingPrimArray_preserves :: Property
+prop_P65_sortingPrimArray_preserves = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ Gen.int (Range.linear 0 10)
+    let arr = primArrayFromList xs
+        result = sortingPrimArray id arr
+    sum (fmap sizeofPrimArray result) === sizeofPrimArray arr
+
+-- P66: sortingVectorU groups correctly
+prop_P66_sortingVectorU :: Property
+prop_P66_sortingVectorU = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ Gen.int (Range.linear 0 5)
+    let v = VU.fromList xs
+        result = sortingVectorU id v
+    sum (fmap VU.length result) === VU.length v
+
+-- P67: sortingArray preserves elements
+prop_P67_sortingArray :: Property
+prop_P67_sortingArray = property $ do
+    let arr = listArray (0, 4) [3, 1, 2, 1, 3] :: Array Int Int
+        result = sortingArray (`mod` 2) arr
+    -- Total elements preserved
+    sum (fmap (length . IA.elems) result) === length (IA.elems arr)
 
 ---------------------------------------------------------------------
 -- P71–P74: Hashable-keyed grouping

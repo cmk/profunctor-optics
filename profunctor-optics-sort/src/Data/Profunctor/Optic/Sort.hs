@@ -43,6 +43,9 @@ module Data.Profunctor.Optic.Sort
 
     -- * Concrete container sorts
   , sortingVectorF
+  , sortingVectorU
+  , sortingPrimArray
+  , sortingArray
   , sortingBytes
   , groupingBytes
   , sortingChars
@@ -81,14 +84,19 @@ module Data.Profunctor.Optic.Sort
   , rightJoinOf
   ) where
 
+import Data.Array.IArray (IArray, Array, Ix)
+import qualified Data.Array.IArray as IA
 import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Ord (Down(..))
+import Data.Primitive.Types (Prim)
+import Data.Primitive.PrimArray (PrimArray, indexPrimArray, sizeofPrimArray, primArrayFromList)
 import Data.Word (Word8)
 import qualified Data.ByteString as BS
 import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as VU
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens', Cotraversal)
 import Data.Profunctor.Optic.View ((^.))
@@ -326,9 +334,26 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
 -- Concrete container sorts
 -- ===================================================================
 
--- | Sort a 'V.Vector' by key.
+-- | Sort a boxed 'V.Vector' by key.
 sortingVectorF :: Ord k => (a -> k) -> V.Vector a -> Map.Map k (V.Vector a)
 sortingVectorF = sortingRep V.length V.unsafeIndex V.fromList
+
+-- | Sort an unboxed 'VU.Vector' by key.
+sortingVectorU :: (VU.Unbox a, Ord k) => (a -> k) -> VU.Vector a -> Map.Map k (VU.Vector a)
+sortingVectorU = sortingRep VU.length VU.unsafeIndex VU.fromList
+
+-- | Sort a 'PrimArray' by key.
+sortingPrimArray :: (Prim a, Ord k) => (a -> k) -> PrimArray a -> Map.Map k (PrimArray a)
+sortingPrimArray = sortingRep sizeofPrimArray indexPrimArray primArrayFromList
+
+-- | Sort an 'Array' by key. Uses 'Ix'-based indexing.
+sortingArray :: (IArray Array e, Ix i, Ord k)
+             => (e -> k) -> Array i e -> Map.Map k (Array Int e)
+sortingArray key arr =
+  let elems = IA.elems arr
+      n = length elems
+      result = runSortF (mkSortFN n) (\i -> (key (elems !! i), elems !! i))
+  in  fmap (\as -> IA.listArray (0, length as - 1) as) result
 
 -- | Sort a strict 'BS.ByteString' by a key on each byte.
 sortingBytes :: Ord k => (Word8 -> k) -> BS.ByteString -> Map.Map k BS.ByteString
