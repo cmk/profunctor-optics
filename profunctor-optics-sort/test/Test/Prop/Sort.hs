@@ -385,6 +385,46 @@ prop_P30_grate8_sort3 = property $ do
     runSort3 lifted inp 0 0 === w
 
 ---------------------------------------------------------------------
+-- P31–P32: Sort3 + bits8 (Cotraversal, needs Choice + Cotraversing)
+---------------------------------------------------------------------
+
+-- P31: bits8 composes with Sort3 when Monoid i (Choice + Cotraversing)
+-- bits8 :: Cotraversal Word8 Word8 Bool Bool
+-- Now Sort3 has Choice (Monoid i) so this typechecks.
+prop_P31_bits8_sort3 :: Property
+prop_P31_bits8_sort3 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let carrier = mkSort3 :: Sort3 I8 Int Bool Bool Bool
+        -- bits8 lifts Sort3 from Bool to Word8
+        lifted = bits8 carrier :: Sort3 I8 Int Bool Word8 Word8
+        -- Each I8 position -> (bit value at that position, the whole word)
+        inp :: I8 -> (Bool, Word8)
+        inp _i = (testBit' w 0, w)
+    runSort3 lifted inp 0 (testBit' w 0) === w
+  where
+    testBit' :: Word8 -> Int -> Bool
+    testBit' w' n = w' `div` (2 ^ n) `mod` 2 == 1
+
+-- P32: ibits8 composes with Sort3 (Cxlens I8, needs Closed)
+-- ibits8 :: Cxlens I8 Word8 Word8 Bool Bool
+-- Cx p k a b = p a (k -> b), so carrier needs output (I8 -> Bool)
+prop_P32_ibits8_sort3 :: Property
+prop_P32_ibits8_sort3 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let -- Carrier for coindexed: output is (I8 -> Bool) not Bool
+        carrier :: Sort3 I8 Int Bool Bool (I8 -> Bool)
+        carrier = rmap const mkSort3
+        lifted = ibits8 carrier
+        inp :: I8 -> (Bool, Word8)
+        inp _i = (testBit' w 0, w)
+    -- The coindex i is the bit position; result is (I8 -> Word8)
+    -- We check that looking up any bit position gives back w
+    runSort3 lifted inp 0 (testBit' w 0) I81 === w
+  where
+    testBit' :: Word8 -> Int -> Bool
+    testBit' w' n = w' `div` (2 ^ n) `mod` 2 == 1
+
+---------------------------------------------------------------------
 -- Helpers
 ---------------------------------------------------------------------
 
