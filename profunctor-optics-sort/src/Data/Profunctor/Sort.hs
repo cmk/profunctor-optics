@@ -259,6 +259,14 @@ instance Costrong (Sort3 i j k) where
     let (d, b) = h (\i -> let (ki, a) = inp i in (ki, (d, a))) j k
     in  b
 
+-- | Conditional on @'Monoid' i@: sample at 'mempty' to decide the
+-- branch, mirroring @Choice (Costar f)@ when @Coapplicative f@.
+instance Monoid i => Choice (Sort3 i j k) where
+  left' (Sort3 h) = Sort3 $ \inp j k ->
+    case coapply (Sort3Corep inp j k) of
+      Left  (Sort3Corep ika j' k') -> Left  (h ika j' k')
+      Right (Sort3Corep ika j' k') -> Right (copure (Sort3Corep ika j' k'))
+
 instance Cosieve (Sort3 i j k) (Sort3Corep i j k) where
   cosieve (Sort3 h) (Sort3Corep ika j kv) = h ika j kv
 
