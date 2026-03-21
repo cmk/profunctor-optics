@@ -76,10 +76,12 @@ benchmark sort-bench
       base
     , containers
     , criterion           >= 1.5
+    , profunctors
     , profunctor-optics
     , profunctor-optics-sort
     , profunctor-optics-strings
     , scheme-extensions
+    , transformers
 
 test-suite properties
   type:              exitcode-stdio-1.0
