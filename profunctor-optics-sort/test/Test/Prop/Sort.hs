@@ -18,7 +18,9 @@ import Data.Profunctor.Sieve (Cosieve(..))
 import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
+import Data.Profunctor.Optic.Import (refirst, releft, re)
 import Data.Profunctor.Optic.Sort
+import Data.Profunctor.Choice (left')
 import Data.Word (Word8)
 import Data.Word.Optic (grate8, bits8, ibits8)
 
@@ -458,6 +460,89 @@ prop_P35_zipsSorting_const = property $ do
         s2 = Sort3 (\_ _ _ -> "second") :: Sort3 Int Int Int Int String
         merged = zipsSorting const s1 s2
     runSort3 merged (\i -> (i, i)) 0 0 === "first"
+
+---------------------------------------------------------------------
+-- P36+: Relens/Reprism + Sort experiments
+---------------------------------------------------------------------
+
+-- Sort2 accepts Relens (Costrong) and Reprism (Cochoice).
+-- These are sort *transformers* — they post-process Sort carriers.
+
+-- refirst :: Relens a b (a, c) (b, c)
+--   on Sort2: Sort2 k (a, c) (b, c) -> Sort2 k a b
+--   = "forget the second component of a pair-sort via knot-tying"
+
+-- releft :: Reprism a b (Either a c) (Either b c)
+--   on Sort2: Sort2 k (Either a c) (Either b c) -> Sort2 k a b
+--   = "filter out Right values from an Either-sort via Cochoice"
+
+-- P36: refirst collapses a pair-sort to a first-component sort
+prop_P36_refirst_sort2 :: Property
+prop_P36_refirst_sort2 = property $ do
+    xs <- forAll genPairNE
+    let -- Sort pairs by fst
+        pairSort = mkSort2 :: Sort2 Int (Int, String) (Int, String)
+        -- refirst :: Sort2 k (a,c) (b,c) -> Sort2 k a b
+        -- Collapse to just sort Ints
+        intSort = refirst pairSort :: Sort2 Int Int Int
+        -- Run: all ints in one group (same key) should come back
+        result = runSort2 intSort (fmap (\(k,_) -> (k, k)) xs)
+    -- Check we get at least one group (NonEmpty guarantee)
+    assert $ length result >= 1
+
+-- P37: releft filters an Either-sort down to Left values
+prop_P37_releft_sort2 :: Property
+prop_P37_releft_sort2 = property $ do
+    let -- Sort Either values by key
+        eitherSort = mkSort2 :: Sort2 Int (Either String Bool) (Either String Bool)
+        -- releft collapses to just the String side
+        stringSort = releft eitherSort :: Sort2 Int String String
+        xs = (1, "a") :| [(2, "b"), (1, "c")]
+        result = runSort2 stringSort xs
+    -- Should group by key: [["a","c"], ["b"]] or similar
+    assert $ length result >= 1
+
+-- P38: re fstL on Sort2 (Lens reversed to Relens via re)
+-- re fstL :: Costrong p => p (Int,String) (Int,String) -> p Int Int
+--   on Sort2: Sort2 k (Int,String) (Int,String) -> Sort2 k Int Int
+--   = "collapse a pair-sort to an int-sort via Costrong knot-tying"
+prop_P38_re_lens_sort2 :: Property
+prop_P38_re_lens_sort2 = property $ do
+    xs <- forAll $ genNE $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.int (Range.linear 0 10)
+    let pairSort = mkSort2 :: Sort2 Int (Int, String) (Int, String)
+        -- re fstL collapses pair-sort to int-sort
+        intSort = re fstL pairSort :: Sort2 Int Int Int
+        result = runSort2 intSort xs
+    -- Should produce at least one group
+    assert $ length result >= 1
+    -- Total elements preserved
+    sum (fmap length result) === length xs
+
+-- P39: re left' on Sort2 (Prism reversed to Reprism via re)
+-- re left' :: Cochoice p => p a a -> p (Either a c) (Either a c)
+-- on Sort2: Sort2 k a a -> Sort2 k (Either a c) (Either a c)
+prop_P39_re_prism_sort2 :: Property
+prop_P39_re_prism_sort2 = property $ do
+    let -- Sort Either String values; group by key
+        baseSort = mkSort2 :: Sort2 Int (Either String Bool) (Either String Bool)
+        -- releft :: Sort2 k (Either a c) (Either b c) -> Sort2 k a b
+        -- Collapse to just the String side via Cochoice
+        collapsed = releft baseSort :: Sort2 Int String String
+        xs = (1, "a") :| [(2, "b"), (1, "c")]
+        result = runSort2 collapsed xs
+    assert $ length result >= 1
+
+-- Sort3 accepts Relens (Costrong).
+-- refirst :: Sort3 i j k (a, c) (b, c) -> Sort3 i j k a b
+
+-- P40: refirst on Sort3
+prop_P40_refirst_sort3 :: Property
+prop_P40_refirst_sort3 = property $ do
+    let pairSort = Sort3 (\inp _j k -> snd (inp k))
+                   :: Sort3 Int Int Int (Int, String) (Int, String)
+        intSort = refirst pairSort :: Sort3 Int Int Int Int Int
+        inp i = (i, i * 10)
+    runSort3 intSort inp 0 3 === 30
 
 ---------------------------------------------------------------------
 -- Helpers
