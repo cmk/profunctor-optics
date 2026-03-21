@@ -69,6 +69,7 @@ test-suite properties
   build-depends:
       base
     , coapplicative
+    , containers
     , hedgehog               >= 1.0
     , profunctors
     , profunctor-optics

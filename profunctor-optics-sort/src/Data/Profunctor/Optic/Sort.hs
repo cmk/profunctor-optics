@@ -8,43 +8,53 @@
 -- * Sort2 reified (+ Costrong + Cochoice) → Sort2
 -- * 'Colens' (Closed) → Sort3
 module Data.Profunctor.Optic.Sort
-  ( -- * Sort1 operators (Lens)
-    sortingOf
+  ( -- * Reified optic types
+    ASort1, ASort2, ASort3
+
+    -- * Core runners (carrier pattern)
+  , builds1
+  , builds2
+  , builds3
+  , buildsWith1
+
+    -- * Sort1 operators (Lens, Strong + Choice)
+  , sortingOf
+  , sortingDescOf
   , groupingOf
   , nubbingOf
 
-    -- * Sort2 operators (Lens on Sort2)
+    -- * Sort1 container construction
+  , toMapOf
+  , toMapWithOf
+  , countingOf
+
+    -- * Sort2 operators (+ Costrong + Cochoice)
   , groupingBack
+  , nubbingBack
+  , groupingDescBack
 
     -- * Sort3 operators (Closed)
   , sortingUnder
 
     -- * Indexed sorting (key = index)
   , sortingIx
+  , toMapIx
 
-    -- * Joins (two-table, by key extractor)
+    -- * Post-sort folds
+  , foldSorting
+  , foldSorting1
+  , mconcatSorting
+
+    -- * Joins (by key extractor, not optic-based)
   , joiningOf
   , innerJoinOf
   , outerJoinOf
   , leftJoinOf
   , rightJoinOf
-
-    -- * Reified optic types
-  , ASort1, ASort2
-
-    -- * Build through a reified optic
-  , builds1
-  , builds2
-  , buildsWith1
-
-    -- * Post-sort fold operators
-  , foldSorting
-  , mconcatSorting
-  , minimumSorting
-  , maximumSorting
   ) where
 
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Ord (Down(..))
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens')
 import Data.Profunctor.Optic.View ((^.))
@@ -52,6 +62,37 @@ import Data.Profunctor.Optic.View ((^.))
 import Data.Profunctor.Sort
 
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
+
+-- ===================================================================
+-- Reified optic types
+-- ===================================================================
+
+type ASort1 k s t a b = Sort1 k a b -> Sort1 k s t
+type ASort2 k s t a b = Sort2 k a b -> Sort2 k s t
+type ASort3 i j k s t a b = Sort3 i j k a b -> Sort3 i j k s t
+
+-- ===================================================================
+-- Core runners (carrier pattern)
+-- ===================================================================
+
+-- | Sort through a reified optic using a Sort1 carrier.
+builds1 :: ASort1 k s t a b -> (s -> k) -> Sort1 k a b -> NonEmpty s -> [NonEmpty t]
+builds1 o key carrier xs =
+  runSort1 (o carrier) (fmap (\s -> (key s, s)) xs)
+
+-- | Sort through a reified optic using a Sort2 carrier.
+builds2 :: ASort2 k s t a b -> (s -> k) -> Sort2 k a b -> NonEmpty s -> NonEmpty [t]
+builds2 o key carrier xs =
+  runSort2 (o carrier) (fmap (\s -> (key s, s)) xs)
+
+-- | Apply a reified Sort3 optic to a Sort3 carrier.
+builds3 :: ASort3 i j k s t a b -> Sort3 i j k a b -> Sort3 i j k s t
+builds3 o = o
+
+-- | Sort and transform through a reified optic.
+buildsWith1 :: Ord k => ASort1 k s t a b -> (s -> k) -> (a -> b) -> NonEmpty s -> [NonEmpty t]
+buildsWith1 o key f = builds1 o key (rmap f mkSort1)
 
 -- ===================================================================
 -- Sort1 operators (Lens = Strong + Choice)
@@ -67,6 +108,14 @@ sortingOf :: Ord a
 sortingOf o xs =
   runSort1 (o mkSort1) (fmap (\s -> (s ^. o, s)) xs)
 
+-- | Sort through a lens in descending order.
+--
+sortingDescOf :: Ord a
+              => Lens' s a
+              -> NonEmpty s -> [NonEmpty s]
+sortingDescOf o xs =
+  runSort1 (o (sortOn1 Down mkSort1)) (fmap (\s -> (s ^. o, s)) xs)
+
 -- | Group through a lens (= 'sortingOf').
 groupingOf :: Ord a
            => Lens' s a
@@ -80,6 +129,36 @@ nubbingOf :: Ord a
 nubbingOf o = map NE.head . sortingOf o
 
 -- ===================================================================
+-- Sort1 container construction
+-- ===================================================================
+
+-- | Sort through a lens and collect groups into a 'Map' keyed by the
+-- focused value.
+--
+toMapOf :: Ord a
+        => Lens' s a
+        -> NonEmpty s -> Map.Map a (NonEmpty s)
+toMapOf o xs =
+  Map.fromList [(NE.head g ^. o, g) | g <- sortingOf o xs]
+
+-- | Sort through a lens and build a 'Map' by applying a value
+-- transform to each element, combining with @('<>')@.
+--
+toMapWithOf :: (Ord a, Semigroup v)
+            => Lens' s a -> (s -> v)
+            -> NonEmpty s -> Map.Map a v
+toMapWithOf o f xs =
+  Map.fromListWith (<>) [(s ^. o, f s) | s <- NE.toList xs]
+
+-- | Count occurrences per key through a lens.
+--
+countingOf :: Ord a
+           => Lens' s a
+           -> NonEmpty s -> Map.Map a Int
+countingOf o xs =
+  Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
+
+-- ===================================================================
 -- Sort2 operators (+ Costrong + Cochoice)
 -- ===================================================================
 
@@ -90,6 +169,22 @@ groupingBack :: Ord a
              -> NonEmpty s -> NonEmpty [s]
 groupingBack o xs =
   runSort2 (o mkSort2) (fmap (\s -> (s ^. o, s)) xs)
+
+-- | Deduplicate through a lens using Sort2. Returns the head of
+-- each group (or 'Nothing' for empty groups). Guarantees ≥1 result.
+nubbingBack :: Ord a
+            => Lens' s a
+            -> NonEmpty s -> NonEmpty (Maybe s)
+nubbingBack o = fmap listToMaybe . groupingBack o
+  where listToMaybe []    = Nothing
+        listToMaybe (x:_) = Just x
+
+-- | Group through a lens in descending order using Sort2.
+groupingDescBack :: Ord a
+                 => Lens' s a
+                 -> NonEmpty s -> NonEmpty [s]
+groupingDescBack o xs =
+  runSort2 (o (sortOn2 Down mkSort2)) (fmap (\s -> (s ^. o, s)) xs)
 
 -- ===================================================================
 -- Sort3 operators (Closed)
@@ -118,9 +213,51 @@ sortingIx o xs =
   let carrier = rmap snd mkSort1
   in  runSort1 (o carrier) (fmap (\(k, s) -> (k, (k, s))) xs)
 
+-- | Sort via an indexed lens and collect groups into a 'Map'
+-- keyed by the index.
+toMapIx :: Ord k
+        => Ixlens' k s a
+        -> NonEmpty (k, s)
+        -> Map.Map k (NonEmpty s)
+toMapIx o xs =
+  Map.fromList [(k, g) | g <- sortingIx o xs, let k = fst (NE.head pairs)]
+  where pairs = fmap (\(k, s) -> (k, (k, s))) xs
+-- TODO: this is not right — revisit when indexed operators are fleshed out
+
 -- ===================================================================
--- Joins (two-table, through a Lens)
+-- Post-sort fold operators
 -- ===================================================================
+
+-- | Sort through a lens, then right-fold each group.
+foldSorting :: Ord a
+            => Lens' s a
+            -> (s -> r -> r) -> r
+            -> NonEmpty s -> [r]
+foldSorting o g z xs =
+  map (foldr g z . NE.toList) (sortingOf o xs)
+
+-- | Sort through a lens, then reduce each group with a binary
+-- function. Each group is non-empty, so no seed is needed.
+foldSorting1 :: Ord a
+             => Lens' s a
+             -> (s -> s -> s)
+             -> NonEmpty s -> [s]
+foldSorting1 o f = map (foldr1 f) . sortingOf o
+
+-- | Sort through a lens, then monoidal concat per group.
+mconcatSorting :: (Ord a, Monoid m)
+               => Lens' s a
+               -> (s -> m)
+               -> NonEmpty s -> [m]
+mconcatSorting o g xs =
+  map (foldMap g) (sortingOf o xs)
+
+-- ===================================================================
+-- Joins (by key extractor, not optic-based)
+-- ===================================================================
+--
+-- These are direct Sort1 combinators that do not take optics.
+-- They use mkSort1 directly and partition via Either tagging.
 
 -- | Full outer join by key extractors.
 joiningOf :: Ord k
@@ -185,66 +322,7 @@ rightJoinOf ak bk f bc as bs =
       | otherwise = [f a b | a <- ap, b <- bp]
 
 -- ===================================================================
--- Reified optic types
--- ===================================================================
-
-type ASort1 k s t a b = Sort1 k a b -> Sort1 k s t
-type ASort2 k s t a b = Sort2 k a b -> Sort2 k s t
-
--- ===================================================================
--- Build through a reified optic
--- ===================================================================
-
--- | Sort through a reified optic using a Sort1 carrier.
-builds1 :: ASort1 k s t a b -> (s -> k) -> Sort1 k a b -> NonEmpty s -> [NonEmpty t]
-builds1 o key carrier xs =
-  runSort1 (o carrier) (fmap (\s -> (key s, s)) xs)
-
--- | Sort through a reified optic using a Sort2 carrier.
-builds2 :: ASort2 k s t a b -> (s -> k) -> Sort2 k a b -> NonEmpty s -> NonEmpty [t]
-builds2 o key carrier xs =
-  runSort2 (o carrier) (fmap (\s -> (key s, s)) xs)
-
--- | Sort and transform through a reified optic.
-buildsWith1 :: Ord k => ASort1 k s t a b -> (s -> k) -> (a -> b) -> NonEmpty s -> [NonEmpty t]
-buildsWith1 o key f = builds1 o key (rmap f mkSort1)
-
--- ===================================================================
--- Post-sort fold operators
--- ===================================================================
-
--- | Sort through a lens, then right-fold each group.
-foldSorting :: Ord a
-            => Lens' s a
-            -> (s -> r -> r) -> r
-            -> NonEmpty s -> [r]
-foldSorting o g z xs =
-  map (foldr g z . NE.toList) (sortingOf o xs)
-
--- | Sort through a lens, then monoidal concat per group.
-mconcatSorting :: (Ord a, Monoid m)
-               => Lens' s a
-               -> (s -> m)
-               -> NonEmpty s -> [m]
-mconcatSorting o g xs =
-  map (foldMap g) (sortingOf o xs)
-
--- | Sort through a lens, then minimum per group.
-minimumSorting :: (Ord a, Ord s)
-               => Lens' s a
-               -> NonEmpty s -> [s]
-minimumSorting o xs =
-  map minimum (sortingOf o xs)
-
--- | Sort through a lens, then maximum per group.
-maximumSorting :: (Ord a, Ord s)
-               => Lens' s a
-               -> NonEmpty s -> [s]
-maximumSorting o xs =
-  map maximum (sortingOf o xs)
-
--- ===================================================================
--- Helpers
+-- Internal helpers
 -- ===================================================================
 
 combineGroup :: ([a] -> [b] -> c) -> NonEmpty (Either a b) -> c

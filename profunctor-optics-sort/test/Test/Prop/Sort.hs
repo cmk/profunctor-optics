@@ -23,6 +23,7 @@ import Data.Profunctor.Optic.Sort
 import Data.Monoid (Sum(..))
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Map.Strict as Map
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -188,6 +189,35 @@ prop_P15_nubbingOf_one_per_key = property $ do
     let nubbed = nubbingOf fstL xs
         keys = map (^. fstL) nubbed
     keys === L.nub keys
+
+---------------------------------------------------------------------
+-- P16–P18: New Sort1 operator properties
+---------------------------------------------------------------------
+
+-- P16: sortingDescOf groups are in descending key order
+prop_P16_sortingDescOf_descending :: Property
+prop_P16_sortingDescOf_descending = property $ do
+    xs <- forAll genPairNE
+    let keys = map (\g -> NE.head g ^. fstL) (sortingDescOf fstL xs)
+    keys === L.sortBy (flip compare) keys
+
+-- P17: toMapOf keys = set of focused values
+prop_P17_toMapOf_keys :: Property
+prop_P17_toMapOf_keys = property $ do
+    xs <- forAll genPairNE
+    let m = toMapOf fstL xs
+        mapKeys = Map.keysSet m
+        inputKeys = Map.keysSet $ Map.fromList [(s ^. fstL, ()) | s <- NE.toList xs]
+    mapKeys === inputKeys
+
+-- P18: toMapOf values agree with sortingOf groups
+prop_P18_toMapOf_agrees :: Property
+prop_P18_toMapOf_agrees = property $ do
+    xs <- forAll genPairNE
+    let m = toMapOf fstL xs
+        groups = sortingOf fstL xs
+        fromGroups = Map.fromList [(NE.head g ^. fstL, g) | g <- groups]
+    m === fromGroups
 
 ---------------------------------------------------------------------
 -- P19–P20: Sort2 operator properties
