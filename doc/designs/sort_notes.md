@@ -177,6 +177,51 @@ All the array-like types are representable by `Int` (or a product of `Int`s for 
 - Whether to redesign profunctor-optics-sequences (drop mono-traversable?)
 - Composing indexed + coindexed through a sort pipeline
 
+## Sort3 as elaboration of Fmt
+
+`Fmt m a b = (m -> a) -> b` from stringfmt is `Costar ((->) m)`.
+Sort3 is the same shape with a richer input functor:
+
+```
+Fmt   m     a b = (m -> a)        -> b
+Sort3 i j k a b = (i -> (k, a)) -> j -> k -> b
+```
+
+Both are indexed continuation profunctors with the same instance
+family: Profunctor, Closed, Costrong, Cochoice, Cosieve,
+Corepresentable. Fmt gets them via DerivingVia, Sort3 hand-rolls.
+
+### Fmt patterns adoptable by Sort3
+
+| Fmt | Sort3 analogue | Status |
+|---|---|---|
+| `(%) :: Semigroup m => Fmt m b c -> Fmt m a b -> Fmt m a c` | Category: multi-pass sorting (sort by first key, refine by second) | TODO |
+| `Arrow (***)` | Parallel sort: sort by two independent keys simultaneously | TODO |
+| `fmt1 :: (a -> m) -> Fmt1 m s a` | `sort1 :: (a -> k) -> Sort3 ... a a` — sort by key extractor | ≅ `mkSort3` + `lmap` |
+| `refmt :: (m1 -> m2) -> Fmt m1 a b -> Fmt m2 a b` | `sortOn3 :: (k' -> k) -> Sort3 ... -> Sort3 ...` | Done |
+| `bind :: Fmt m a1 b -> (m -> Fmt m a2 a1) -> Fmt m a2 b` | Key-dependent sort refinement | TODO |
+| `cat :: Foldable f => f (Fmt m a a) -> Fmt m a a` | Fold multiple sort passes | TODO |
+| `(.%) :: Semigroup m => Fmt1 m s a -> Fmt1 m s a -> Fmt1 m s a` | `zipsSorting` | Done |
+| `either1` / `maybe1` | Sum-type sort combinators (via Choice) | TODO |
+| `fmtDay` (Day convolution of `(->) m`) | Sort3 composition as Day convolution of Sort3Corep | Future |
+
+### Category instance for Sort3
+
+Fmt has `Category` when `Monoid m`. For Sort3, `Category` would
+compose two sort passes: sort by first key, then refine each group
+by a second key. This is exactly discrimination's `(<>)` on `Sort`.
+
+```haskell
+instance (Monoid k, ...) => Category (Sort3 i j k) where
+  id = mkSort3  -- identity sort
+  f . g = ...   -- sort by g's key, then refine by f's key
+```
+
+The challenge: Sort3's `k` appears in both input `(i -> (k, a))`
+and output `j -> k -> b`. Composing two Sort3s with different key
+types would need a product key `(k1, k2)`. This maps to
+discrimination's approach where `(<>)` refines within groups.
+
 **Ready to benchmark:**
 - Sort1 `sortingOf` vs `Data.List.sort` vs `discrimination` sort
 - Sort3 `sortingVector` vs `V.modify (VA.sort)`
