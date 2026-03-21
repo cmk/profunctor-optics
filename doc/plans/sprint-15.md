@@ -20,8 +20,8 @@ variants share the same module, with strict variants ticked (`'`).
 
 ## Naming convention
 
-Strict variants (the default, matching `Data.Map.Strict`) use
-plain names. Lazy variants (matching `Data.Map.Lazy`) get a tick:
+Unprimed variants are lazy (matching `Data.Map.Lazy`). Primed
+(`'`) variants are strict (matching `Data.Map.Strict`):
 
 ```haskell
 -- Data.Map.Optic
