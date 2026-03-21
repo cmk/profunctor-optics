@@ -8,6 +8,8 @@ import qualified Hedgehog.Range as Range
 
 import Data.Map.Optic
 import Data.Profunctor.Optic
+import Data.Profunctor.Optic.Fold (cofoldsWithKey)
+import Data.Profunctor.Optic.Combinator ((#))
 import qualified Data.Map as Map
 
 tests :: IO Bool
@@ -68,3 +70,25 @@ prop_alteredF_roundtrip = property $ do
     k <- forAll $ Gen.int (Range.linear 0 50)
     let v = view (alteredF k) m
     set (alteredF k) v m === m
+
+-- cxmapped: coindexed cofold over map-of-maps
+prop_cxmapped_cofold :: Property
+prop_cxmapped_cofold = property $ do
+    let nested = Map.fromList [("a", Map.fromList [("x", 1 :: Int), ("y", 2)])]
+        result = cofoldsWithKey (cxmapped # cxmapped)
+                   (\k r a -> Map.singleton k (a + r))
+                   (0 :: Int)
+                   nested
+    -- The outer key "a" and inner keys "x","y" accumulate via (<>)
+    -- result should be a nested map with combined keys
+    assert $ not (Map.null result)
+
+-- cxmapped: single-level cofold
+prop_cxmapped_single :: Property
+prop_cxmapped_single = property $ do
+    let m = Map.fromList [("a", 1 :: Int), ("b", 2)]
+        result = cofoldsWithKey cxmapped
+                   (\k _r a -> Map.singleton k a)
+                   (0 :: Int)
+                   m
+    Map.keys result === ["a", "b"]
