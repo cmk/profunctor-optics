@@ -34,6 +34,14 @@ module Data.Profunctor.Optic.Sort
 
     -- * SortF operators
   , zipsSortingF
+
+    -- * Generic representable sort
+  , sortingRep
+  , sortUniqueRep
+  , sortTaggedRep
+  , groupTaggedRep
+
+    -- * Concrete container sorts
   , sortingVectorF
   , sortingBytes
   , groupingBytes
@@ -248,52 +256,83 @@ toMapIx o xs =
 zipsSortingF :: (b -> b -> b) -> SortF i k a b -> SortF i k a b -> SortF i k a b
 zipsSortingF f (SortF h1) (SortF h2) = SortF $ \inp -> f (h1 inp) (h2 inp)
 
--- | Sort a 'Vector' by key using SortF.
---
--- The vector is an @Int@-indexed representable container.
--- Groups positions by key via 'mkSortFN', producing a 'Map'
--- of vectors.
---
-sortingVectorF :: Ord k
-               => (a -> k)
-               -> V.Vector a -> Map.Map k (V.Vector a)
-sortingVectorF key v =
-  let n = V.length v
-      result = runSortF (mkSortFN n) (\i -> (key (v V.! i), v V.! i))
-  in  fmap V.fromList result
+-- ===================================================================
+-- Generic representable sort
+-- ===================================================================
 
--- | Sort a strict 'ByteString' by a key on each byte.
+-- | Sort any @Int@-indexed representable container by key.
 --
--- The ByteString is an @Int@-indexed representable container of
--- 'Word8' values. Groups bytes by key via 'mkSortFN', producing
--- a 'Map' of ByteStrings.
+-- Given @length@, @index@, a list-to-container builder, and a key
+-- extractor, groups elements by key via 'mkSortFN'.
 --
-sortingBytes :: Ord k
-             => (Word8 -> k)
-             -> BS.ByteString -> Map.Map k BS.ByteString
-sortingBytes key bs =
-  let n = BS.length bs
-      result = runSortF (mkSortFN n) (\i -> (key (BS.index bs i), BS.index bs i))
-  in  fmap BS.pack result
+-- All concrete container sorts ('sortingVectorF', 'sortingBytes',
+-- 'sortingChars') are thin wrappers around this.
+--
+sortingRep :: Ord k
+           => (c -> Int)          -- ^ length
+           -> (c -> Int -> a)     -- ^ index
+           -> ([a] -> c')         -- ^ build output container from list
+           -> (a -> k)            -- ^ key extractor
+           -> c -> Map.Map k c'
+sortingRep len idx build key c =
+  let n = len c
+      result = runSortF (mkSortFN n) (\i -> (key (idx c i), idx c i))
+  in  fmap build result
 
--- | Group a strict 'ByteString' by byte value.
+-- | Sort + deduplicate: keep first element per key.
 --
+sortUniqueRep :: Ord k
+              => (c -> Int) -> (c -> Int -> a) -> (a -> c')
+              -> (a -> k) -> c -> Map.Map k c'
+sortUniqueRep len idx build key c =
+  fmap (build . head) $ sortingRep len idx id key c
+
+-- | Tagged sort: sort a key container and permute a value container
+-- in tandem.
+--
+-- Inspired by @primitive-sort@'s @sortTagged@.
+--
+sortTaggedRep :: Ord k
+              => (ck -> Int)            -- ^ key container length
+              -> (ck -> Int -> k)       -- ^ key container index
+              -> (cv -> Int -> v)       -- ^ value container index
+              -> ([k] -> ck')           -- ^ build key output
+              -> ([v] -> cv')           -- ^ build value output
+              -> ck -> cv -> Map.Map k (ck', cv')
+sortTaggedRep klen kidx vidx kbuild vbuild ks vs =
+  let n = klen ks
+      result = runSortF (mkSortFN n) (\i -> (kidx ks i, (kidx ks i, vidx vs i)))
+  in  fmap (\pairs -> (kbuild (map fst pairs), vbuild (map snd pairs))) result
+
+-- | Group by key, returning Map from keys to value containers.
+--
+groupTaggedRep :: Ord k
+               => (ck -> Int) -> (ck -> Int -> k) -> (cv -> Int -> v)
+               -> ([v] -> cv') -> ck -> cv -> Map.Map k cv'
+groupTaggedRep klen kidx vidx vbuild ks vs =
+  let n = klen ks
+      result = runSortF (mkSortFN n) (\i -> (kidx ks i, vidx vs i))
+  in  fmap vbuild result
+
+-- ===================================================================
+-- Concrete container sorts
+-- ===================================================================
+
+-- | Sort a 'V.Vector' by key.
+sortingVectorF :: Ord k => (a -> k) -> V.Vector a -> Map.Map k (V.Vector a)
+sortingVectorF = sortingRep V.length V.unsafeIndex V.fromList
+
+-- | Sort a strict 'BS.ByteString' by a key on each byte.
+sortingBytes :: Ord k => (Word8 -> k) -> BS.ByteString -> Map.Map k BS.ByteString
+sortingBytes = sortingRep BS.length BS.index BS.pack
+
+-- | Group a strict 'BS.ByteString' by byte value.
 groupingBytes :: BS.ByteString -> Map.Map Word8 BS.ByteString
 groupingBytes = sortingBytes id
 
--- | Sort a strict 'Text' by a key on each character.
---
--- The Text is an @Int@-indexed representable container of 'Char'
--- values. Groups characters by key via 'mkSortFN', producing
--- a 'Map' of Texts.
---
-sortingChars :: Ord k
-             => (Char -> k)
-             -> T.Text -> Map.Map k T.Text
-sortingChars key txt =
-  let n = T.length txt
-      result = runSortF (mkSortFN n) (\i -> (key (T.index txt i), T.index txt i))
-  in  fmap T.pack result
+-- | Sort a strict 'T.Text' by a key on each character.
+sortingChars :: Ord k => (Char -> k) -> T.Text -> Map.Map k T.Text
+sortingChars = sortingRep T.length T.index T.pack
 
 -- | Construct a 'WhenMatched' merge tactic from a SortF.
 --
