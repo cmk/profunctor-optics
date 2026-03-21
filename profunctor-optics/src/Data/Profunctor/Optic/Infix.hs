@@ -121,6 +121,19 @@ infixr 9  %, #
 -- View (primary)
 ---------------------------------------------------------------------
 
+-- $view
+--
+-- View operators extract or fold over the focus of an optic.
+-- The @^@ character always appears on the value\/structure side.
+--
+-- @
+--            view             toList           preview
+--   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
+--   Ix      (^%)  'V.ixview'  (^%%)  'F.ixlists'
+--   Co      (^/)  'V.review'  (^//)  'F.cofoldsa'
+--   Cx      (^#)  'V.cxreview'
+-- @
+
 -- | View through an optic.
 --
 -- @s '^.' o ≡ 'V.view' o s@
@@ -196,6 +209,21 @@ infixr 9  %, #
 ---------------------------------------------------------------------
 -- Set / over (primary, via ->)
 ---------------------------------------------------------------------
+
+-- $setover
+--
+-- Set and over operators follow a uniform pattern: a single middle
+-- character denotes __set__ (replace the focus), while a doubled middle
+-- character denotes __over__ (map a function over the focus).
+--
+-- @
+--            set                   over
+--   (->)    (.~)  'S.set'          (..~)  'C.over'
+--   Star    (*~)               (**~)  'traverseOf'
+--   Ix      (%~)  'S.ixset'        (%%~)  'S.ixsets'
+--   Costar  (\/~)               (\/\/~)  'cotraverseOf'
+--   Cx      (#~)  'S.cxset'        (##~)  'S.cxsets'
+-- @
 
 -- | Set via a primary optic.
 --
