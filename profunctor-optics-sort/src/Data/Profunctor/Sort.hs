@@ -210,8 +210,17 @@ instance Cochoice (Sort2 k) where
 
 -- | Representable-input, representable-output sort.
 --
--- Both sides are function types. The output is indexed by group
--- position @j@ and key @k@, making it a coindexed optic carrier:
+-- @
+-- Sort3 i j k a b = (i -> (k, a)) -> j -> k -> b
+-- @
+--
+-- *  @i@ — index into the input collection (element position)
+-- *  @k@ — discrimination key (groups elements, shared across input and output)
+-- *  @j@ — index within a group (position among elements sharing key @k@)
+--
+-- The output @j -> k -> b@ is the representable encoding of @[[b]]@
+-- (outer list keyed by @k@, inner list indexed by @j@). This makes
+-- it a coindexed optic carrier:
 --
 -- @
 -- Cxtraversal k s t a b ≅ (f a -> k -> b) -> f s -> t
@@ -290,10 +299,10 @@ instance Monoid i => Coapplicative (Sort3Corep i j k) where
 
 -- | Identity Sort3 carrier for finite index types.
 --
--- Groups input positions by key (via 'Ord' on @k@), producing a
--- lookup by group index @j@ (position within the sorted groups)
--- and key @k@. Within a group, the @j@-th element's value is
--- returned; out-of-bounds @j@ wraps to the last element.
+-- Enumerates all input positions @[minBound..maxBound]@, groups
+-- them by key (via 'Ord' on @k@), and produces a lookup by key
+-- @k@ and within-group position @j@. Out-of-bounds @j@ wraps
+-- modularly within the group.
 --
 -- This is the Sort3 analogue of 'mkSort1' / 'mkSort2'.
 --
