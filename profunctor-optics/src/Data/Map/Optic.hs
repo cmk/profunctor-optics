@@ -53,11 +53,14 @@ module Data.Map.Optic (
     -- * Sort merge tactics
   , sortedMatched
   , sortedMissing
+    -- * Coindexed optics
+  , cxmapped
 ) where
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.View (rxfrom)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.Map.Merge.Strict as Merge
@@ -301,3 +304,24 @@ sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
 sortedMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
 sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | /O(n)/. Coindexed review for 'Map.Map': reconstruct a map
+-- with key-dependent logic.
+--
+-- Built via 'rxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
+-- map key — available on the reconstruction side. Dual of 'imapped'.
+--
+-- Compose with '(#)' for multi-level coindexed operations:
+--
+-- @
+-- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedMap
+-- @
+--
+cxmapped :: Rxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
+cxmapped = rxfrom Map.mapWithKey
+{-# INLINE cxmapped #-}
+
