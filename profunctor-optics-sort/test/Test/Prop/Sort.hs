@@ -25,8 +25,12 @@ import Data.Profunctor.Choice (left')
 import Data.Word (Word8)
 import Data.Word.Optic (grate8, bits8, ibits8)
 
+import qualified Data.ByteString as BS
+import qualified Data.ByteString.Char8 as B8
+import Data.Char (isUpper, isLower)
 import Data.Functor.Index (I8(..))
 import Data.Monoid (Sum(..))
+import qualified Data.Text as T
 import Data.Ord (Down(..))
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
@@ -469,6 +473,67 @@ prop_SF14_zipsSortingF = property $ do
         merged = zipsSortingF (+) s1 s2
         inp i = (i, i * 10)
     runSortF merged inp === 3  -- (0 + 1) + (0 + 2), since snd (inp 0) = 0
+
+---------------------------------------------------------------------
+-- P51–P54: ByteString/Text sorting via SortF
+---------------------------------------------------------------------
+
+-- P51: sortingBytes preserves all bytes
+prop_P51_sortingBytes_preserves :: Property
+prop_P51_sortingBytes_preserves = property $ do
+    bs <- forAll $ Gen.utf8 (Range.linear 1 100) Gen.alpha
+    let result = sortingBytes id bs
+        totalBytes = sum $ fmap BS.length result
+    totalBytes === BS.length bs
+
+-- P52: sortingBytes groups share same key
+prop_P52_sortingBytes_same_key :: Property
+prop_P52_sortingBytes_same_key = property $ do
+    bs <- forAll $ Gen.utf8 (Range.linear 1 50) Gen.alpha
+    let result = sortingBytes id bs
+    assert $ all (\(k, v) -> BS.all (== k) v) (Map.toList result)
+
+-- P53: groupingBytes keys = set of byte values in input
+prop_P53_groupingBytes_keys :: Property
+prop_P53_groupingBytes_keys = property $ do
+    bs <- forAll $ Gen.utf8 (Range.linear 1 50) Gen.alpha
+    let result = groupingBytes bs
+        resultKeys = Map.keysSet result
+        inputBytes = Map.keysSet $ Map.fromList [(w, ()) | w <- BS.unpack bs]
+    resultKeys === inputBytes
+
+-- P54: sortingChars preserves all chars
+prop_P54_sortingChars_preserves :: Property
+prop_P54_sortingChars_preserves = property $ do
+    txt <- forAll $ Gen.text (Range.linear 1 100) Gen.alpha
+    let result = sortingChars id txt
+        totalChars = sum $ fmap T.length result
+    totalChars === T.length txt
+
+---------------------------------------------------------------------
+-- P55–P56: Rxlens/Rxprism + SortF
+---------------------------------------------------------------------
+
+-- P55: Rxlens (Costrong) composes with SortF
+-- refirst :: Costrong p => p (a, c) (b, c) -> p a b
+-- SortF has Costrong unconditionally.
+prop_P55_rxlens_sortF :: Property
+prop_P55_rxlens_sortF = property $ do
+    let pairSort = SortF (\inp -> snd (inp 0)) :: SortF Int Int (Int, String) (Int, String)
+        intSort = refirst pairSort :: SortF Int Int Int Int
+        inp i = (i, i * 10)
+    runSortF intSort inp === 0  -- snd (inp 0) = (0, "..."), refirst extracts fst = 0
+
+-- P56: Reprism (Cochoice) composes with SortF
+-- releft :: Cochoice p => p (Either a c) (Either b c) -> p a b
+-- SortF's Cochoice (via Costar) needs Monoid k for Applicative on Corep.
+prop_P56_reprism_sortF :: Property
+prop_P56_reprism_sortF = property $ do
+    let eitherSort = SortF (\inp -> snd (inp (Sum 0)))
+                     :: SortF (Sum Int) (Sum Int) (Either String Bool) (Either String Bool)
+        stringSort = releft eitherSort :: SortF (Sum Int) (Sum Int) String String
+        inp _ = (Sum 1, "hello")
+    runSortF stringSort inp === "hello"
 
 ---------------------------------------------------------------------
 -- Helpers

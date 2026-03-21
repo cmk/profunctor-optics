@@ -35,6 +35,9 @@ module Data.Profunctor.Optic.Sort
     -- * SortF operators
   , zipsSortingF
   , sortingVectorF
+  , sortingBytes
+  , groupingBytes
+  , sortingChars
 
     -- * SortF merge tactics
   , sortedMatchedF
@@ -65,8 +68,11 @@ module Data.Profunctor.Optic.Sort
   ) where
 
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Vector as V
 import Data.Ord (Down(..))
+import Data.Word (Word8)
+import qualified Data.ByteString as BS
+import qualified Data.Text as T
+import qualified Data.Vector as V
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens', Cotraversal)
 import Data.Profunctor.Optic.View ((^.))
@@ -255,6 +261,39 @@ sortingVectorF key v =
   let n = V.length v
       result = runSortF (mkSortFN n) (\i -> (key (v V.! i), v V.! i))
   in  fmap V.fromList result
+
+-- | Sort a strict 'ByteString' by a key on each byte.
+--
+-- The ByteString is an @Int@-indexed representable container of
+-- 'Word8' values. Groups bytes by key via 'mkSortFN', producing
+-- a 'Map' of ByteStrings.
+--
+sortingBytes :: Ord k
+             => (Word8 -> k)
+             -> BS.ByteString -> Map.Map k BS.ByteString
+sortingBytes key bs =
+  let n = BS.length bs
+      result = runSortF (mkSortFN n) (\i -> (key (BS.index bs i), BS.index bs i))
+  in  fmap BS.pack result
+
+-- | Group a strict 'ByteString' by byte value.
+--
+groupingBytes :: BS.ByteString -> Map.Map Word8 BS.ByteString
+groupingBytes = sortingBytes id
+
+-- | Sort a strict 'Text' by a key on each character.
+--
+-- The Text is an @Int@-indexed representable container of 'Char'
+-- values. Groups characters by key via 'mkSortFN', producing
+-- a 'Map' of Texts.
+--
+sortingChars :: Ord k
+             => (Char -> k)
+             -> T.Text -> Map.Map k T.Text
+sortingChars key txt =
+  let n = T.length txt
+      result = runSortF (mkSortFN n) (\i -> (key (T.index txt i), T.index txt i))
+  in  fmap T.pack result
 
 -- | Construct a 'WhenMatched' merge tactic from a SortF.
 --
