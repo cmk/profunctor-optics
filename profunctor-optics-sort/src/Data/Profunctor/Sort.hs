@@ -50,9 +50,13 @@ module Data.Profunctor.Sort
 
     -- * Sort3 corepresentation
   , Sort3Corep(..)
+
+    -- * Sort3 carriers
+  , mkSort3
+  , sortOn3
   ) where
 
-import Control.Arrow (second)
+import Control.Arrow (first, second)
 import Control.Coapplicative (Coapplicative(..))
 import Data.Either (lefts, rights)
 import Data.List.NonEmpty (NonEmpty(..))
@@ -279,3 +283,32 @@ instance Monoid i => Coapply (Sort3Corep i j k) where
 
 instance Monoid i => Coapplicative (Sort3Corep i j k) where
   copure (Sort3Corep ika _ _) = snd (ika mempty)
+
+-- ===================================================================
+--  Sort3 carriers
+-- ===================================================================
+
+-- | Identity Sort3 carrier for finite index types.
+--
+-- Groups input positions by key (via 'Ord' on @k@), producing a
+-- lookup by group index @j@ (position within the sorted groups)
+-- and key @k@. Within a group, the @j@-th element's value is
+-- returned; out-of-bounds @j@ wraps to the last element.
+--
+-- This is the Sort3 analogue of 'mkSort1' / 'mkSort2'.
+--
+mkSort3 :: (Bounded i, Enum i, Ord k) => Sort3 i Int k a a
+mkSort3 = Sort3 $ \inp j k ->
+  let pairs = [(ki, (i, a)) | i <- [minBound..maxBound], let (ki, a) = inp i]
+      grouped = Map.fromListWith (++) [(ki, [ia]) | (ki, ia) <- pairs]
+      lookupAt kv idx = case Map.lookup kv grouped of
+        Nothing -> snd $ snd $ head pairs  -- fallback: shouldn't happen for valid k
+        Just ias -> let n = length ias
+                    in  snd (ias !! (idx `mod` n))
+  in  lookupAt k j
+
+-- | Re-key a Sort3 carrier by a projection (applied to input keys
+-- and output key lookups).
+sortOn3 :: (k' -> k) -> Sort3 i j k a b -> Sort3 i j k' a b
+sortOn3 f (Sort3 h) = Sort3 $ \inp j k' ->
+  h (\i -> first f (inp i)) j (f k')

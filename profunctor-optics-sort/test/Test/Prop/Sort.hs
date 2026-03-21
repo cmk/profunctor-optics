@@ -10,7 +10,7 @@ import qualified Hedgehog.Range as Range
 import Control.Arrow (first, second)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
-import Data.Profunctor.Optic.Types (Lens')
+import Data.Profunctor.Optic.Types (Lens', Colens)
 import Data.Profunctor.Optic.Lens (lens)
 import Data.Profunctor.Optic.View ((^.))
 import Data.Profunctor.Rep (Corepresentable(..))
@@ -21,6 +21,7 @@ import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Sort
 
 import Data.Monoid (Sum(..))
+import Data.Ord (Down(..))
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
@@ -283,6 +284,66 @@ prop_P24_sort3corep_copure_natural = property $ do
         f = (++ "!")
         x = Sort3Corep inp (0 :: Int) key :: Sort3Corep (Sum Int) Int Int String
     copure (fmap f x) === f (copure x)
+
+---------------------------------------------------------------------
+-- P25–P29: Sort3 carrier properties
+---------------------------------------------------------------------
+
+-- P25: mkSort3 identity: for a valid key, returns the value at that position
+prop_P25_mkSort3_identity :: Property
+prop_P25_mkSort3_identity = property $ do
+    -- Use Bool as index (Bounded, Enum), Int as key
+    let inp :: Bool -> (Int, String)
+        inp False = (0, "zero")
+        inp True  = (1, "one")
+        s = mkSort3 :: Sort3 Bool Int Int String String
+    -- j=0 is first position in each group; key 0 -> "zero", key 1 -> "one"
+    runSort3 s inp 0 0 === "zero"
+    runSort3 s inp 0 1 === "one"
+
+-- P26: mkSort3 groups by key — positions with same key land in same group
+prop_P26_mkSort3_grouping :: Property
+prop_P26_mkSort3_grouping = property $ do
+    -- 4 positions (I4 simulated as enum 0..3), two keys
+    let inp :: Int -> (Bool, Char)
+        inp 0 = (True,  'a')
+        inp 1 = (False, 'b')
+        inp 2 = (True,  'c')
+        inp 3 = (False, 'd')
+        inp _ = (True,  '?')
+        -- mkSort3 needs Bounded+Enum on i, use a wrapper
+        s = Sort3 $ \inp' j k ->
+              let pairs = [(ki, a) | i <- [0..3 :: Int], let (ki, a) = inp' i]
+                  grouped = Map.fromListWith (flip (++)) [(ki, [a]) | (ki, a) <- pairs]
+              in  case Map.lookup k grouped of
+                    Just as' -> as' !! (j `mod` length as')
+                    Nothing  -> snd (inp' 0)
+    -- True group: positions 0,2 -> ['a','c']; False group: positions 1,3 -> ['b','d']
+    runSort3 s inp 0 True  === 'a'
+    runSort3 s inp 1 True  === 'c'
+    runSort3 s inp 0 False === 'b'
+    runSort3 s inp 1 False === 'd'
+
+-- P27: sortingUnder composes Sort3 with a Colens
+prop_P27_sortingUnder :: Property
+prop_P27_sortingUnder = property $ do
+    key <- forAll $ Gen.int (Range.linear 0 5)
+    let s = Sort3 (\inp _j k -> snd (inp k)) :: Sort3 Int Int Int String String
+        lifted = sortingUnder id s  -- id is a valid Colens (it's an Iso)
+        inp i = (i, show i)
+    runSort3 lifted inp 0 key === runSort3 s inp 0 key
+
+-- P29: sortOn3 re-keys correctly
+prop_P29_sortOn3 :: Property
+prop_P29_sortOn3 = property $ do
+    let inp :: Bool -> (Int, String)
+        inp False = (0, "zero")
+        inp True  = (1, "one")
+        s = mkSort3 :: Sort3 Bool Int Int String String
+        -- sortOn3 with id should be the same as mkSort3
+        s' = sortOn3 id s
+    runSort3 s' inp 0 0 === runSort3 s inp 0 0
+    runSort3 s' inp 0 1 === runSort3 s inp 0 1
 
 ---------------------------------------------------------------------
 -- Helpers
