@@ -35,10 +35,13 @@ module Data.IntMap.Optic (
     -- * Sort-based
   , toIntMapOfL
   , countingIntMapOfL
+    -- * Coindexed optics
+  , cxmapped
 ) where
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.View (rxfrom)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntMap.Lazy as IML
 import Prelude
@@ -158,3 +161,18 @@ toIntMapOfL o xs = IM.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
 countingIntMapOfL :: Lens' s Int -> [s] -> IM.IntMap Int
 countingIntMapOfL _ [] = IM.empty
 countingIntMapOfL o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | /O(n)/. Coindexed review for 'IM.IntMap': reconstruct with
+-- key-dependent logic. Dual of 'imapped'.
+--
+-- @
+-- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedIntMap
+-- @
+--
+cxmapped :: Rxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
+cxmapped = rxfrom IM.mapWithKey
+{-# INLINE cxmapped #-}
