@@ -19,7 +19,9 @@ import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
-import Data.Profunctor.Optic.Combinator (reoverWithKey, (#), corepsWithKey)
+import Data.Profunctor.Optic.Combinator (reoverWithKey, (#))
+import Data.Profunctor.Optic.Fold (cofoldsWithKey)
+import Data.Profunctor.Optic.View (rxfrom)
 import qualified Control.Category as C
 import Data.Profunctor.Optic.Sort.Backend
 import Data.Profunctor.Choice (Choice(..), Cochoice(..)  )
@@ -836,6 +838,27 @@ prop_P88_hash_compose_sort = property $ do
 -- This is already tested in the profunctor-optics doctest for (#).
 -- For Sort, (#) works mechanically (Sort is Corepresentable).
 -- We verify by applying corepsWithKey to a single ibits8 on Sort:
+
+---------------------------------------------------------------------
+-- P89: (#) coindexed composition — the map-of-maps use case
+---------------------------------------------------------------------
+
+-- P89: Two levels of Map.mapWithKey composed with (#).
+-- The coindices (String keys) accumulate monoidally.
+-- This is the doctest example from Combinator.hs applied
+-- via cofoldsWithKey.
+prop_P89_hash_map_of_maps :: Property
+prop_P89_hash_map_of_maps = property $ do
+    let -- Two levels of coindexed mapWithKey
+        twoLevel = rxfrom Map.mapWithKey # rxfrom Map.mapWithKey
+        -- Apply: fold the nested map, accumulating coindexed keys
+        result = cofoldsWithKey twoLevel
+                   (\k r a -> Map.singleton k (a + r))
+                   (1.0 :: Double)
+                   (Map.fromList [("k", Map.fromList [("l", 2.0 :: Double)])])
+    -- The accumulated key is "k" <> "l" = "kl"
+    -- The value is 2.0 + 1.0 = 3.0
+    result === Map.fromList [("k", Map.fromList [("l", Map.fromList [("kl", 3.0)])])]
 
 ---------------------------------------------------------------------
 -- P57: Optic composition through Sort
