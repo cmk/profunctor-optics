@@ -57,10 +57,10 @@ module Data.Map.Optic (
   , cxmapped
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (toMapOfL, countingOfL, sortingOfL, sortingDescOfL, groupingOfL, nubbingOfL, foldSortingL, foldSorting1L, mconcatSortingL, sortingString, mergingOfL, innerMergeL, outerMergeL, leftMergeL, rightMergeL, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.View (rxfrom)
+import Data.Profunctor.Optic.View (cxfrom)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.Map.Merge.Strict as Merge
@@ -69,7 +69,7 @@ import Prelude
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
 --
 fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = foldsWithKey o Map.singleton
+fromIxfold o = ixfolds o Map.singleton
 {-# INLINE fromIxfold #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.
@@ -247,7 +247,7 @@ mconcatSortingL o g xs = map (foldMap g) (MapS.elems $ toMapOfL o xs)
 -- Merge (Sort + containers merge)
 ---------------------------------------------------------------------
 
--- | Merge two lists through lenses using containers merge tactics.
+-- | Merge two toListOf through lenses using containers merge tactics.
 mergingOfL :: Ord a
            => Lens' s a -> Lens' t a
            -> Merge.SimpleWhenMissing a [s] c
@@ -312,16 +312,16 @@ sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
 -- | /O(n)/. Coindexed review for 'Map.Map': reconstruct a map
 -- with key-dependent logic.
 --
--- Built via 'rxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
+-- Built via 'cxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
 -- map key — available on the reconstruction side. Dual of 'imapped'.
 --
 -- Compose with '(#)' for multi-level coindexed operations:
 --
 -- @
--- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedMap
+-- 'cxfolds' (cxmapped '#' cxmapped) f r nestedMap
 -- @
 --
-cxmapped :: Rxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
-cxmapped = rxfrom Map.mapWithKey
+cxmapped :: Cxreview k (MapS.Map k a -> MapS.Map k b) (a -> b)
+cxmapped = cxfrom Map.mapWithKey
 {-# INLINE cxmapped #-}
 

@@ -30,7 +30,7 @@ module Data.List.Optic (
   , uniqueSortOn
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (sortingOfL, sortingDescOfL, groupingOfL, nubbingOfL, sortingString)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)

@@ -38,25 +38,15 @@ module Data.Profunctor.Optic.Combinator (
   , cxrepresent
     -- * Operations on representable profunctors
   , (.)
-  , (.~)
-  , (..~)
   , over
   , (%)
-  , (%~)
-  , (%%~)
-  , overWithKey
+  , ixover
   , (#)
-  , (#~)
-  , (##~)
-  , reoverWithKey
-  , (*~)
-  , (**~)
+  , cxover
   , reps
-  , repsWithKey
-  , (/~)
-  , (//~)
+  , ixreps
   , coreps
-  , corepsWithKey
+  , cxreps
     -- * Arrow-style combinators
   , (<<*>>)
   , (****)
@@ -304,23 +294,6 @@ over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 {-# INLINE over #-}
 
-infixr 4 .~, ..~
-
--- | Set the focus of an 'Optic'.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
--- | Map over an 'Optic'.
---
--- >>> (10,20) & first ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
 infixr 8 %
 
 -- | Monoidally combine indices between subsequent levels of optic.
@@ -329,14 +302,14 @@ infixr 8 %
 --
 -- If you only need the final index then use /./.
 --
--- >>> listsWithKey (ix "*" traversed . ix "+" traversed) ["foo", "bar"]
+-- >>> ixlists (ix "*" traversed . ix "+" traversed) ["foo", "bar"]
 -- [("",'f'),("+",'o'),("++",'o'),("",'b'),("+",'a'),("++",'r')]
--- >>> listsWithKey (ix "*" traversed % ix "+" traversed) ["foo", "bar"]
+-- >>> ixlists (ix "*" traversed % ix "+" traversed) ["foo", "bar"]
 -- [("",'f'),("+",'o'),("++",'o'),("*",'b'),("*+",'a'),("*++",'r')]
 --
 -- @since 0.0.3
 (%) :: Monoid i => Representable p => Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
-f % g = ixrepresent . runCoindex $ (Coindex . repsWithKey) f <<<< (Coindex . repsWithKey) g
+f % g = ixrepresent . runCoindex $ (Coindex . ixreps) f <<<< (Coindex . ixreps) g
 {-# INLINE (%) #-}
 {-
 f % g = represent $ \ia1a2 (ic,c1) -> 
@@ -345,25 +318,6 @@ f % g = represent $ \ia1a2 (ic,c1) ->
   where ixrepn o h = curry $ reps o $ uncurry h
 -}
 
-infixr 4 %~, %%~, #~, ##~
-
--- | Set the focus of an indexed optic.
---
--- /Note/: This function is different from the equivalent in the /lens/ package.
--- The /profunctor-optics/ equivalent of /%~/ from /lens/ is '..~'.
---
--- @since 0.0.3
-(%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
-(%~) o = overWithKey o . (const .)
-{-# INLINE (%~) #-}
-
--- | Map over an indexed optic.
---
--- @since 0.0.3
-(%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = overWithKey
-{-# INLINE (%%~) #-}
-
 -- | Indexed 'over': apply a key-dependent function through an indexed optic.
 --
 -- Routes through 'Conjoin' wrapping internally.
@@ -371,9 +325,9 @@ infixr 4 %~, %%~, #~, ##~
 -- /Benchmark: 1.08x vs direct mapWithKey (Conjoin overhead negligible). See "Data.Profunctor.Optic.Bench"./
 --
 -- @since 0.0.3
-overWithKey :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-overWithKey o f = (unConjoin #. corepresent o .# Conjoin) f mempty
-{-# INLINE overWithKey #-}
+ixover :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
+ixover o f = (unConjoin #. corepresent o .# Conjoin) f mempty
+{-# INLINE ixover #-}
 
 infixr 8 #
 
@@ -383,12 +337,12 @@ infixr 8 #
 --
 -- If you only need the final index then use /./.
 --
--- >>> cofoldsWithKey (rxfrom Map.mapWithKey # rxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfolds (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
 (#) :: Monoid i => Corepresentable p => Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
-f # g = cxrepresent . runCoindex $ (Coindex . corepsWithKey) f <<<< (Coindex . corepsWithKey) g
+f # g = cxrepresent . runCoindex $ (Coindex . cxreps) f <<<< (Coindex . cxreps) g
 {-
 f # g = corepresent $ \a1ka2 c1 kc -> 
           (fmap flip . flip . cxrepn) f kc c1 $ \kb b1 -> 
@@ -397,20 +351,6 @@ f # g = corepresent $ \a1ka2 c1 kc ->
 {-# INLINE (#) #-}
 -}
 
--- | Set the focus of a coindexed optic.
---
--- @since 0.0.3
-(#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t 
-(#~) o = reoverWithKey o . (const .)
-{-# INLINE (#~) #-}
-
--- | Map over a coindexed optic.
--- 
--- @since 0.0.3
-(##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t 
-(##~) = reoverWithKey
-{-# INLINE (##~) #-}
-
 -- | Coindexed 'over': apply a coindex-dependent function through a coindexed optic.
 --
 -- Routes through 'Conjoin' wrapping internally (dual of 'overWithKey').
@@ -418,28 +358,9 @@ f # g = corepresent $ \a1ka2 c1 kc ->
 -- /Benchmark: ~1.08x overhead (same Conjoin path as 'overWithKey'). See "Data.Profunctor.Optic.Bench"./
 --
 -- @since 0.0.3
-reoverWithKey :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-reoverWithKey o f = (unConjoin #. represent o .# Conjoin) f mempty
-{-# INLINE reoverWithKey #-}
-
-infixr 4 *~, **~, /~, //~
-
--- | Set the focus of a representable optic.
---
--- @since 0.0.3
-(*~) :: Optic (Star f) s t a b -> f b -> s -> f t
-(*~) o b = o **~ (const b)
-{-# INLINE (*~) #-}
-
--- | Map over a representable optic.
---
--- >>> [66,97,116,109,97,110] & traversed **~ \a -> ("na", chr a)
--- ("nananananana","Batman")
---
--- @since 0.0.3
-(**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-(**~) o = runStar #. o .# Star
-{-# INLINE (**~) #-}
+cxover :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
+cxover o f = (unConjoin #. represent o .# Conjoin) f mempty
+{-# INLINE cxover #-}
 
 -- | TODO: Document
 --
@@ -450,23 +371,9 @@ reps o = sieve . o . tabulate
 -- | TODO: Document
 --
 -- @since 0.0.3
-repsWithKey :: Representable p => Monoid i => Ixoptic p i s t a b -> (i -> a -> Rep p b) -> s -> Rep p t
-repsWithKey o f = curry (reps o $ uncurry f) mempty
-{-# INLINE repsWithKey #-}
-
--- | Set the focus of a co-representable optic.
---
--- @since 0.0.3
-(/~) :: Optic (Costar f) s t a b -> b -> f s -> t
-(/~) o b = o //~ (const b)
-{-# INLINE (/~) #-}
-
--- | Map over a co-representable optic.
---
--- @since 0.0.3
-(//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
-(//~) o = runCostar #. o .# Costar
-{-# INLINE (//~) #-}
+ixreps :: Representable p => Monoid i => Ixoptic p i s t a b -> (i -> a -> Rep p b) -> s -> Rep p t
+ixreps o f = curry (reps o $ uncurry f) mempty
+{-# INLINE ixreps #-}
 
 -- | TODO: Document
 --
@@ -477,9 +384,9 @@ coreps o = cosieve . o . cotabulate
 -- | TODO: Document
 --
 -- @since 0.0.3
-corepsWithKey :: Corepresentable p => Monoid i => Cxoptic p i s t a b -> (i -> Corep p a -> b) -> Corep p s -> t
-corepsWithKey o f = flip (coreps o $ flip f) mempty
-{-# INLINE corepsWithKey #-}
+cxreps :: Corepresentable p => Monoid i => Cxoptic p i s t a b -> (i -> Corep p a -> b) -> Corep p s -> t
+cxreps o f = flip (coreps o $ flip f) mempty
+{-# INLINE cxreps #-}
 
 ---------------------------------------------------------------------
 -- Arrow-style combinators

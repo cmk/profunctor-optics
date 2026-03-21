@@ -64,7 +64,7 @@ module Data.Profunctor.Optic.Lens (
   , zipsWith3
   , zipsWith4
   , zipsWithF
-  , zipsWithKey
+  , cxzips
   , toPastro
   , toTambara
   , toClosure
@@ -565,9 +565,9 @@ calledCC = grate callCC
 
 -- | TODO: Document
 --
--- >>> B.first getSum <$> listsWithKey (noix traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
+-- >>> B.first getSum <$> ixlists (noix traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> listsWithKey (ix (Sum 3) traversed % ixfirst % ix (Sum 1) traversed) [("foo",1), ("bar",2)]
+-- >>> B.first getSum <$> ixlists (ix (Sum 3) traversed % ixfirst % ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3
@@ -598,7 +598,7 @@ cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
 
 -- | TODO: Document
 --
--- >>> reoverWithKey cxclosed (,) (*2) 5
+-- >>> cxover cxclosed (,) (*2) 5
 -- ((),10)
 --
 -- @since 0.0.3
@@ -661,9 +661,9 @@ zipsWithF o f s = cloneColensVl o f s
 -- | TODO: Document
 --
 -- @since 0.0.3
-zipsWithKey :: Monoid k => ACxlens k s t a b -> (k -> a -> a -> b) -> s -> s -> t
-zipsWithKey o f s1 s2 = withCxlens o $ \sabt -> sabt $ \sa k -> f k (sa s1) (sa s2)
-{-# INLINE zipsWithKey #-}
+cxzips :: Monoid k => ACxlens k s t a b -> (k -> a -> a -> b) -> s -> s -> t
+cxzips o f s1 s2 = withCxlens o $ \sabt -> sabt $ \sa k -> f k (sa s1) (sa s2)
+{-# INLINE cxzips #-}
 
 -- | Use a 'Lens' to construct a 'Pastro'.
 --

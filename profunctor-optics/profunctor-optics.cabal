@@ -43,6 +43,7 @@ library
       Data.Profunctor.Optic.Types
       Data.Profunctor.Optic.Carrier
       Data.Profunctor.Optic.Combinator
+      Data.Profunctor.Optic.Infix
 
       Data.Profunctor.Optic.Iso
       Data.Profunctor.Optic.Prism

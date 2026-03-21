@@ -40,7 +40,7 @@
 -- Indexed operators route through 'Conjoin' wrapping:
 --
 -- @
--- overWithKey o f = (unConjoin #. corepresent o .# Conjoin) f mempty
+-- ixover o f = (unConjoin #. corepresent o .# Conjoin) f mempty
 -- @
 --
 -- Benchmarks show GHC inlines through fully: __1.08x__ overhead.
@@ -51,8 +51,8 @@
 -- @
 -- Operation          Optic        Direct       Ratio
 -- ─────────          ─────        ──────       ─────
--- lists on Map       3.48 μs      2.01 μs      1.73x
--- lists on list      1.93 μs      0.24 μs      ~8x (unfair*)
+-- toListOf on Map       3.48 μs      2.01 μs      1.73x
+-- toListOf on list      1.93 μs      0.24 μs      ~8x (unfair*)
 -- @
 --
 -- (*) @foldr (:) []@ on @[a]@ is @id@ — not a meaningful baseline.
@@ -99,8 +99,8 @@
 -- Lens over                    25.7\/25.8 ns    1.00x
 -- Traversal0 preview           9.7\/9.6 ns      1.01x
 -- Traversal over (1K)          10.9\/12.1 μs    0.89x
--- Indexed setsWithKey (Map)    3.0\/2.8 μs      1.08x
--- Fold lists (Map)             3.5\/2.0 μs      1.73x
+-- Indexed ixsets (Map)    3.0\/2.8 μs      1.08x
+-- Fold toListOf (Map)             3.5\/2.0 μs      1.73x
 -- Composition traversed.first  2.2\/2.2 μs      0.97x
 -- Sort carrier mkSortN (1K)    3.0\/3.1 μs      0.98x
 -- sortingOfL (1K)              334\/331 μs       1.01x
@@ -130,12 +130,12 @@ module Data.Profunctor.Optic.Bench (
 ) where
 
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
-import Data.Profunctor.Optic.Combinator (over, overWithKey)
-import Data.Profunctor.Optic.Fold (lists, folds, foldsWithKey, preview)
+import Data.Profunctor.Optic.Combinator (over, ixover)
+import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfolds, preview)
 import Data.Profunctor.Optic.Lens (lensVl)
 import Data.Profunctor.Optic.Sort (mkSortN, sortingRep)
-import Data.Profunctor.Optic.Setter (sets, setsWithKey)
-import Data.Profunctor.Optic.Traversal (traverses)
+import Data.Profunctor.Optic.Setter (sets, ixsets)
+import Data.Profunctor.Optic.Traversal (traverseOf)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Optic.Import
@@ -179,12 +179,12 @@ benchTraversal0 :: Traversal0' s a
                 -> (s -> Maybe a, s -> Maybe a)
 benchTraversal0 o direct = (preview o, direct)
 
--- | Compare Fold lists vs direct.
+-- | Compare Fold toListOf vs direct.
 --
 benchFold :: Fold s a
           -> (s -> [a])                  -- ^ direct toList
           -> (s -> [a], s -> [a])
-benchFold o direct = (lists o, direct)
+benchFold o direct = (toListOf o, direct)
 
 -- | Compare Colens over vs direct.
 --
@@ -211,7 +211,7 @@ benchIxTraversal :: Monoid k
                  -> (a -> a)              -- ^ non-indexed modification
                  -> (s -> s, s -> s)
 benchIxTraversal ixo o ixf f =
-  ( overWithKey ixo ixf
+  ( ixover ixo ixf
   , over o f
   )
 
@@ -224,8 +224,8 @@ benchIxFold :: (Monoid k, Monoid r)
             -> (a -> r)                   -- ^ non-indexed fold function
             -> (s -> r, s -> r)
 benchIxFold ixo o ixf f =
-  ( foldsWithKey ixo ixf
-  , folds o f
+  ( ixfolds ixo ixf
+  , foldMapOf o f
   )
 
 ---------------------------------------------------------------------

@@ -106,35 +106,35 @@ prop_grate8_id = property $ do
 -- Indexed cotraversals
 ---------------------------------------------------------------------
 
--- | reoverWithKey ibits8 (const id) = id
+-- | cxover ibits8 (const id) = id
 prop_ibits8_id :: Property
 prop_ibits8_id = property $ do
     w <- forAll $ Gen.word8 Range.linearBounded
-    reoverWithKey ibits8 (const id) w === w
+    cxover ibits8 (const id) w === w
 
--- | reoverWithKey ibits8 (const not) = complement
+-- | cxover ibits8 (const not) = complement
 prop_ibits8_not :: Property
 prop_ibits8_not = property $ do
     w <- forAll $ Gen.word8 Range.linearBounded
-    reoverWithKey ibits8 (const not) w === complement w
+    cxover ibits8 (const not) w === complement w
 
--- | reoverWithKey ibits16 (const id) = id
+-- | cxover ibits16 (const id) = id
 prop_ibits16_id :: Property
 prop_ibits16_id = property $ do
     w <- forAll $ Gen.word16 Range.linearBounded
-    reoverWithKey ibits16 (const id) w === w
+    cxover ibits16 (const id) w === w
 
--- | reoverWithKey ibits32 (const id) = id
+-- | cxover ibits32 (const id) = id
 prop_ibits32_id :: Property
 prop_ibits32_id = property $ do
     w <- forAll $ Gen.word32 Range.linearBounded
-    reoverWithKey ibits32 (const id) w === w
+    cxover ibits32 (const id) w === w
 
--- | reoverWithKey ibits64 (const id) = id
+-- | cxover ibits64 (const id) = id
 prop_ibits64_id :: Property
 prop_ibits64_id = property $ do
     w <- forAll $ Gen.word64 Range.linearBounded
-    reoverWithKey ibits64 (const id) w === w
+    cxover ibits64 (const id) w === w
 
 ---------------------------------------------------------------------
 -- Grate zipping

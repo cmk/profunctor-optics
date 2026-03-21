@@ -38,26 +38,26 @@ main = defaultMain
         ]
     , bgroup "indexed-cotraversal"
         [ bgroup "ibits8"
-            [ bench "reoverWithKey ibits8 (const not)"
-                $ whnf (reoverWithKey ibits8 (const not)) w8
+            [ bench "cxover ibits8 (const not)"
+                $ whnf (cxover ibits8 (const not)) w8
             , bench "complement"
                 $ whnf complement w8
             ]
         , bgroup "ibits16"
-            [ bench "reoverWithKey ibits16 (const not)"
-                $ whnf (reoverWithKey ibits16 (const not)) w16
+            [ bench "cxover ibits16 (const not)"
+                $ whnf (cxover ibits16 (const not)) w16
             , bench "complement"
                 $ whnf complement w16
             ]
         , bgroup "ibits32"
-            [ bench "reoverWithKey ibits32 (const not)"
-                $ whnf (reoverWithKey ibits32 (const not)) w32
+            [ bench "cxover ibits32 (const not)"
+                $ whnf (cxover ibits32 (const not)) w32
             , bench "complement"
                 $ whnf complement w32
             ]
         , bgroup "ibits64"
-            [ bench "reoverWithKey ibits64 (const not)"
-                $ whnf (reoverWithKey ibits64 (const not)) w64
+            [ bench "cxover ibits64 (const not)"
+                $ whnf (cxover ibits64 (const not)) w64
             , bench "complement"
                 $ whnf complement w64
             ]

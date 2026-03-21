@@ -76,21 +76,17 @@ module Data.Profunctor.Optic.Traversal (
   , cycled
     -- * Operators
   , matches
-  , (*~)
-  , sequences
-  , (**~)
-  , traverses
-  , traversesWithKey
+  , sequenceOf
+  , traverseOf
+  , ixtraverses
   , backwards
   , mapAccumsL
   , mapAccumsR
   , scansl1
   , scansr1
-  , (/~)
-  , collects 
-  , (//~)
+  , collects
   , cotraverses
-  , cotraversesWithKey
+  , cxtraverses
     -- * Classes
   , Strong(..)
   , Choice(..)
@@ -225,7 +221,7 @@ atraversal f = Star #. f .# runStar
 -- The resulting optic can detect copies of the lens stucture inside
 -- any 'Traversable' container. For example:
 --
--- >>> lists (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
+-- >>> toListOf (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 -- "foobar"
 --
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
@@ -263,11 +259,11 @@ ixtraversing sia sbt = represent (\kab -> traverse (curry kab mempty) . snd) . i
 --
 -- * @fmap (abst f) . abst g ≡ getCompose . abst (Compose . fmap f . g)@
 --
--- The traversal laws can be stated in terms of 'traverses':
+-- The traversal laws can be stated in terms of 'traverseOf':
 -- 
--- * @traverses t (pure . f) ≡ pure (fmap f)@
+-- * @traverseOf t (pure . f) ≡ pure (fmap f)@
 --
--- * @Compose . fmap (traverses t f) . traverses t g ≡ traverses t (Compose . fmap f . g)@
+-- * @Compose . fmap (traverseOf t f) . traverseOf t g ≡ traverseOf t (Compose . fmap f . g)@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -293,13 +289,13 @@ ixtraversalVl f = traversalVl $ \kab -> f (curry kab) . snd
 
 -- | Iteratively index a traversal with an incrementing value.
 --
--- >>> B.first getSum <$> listsWithKey (ix (Sum 1) traversed) "foobar"
+-- >>> B.first getSum <$> ixlists (ix (Sum 1) traversed) "foobar"
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
--- >>> listsWithKey (noix traversed . ix "o" traversed) ["foo", "bar"]
+-- >>> ixlists (noix traversed . ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("",'b'),("o",'a'),("oo",'r')]
--- >>> listsWithKey (ix "x" traversed % ix "o" traversed) ["foo", "bar"]
+-- >>> ixlists (ix "x" traversed % ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("x",'b'),("xo",'a'),("xoo",'r')]
--- >>> B.first getSum <$> listsWithKey (ix (Sum 3) traversed % ix (Sum 1) traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (ix (Sum 3) traversed % ix (Sum 1) traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3
@@ -312,9 +308,9 @@ ix k o = ixrepresent $ \f s ->
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
--- >>> B.first getSum <$> listsWithKey (noix traversed . ix (Sum 1) traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (noix traversed . ix (Sum 1) traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> listsWithKey (ix (Sum 1) traversed . noix traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (ix (Sum 1) traversed . noix traversed) ["foo", "bar"]
 -- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
 --
 -- @since 0.0.3
@@ -426,7 +422,7 @@ reversing = atraversal . backwards
 -- The resulting optic can detect copies of the lens stucture inside
 -- any 'Traversable' container. For example:
 --
--- >>> lists (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
+-- >>> toListOf (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 -- "foobar"
 --
 -- Compare 'Data.Profunctor.Optic.Fold.folding'.
@@ -604,9 +600,9 @@ cotraversed1 = cotraversalVl1 cotraverse1
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.
 --
--- >>> traverses bitraversed (pure . length) (Right "hello")
+-- >>> traverseOf bitraversed (pure . length) (Right "hello")
 -- Right 5
--- >>> traverses bitraversed (pure . length) ("hello","world")
+-- >>> traverseOf bitraversed (pure . length) ("hello","world")
 -- (5,5)
 -- >>> ("hello","world") ^. bitraversed
 -- "helloworld"
@@ -643,7 +639,7 @@ unforked p = p ++++ p
 
 -- | Duplicate the results of a 'Traversal'. 
 --
--- >>> lists (bitraversed . duplicated) ("hello","world")
+-- >>> toListOf (bitraversed . duplicated) ("hello","world")
 -- ["hello","hello","world","world"]
 --
 duplicated :: Traversal1 a b a b
@@ -653,7 +649,7 @@ duplicated p = pappend p p
 -- | Obtain a 'Traversal1'' by repeating the input forever.
 --
 -- @
--- 'repeat' ≡ 'lists' 'repeated'
+-- 'repeat' ≡ 'toListOf' 'repeated'
 -- @
 --
 -- >>> take 5 $ 5 ^.. repeated
@@ -670,7 +666,7 @@ repeated = represent $ \g a -> go g a where go g a = g a .> go g a
 -- | @x '^.' 'iterated' f@ returns an infinite 'Traversal1'' of repeated applications of @f@ to @x@.
 --
 -- @
--- 'lists' ('iterated' f) a ≡ 'iterate' f a
+-- 'toListOf' ('iterated' f) a ≡ 'iterate' f a
 -- @
 --
 -- >>> take 3 $ (1 :: Int) ^.. iterated (+1)
@@ -686,7 +682,7 @@ iterated f = represent $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 -- [1,2,3,1,2,3,1]
 --
 cycled :: Apply f => ATraversal' f s a -> ATraversal' f s a
-cycled o = represent $ \g a -> go g a where go g a = (traverses o g) a .> go g a
+cycled o = represent $ \g a -> go g a where go g a = (traverseOf o g) a .> go g a
 {-# INLINE cycled #-}
 
 ---------------------------------------------------------------------
@@ -706,28 +702,28 @@ matches o = withAffine o $ \sta _ -> sta
 
 -- | TODO: Document
 --
-sequences :: Applicative f => ATraversal f s t (f a) a -> s -> f t
-sequences o = traverses o id
-{-# INLINE sequences #-}
+sequenceOf :: Applicative f => ATraversal f s t (f a) a -> s -> f t
+sequenceOf o = traverseOf o id
+{-# INLINE sequenceOf #-}
 
 -- | Traverse over a 'Traversal'.
 --
 -- /Benchmark: 0.89x vs direct fmap — GHC optimizes Star carrier well. See "Data.Profunctor.Optic.Bench"./
 --
-traverses :: ATraversal f s t a b -> (a -> f b) -> s -> f t
-traverses = (**~)
-{-# INLINE traverses #-}
+traverseOf :: ATraversal f s t a b -> (a -> f b) -> s -> f t
+traverseOf o = runStar #. o .# Star
+{-# INLINE traverseOf #-}
 
 -- | Traverse over an 'Ixtraversal'.
 --
 -- @
--- 'traversesWithKey' o f = 'curry' ('traverses' o '$' 'uncurry' f) 'mempty'
+-- 'ixtraverses' o f = 'curry' ('traverseOf' o '$' 'uncurry' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-traversesWithKey :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
-traversesWithKey o f = curry (o **~ uncurry f) mempty
-{-# INLINE traversesWithKey #-}
+ixtraverses :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
+ixtraverses o f = curry (traverseOf o $ uncurry f) mempty
+{-# INLINE ixtraverses #-}
 
 -- | This allows you to 'Control.Traversable.traverse' the elements of a 'Traversing' or 'Traversing1' optic in the opposite order.
 --
@@ -737,7 +733,7 @@ traversesWithKey o f = curry (o **~ uncurry f) mempty
 --
 -- @since 0.0.3
 backwards :: ATraversal (Backwards f) s t a b -> (a -> f b) -> s -> f t
-backwards o = (forwards #.) #. traverses o .# (Backwards #.)
+backwards o = (forwards #.) #. traverseOf o .# (Backwards #.)
 {-# INLINE backwards #-}
 
 -- | Generalize 'Data.Traversable.mapAccumL' to a 'Traversing' or 'Traversing1' optic.
@@ -750,7 +746,7 @@ backwards o = (forwards #.) #. traverses o .# (Backwards #.)
 --
 -- @since 0.0.3
 mapAccumsL :: ATraversal (State r) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
-mapAccumsL o f acc0 s = swap (runState (traverses o g s) acc0) where
+mapAccumsL o f acc0 s = swap (runState (traverseOf o g s) acc0) where
    g a = state $ \acc -> swap (f acc a)
 
 -- | Generalize 'Data.Traversable.mapAccumR' to a 'Traversing' or 'Traversing1' optic.
@@ -809,16 +805,16 @@ collects o = cotraverses o id
 -- | Cotraverse over a 'Cotraversal'.
 --
 cotraverses :: ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
-cotraverses = (//~)
+cotraverses o = runCostar #. o .# Costar
 {-# INLINE cotraverses #-}
 
 -- | Cotraverse over a 'Cxtraversal'.
 --
 -- @
--- 'cotraversesWithKey' o f = 'flip' ('cotraverses' o '$' 'flip' f) 'mempty'
+-- 'cxtraverses' o f = 'flip' ('cotraverses' o '$' 'flip' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-cotraversesWithKey :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
-cotraversesWithKey o f = flip (o //~ flip f) mempty
-{-# INLINE cotraversesWithKey #-}
+cxtraverses :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
+cxtraverses o f = flip (cotraverses o $ flip f) mempty
+{-# INLINE cxtraverses #-}

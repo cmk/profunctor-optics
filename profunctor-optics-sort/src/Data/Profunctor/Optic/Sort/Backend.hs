@@ -69,7 +69,7 @@ module Data.Profunctor.Optic.Sort.Backend
   , sortingIx
   , toMapIx
 
-    -- * Post-sort folds
+    -- * Post-sort foldMapOf
   , foldSorting
   , foldSorting1
   , mconcatSorting
@@ -104,7 +104,7 @@ import qualified Data.Vector as V
 import qualified Data.Vector.Unboxed as VU
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens', Cotraversal)
-import Data.Profunctor.Optic.View ((^.))
+import Data.Profunctor.Optic.View (view)
 
 import Data.Profunctor.Sort
 
@@ -149,7 +149,7 @@ sortingOf :: Ord a
           => Lens' s a
           -> NonEmpty s -> [NonEmpty s]
 sortingOf o xs =
-  runSort1 (o mkSort1) (fmap (\s -> (s ^. o, s)) xs)
+  runSort1 (o mkSort1) (fmap (\s -> (view o s, s)) xs)
 
 -- | Sort through a lens in descending order.
 --
@@ -157,7 +157,7 @@ sortingDescOf :: Ord a
               => Lens' s a
               -> NonEmpty s -> [NonEmpty s]
 sortingDescOf o xs =
-  runSort1 (o (sortOn1 Down mkSort1)) (fmap (\s -> (s ^. o, s)) xs)
+  runSort1 (o (sortOn1 Down mkSort1)) (fmap (\s -> (view o s, s)) xs)
 
 -- | Group through a lens (= 'sortingOf').
 groupingOf :: Ord a
@@ -182,7 +182,7 @@ toMapOf :: Ord a
         => Lens' s a
         -> NonEmpty s -> Map.Map a (NonEmpty s)
 toMapOf o xs =
-  Map.fromList [(NE.head g ^. o, g) | g <- sortingOf o xs]
+  Map.fromList [(view o (NE.head g), g) | g <- sortingOf o xs]
 
 -- | Sort through a lens and build a 'Map' by applying a value
 -- transform to each element, combining with @('<>')@.
@@ -191,7 +191,7 @@ toMapWithOf :: (Ord a, Semigroup v)
             => Lens' s a -> (s -> v)
             -> NonEmpty s -> Map.Map a v
 toMapWithOf o f xs =
-  Map.fromListWith (<>) [(s ^. o, f s) | s <- NE.toList xs]
+  Map.fromListWith (<>) [(view o s, f s) | s <- NE.toList xs]
 
 -- | Count occurrences per key through a lens.
 --
@@ -199,7 +199,7 @@ countingOf :: Ord a
            => Lens' s a
            -> NonEmpty s -> Map.Map a Int
 countingOf o xs =
-  Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
+  Map.fromListWith (+) [(view o s, 1 :: Int) | s <- NE.toList xs]
 
 -- ===================================================================
 -- List variants
@@ -227,7 +227,7 @@ toMapOfL o xs = fmap NE.toList $ toMapOf o (NE.fromList xs)
 -- | Count occurrences per key from a list.
 countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
 countingOfL _ [] = Map.empty
-countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+countingOfL o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
 
 -- | Sort a 'String' by a key on each character.
 sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
@@ -243,7 +243,7 @@ groupingBack :: Ord a
              => Lens' s a
              -> NonEmpty s -> NonEmpty [s]
 groupingBack o xs =
-  runSort2 (o mkSort2) (fmap (\s -> (s ^. o, s)) xs)
+  runSort2 (o mkSort2) (fmap (\s -> (view o s, s)) xs)
 
 -- | Deduplicate through a lens using Sort2. Returns the head of
 -- each group (or 'Nothing' for empty groups). Guarantees ≥1 result.
@@ -259,7 +259,7 @@ groupingDescBack :: Ord a
                  => Lens' s a
                  -> NonEmpty s -> NonEmpty [s]
 groupingDescBack o xs =
-  runSort2 (o (sortOn2 Down mkSort2)) (fmap (\s -> (s ^. o, s)) xs)
+  runSort2 (o (sortOn2 Down mkSort2)) (fmap (\s -> (view o s, s)) xs)
 
 -- ===================================================================
 -- Indexed sorting (key = index)
@@ -422,7 +422,7 @@ groupingHashOf :: (Hashable a, Eq a)
                => Lens' s a
                -> NonEmpty s -> HM.HashMap a (NonEmpty s)
 groupingHashOf o xs =
-  let pairs = [(s ^. o, s) | s <- NE.toList xs]
+  let pairs = [(view o s, s) | s <- NE.toList xs]
   in  HM.fromListWith (<>) [(k, v :| []) | (k, v) <- pairs]
 
 -- | Build a 'HM.HashMap' keyed by lens focus. Unordered 'toMapOf'.
@@ -438,7 +438,7 @@ countingHashOf :: (Hashable a, Eq a)
                => Lens' s a
                -> NonEmpty s -> HM.HashMap a Int
 countingHashOf o xs =
-  HM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
+  HM.fromListWith (+) [(view o s, 1 :: Int) | s <- NE.toList xs]
 
 -- | Construct a 'WhenMatched' merge tactic from a Sort.
 --

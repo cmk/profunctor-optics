@@ -41,7 +41,7 @@ module Data.IntMap.Optic (
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.View (rxfrom)
+import Data.Profunctor.Optic.View (cxfrom)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntMap.Lazy as IML
 import Prelude
@@ -173,6 +173,6 @@ countingIntMapOfL o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 -- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedIntMap
 -- @
 --
-cxmapped :: Rxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
-cxmapped = rxfrom IM.mapWithKey
+cxmapped :: Cxreview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
+cxmapped = cxfrom IM.mapWithKey
 {-# INLINE cxmapped #-}

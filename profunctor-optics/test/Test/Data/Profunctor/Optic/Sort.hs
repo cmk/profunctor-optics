@@ -10,8 +10,6 @@ import qualified Hedgehog.Range as Range
 import Data.Monoid (Sum(..))
 import Data.Profunctor
 import Data.Profunctor.Optic.Carrier
-import Data.List.Optic (sortingOfL, sortingString)
-import Data.Map.Optic (toMapOfL, innerMergeL)
 import Data.Profunctor.Optic.Lens (lensVl)
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Sort

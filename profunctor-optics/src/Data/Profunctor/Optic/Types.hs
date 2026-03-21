@@ -47,6 +47,7 @@ module Data.Profunctor.Optic.Types (
   , Ixlens', Cxlens'
     -- * Traversal
   , Traversal0, Cotraversal0
+  , AffineTraversal, AffineTraversal'
   , Traversal, Cotraversal
   , Traversal1, Cotraversal1
   , Ixtraversal0, Cxtraversal0
@@ -60,23 +61,24 @@ module Data.Profunctor.Optic.Types (
   , Ixtraversal1', Cxtraversal1'
     -- * Fold
   , Fold0, Cofold0
+  , AffineFold
   , Fold, Cofold
   , Fold1, Cofold1
   , Ixfold0, Cxfold0
   , Ixfold, Cxfold
   , Ixfold1, Cxfold1
     -- * Setter
-  , Setter, Resetter
-  , Setter1, Resetter1
-  , Ixsetter, Rxsetter
-  , Ixsetter1, Rxsetter1
-  , Setter', Resetter'
-  , Setter1', Resetter1'
-  , Ixsetter', Rxsetter'
-  , Ixsetter1', Rxsetter1'
+  , Setter, Cosetter
+  , Setter1, Cosetter1
+  , Ixsetter, Cxsetter
+  , Ixsetter1, Cxsetter1
+  , Setter', Cosetter'
+  , Setter1', Cosetter1'
+  , Ixsetter', Cxsetter'
+  , Ixsetter1', Cxsetter1'
     -- * View
   , View, Review
-  , Ixview, Rxview
+  , Ixview, Cxreview
     -- * 'Re'
   , Re(..), re
   , between
@@ -269,6 +271,12 @@ type Cxtraversal1 k s t a b = forall p. (Closed p, Cotraversing1 p) => Cxoptic p
 
 type Traversal0' s a = Traversal0 s s a a
 
+-- | Alias for 'Traversal0'.
+type AffineTraversal s t a b = Traversal0 s t a b
+
+-- | Alias for 'Traversal0''.
+type AffineTraversal' s a = Traversal0' s a
+
 type Cotraversal0' t b = Cotraversal0 t t b b
 
 type Traversal' s a = Traversal s s a a
@@ -295,7 +303,10 @@ type Cxtraversal1' k t b = Cxtraversal1 k t t b b
 -- Fold
 ---------------------------------------------------------------------
 
-type Fold0 s a = forall p. (Affine p, CoercingR p) => Optic' p s a 
+type Fold0 s a = forall p. (Affine p, CoercingR p) => Optic' p s a
+
+-- | Alias for 'Fold0'.
+type AffineFold s a = Fold0 s a 
 
 type Fold s a = forall p. (Affine p, Traversing p, CoercingR p) => Optic' p s a
 
@@ -327,39 +338,39 @@ type Cxfold1 k t b = forall p. (Choice p, Cotraversing1 p, CoercingL p) => Cxopt
 --
 type Setter s t a b = forall p. (Affine p, Traversing p, Mapping p) => Optic p s t a b
 
--- | \( \quad \mathsf{Resetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
+-- | \( \quad \mathsf{Cosetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
 --
 -- See also section 3 on Kaleidoscopes < https://cs.ttu.ee/events/nwpt2019/abstracts/paper14.pdf here >.
 --
-type Resetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b 
+type Cosetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b 
 
 type Setter1 s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Optic p s t a b
 
-type Resetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b 
+type Cosetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b 
 
 type Ixsetter k s t a b = forall p. (Affine p, Traversing p, Mapping p) => Ixoptic p k s t a b
 
 type Ixsetter1 k s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Ixoptic p k s t a b
 
-type Rxsetter k s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Cxoptic p k s t a b
+type Cxsetter k s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Cxoptic p k s t a b
 
-type Rxsetter1 k s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Cxoptic p k s t a b
+type Cxsetter1 k s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Cxoptic p k s t a b
 
 type Setter' s a = Setter s s a a
 
-type Resetter' s a = Resetter s s a a
+type Cosetter' s a = Cosetter s s a a
 
 type Setter1' s a = Setter1 s s a a
 
-type Resetter1' s a = Resetter1 s s a a
+type Cosetter1' s a = Cosetter1 s s a a
 
 type Ixsetter' k s a = Ixsetter k s s a a 
 
 type Ixsetter1' k s a = Ixsetter1 k s s a a 
 
-type Rxsetter' k t b = Rxsetter k t t b b 
+type Cxsetter' k t b = Cxsetter k t t b b 
 
-type Rxsetter1' k t b = Rxsetter1 k t t b b 
+type Cxsetter1' k t b = Cxsetter1 k t t b b 
 
 ---------------------------------------------------------------------
 -- View
@@ -371,7 +382,7 @@ type Review t b = forall p. (Closed p, CoercingL p) => Optic' p t b
 
 type Ixview k s a = forall p. (Strong p, CoercingR p) => Ixoptic' p k s a
 
-type Rxview k t b = forall p. (Closed p, CoercingL p) => Cxoptic' p k t b
+type Cxreview k t b = forall p. (Closed p, CoercingL p) => Cxoptic' p k t b
 
 ---------------------------------------------------------------------
 -- 'Re' 

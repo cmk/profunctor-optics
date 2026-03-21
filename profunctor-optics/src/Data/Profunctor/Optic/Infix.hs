@@ -34,7 +34,7 @@
 --
 -- @
 --   (.~)    set       (..~)    over
---   (*~)    starSet   (**~)    starOver   (= 'traverses')
+--   (*~)    starSet   (**~)    starOver   (= 'traverseOf')
 --   (%~)    ixset     (%%~)    ixover
 --   (\/~)    coset     (\/\/~)    coover     (= 'cotraverses')
 --   (#~)    cxset     (##~)    cxover
@@ -95,10 +95,9 @@ module Data.Profunctor.Optic.Infix (
   , (#~), (##~)
     -- * State
   , (.=), (..=)
-    -- * Composition
-  , (%), (#)
 ) where
 
+import Control.Monad.State (MonadState)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
@@ -115,11 +114,23 @@ import qualified Data.Profunctor.Optic.Combinator as C
 infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#
 infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 infix  4  .=, ..=
-infixr 9  %, #
 
 ---------------------------------------------------------------------
 -- View (primary)
 ---------------------------------------------------------------------
+
+-- $view
+--
+-- View operators extract or fold over the focus of an optic.
+-- The @^@ character always appears on the value\/structure side.
+--
+-- @
+--            view             toList           preview
+--   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
+--   Ix      (^%)  'V.ixview'  (^%%)  'F.ixlists'
+--   Co      (^/)  'V.review'  (^//)  'F.cofoldsa'
+--   Cx      (^#)  'V.cxreview'
+-- @
 
 -- | View through an optic.
 --
@@ -139,10 +150,10 @@ infixr 9  %, #
 
 -- | Fold to a list.
 --
--- @s '^..' o ≡ 'F.lists' o s@
+-- @s '^..' o ≡ 'F.toListOf' o s@
 --
 (^..) :: s -> AFold (Endo [a]) s a -> [a]
-(^..) = flip F.lists
+(^..) = flip F.toListOf
 {-# INLINE (^..) #-}
 
 ---------------------------------------------------------------------
@@ -154,7 +165,7 @@ infixr 9  %, #
 -- @s '^%' o ≡ 'V.ixview' o s@
 --
 (^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
-(^%) = flip V.viewWithKey
+(^%) = flip V.ixview
 {-# INLINE (^%) #-}
 
 -- | Fold to an indexed list.
@@ -162,7 +173,7 @@ infixr 9  %, #
 -- @s '^%%' o ≡ 'F.ixlists' o s@
 --
 (^%%) :: Monoid k => s -> AIxfold (Endo [(k, a)]) k s a -> [(k, a)]
-(^%%) = flip F.listsWithKey
+(^%%) = flip F.ixlists
 {-# INLINE (^%%) #-}
 
 ---------------------------------------------------------------------
@@ -187,22 +198,37 @@ infixr 9  %, #
 
 -- | Indexed co-dual view (indexed review).
 --
--- @o '^#' b ≡ 'V.reviewWithKey' o b@
+-- @o '^#' b ≡ 'V.cxreview' o b@
 --
-(^#) :: ARxview k t b -> b -> (k -> t)
-(^#) = V.reviewWithKey
+(^#) :: ACxreview k t b -> b -> (k -> t)
+(^#) = V.cxreview
 {-# INLINE (^#) #-}
 
 ---------------------------------------------------------------------
 -- Set / over (primary, via ->)
 ---------------------------------------------------------------------
 
+-- $setover
+--
+-- Set and over operators follow a uniform pattern: a single middle
+-- character denotes __set__ (replace the focus), while a doubled middle
+-- character denotes __over__ (map a function over the focus).
+--
+-- @
+--            set                   over
+--   (->)    (.~)  'S.set'          (..~)  'C.over'
+--   Star    (*~)               (**~)  'traverseOf'
+--   Ix      (%~)  'S.ixset'        (%%~)  'S.ixsets'
+--   Costar  (\/~)               (\/\/~)  'cotraverseOf'
+--   Cx      (#~)  'S.cxset'        (##~)  'S.cxsets'
+-- @
+
 -- | Set via a primary optic.
 --
 -- @o '.~' b ≡ 'S.set' o b@
 --
 (.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) = S.set
+(.~) o b = o (const b)
 {-# INLINE (.~) #-}
 
 -- | Over (map) via a primary optic.
@@ -210,7 +236,7 @@ infixr 9  %, #
 -- @o '..~' f ≡ 'C.over' o f@
 --
 (..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = C.over
+(..~) = id
 {-# INLINE (..~) #-}
 
 ---------------------------------------------------------------------
@@ -225,9 +251,9 @@ infixr 9  %, #
 (*~) o b = o **~ const b
 {-# INLINE (*~) #-}
 
--- | Effectful over via 'Star'. Equivalent to 'Data.Profunctor.Optic.Traversal.traverses'.
+-- | Effectful over via 'Star'. Equivalent to 'Data.Profunctor.Optic.Traversal.traverseOf'.
 --
--- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverses' o f@
+-- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverseOf' o f@
 --
 (**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
 (**~) o = runStar #. o .# Star
@@ -242,15 +268,15 @@ infixr 9  %, #
 -- @o '%~' f ≡ 'S.ixset' o f@
 --
 (%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
-(%~) = S.setWithKey
+(%~) o = C.ixover o . (const .)
 {-# INLINE (%~) #-}
 
 -- | Indexed over.
 --
--- @o '%%~' f ≡ 'S.ixover' o f@
+-- @o '%%~' f ≡ 'C.ixover' o f@
 --
 (%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = S.setsWithKey
+(%%~) = C.ixover
 {-# INLINE (%%~) #-}
 
 ---------------------------------------------------------------------
@@ -282,15 +308,15 @@ infixr 9  %, #
 -- @o '#~' f ≡ 'S.cxset' o f@
 --
 (#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t
-(#~) = S.resetWithKey
+(#~) o = C.cxover o . (const .)
 {-# INLINE (#~) #-}
 
 -- | Indexed co-dual over.
 --
--- @o '##~' f ≡ 'S.cxover' o f@
+-- @o '##~' f ≡ 'C.cxover' o f@
 --
 (##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(##~) = S.resetsWithKey
+(##~) = C.cxover
 {-# INLINE (##~) #-}
 
 ---------------------------------------------------------------------
@@ -312,19 +338,3 @@ infixr 9  %, #
 (..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 (..=) = S.modifies
 {-# INLINE (..=) #-}
-
----------------------------------------------------------------------
--- Composition
----------------------------------------------------------------------
-
--- | Indexed optic composition, accumulating indices via 'Monoid'.
---
-(%) :: Monoid i => Representable p => Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
-(%) = (C.%)
-{-# INLINE (%) #-}
-
--- | Coindexed optic composition, accumulating indices via 'Monoid'.
---
-(#) :: Monoid i => Corepresentable p => Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
-(#) = (C.#)
-{-# INLINE (#) #-}

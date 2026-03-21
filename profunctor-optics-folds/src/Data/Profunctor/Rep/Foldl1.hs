@@ -74,7 +74,7 @@ data Foldl1 a b = forall x. Foldl1 (x -> a -> x) (a -> x) (x -> b)
 
 -- | Lift a 'Foldl' into a 'Foldl1'.
 --
--- All of the folds defined in 'Data.Profunctor.Rep.Foldl' may be run as 'Foldl1's.
+-- All of the foldMapOf defined in 'Data.Profunctor.Rep.Foldl' may be run as 'Foldl1's.
 --
 step :: L.Foldl a b -> Foldl1 a b
 step (L.Foldl h z k) = Foldl1 h (h z) k
@@ -101,7 +101,7 @@ intersperse1 a (Foldl1 h z k) = Foldl1 (\x b -> (h $! h x a) b) z k
 {-# INLINABLE intersperse1 #-}
 
 ---------------------------------------------------------------------
--- Non-empty folds
+-- Non-empty foldMapOf
 ---------------------------------------------------------------------
 
 -- | Fold all values into a non-empty list.
