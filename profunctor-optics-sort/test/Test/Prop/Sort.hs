@@ -536,6 +536,73 @@ prop_P56_reprism_sortF = property $ do
     runSortF stringSort inp === "hello"
 
 ---------------------------------------------------------------------
+-- P61–P69: Sprint 6 — Generic and per-backend sorts
+---------------------------------------------------------------------
+
+-- P61: sortingRep agrees with sortingVectorF for Vector
+prop_P61_sortingRep_vector :: Property
+prop_P61_sortingRep_vector = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let v = V.fromList xs
+        viaRep = sortingRep V.length V.unsafeIndex V.fromList fst v
+        viaConcrete = sortingVectorF fst v
+    viaRep === viaConcrete
+
+-- P62: sortingVectorF preserves element count
+prop_P62_sortingVectorF_preserves :: Property
+prop_P62_sortingVectorF_preserves = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let v = V.fromList xs
+        result = sortingVectorF fst v
+    sum (fmap V.length result) === V.length v
+
+-- P63: sortUniqueRep has no duplicate keys
+prop_P63_sortUniqueRep :: Property
+prop_P63_sortUniqueRep = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let v = V.fromList xs
+        result = sortUniqueRep V.length V.unsafeIndex id fst v
+    -- Each key maps to exactly one element
+    assert $ all (\(_, a) -> length [a] == 1) (Map.toList result)
+
+-- P75: sortTaggedRep keys are sorted and values permuted correctly
+prop_P75_sortTaggedRep :: Property
+prop_P75_sortTaggedRep = property $ do
+    let keys = V.fromList [3, 1, 2, 1, 3]
+        vals = V.fromList ["c", "a", "b", "a2", "c2"]
+        result = sortTaggedRep V.length V.unsafeIndex V.unsafeIndex
+                   V.fromList V.fromList keys vals
+    -- Keys 1, 2, 3 each have their paired values
+    Map.keys result === [1, 2, 3]
+
+-- P76: sortTaggedRep preserves all (key, value) pairs
+prop_P76_sortTaggedRep_preserves :: Property
+prop_P76_sortTaggedRep_preserves = property $ do
+    ks <- forAll $ Gen.list (Range.linear 1 20) $ Gen.int (Range.linear 0 5)
+    vs <- forAll $ Gen.list (Range.singleton (length ks)) $ Gen.string (Range.linear 1 3) Gen.alpha
+    let keys = V.fromList ks
+        vals = V.fromList vs
+        result = sortTaggedRep V.length V.unsafeIndex V.unsafeIndex
+                   V.fromList V.fromList keys vals
+        totalKeys = sum $ fmap (V.length . fst) result
+        totalVals = sum $ fmap (V.length . snd) result
+    totalKeys === V.length keys
+    totalVals === V.length vals
+
+-- P78: groupTaggedRep keys = set of input keys
+prop_P78_groupTaggedRep :: Property
+prop_P78_groupTaggedRep = property $ do
+    ks <- forAll $ Gen.list (Range.linear 1 20) $ Gen.int (Range.linear 0 5)
+    vs <- forAll $ Gen.list (Range.singleton (length ks)) $ Gen.string (Range.linear 1 3) Gen.alpha
+    let keys = V.fromList ks
+        vals = V.fromList vs
+        result = groupTaggedRep V.length V.unsafeIndex V.unsafeIndex
+                   V.fromList keys vals
+        resultKeys = Map.keysSet result
+        inputKeys = Map.keysSet $ Map.fromList [(k, ()) | k <- ks]
+    resultKeys === inputKeys
+
+---------------------------------------------------------------------
 -- P57: Optic composition through SortF
 ---------------------------------------------------------------------
 
