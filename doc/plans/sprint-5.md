@@ -27,6 +27,8 @@ on mono-traversable or replaces it.
 | S5.4  | Test.Prop.Sort                | Sort3 + Rxprism (coindexed Cochoice, Monoid i)        |
 | S5.5  | Test.Prop.Sort                | Indexed+coindexed composition chain test              |
 | S5.6  | doc/designs                   | Evaluate mono-traversable vs direct optics for seqs   |
+| S5.7  | Data.Profunctor.Sort          | Fmt-inspired: Category, bind, cat for Sort3            |
+| S5.8  | Data.Profunctor.Sort          | Fmt-inspired: sort1, either1, maybe1 combinators       |
 
 ## New functions
 
@@ -73,6 +75,38 @@ Write a design doc answering:
 - Should profunctor-optics-sequences be split: one package per
   container backend (vector, primitive, array)?
 
+### S5.7 — Fmt-inspired Category and bind
+
+Sort3 ≅ Costar (Sort3Corep i j k), and Fmt = Costar ((->) m).
+Fmt has Category (multi-pass formatting via `(%)`), Arrow, and
+bind. Explore whether Sort3 can get the same:
+
+```haskell
+-- | Category: compose two sort passes (sort by g, refine by f).
+-- Analogous to discrimination's (<>) on Sort.
+instance (...) => Category (Sort3 i j k) where ...
+
+-- | Key-dependent refinement: inspect the accumulated key
+-- and choose a different sort strategy.
+bindSort3 :: Sort3 i j k a b -> (k -> Sort3 i j k a' a) -> Sort3 i j k a' b
+
+-- | Fold multiple sort passes into one.
+catSort3 :: (Monoid k, Foldable f) => f (Sort3 i j k a a) -> Sort3 i j k a a
+```
+
+### S5.8 — Fmt-inspired combinators
+
+```haskell
+-- | Sort by a key extractor (named after fmt1).
+sort1 :: (a -> k) -> Sort3 i Int k a a
+
+-- | Sort an Either: apply left sort to Lefts, right sort to Rights.
+either3 :: Sort3 i j k a c -> Sort3 i j k b c -> Sort3 i j k (Either a b) c
+
+-- | Sort a Maybe: apply sort to Justs, use default for Nothings.
+maybe3 :: c -> Sort3 i j k a c -> Sort3 i j k (Maybe a) c
+```
+
 ## Hedgehog properties
 
 | Prop  | Description                                                      |
@@ -84,6 +118,9 @@ Write a design doc answering:
 | P55   | Rxlens on Sort3 typechecks and produces consistent results       |
 | P56   | Rxprism on Sort3 (Monoid i) typechecks and produces results      |
 | P57   | Indexed+coindexed chain produces correct grouping                |
+| P58   | Category: `id . f = f` and `f . id = f` for Sort3               |
+| P59   | Category: `(f . g) . h = f . (g . h)` for Sort3                 |
+| P60   | `either3 l r` agrees with partition + separate sorts             |
 
 ## Work order
 
@@ -93,6 +130,8 @@ Write a design doc answering:
 4. S5.3 — Rxlens + Sort3 test (P55)
 5. S5.4 — Rxprism + Sort3 test (P56)
 6. S5.5 — Indexed+coindexed chain test (P57)
+7. S5.7 — Category, bind, cat for Sort3 (P58–P59)
+8. S5.8 — sort1, either3, maybe3 combinators (P60)
 
 ## Key files
 
@@ -101,3 +140,4 @@ Write a design doc answering:
 - `profunctor-optics-strings/src/Data/ByteString/Optic.hs` — reference
 - `profunctor-optics-strings/src/Data/Text/Optic.hs` — reference
 - `profunctor-optics-sort/src/Data/Profunctor/Optic/Import.hs` — Rxlens, Rxprism
+- `/Users/cmk/Documents/Code/haskell/stringfmt/src/Data/Fmt/Type.hs` — Fmt reference
