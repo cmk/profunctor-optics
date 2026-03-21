@@ -425,6 +425,41 @@ prop_P32_ibits8_sort3 = property $ do
     testBit' w' n = w' `div` (2 ^ n) `mod` 2 == 1
 
 ---------------------------------------------------------------------
+-- P33–P35: cosortingOf, zipsSorting
+---------------------------------------------------------------------
+
+-- P33: cosortingOf bits8 = bits8 (just a named wrapper)
+prop_P33_cosortingOf_bits8 :: Property
+prop_P33_cosortingOf_bits8 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let carrier = mkSort3 :: Sort3 I8 Int Bool Bool Bool
+        lifted = cosortingOf bits8 carrier
+        inp :: I8 -> (Bool, Word8)
+        inp _i = (testBit' w 0, w)
+    runSort3 lifted inp 0 (testBit' w 0) === w
+  where
+    testBit' :: Word8 -> Int -> Bool
+    testBit' w' n = w' `div` (2 ^ n) `mod` 2 == 1
+
+-- P34: zipsSorting combines results pointwise
+prop_P34_zipsSorting :: Property
+prop_P34_zipsSorting = property $ do
+    let s1 = Sort3 (\inp _j k -> snd (inp k) + 1) :: Sort3 Int Int Int Int Int
+        s2 = Sort3 (\inp _j k -> snd (inp k) + 2) :: Sort3 Int Int Int Int Int
+        merged = zipsSorting (+) s1 s2
+        inp i = (i, i * 10)
+    -- At key 3: s1 gives 31, s2 gives 32, merged gives 63
+    runSort3 merged inp 0 3 === 63
+
+-- P35: zipsSorting with const = first sort wins
+prop_P35_zipsSorting_const :: Property
+prop_P35_zipsSorting_const = property $ do
+    let s1 = Sort3 (\_ _ _ -> "first") :: Sort3 Int Int Int Int String
+        s2 = Sort3 (\_ _ _ -> "second") :: Sort3 Int Int Int Int String
+        merged = zipsSorting const s1 s2
+    runSort3 merged (\i -> (i, i)) 0 0 === "first"
+
+---------------------------------------------------------------------
 -- Helpers
 ---------------------------------------------------------------------
 
