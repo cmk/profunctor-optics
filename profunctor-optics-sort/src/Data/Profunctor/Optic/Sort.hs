@@ -47,6 +47,13 @@ module Data.Profunctor.Optic.Sort
   , foldSorting1
   , mconcatSorting
 
+    -- * Merge (Sort + containers merge)
+  , mergingOf
+  , innerMerge
+  , outerMerge
+  , leftMerge
+  , rightMerge
+
     -- * Joins (by key extractor, not optic-based)
   , joiningOf
   , innerJoinOf
@@ -65,6 +72,7 @@ import Data.Profunctor.Sort
 
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Merge.Strict as Merge
 
 -- ===================================================================
 -- Reified optic types
@@ -282,6 +290,82 @@ mconcatSorting :: (Ord a, Monoid m)
                -> NonEmpty s -> [m]
 mconcatSorting o g xs =
   map (foldMap g) (sortingOf o xs)
+
+-- ===================================================================
+-- Merge (Sort + containers merge)
+-- ===================================================================
+
+-- | Merge two collections through lenses using containers merge tactics.
+--
+-- Sorts both inputs by their respective lens focus, builds 'Map's of
+-- groups, then merges using the provided 'WhenMissing' and 'WhenMatched'
+-- tactics from @Data.Map.Merge.Strict@.
+--
+-- @
+-- 'mergingOf' fstL sndL
+--   'Merge.dropMissing'
+--   'Merge.dropMissing'
+--   ('Merge.zipWithMatched' $ \\_ xs ys -> (xs, ys))
+--   leftInput rightInput
+-- @
+--
+mergingOf :: Ord a
+          => Lens' s a
+          -> Lens' t a
+          -> Merge.SimpleWhenMissing a (NonEmpty s) c
+          -> Merge.SimpleWhenMissing a (NonEmpty t) c
+          -> Merge.SimpleWhenMatched a (NonEmpty s) (NonEmpty t) c
+          -> NonEmpty s -> NonEmpty t -> Map.Map a c
+mergingOf lo ro wml wmr wm xs ys =
+  Merge.merge wml wmr wm (toMapOf lo xs) (toMapOf ro ys)
+
+-- | Inner merge: only keys present in both inputs.
+--
+-- @
+-- 'innerMerge' fstL sndL f xs ys
+-- @
+--
+innerMerge :: Ord a
+           => Lens' s a
+           -> Lens' t a
+           -> (a -> NonEmpty s -> NonEmpty t -> c)
+           -> NonEmpty s -> NonEmpty t -> Map.Map a c
+innerMerge lo ro f =
+  mergingOf lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+
+-- | Full outer merge: all keys from both inputs.
+--
+outerMerge :: Ord a
+           => Lens' s a
+           -> Lens' t a
+           -> (a -> NonEmpty s -> c)
+           -> (a -> NonEmpty t -> c)
+           -> (a -> NonEmpty s -> NonEmpty t -> c)
+           -> NonEmpty s -> NonEmpty t -> Map.Map a c
+outerMerge lo ro fl fr fb =
+  mergingOf lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+-- | Left merge: all keys from left, matching keys from right.
+--
+leftMerge :: Ord a
+          => Lens' s a
+          -> Lens' t a
+          -> (a -> NonEmpty s -> c)
+          -> (a -> NonEmpty s -> NonEmpty t -> c)
+          -> NonEmpty s -> NonEmpty t -> Map.Map a c
+leftMerge lo ro fl fb =
+  mergingOf lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+
+-- | Right merge: all keys from right, matching keys from left.
+--
+rightMerge :: Ord a
+           => Lens' s a
+           -> Lens' t a
+           -> (a -> NonEmpty t -> c)
+           -> (a -> NonEmpty s -> NonEmpty t -> c)
+           -> NonEmpty s -> NonEmpty t -> Map.Map a c
+rightMerge lo ro fr fb =
+  mergingOf lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
 
 -- ===================================================================
 -- Joins (by key extractor, not optic-based)
