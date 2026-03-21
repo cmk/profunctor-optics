@@ -53,6 +53,7 @@ library
       Data.Profunctor.Optic.View
       Data.Profunctor.Optic.Sort
       Data.Profunctor.Optic.Property
+      Data.Profunctor.Optic.Bench
 
       Data.List.Optic
       Data.Map.Optic
@@ -116,6 +117,7 @@ test-suite properties
   other-modules:     Test.Carrier
                    , Test.Data.List.Optic
                    , Test.Data.Map.Optic
+                   , Test.Data.Profunctor.Optic.Sort
                    , Test.Data.Sequence.Optic
                    , Test.Data.Tree.Optic
   ghc-options:       -Wall -threaded
