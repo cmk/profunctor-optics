@@ -33,8 +33,10 @@ module Data.Profunctor.Optic.Sort
   , nubbingBack
   , groupingDescBack
 
-    -- * Sort3 operators (Closed)
+    -- * Sort3 operators (Closed, Coaffine, Cotraversing)
   , sortingUnder
+  , cosortingOf
+  , zipsSorting
 
     -- * Indexed sorting (key = index)
   , sortingIx
@@ -56,7 +58,7 @@ module Data.Profunctor.Optic.Sort
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Ord (Down(..))
 import Data.Profunctor
-import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens')
+import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens', Cotraversal)
 import Data.Profunctor.Optic.View ((^.))
 
 import Data.Profunctor.Sort
@@ -192,9 +194,38 @@ groupingDescBack o xs =
 
 -- | Sort under a 'Colens' / grate: lift a Sort3 through a Closed
 -- optic to sort representable structures pointwise.
+--
+-- @
+-- 'sortingUnder' grate8 :: Sort3 i j k (I8 -> Bool) (I8 -> Bool) -> Sort3 i j k Word8 Word8
+-- @
+--
 sortingUnder :: Colens s t a b
              -> Sort3 i j k a b -> Sort3 i j k s t
 sortingUnder g = g
+
+-- | Sort through a 'Cotraversal': lift a Sort3 through a
+-- @Distributive@ functor. Requires @'Monoid' i@ for the 'Choice'
+-- and 'Cotraversing' instances on Sort3.
+--
+-- @
+-- 'cosortingOf' bits8 :: Sort3 I8 Int Bool Bool Bool -> Sort3 I8 Int Bool Word8 Word8
+-- @
+--
+cosortingOf :: Monoid i
+            => Cotraversal s t a b
+            -> Sort3 i j k a b -> Sort3 i j k s t
+cosortingOf o = o
+
+-- | Merge two Sort3 results pointwise. Given a binary combiner on
+-- the output type, produce a Sort3 that applies both sorts to the
+-- same input and combines their results at each @(j, k)@ position.
+--
+-- @
+-- 'zipsSorting' f s1 s2 = Sort3 $ \\inp j k -> f ('runSort3' s1 inp j k) ('runSort3' s2 inp j k)
+-- @
+--
+zipsSorting :: (b -> b -> b) -> Sort3 i j k a b -> Sort3 i j k a b -> Sort3 i j k a b
+zipsSorting f (Sort3 h1) (Sort3 h2) = Sort3 $ \inp j k -> f (h1 inp j k) (h2 inp j k)
 
 -- ===================================================================
 -- Indexed sorting (key = index)
