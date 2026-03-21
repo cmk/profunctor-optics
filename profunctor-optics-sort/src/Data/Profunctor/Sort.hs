@@ -15,11 +15,15 @@
 -- === Instance summary (all total, no bottoms)
 --
 -- @
---                Profunctor  Strong  Choice  Closed  Costrong  Cochoice
+--                Profunctor  Strong  Choice  Closed  Costrong  Cochoice  Cosieve  Corepresentable
 -- Sort1  k          ✓          ✓       ✓
 -- Sort2  k          ✓          ✓       ✓               ✓         ✓
--- Sort3  i j k      ✓                          ✓       ✓
+-- Sort3  i j k      ✓                          ✓       ✓                   ✓           ✓
 -- @
+--
+-- Additionally, @Sort3Corep i j k@ has 'Coapply' and 'Coapplicative'
+-- when @'Monoid' i@, making @Sort3@ satisfy
+-- 'Data.Profunctor.Optic.Types.Cotraversing' in that case.
 --
 -- Sort1 and Sort3 are complementary: Sort1 gets Strong + Choice
 -- (concrete elements, can fail), Sort3 gets Closed (representable,
@@ -43,12 +47,18 @@ module Data.Profunctor.Sort
 
     -- * Sort3 (representable in, representable out)
   , Sort3(..)
+
+    -- * Sort3 corepresentation
+  , Sort3Corep(..)
   ) where
 
 import Control.Arrow (second)
+import Control.Coapplicative (Coapplicative(..))
 import Data.Either (lefts, rights)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
+import Data.Profunctor.Rep (Corepresentable(..))
+import Data.Profunctor.Sieve (Cosieve(..))
 
 import Data.Functor.Coapply (Coapply(..))
 
@@ -231,3 +241,37 @@ instance Costrong (Sort3 i j k) where
   unsecond (Sort3 h) = Sort3 $ \inp j k ->
     let (d, b) = h (\i -> let (ki, a) = inp i in (ki, (d, a))) j k
     in  b
+
+instance Cosieve (Sort3 i j k) (Sort3Corep i j k) where
+  cosieve (Sort3 h) (Sort3Corep ika j kv) = h ika j kv
+
+instance Corepresentable (Sort3 i j k) where
+  type Corep (Sort3 i j k) = Sort3Corep i j k
+  cotabulate f = Sort3 $ \ika j kv -> f (Sort3Corep ika j kv)
+
+-- ===================================================================
+--  Sort3Corep — corepresentation of Sort3
+-- ===================================================================
+
+-- | Corepresentation of 'Sort3'. Bundles a tabulated input
+-- @(i -> (k, a))@ with a group position @j@ and key @k@.
+--
+-- Unconditionally 'Functor'. With @'Monoid' i@, also 'Coapply' and
+-- 'Coapplicative' (sampling at 'mempty', mirroring the @(->) r@
+-- instance from @coapplicative@). This makes 'Sort3' satisfy
+-- 'Data.Profunctor.Optic.Types.Cotraversing' when @i@ is a 'Monoid'.
+data Sort3Corep i j k a = Sort3Corep (i -> (k, a)) j k
+
+instance Functor (Sort3Corep i j k) where
+  fmap f (Sort3Corep ika j kv) = Sort3Corep (second f . ika) j kv
+
+-- | Sample at 'mempty' to decide the branch, mirroring the @(->) r@
+-- instance. Values at other positions that disagree with 'mempty' are
+-- defaulted to the sampled value.
+instance Monoid i => Coapply (Sort3Corep i j k) where
+  coapply (Sort3Corep ika j kv) = case snd (ika mempty) of
+    Left a0  -> Left  (Sort3Corep (\i -> second (either id (const a0)) (ika i)) j kv)
+    Right b0 -> Right (Sort3Corep (\i -> second (either (const b0) id) (ika i)) j kv)
+
+instance Monoid i => Coapplicative (Sort3Corep i j k) where
+  copure (Sort3Corep ika _ _) = snd (ika mempty)
