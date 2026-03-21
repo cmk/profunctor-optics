@@ -20,6 +20,7 @@ module Data.Profunctor.Optic (
   , module View
   , module Setter
   , module Sort
+  , module Infix
     -- * Re-exported class hierarchy
   , module Data.Distributive
   , module Control.Coapplicative
@@ -44,6 +45,7 @@ import Data.Profunctor.Optic.Fold             as Fold
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
 import Data.Profunctor.Optic.Sort             as Sort
+import Data.Profunctor.Optic.Infix            as Infix
 
 -- Re-exported class hierarchy
 import Data.Distributive

@@ -38,23 +38,13 @@ module Data.Profunctor.Optic.Combinator (
   , cxrepresent
     -- * Operations on representable profunctors
   , (.)
-  , (.~)
-  , (..~)
   , over
   , (%)
-  , (%~)
-  , (%%~)
   , ixover
   , (#)
-  , (#~)
-  , (##~)
   , cxover
-  , (*~)
-  , (**~)
   , reps
   , ixreps
-  , (/~)
-  , (//~)
   , coreps
   , cxreps
     -- * Arrow-style combinators
@@ -304,23 +294,6 @@ over :: Optic (->) s t a b -> (a -> b) -> s -> t
 over = id
 {-# INLINE over #-}
 
-infixr 4 .~, ..~
-
--- | Set the focus of an 'Optic'.
---
-(.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
--- | Map over an 'Optic'.
---
--- >>> (10,20) & first ..~ show 
--- ("10",20)
---
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = over
-{-# INLINE (..~) #-}
-
 infixr 8 %
 
 -- | Monoidally combine indices between subsequent levels of optic.
@@ -344,25 +317,6 @@ f % g = represent $ \ia1a2 (ic,c1) ->
             (fmap flip . flip . ixrepn) g ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
   where ixrepn o h = curry $ reps o $ uncurry h
 -}
-
-infixr 4 %~, %%~, #~, ##~
-
--- | Set the focus of an indexed optic.
---
--- /Note/: This function is different from the equivalent in the /lens/ package.
--- The /profunctor-optics/ equivalent of /%~/ from /lens/ is '..~'.
---
--- @since 0.0.3
-(%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
-(%~) o = ixover o . (const .)
-{-# INLINE (%~) #-}
-
--- | Map over an indexed optic.
---
--- @since 0.0.3
-(%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = ixover
-{-# INLINE (%%~) #-}
 
 -- | Indexed 'over': apply a key-dependent function through an indexed optic.
 --
@@ -397,20 +351,6 @@ f # g = corepresent $ \a1ka2 c1 kc ->
 {-# INLINE (#) #-}
 -}
 
--- | Set the focus of a coindexed optic.
---
--- @since 0.0.3
-(#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t 
-(#~) o = cxover o . (const .)
-{-# INLINE (#~) #-}
-
--- | Map over a coindexed optic.
--- 
--- @since 0.0.3
-(##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t 
-(##~) = cxover
-{-# INLINE (##~) #-}
-
 -- | Coindexed 'over': apply a coindex-dependent function through a coindexed optic.
 --
 -- Routes through 'Conjoin' wrapping internally (dual of 'overWithKey').
@@ -421,25 +361,6 @@ f # g = corepresent $ \a1ka2 c1 kc ->
 cxover :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
 cxover o f = (unConjoin #. represent o .# Conjoin) f mempty
 {-# INLINE cxover #-}
-
-infixr 4 *~, **~, /~, //~
-
--- | Set the focus of a representable optic.
---
--- @since 0.0.3
-(*~) :: Optic (Star f) s t a b -> f b -> s -> f t
-(*~) o b = o **~ (const b)
-{-# INLINE (*~) #-}
-
--- | Map over a representable optic.
---
--- >>> [66,97,116,109,97,110] & traversed **~ \a -> ("na", chr a)
--- ("nananananana","Batman")
---
--- @since 0.0.3
-(**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
-(**~) o = runStar #. o .# Star
-{-# INLINE (**~) #-}
 
 -- | TODO: Document
 --
@@ -453,20 +374,6 @@ reps o = sieve . o . tabulate
 ixreps :: Representable p => Monoid i => Ixoptic p i s t a b -> (i -> a -> Rep p b) -> s -> Rep p t
 ixreps o f = curry (reps o $ uncurry f) mempty
 {-# INLINE ixreps #-}
-
--- | Set the focus of a co-representable optic.
---
--- @since 0.0.3
-(/~) :: Optic (Costar f) s t a b -> b -> f s -> t
-(/~) o b = o //~ (const b)
-{-# INLINE (/~) #-}
-
--- | Map over a co-representable optic.
---
--- @since 0.0.3
-(//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
-(//~) o = runCostar #. o .# Costar
-{-# INLINE (//~) #-}
 
 -- | TODO: Document
 --

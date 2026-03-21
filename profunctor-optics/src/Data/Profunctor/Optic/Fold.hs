@@ -51,8 +51,7 @@ module Data.Profunctor.Optic.Fold (
   , acolist1
     -- * Operators
   , folds0
-  , (^?)
-  , preview 
+  , preview
   , previews
   , preuse
   , preuses
@@ -60,7 +59,6 @@ module Data.Profunctor.Optic.Fold (
   , cofoldMapOf
   , foldsa
   , cofoldsa
-  , (^..)
   , toListOf
   , foldrOf
   , foldlOf
@@ -75,7 +73,6 @@ module Data.Profunctor.Optic.Fold (
   , ixpreviews
   , ixfolds
   , cxfolds
-  , (^%%)
   , ixlists
   , ixfoldsr
   , ixfoldsl
@@ -467,7 +464,6 @@ folds0 :: AFold0 r s a -> (a -> Maybe r) -> s -> Maybe r
 folds0 o = (getAlt #.) #. foldMapOf o .# (Alt #.)
 {-# INLINE folds0 #-}
 
-infix 8 ^?
 
 -- | An infk alias for 'preview''.
 --
@@ -480,16 +476,6 @@ infix 8 ^?
 --
 -- When using a 'Traversal' as a partial 'Lens', or a 'Fold' as a partial
 -- 'View' this can be a convenient way to extract the optional value.
---
--- >>> Left 4 ^? left'
--- Just 4
--- >>> Right 4 ^? left'
--- Nothing
---
-(^?) :: s -> AFold0 a s a -> Maybe a
-(^?) = flip preview
-{-# INLINE (^?) #-}
-
 -- | Preview the focus of a 'Fold0'.
 --
 -- /Benchmark: 1.01x vs direct (zero-cost). See "Data.Profunctor.Optic.Bench"./
@@ -554,7 +540,6 @@ cofoldsa :: Coapplicative f => ACofold (f b) t b -> f b -> t
 cofoldsa = flip cofoldMapOf copure
 {-# INLINE cofoldsa #-} 
 
-infix 8 ^..
 
 -- | Infix alias of 'toListOf'.
 --
@@ -570,13 +555,6 @@ infix 8 ^..
 -- >>> [[1,2], [3 :: Int64]] ^.. traversed . traversed
 -- [1,2,3]
 --
--- >>> (1,2) ^.. bitraversed
--- [1,2]
---
-(^..) :: s -> AFold (Endo [a]) s a -> [a]
-(^..) = flip toListOf
-{-# INLINE (^..) #-}
-
 -- | Collect the fock of an optic into a list.
 --
 -- @
@@ -726,15 +704,6 @@ cxfolds o f = flip (cofoldMapOf o $ flip f) mempty
 ixlists :: Monoid k => AIxfold (Endo [(k, a)]) k s a -> s -> [(k, a)]
 ixlists o = ixfoldsr o (\k a -> ((k,a):)) []
 {-# INLINE ixlists #-}
-
-infix 8 ^%%
-
--- | Infix version of 'ixlists'.
---
--- @since 0.0.3
-(^%%) :: Monoid k => s -> AIxfold (Endo [(k, a)]) k s a -> [(k, a)]
-(^%%) = flip ixlists
-{-# INLINE (^%%) #-}
 
 -- | Indexed right fold over an indexed optic.
 --

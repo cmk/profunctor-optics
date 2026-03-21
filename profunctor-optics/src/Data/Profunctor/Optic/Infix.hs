@@ -95,10 +95,9 @@ module Data.Profunctor.Optic.Infix (
   , (#~), (##~)
     -- * State
   , (.=), (..=)
-    -- * Composition
-  , (%), (#)
 ) where
 
+import Control.Monad.State (MonadState)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
@@ -115,7 +114,6 @@ import qualified Data.Profunctor.Optic.Combinator as C
 infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#
 infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 infix  4  .=, ..=
-infixr 9  %, #
 
 ---------------------------------------------------------------------
 -- View (primary)
@@ -230,7 +228,7 @@ infixr 9  %, #
 -- @o '.~' b ≡ 'S.set' o b@
 --
 (.~) :: Optic (->) s t a b -> b -> s -> t
-(.~) = S.set
+(.~) o b = o (const b)
 {-# INLINE (.~) #-}
 
 -- | Over (map) via a primary optic.
@@ -238,7 +236,7 @@ infixr 9  %, #
 -- @o '..~' f ≡ 'C.over' o f@
 --
 (..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
-(..~) = C.over
+(..~) = id
 {-# INLINE (..~) #-}
 
 ---------------------------------------------------------------------
@@ -270,15 +268,15 @@ infixr 9  %, #
 -- @o '%~' f ≡ 'S.ixset' o f@
 --
 (%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
-(%~) = S.ixset
+(%~) o = C.ixover o . (const .)
 {-# INLINE (%~) #-}
 
 -- | Indexed over.
 --
--- @o '%%~' f ≡ 'S.ixover' o f@
+-- @o '%%~' f ≡ 'C.ixover' o f@
 --
 (%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = S.ixsets
+(%%~) = C.ixover
 {-# INLINE (%%~) #-}
 
 ---------------------------------------------------------------------
@@ -310,15 +308,15 @@ infixr 9  %, #
 -- @o '#~' f ≡ 'S.cxset' o f@
 --
 (#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t
-(#~) = S.cxset
+(#~) o = C.cxover o . (const .)
 {-# INLINE (#~) #-}
 
 -- | Indexed co-dual over.
 --
--- @o '##~' f ≡ 'S.cxover' o f@
+-- @o '##~' f ≡ 'C.cxover' o f@
 --
 (##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(##~) = S.cxsets
+(##~) = C.cxover
 {-# INLINE (##~) #-}
 
 ---------------------------------------------------------------------
@@ -340,19 +338,3 @@ infixr 9  %, #
 (..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 (..=) = S.modifies
 {-# INLINE (..=) #-}
-
----------------------------------------------------------------------
--- Composition
----------------------------------------------------------------------
-
--- | Indexed optic composition, accumulating indices via 'Monoid'.
---
-(%) :: Monoid i => Representable p => Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
-(%) = (C.%)
-{-# INLINE (%) #-}
-
--- | Coindexed optic composition, accumulating indices via 'Monoid'.
---
-(#) :: Monoid i => Corepresentable p => Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
-(#) = (C.#)
-{-# INLINE (#) #-}
