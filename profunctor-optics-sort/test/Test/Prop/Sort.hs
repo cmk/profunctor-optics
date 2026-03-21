@@ -19,7 +19,10 @@ import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Sort
+import Data.Word (Word8)
+import Data.Word.Optic (grate8, bits8, ibits8)
 
+import Data.Functor.Index (I8(..))
 import Data.Monoid (Sum(..))
 import Data.Ord (Down(..))
 import qualified Data.List as L
@@ -344,6 +347,42 @@ prop_P29_sortOn3 = property $ do
         s' = sortOn3 id s
     runSort3 s' inp 0 0 === runSort3 s inp 0 0
     runSort3 s' inp 0 1 === runSort3 s inp 0 1
+
+---------------------------------------------------------------------
+-- P28, P30: Sort3 + Word8 optic composition
+---------------------------------------------------------------------
+
+-- P28: grate8 composes with Sort3 via sortingUnder (Closed)
+-- grate8 :: Colens Word8 Word8 (I8 -> Bool) (I8 -> Bool)
+-- Sort3 operates on bit-representations, grate8 lifts to Word8.
+prop_P28_grate8_sort3_over :: Property
+prop_P28_grate8_sort3_over = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    -- A Sort3 that groups bit-functions by their value at I81
+    let carrier = mkSort3 :: Sort3 I8 Int Bool (I8 -> Bool) (I8 -> Bool)
+        lifted = sortingUnder grate8 carrier :: Sort3 I8 Int Bool Word8 Word8
+        -- Input: each I8 position maps to (bit value at I81, the whole word)
+        inp :: I8 -> (Bool, Word8)
+        inp _i = (testBit' w 0, w)
+    -- All positions have the same key, so any j/k lookup returns w
+    runSort3 lifted inp 0 (testBit' w 0) === w
+  where
+    testBit' :: Word8 -> Int -> Bool
+    testBit' w' n = w' `div` (2 ^ n) `mod` 2 == 1
+
+-- P30: sortingUnder grate8 composes Sort3 at bit-representation level
+-- grate8 :: Colens Word8 Word8 (I8 -> Bool) (I8 -> Bool)
+prop_P30_grate8_sort3 :: Property
+prop_P30_grate8_sort3 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let -- A Sort3 that operates on (I8 -> Bool) representations
+        innerSort = Sort3 (\inp _j _k -> snd (inp 0)) :: Sort3 Int Int Int (I8 -> Bool) (I8 -> Bool)
+        -- Lift through grate8 to operate on Word8
+        lifted = sortingUnder grate8 innerSort :: Sort3 Int Int Int Word8 Word8
+        inp i = (i, w)
+    -- The inner sort just returns the value at position 0, so lifted
+    -- should return the Word8 unchanged
+    runSort3 lifted inp 0 0 === w
 
 ---------------------------------------------------------------------
 -- Helpers

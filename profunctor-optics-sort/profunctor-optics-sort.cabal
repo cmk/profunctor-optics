@@ -74,3 +74,5 @@ test-suite properties
     , profunctors
     , profunctor-optics
     , profunctor-optics-sort
+    , profunctor-optics-strings
+    , scheme-extensions
