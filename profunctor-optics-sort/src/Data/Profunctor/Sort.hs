@@ -128,47 +128,45 @@ instance (Monoid i, Monoid k) => Category (SortF i k) where
 -- SortF composition
 ---------------------------------------------------------------------
 
--- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+-- | Indexed bind: inspect the key at each position and choose
+-- a continuation.
 --
--- Analogous to Fmt's @(%)@: @f %. g@ runs @g@ first (producing an
--- intermediate @b@), then @f@ consumes that @b@. Both halves read
--- from the same input @(i -> (k, a))@, and their keys combine.
+-- Unlike Fmt's @bind@ (which sees one monoid value), this is
+-- position-dependent: the callback @f@ receives the key at
+-- position @i@, chooses a SortF, and runs it on the same input.
 --
 -- @
--- (f '%. g) '%.' h = f '%. (g '%. h)
+-- 'bindSortF' m f = SortF $ \\inp ->
+--   unSortF m (\\i -> let (k, _) = inp i in (k, 'unSortF' (f k) inp))
 -- @
 --
--- | Indexed bind: inspect the key @k@ and choose a continuation.
---
--- @m@ produces a @b@ given @(i -> (k, a))@. The callback @f@ receives
--- the key at each position and returns a SortF that provides the @a@.
---
--- Analogous to Fmt's @bind@.
 {-# INLINE bindSortF #-}
 bindSortF :: SortF i k a b -> (k -> SortF i k a' a) -> SortF i k a' b
 bindSortF (SortF m) f = SortF $ \inp ->
   m (\i -> let (k, _) = inp i in (k, unSortF (f k) inp))
 
--- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+-- | Pipeline two SortF passes.
 --
--- @f %. g@ runs both on the same input. The output of @g@ feeds
--- into @f@, and keys from both halves combine.
+-- @f %. g@ runs @g@ on the full input to produce a single @b@,
+-- then @f@ sees that @b@ at every position, paired with the
+-- original keys (unchanged). The key @k@ is threaded through,
+-- not accumulated — no 'Semigroup' constraint needed.
 --
--- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+-- @
+-- (f '%. g) '%.' h = f '%. (g '%. h)
+-- @
 --
--- Defined as: @f %. g = f \`bindSortF\` \\k1 -> g \`bindSortF\` \\k2 -> sortF (k1 <> k2, ?)@
---
--- More directly: @g@ runs on the input to produce @b@, then @f@
--- sees that @b@ as its value at each position, with the original key.
 infixr 9 %.
 {-# INLINE (%.) #-}
-(%.) :: Semigroup k => SortF i k b c -> SortF i k a b -> SortF i k a c
+(%.) :: SortF i k b c -> SortF i k a b -> SortF i k a c
 SortF f %. SortF g = SortF $ \inp ->
   f (\i -> (fst (inp i), g inp))
 
--- | Fold multiple sort passes via 'Semigroup' key accumulation.
+-- | Fold multiple SortF passes via '%.'.
 --
--- Analogous to Fmt's @cat@.
+-- Analogous to Fmt's @cat@. Requires 'Monoid' @i@ and 'Monoid' @k@
+-- for @Category@ 'id' (the seed of the fold).
+--
 {-# INLINE catSortF #-}
 catSortF :: (Monoid i, Monoid k, Foldable f) => f (SortF i k a a) -> SortF i k a a
 catSortF = foldr (%.) C.id
@@ -184,9 +182,12 @@ catSortF = foldr (%.) C.id
 sortF :: (k, a) -> SortF i k a (k, a)
 sortF ka = SortF $ const ka
 
--- Note: Fmt's fmt1 doesn't translate directly to SortF because
--- Fmt's m is both the index AND the monoid, while SortF separates
--- them into i and k. Use sortF or mkSortF/mkSortFN instead.
+-- Note: Fmt's @fmt1 :: (a -> m) -> Fmt1 m s a@ doesn't translate to
+-- SortF. In Fmt, @m@ is both the index and the monoid — the value
+-- @a@ flows through the same channel as the accumulator. In SortF,
+-- @i@ (index) and @k@ (key) are separated, so there's no single
+-- @(a -> k)@ that serves as both \"extract key\" and \"provide value\".
+-- Use 'sortF' for constants or 'mkSortF'/'mkSortFN' for carriers.
 
 -- | Remap keys. @remapSortF f@ transforms a @SortF@ that groups
 -- by @k2@ into one that groups by @k1@, applying @f@ to map
