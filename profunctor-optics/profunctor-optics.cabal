@@ -51,6 +51,7 @@ library
       Data.Profunctor.Optic.Fold
       Data.Profunctor.Optic.Setter
       Data.Profunctor.Optic.View
+      Data.Profunctor.Optic.Sort
       Data.Profunctor.Optic.Property
 
   other-modules: Data.Profunctor.Optic.Import
@@ -81,6 +82,7 @@ library
       base                   >= 4.16   && < 5.0
     , adjunctions            >= 4.4
     , coapplicative          >= 0.0.2
+    , containers             >= 0.6
     , distributive           >= 0.3
     , mtl                    >= 2.0.1
     , tagged                 >= 0.4.4

@@ -285,25 +285,41 @@ overhead** — the optic version matches the direct call exactly:
 | `view lined` (Text, 100 lines) | 1.32 μs | 1.32 μs | **1.0x** |
 | `view worded` (Text, 100 words) | 1.87 μs | 1.88 μs | **1.0x** |
 
-### Indexed cotraversals: 6–7x faster than non-indexed
+### Coindexed > colens > cotraversal
 
-The `cxlens`-based indexed cotraversals avoid the `Distributive`
-/ `cotraversed` overhead of the non-indexed versions. The index
-is delivered directly through the grate continuation rather than
-reconstructed from the `Costar` representation:
+Three optic types access the same bit structure with very
+different performance. **Prefer `ibitsN` (coindexed) over
+`grateN` (colens) over `bitsN` (cotraversal):**
 
-| Width | `ibitsN` (indexed) | `bitsN` (non-indexed) | Speedup |
-|---|---|---|---|
-| 8 | 59 ns | 381 ns | **6.5x** |
-| 16 | 91 ns | 739 ns | **8.1x** |
-| 32 | 196 ns | 1.40 μs | **7.2x** |
-| 64 | 380 ns | 2.79 μs | **7.3x** |
+| Optic | Type | 8-bit | 64-bit | ns/bit |
+|---|---|---|---|---|
+| `ibitsN` (cxlens) | Coindexed | 59 ns | 380 ns | **~7** |
+| `grateN` (colens) | Closed | ~170 ns | — | **~21** |
+| `bitsN` (cotraversal) | Cotraversing | 381 ns | 2.79 μs | **~44** |
+| `complement` (baseline) | Machine insn | 7.5 ns | 7.5 ns | **O(1)** |
 
-Both are **O(n)** in the number of bits (~7 ns/bit for indexed,
-~44 ns/bit for non-indexed). The baseline `complement` is O(1)
-at ~7.5 ns regardless of width (single machine instruction).
-The linear cost is inherent to the Bool-level decomposition —
-the optic visits each bit position exactly once.
+The `cxlens`-based `ibitsN` avoids the `Distributive`/`cotraversed`
+overhead entirely — the index is delivered directly through the
+grate continuation. The `grateN` colens path reconstructs via a
+single grate callback (~21 ns/bit). The `bitsN` cotraversal goes
+through `iso toBits fromBits . cotraversed`, which reconstructs
+from the `Costar` representation (~44 ns/bit).
+
+All three are **O(n)** in the number of bits. The constant
+factor reflects the abstraction path:
+
+- **`ibitsN`**: index threaded directly through grate continuation
+  — no functor reconstruction, nearly zero overhead
+- **`grateN`**: one grate callback per element — moderate overhead
+- **`bitsN`**: full `Distributive`/`Costar` reconstruction per
+  element — highest overhead
+
+When composing with profunctor carriers (e.g. `SortF`), the
+carrier adds zero additional overhead — the cost is entirely
+from the optic. Benchmarks confirm `ibitsN` applied to `SortF`
+(12 ns) matches bare carrier cost (11 ns), while `bitsN`
+applied to `SortF` (1.07 μs) matches `bitsN` applied to raw
+`Costar` (1.00 μs).
 
 ### Element traversals
 
