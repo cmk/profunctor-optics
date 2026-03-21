@@ -55,6 +55,7 @@ library
       Data.Profunctor.Optic.Property
 
       Data.List.Optic
+      Data.Map.Optic
       Data.Sequence.Optic
       Data.Tree.Optic
 
@@ -114,6 +115,7 @@ test-suite properties
   main-is:           test.hs
   other-modules:     Test.Carrier
                    , Test.Data.List.Optic
+                   , Test.Data.Map.Optic
                    , Test.Data.Sequence.Optic
                    , Test.Data.Tree.Optic
   ghc-options:       -Wall -threaded
