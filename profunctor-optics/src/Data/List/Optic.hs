@@ -12,19 +12,30 @@ module Data.List.Optic (
   , ifiltered
   , itraversed
   , ifolded
-    -- * Sort-based operators
+    -- * Sort-based operators (Lens, Ord)
   , sortingOfL
   , sortingDescOfL
   , groupingOfL
   , nubbingOfL
   , sortingString
+    -- * Comparator-based operators (*By)
+  , groupSortBy
+  , groupSort
+  , groupSortOn
+  , monoidSortBy
+  , monoidSort
+  , monoidSortOn
+  , uniqueSortBy
+  , uniqueSort
+  , uniqueSortOn
 ) where
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)
-import Data.Ord (Down(..))
+import Data.Ord (Down(..), comparing)
+import qualified Data.List as L
 import qualified Data.Map.Strict as Map
 import Prelude
 
@@ -96,3 +107,86 @@ nubbingOfL o xs = map head $ sortingOfL o xs
 -- | Sort a 'String' by a key on each character.
 sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
 sortingString = sortingRep length (\s i -> s !! i) id
+
+---------------------------------------------------------------------
+-- Comparator-based operators (*By)
+---------------------------------------------------------------------
+
+-- | Sort a list with a stable sort, grouping equal elements.
+--
+-- The core primitive: sort by comparator, then aggregate runs of
+-- equal elements with the grouping function.
+--
+-- @
+-- 'groupSortBy' compare (\\x xs -> x : xs) = 'Data.List.sortBy' compare . 'Data.List.group'
+-- @
+--
+groupSortBy :: (a -> a -> Ordering)  -- ^ comparator
+            -> (a -> [a] -> b)       -- ^ grouper: head + rest → result
+            -> [a] -> [b]
+groupSortBy cmp grp = aggregate . L.sortBy cmp
+  where
+    aggregate []    = []
+    aggregate (h:t) = g `seq` g : aggregate rst
+      where
+        g         = grp h eqs
+        (eqs,rst) = span (\x -> cmp x h /= GT) t
+
+-- | Sort a list, grouping equal elements.
+--
+-- @
+-- 'groupSort' (\\x xs -> x : xs) [3,1,2,1,3] = [[1,1],[2],[3,3]]
+-- @
+--
+groupSort :: Ord a => (a -> [a] -> b) -> [a] -> [b]
+groupSort = groupSortBy compare
+
+-- | Sort by a projection function, grouping equal elements.
+--
+-- @
+-- 'groupSortOn' 'fst' (\\k x xs -> (k, x : map snd xs)) [(2,'b'),(1,'a'),(2,'c')]
+--   = [(1,\"a\"),(2,\"bc\")]
+-- @
+--
+groupSortOn :: Ord k
+            => (a -> k)              -- ^ projection
+            -> (k -> a -> [a] -> b)  -- ^ grouper with key
+            -> [a] -> [b]
+groupSortOn key grp = groupSortBy (comparing fst) grp_val . map inj
+  where
+    grp_val (k, a) kas = grp k a (map snd kas)
+    inj x = k `seq` (k, x) where k = key x
+
+-- | Sort, aggregating duplicates with the monoid.
+--
+-- @
+-- 'monoidSort' [Sum 1, Sum 2, Sum 1] = [Sum 2, Sum 2]
+-- @
+--
+monoidSort :: (Monoid a, Ord a) => [a] -> [a]
+monoidSort = monoidSortBy compare
+
+-- | Sort by projection, aggregating duplicates with the monoid.
+monoidSortOn :: (Monoid a, Ord k) => (a -> k) -> [a] -> [a]
+monoidSortOn key = groupSortOn key (\_ x xs -> x <> mconcat xs)
+
+-- | Sort by comparator, aggregating duplicates with the monoid.
+monoidSortBy :: Monoid a => (a -> a -> Ordering) -> [a] -> [a]
+monoidSortBy cmp = groupSortBy cmp (\x xs -> x <> mconcat xs)
+
+-- | Sort, discarding duplicates.
+--
+-- @
+-- 'uniqueSort' [3,1,2,1,3] = [1,2,3]
+-- @
+--
+uniqueSort :: Ord a => [a] -> [a]
+uniqueSort = uniqueSortBy compare
+
+-- | Sort by projection, discarding duplicates (keeps first).
+uniqueSortOn :: Ord k => (a -> k) -> [a] -> [a]
+uniqueSortOn key = groupSortOn key (\_ x _ -> x)
+
+-- | Sort by comparator, discarding duplicates (keeps first).
+uniqueSortBy :: (a -> a -> Ordering) -> [a] -> [a]
+uniqueSortBy cmp = groupSortBy cmp const
