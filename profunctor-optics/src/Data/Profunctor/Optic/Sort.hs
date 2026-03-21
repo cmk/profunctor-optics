@@ -47,6 +47,7 @@ mkSort = Sort $ \inp ->
   Map.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
                                 | i <- [minBound..maxBound]
                                 , let (ki, a) = inp i ]
+{-# INLINEABLE mkSort #-}
 
 -- | Identity carrier for Int-indexed containers of known size.
 --
@@ -57,6 +58,7 @@ mkSortN n = Sort $ \inp ->
   Map.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
                                 | i <- [0..n-1]
                                 , let (ki, a) = inp i ]
+{-# INLINEABLE mkSortN #-}
 
 ---------------------------------------------------------------------
 -- Generic representable sort
@@ -70,6 +72,7 @@ sortingRep len idx build key c =
   let n = len c
       result = runSort (mkSortN n) (\i -> (key (idx c i), idx c i))
   in  fmap build result
+{-# INLINE sortingRep #-}
 
 -- | Sort + deduplicate: keep first element per key.
 sortUniqueRep :: Ord k
@@ -77,6 +80,7 @@ sortUniqueRep :: Ord k
               -> (a -> k) -> c -> Map.Map k c'
 sortUniqueRep len idx build key c =
   fmap (build . head) $ sortingRep len idx id key c
+{-# INLINE sortUniqueRep #-}
 
 -- | Tagged sort: sort keys + permute values in tandem.
 sortTaggedRep :: Ord k
@@ -87,6 +91,7 @@ sortTaggedRep klen kidx vidx kbuild vbuild ks vs =
   let n = klen ks
       result = runSort (mkSortN n) (\i -> (kidx ks i, (kidx ks i, vidx vs i)))
   in  fmap (\pairs -> (kbuild (map fst pairs), vbuild (map snd pairs))) result
+{-# INLINE sortTaggedRep #-}
 
 -- | Group by key, returning Map from keys to value containers.
 groupTaggedRep :: Ord k
@@ -96,3 +101,4 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
   let n = klen ks
       result = runSort (mkSortN n) (\i -> (kidx ks i, vidx vs i))
   in  fmap vbuild result
+{-# INLINE groupTaggedRep #-}
