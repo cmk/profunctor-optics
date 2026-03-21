@@ -6,8 +6,8 @@
 --
 -- * 'Lens' (Strong + Choice) → Sort1
 -- * Sort2 reified (+ Costrong + Cochoice) → Sort2
--- * 'Colens' (Closed) → SortF
-module Data.Profunctor.Optic.Sort
+-- * 'Colens' (Closed) → Sort
+module Data.Profunctor.Optic.Sort.Backend
   ( -- * Reified optic types
     ASort1, ASort2
 
@@ -27,13 +27,18 @@ module Data.Profunctor.Optic.Sort
   , toMapWithOf
   , countingOf
 
+    -- * List variants
+  , sortingOfL
+  , groupingOfL
+  , nubbingOfL
+  , toMapOfL
+  , countingOfL
+  , sortingString
+
     -- * Sort2 operators (+ Costrong + Cochoice)
   , groupingBack
   , nubbingBack
   , groupingDescBack
-
-    -- * SortF operators
-  , zipsSortingF
 
     -- * Generic representable sort
   , sortingRep
@@ -42,7 +47,7 @@ module Data.Profunctor.Optic.Sort
   , groupTaggedRep
 
     -- * Concrete container sorts
-  , sortingVectorF
+  , sortingVector
   , sortingVectorU
   , sortingPrimArray
   , sortingArray
@@ -56,9 +61,9 @@ module Data.Profunctor.Optic.Sort
   , toHashMapOf
   , countingHashOf
 
-    -- * SortF merge tactics
-  , sortedMatchedF
-  , sortedMissingF
+    -- * Sort merge tactics
+  , sortedMatched
+  , sortedMissing
 
     -- * Indexed sorting (key = index)
   , sortingIx
@@ -197,6 +202,38 @@ countingOf o xs =
   Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
 
 -- ===================================================================
+-- List variants
+-- ===================================================================
+
+-- | Sort a list through a lens. Returns @[]@ on empty input.
+sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingOfL _ [] = []
+sortingOfL o xs = map NE.toList $ sortingOf o (NE.fromList xs)
+
+-- | Group a list through a lens.
+groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+groupingOfL = sortingOfL
+
+-- | Deduplicate a list through a lens, keeping first per group.
+nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
+nubbingOfL _ [] = []
+nubbingOfL o xs = nubbingOf o (NE.fromList xs)
+
+-- | Build a 'Map.Map' keyed by lens focus from a list.
+toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
+toMapOfL _ [] = Map.empty
+toMapOfL o xs = fmap NE.toList $ toMapOf o (NE.fromList xs)
+
+-- | Count occurrences per key from a list.
+countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
+countingOfL _ [] = Map.empty
+countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+
+-- | Sort a 'String' by a key on each character.
+sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
+sortingString = sortingRep length (\s i -> s !! i) id
+
+-- ===================================================================
 -- Sort2 operators (+ Costrong + Cochoice)
 -- ===================================================================
 
@@ -253,24 +290,21 @@ toMapIx o xs =
 -- TODO: this is not right — revisit when indexed operators are fleshed out
 
 -- ===================================================================
--- SortF operators
+-- Sort operators
 -- ===================================================================
 
--- Note: Colens and Cotraversal optics compose with SortF by
+-- Note: Colens and Cotraversal optics compose with Sort by
 -- direct application — no wrapper needed:
 --
 -- @
--- grate8 carrier  :: SortF I8 k Word8 Word8    -- Colens (Closed)
--- bits8  carrier  :: SortF I8 k Word8 Word8    -- Cotraversal (Monoid i)
+-- grate8 carrier  :: Sort I8 k Word8 Word8    -- Colens (Closed)
+-- bits8  carrier  :: Sort I8 k Word8 Word8    -- Cotraversal (Monoid i)
 -- @
 --
 -- The optic IS the composition. See grate8/bits8 docs in
 -- profunctor-optics-strings.
 
--- | Merge two SortF results pointwise.
---
-zipsSortingF :: (b -> b -> b) -> SortF i k a b -> SortF i k a b -> SortF i k a b
-zipsSortingF f (SortF h1) (SortF h2) = SortF $ \inp -> f (h1 inp) (h2 inp)
+-- zipsSorting is re-exported from Data.Profunctor.Optic.Carrier.
 
 -- ===================================================================
 -- Generic representable sort
@@ -279,9 +313,9 @@ zipsSortingF f (SortF h1) (SortF h2) = SortF $ \inp -> f (h1 inp) (h2 inp)
 -- | Sort any @Int@-indexed representable container by key.
 --
 -- Given @length@, @index@, a list-to-container builder, and a key
--- extractor, groups elements by key via 'mkSortFN'.
+-- extractor, groups elements by key via 'mkSortN'.
 --
--- All concrete container sorts ('sortingVectorF', 'sortingBytes',
+-- All concrete container sorts ('sortingVector', 'sortingBytes',
 -- 'sortingChars') are thin wrappers around this.
 --
 sortingRep :: Ord k
@@ -292,7 +326,7 @@ sortingRep :: Ord k
            -> c -> Map.Map k c'
 sortingRep len idx build key c =
   let n = len c
-      result = runSortF (mkSortFN n) (\i -> (key (idx c i), idx c i))
+      result = runSort (mkSortN n) (\i -> (key (idx c i), idx c i))
   in  fmap build result
 
 -- | Sort + deduplicate: keep first element per key.
@@ -317,7 +351,7 @@ sortTaggedRep :: Ord k
               -> ck -> cv -> Map.Map k (ck', cv')
 sortTaggedRep klen kidx vidx kbuild vbuild ks vs =
   let n = klen ks
-      result = runSortF (mkSortFN n) (\i -> (kidx ks i, (kidx ks i, vidx vs i)))
+      result = runSort (mkSortN n) (\i -> (kidx ks i, (kidx ks i, vidx vs i)))
   in  fmap (\pairs -> (kbuild (map fst pairs), vbuild (map snd pairs))) result
 
 -- | Group by key, returning Map from keys to value containers.
@@ -327,7 +361,7 @@ groupTaggedRep :: Ord k
                -> ([v] -> cv') -> ck -> cv -> Map.Map k cv'
 groupTaggedRep klen kidx vidx vbuild ks vs =
   let n = klen ks
-      result = runSortF (mkSortFN n) (\i -> (kidx ks i, vidx vs i))
+      result = runSort (mkSortN n) (\i -> (kidx ks i, vidx vs i))
   in  fmap vbuild result
 
 -- ===================================================================
@@ -335,8 +369,8 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
 -- ===================================================================
 
 -- | Sort a boxed 'V.Vector' by key.
-sortingVectorF :: Ord k => (a -> k) -> V.Vector a -> Map.Map k (V.Vector a)
-sortingVectorF = sortingRep V.length V.unsafeIndex V.fromList
+sortingVector :: Ord k => (a -> k) -> V.Vector a -> Map.Map k (V.Vector a)
+sortingVector = sortingRep V.length V.unsafeIndex V.fromList
 
 -- | Sort an unboxed 'VU.Vector' by key.
 sortingVectorU :: (VU.Unbox a, Ord k) => (a -> k) -> VU.Vector a -> Map.Map k (VU.Vector a)
@@ -352,7 +386,7 @@ sortingArray :: (IArray Array e, Ix i, Ord k)
 sortingArray key arr =
   let elems = IA.elems arr
       n = length elems
-      result = runSortF (mkSortFN n) (\i -> (key (elems !! i), elems !! i))
+      result = runSort (mkSortN n) (\i -> (key (elems !! i), elems !! i))
   in  fmap (\as -> IA.listArray (0, length as - 1) as) result
 
 -- | Sort a strict 'BS.ByteString' by a key on each byte.
@@ -379,7 +413,7 @@ sortingRepH :: (Hashable k, Eq k)
             -> (a -> k) -> c -> HM.HashMap k c'
 sortingRepH len idx build key c =
   let n = len c
-      result = runSortF (mkSortFNH n) (\i -> (key (idx c i), idx c i))
+      result = runSort (mkSortNH n) (\i -> (key (idx c i), idx c i))
   in  fmap build result
 
 -- | Group through a lens using 'Hashable'. Produces 'HM.HashMap'.
@@ -406,22 +440,22 @@ countingHashOf :: (Hashable a, Eq a)
 countingHashOf o xs =
   HM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
 
--- | Construct a 'WhenMatched' merge tactic from a SortF.
+-- | Construct a 'WhenMatched' merge tactic from a Sort.
 --
 -- Uses @i = ()@ (one position per key). The carrier calls
 -- @inp ()@ to receive the matched pair.
 --
-sortedMatchedF :: SortF () k (x, y) z -> Merge.SimpleWhenMatched k x y z
-sortedMatchedF (SortF h) = Merge.zipWithMatched $ \k x y ->
+sortedMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
+sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
   h (const (k, (x, y)))
 
--- | Construct a 'WhenMissing' merge tactic from a SortF.
+-- | Construct a 'WhenMissing' merge tactic from a Sort.
 --
 -- Uses @i = ()@ (one position per key). The carrier calls
 -- @inp ()@ to receive the missing value.
 --
-sortedMissingF :: SortF () k x y -> Merge.SimpleWhenMissing k x y
-sortedMissingF (SortF h) = Merge.mapMissing $ \k x ->
+sortedMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
+sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))
 
 -- ===================================================================
