@@ -119,6 +119,14 @@ newtype SortF i k a b = SortF { unSortF :: (i -> (k, a)) -> b }
   deriving (Profunctor, Closed, Costrong, Cochoice)
     via Costar (Compose ((->) i) ((,) k))
 
+-- | Choice via Coapplicative on the Corep functor (Monoid i).
+-- Mirrors the orphan @Choice (Costar f)@ instance in profunctor-optics.
+instance Monoid i => Choice (SortF i k) where
+  left' (SortF f) = SortF $ \inp ->
+    case coapply (Compose inp) of
+      Left  (Compose ika) -> Left  (f ika)
+      Right (Compose ikb) -> Right (copure (Compose ikb))
+
 instance Cosieve (SortF i k) (Compose ((->) i) ((,) k)) where
   cosieve (SortF f) = f . getCompose
   {-# INLINE cosieve #-}

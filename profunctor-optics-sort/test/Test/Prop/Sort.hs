@@ -781,6 +781,59 @@ prop_SF9_bindSortF = property $ do
     runSortF refined inpHighKey === (-42)
 
 ---------------------------------------------------------------------
+-- SF10–SF14: SortF operator tests
+---------------------------------------------------------------------
+
+-- SF10: sortingUnderF grate8
+prop_SF10_sortingUnderF_grate8 :: Property
+prop_SF10_sortingUnderF_grate8 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let carrier = SortF (\inp -> snd (inp 0)) :: SortF Int Int (I8 -> Bool) (I8 -> Bool)
+        lifted = sortingUnderF grate8 carrier
+        inp i = (i, w)
+    runSortF lifted inp === w
+
+-- SF11: cosortingOfF bits8
+prop_SF11_cosortingOfF_bits8 :: Property
+prop_SF11_cosortingOfF_bits8 = property $ do
+    w <- forAll $ Gen.word8 Range.constantBounded
+    let carrier = SortF (\inp -> snd (inp (Sum 0))) :: SortF (Sum Int) Int Bool Bool
+        lifted = cosortingOfF bits8 carrier
+        inp _ = (0 :: Int, w)
+    runSortF lifted inp === w
+
+-- SF12: sortingVectorF groups correctly
+prop_SF12_sortingVectorF :: Property
+prop_SF12_sortingVectorF = property $ do
+    let v = V.fromList [(2, "b"), (1, "a"), (2, "c"), (1, "d")]
+        result = sortingVectorF fst v
+    Map.keys result === [1, 2]
+    fmap V.toList result === Map.fromList [(1, [(1,"a"), (1,"d")]), (2, [(2,"b"), (2,"c")])]
+
+-- SF13: sortedMatchedF plugs into Map.merge
+prop_SF13_sortedMatchedF :: Property
+prop_SF13_sortedMatchedF = property $ do
+    let m1 = Map.fromList [(1, "a"), (2, "b")]
+        m2 = Map.fromList [(2, "x"), (3, "y")]
+        concatT :: SortF () Int (String, String) String
+        concatT = SortF $ \inp -> let (_, (x, y)) = inp () in x ++ y
+        result = Merge.merge
+                   Merge.dropMissing
+                   Merge.dropMissing
+                   (sortedMatchedF concatT)
+                   m1 m2
+    result === Map.fromList [(2, "bx")]
+
+-- SF14: zipsSortingF merges results
+prop_SF14_zipsSortingF :: Property
+prop_SF14_zipsSortingF = property $ do
+    let s1 = SortF (\inp -> snd (inp 0) + 1) :: SortF Int Int Int Int
+        s2 = SortF (\inp -> snd (inp 0) + 2) :: SortF Int Int Int Int
+        merged = zipsSortingF (+) s1 s2
+        inp i = (i, i * 10)
+    runSortF merged inp === 3  -- (0 + 1) + (0 + 2), since snd (inp 0) = 0
+
+---------------------------------------------------------------------
 -- Helpers
 ---------------------------------------------------------------------
 
