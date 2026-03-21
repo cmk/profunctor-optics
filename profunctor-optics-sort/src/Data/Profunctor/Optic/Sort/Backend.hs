@@ -7,7 +7,7 @@
 -- * 'Lens' (Strong + Choice) → Sort1
 -- * Sort2 reified (+ Costrong + Cochoice) → Sort2
 -- * 'Colens' (Closed) → Sort
-module Data.Profunctor.Optic.Sort
+module Data.Profunctor.Optic.Sort.Backend
   ( -- * Reified optic types
     ASort1, ASort2
 
