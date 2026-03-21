@@ -13,14 +13,24 @@ module Data.Profunctor.Optic.Property (
     -- * Prism
   , Prism
   , tofrom_prism
-  , fromto_prism 
-  , idempotent_prism 
+  , fromto_prism
+  , idempotent_prism
+    -- * Reprism
+  , Reprism
+  , tofrom_reprism
+  , fromto_reprism
+  , idempotent_reprism
     -- * Lens
   , Lens
   , id_lens
   , tofrom_lens
   , fromto_lens
   , idempotent_lens
+    -- * Relens
+  , Relens
+  , const_relens
+  , tofrom_relens
+  , idempotent_relens
     -- * Colens
   , Colens
   , id_grate
@@ -106,6 +116,31 @@ idempotent_prism :: Eq s => Eq a => Prism' s a -> s -> Bool
 idempotent_prism o s = withPrism o $ \sta _ -> left' sta (sta s) == left' Left (sta s)
 
 ---------------------------------------------------------------------
+-- 'Reprism'
+---------------------------------------------------------------------
+
+-- | If we build and then match, we get back the original.
+--
+-- * @either id sa (bat a) ≡ a@
+--
+tofrom_reprism :: Eq a => Reprism' s a -> a -> Bool
+tofrom_reprism o a = withReprism o $ \sa bat -> either id sa (bat a) == a
+
+-- | If we match a built value, we always get 'Right'.
+--
+-- * @bat (sa s) ≡ Right s@
+--
+fromto_reprism :: Eq s => Eq a => Reprism' s a -> s -> Bool
+fromto_reprism o s = withReprism o $ \sa bat -> bat (sa s) == Right s
+
+-- | Matching the result of a match is the same as wrapping in 'Left'.
+--
+-- * @left' bat (bat a) ≡ left' Left (bat a)@
+--
+idempotent_reprism :: Eq s => Eq a => Reprism' s a -> a -> Bool
+idempotent_reprism o a = withReprism o $ \_ bat -> left' bat (bat a) == left' Left (bat a)
+
+---------------------------------------------------------------------
 -- 'Lens'
 ---------------------------------------------------------------------
 
@@ -134,6 +169,34 @@ fromto_lens o s a = withLens o $ \sa sas -> sa (sas s a) == a
 --
 idempotent_lens :: Eq s => Lens' s a -> s -> a -> a -> Bool
 idempotent_lens o s a1 a2 = withLens o $ \_ sas -> sas (sas s a1) a2 == sas s a2
+
+---------------------------------------------------------------------
+-- 'Relens'
+---------------------------------------------------------------------
+
+-- The 'Relens' laws are dual to the 'Lens' laws, with the roles of
+-- structure and focus swapped.
+
+-- | Co-get-set: setting to what we got gives back the structure.
+--
+-- * @bsa a (bt a) ≡ a@
+--
+const_relens :: Eq a => Relens' s a -> a -> Bool
+const_relens o a = withRelens o $ \bsa bt -> bsa a (bt a) == a
+
+-- | Co-set-get: getting from what we set gives back the focus.
+--
+-- * @bt (bsa a s) ≡ s@
+--
+tofrom_relens :: Eq s => Relens' s a -> a -> s -> Bool
+tofrom_relens o a s = withRelens o $ \bsa bt -> bt (bsa a s) == s
+
+-- | Co-set-set: setting twice is the same as setting once.
+--
+-- * @bsa (bsa a s1) s2 ≡ bsa a s2@
+--
+idempotent_relens :: Eq a => Relens' s a -> a -> s -> s -> Bool
+idempotent_relens o a s1 s2 = withRelens o $ \bsa _ -> bsa (bsa a s1) s2 == bsa a s2
 
 ---------------------------------------------------------------------
 -- 'Colens'
