@@ -172,12 +172,18 @@ countingHashOf :: Hashable a
                => Lens' s a
                -> NonEmpty s -> HashMap a Int
 
--- | Merge two collections via Hashable keys + HashMap merge.
-mergingHashOf :: Hashable a
-              => Lens' s a
-              -> Lens' t a
-              -> (a -> NonEmpty s -> NonEmpty t -> c)  -- matched
-              -> NonEmpty s -> NonEmpty t -> HashMap a c
+-- | Merge two collections via Hashable keys.
+-- Note: unordered-containers has no WhenMatched/WhenMissing merge API.
+-- Use unionWith/intersectionWith/differenceWith instead.
+innerMergeHash :: (Hashable a, Eq a)
+               => Lens' s a -> Lens' t a
+               -> (NonEmpty s -> NonEmpty t -> c)
+               -> NonEmpty s -> NonEmpty t -> HashMap a c
+
+outerMergeHash :: (Hashable a, Eq a)
+               => Lens' s a -> Lens' t a
+               -> (These (NonEmpty s) (NonEmpty t) -> c)
+               -> NonEmpty s -> NonEmpty t -> HashMap a c
 ```
 
 The `Hashed a` wrapper (caches hash) could also serve as an
@@ -193,11 +199,18 @@ optimization for repeated lookups — a Sort carrier that uses
 | **Complexity** | O(n log n) | O(n) average |
 | **Output** | `Map k v` | `HashMap k v` |
 | **Sort3 carrier** | `mkSort3N` with Map | `mkSort3NH` with HashMap |
-| **Merge** | `Map.merge` | `HashMap.unionWith` etc. |
+| **Merge** | `Map.merge` (WhenMatched/WhenMissing) | `unionWith`/`intersectionWith` (simpler) |
 
 Both share the same Sort profunctor types — the difference is
 only in the carrier construction (`mkSort1` vs `mkSort1H`) and
 output container type.
+
+Note: `unordered-containers` does NOT have a `WhenMatched`/
+`WhenMissing` merge framework. Merge operations use inline
+combining functions (`unionWith`, `intersectionWith`,
+`differenceWith`). The `sortedMatched`/`sortedMissing` bridge
+is containers-only. For HashMap merges, use the simpler
+`innerMergeHash`/`outerMergeHash` operators.
 
 ## Hedgehog properties
 
