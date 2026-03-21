@@ -19,6 +19,7 @@ module Data.Profunctor.Optic (
   , module Fold
   , module View
   , module Setter
+  , module Sort
     -- * Re-exported class hierarchy
   , module Data.Distributive
   , module Control.Coapplicative
@@ -42,6 +43,7 @@ import Data.Profunctor.Optic.Traversal        as Traversal
 import Data.Profunctor.Optic.Fold             as Fold
 import Data.Profunctor.Optic.View             as View
 import Data.Profunctor.Optic.Setter           as Setter
+import Data.Profunctor.Optic.Sort             as Sort
 
 -- Re-exported class hierarchy
 import Data.Distributive
