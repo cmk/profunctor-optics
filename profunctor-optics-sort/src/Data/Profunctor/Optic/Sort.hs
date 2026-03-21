@@ -27,13 +27,18 @@ module Data.Profunctor.Optic.Sort
   , toMapWithOf
   , countingOf
 
+    -- * List variants
+  , sortingOfL
+  , groupingOfL
+  , nubbingOfL
+  , toMapOfL
+  , countingOfL
+  , sortingString
+
     -- * Sort2 operators (+ Costrong + Cochoice)
   , groupingBack
   , nubbingBack
   , groupingDescBack
-
-    -- * Sort operators
-  , zipsSorting
 
     -- * Generic representable sort
   , sortingRep
@@ -197,6 +202,38 @@ countingOf o xs =
   Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
 
 -- ===================================================================
+-- List variants
+-- ===================================================================
+
+-- | Sort a list through a lens. Returns @[]@ on empty input.
+sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingOfL _ [] = []
+sortingOfL o xs = map NE.toList $ sortingOf o (NE.fromList xs)
+
+-- | Group a list through a lens.
+groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+groupingOfL = sortingOfL
+
+-- | Deduplicate a list through a lens, keeping first per group.
+nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
+nubbingOfL _ [] = []
+nubbingOfL o xs = nubbingOf o (NE.fromList xs)
+
+-- | Build a 'Map.Map' keyed by lens focus from a list.
+toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
+toMapOfL _ [] = Map.empty
+toMapOfL o xs = fmap NE.toList $ toMapOf o (NE.fromList xs)
+
+-- | Count occurrences per key from a list.
+countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
+countingOfL _ [] = Map.empty
+countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+
+-- | Sort a 'String' by a key on each character.
+sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
+sortingString = sortingRep length (\s i -> s !! i) id
+
+-- ===================================================================
 -- Sort2 operators (+ Costrong + Cochoice)
 -- ===================================================================
 
@@ -267,10 +304,7 @@ toMapIx o xs =
 -- The optic IS the composition. See grate8/bits8 docs in
 -- profunctor-optics-strings.
 
--- | Merge two Sort results pointwise.
---
-zipsSorting :: (b -> b -> b) -> Sort i k a b -> Sort i k a b -> Sort i k a b
-zipsSorting f (Sort h1) (Sort h2) = Sort $ \inp -> f (h1 inp) (h2 inp)
+-- zipsSorting is re-exported from Data.Profunctor.Optic.Carrier.
 
 -- ===================================================================
 -- Generic representable sort

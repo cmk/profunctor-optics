@@ -113,6 +113,15 @@ module Data.Profunctor.Optic.Carrier (
     -- * Sort
   , Sort(..)
   , runSort
+    -- * Sort combinators
+  , (%.)
+  , bindSort
+  , catSort
+  , sortC
+  , remapSort
+  , eitherSort
+  , maybeSort
+  , zipsSorting
 ) where
 
 import Control.Category (Category)
@@ -128,6 +137,7 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
+import qualified Control.Category as C
 import qualified Control.Category as C
 
 -- $setup
@@ -1062,3 +1072,62 @@ instance Monoid i => Category (Sort i k) where
 {-# INLINE runSort #-}
 runSort :: Sort i k a b -> (i -> (k, a)) -> b
 runSort = unSort
+
+---------------------------------------------------------------------
+-- Sort combinators
+---------------------------------------------------------------------
+
+-- | Pipeline two 'Sort' passes.
+--
+-- @f %. g@ runs @g@ on the full input to produce a single @b@,
+-- then @f@ sees that @b@ at every position, paired with the
+-- original keys (unchanged).
+infixr 9 %.
+{-# INLINE (%.) #-}
+(%.) :: Sort i k b c -> Sort i k a b -> Sort i k a c
+Sort f %. Sort g = Sort $ \inp ->
+  f (\i -> (fst (inp i), g inp))
+
+-- | Indexed bind: inspect the key at each position and choose
+-- a continuation.
+{-# INLINE bindSort #-}
+bindSort :: Sort i k a b -> (k -> Sort i k a' a) -> Sort i k a' b
+bindSort (Sort m) f = Sort $ \inp ->
+  m (\i -> let (k, _) = inp i in (k, unSort (f k) inp))
+
+-- | Fold multiple 'Sort' passes.
+{-# INLINE catSort #-}
+catSort :: (Monoid i, Foldable f) => f (Sort i k a a) -> Sort i k a a
+catSort = foldr (%.) C.id
+
+-- | Constant: embed a key-value pair.
+{-# INLINE sortC #-}
+sortC :: (k, a) -> Sort i k a (k, a)
+sortC ka = Sort $ const ka
+
+-- | Remap keys.
+{-# INLINE remapSort #-}
+remapSort :: (k1 -> k2) -> Sort i k2 a b -> Sort i k1 a b
+remapSort f (Sort g) = Sort $ \inp -> g (B.first f . inp)
+
+-- | Sort an 'Either': apply left sort to 'Left's, right sort to 'Right's.
+-- Samples at 'mempty' to decide the branch.
+{-# INLINE eitherSort #-}
+eitherSort :: Monoid i => Sort i k a c -> Sort i k b c -> Sort i k (Either a b) c
+eitherSort (Sort l) (Sort r) = Sort $ \inp ->
+  case snd (inp mempty) of
+    Left a0  -> l (\i -> B.second (either id (const a0)) (inp i))
+    Right b0 -> r (\i -> B.second (either (const b0) id) (inp i))
+
+-- | Sort a 'Maybe': apply sort to 'Just's, use default for 'Nothing's.
+{-# INLINE maybeSort #-}
+maybeSort :: Monoid i => c -> Sort i k a c -> Sort i k (Maybe a) c
+maybeSort def (Sort f) = Sort $ \inp ->
+  case snd (inp mempty) of
+    Nothing -> def
+    Just a0 -> f (\i -> B.second (maybe a0 id) (inp i))
+
+-- | Merge two 'Sort' results pointwise.
+{-# INLINE zipsSorting #-}
+zipsSorting :: (b -> b -> b) -> Sort i k a b -> Sort i k a b -> Sort i k a b
+zipsSorting f (Sort h1) (Sort h2) = Sort $ \inp -> f (h1 inp) (h2 inp)
