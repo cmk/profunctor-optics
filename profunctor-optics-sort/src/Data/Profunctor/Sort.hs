@@ -230,16 +230,22 @@ maybeSortF def (SortF f) = SortF $ \inp ->
 
 -- | Identity carrier for finite index types.
 -- Groups by key, producing a 'Map' of lists.
+--
+-- Note: the lazy @(,)@ in @SortF@'s type is needed for DerivingVia.
+-- Strictness is applied here at the carrier level: keys and values
+-- are forced when building the Map.
 mkSortF :: (Bounded i, Enum i, Ord k) => SortF i k a (Map.Map k [a])
 mkSortF = SortF $ \inp ->
-  let pairs = [(ki, a) | i <- [minBound..maxBound], let (ki, a) = inp i]
-  in  Map.fromListWith (flip (++)) [(k, [a]) | (k, a) <- pairs]
+  Map.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
+                                | i <- [minBound..maxBound]
+                                , let (ki, a) = inp i ]
 
 -- | Identity carrier for Int-indexed containers of known size.
 mkSortFN :: Ord k => Int -> SortF Int k a (Map.Map k [a])
 mkSortFN n = SortF $ \inp ->
-  let pairs = [(ki, a) | i <- [0..n-1], let (ki, a) = inp i]
-  in  Map.fromListWith (flip (++)) [(k, [a]) | (k, a) <- pairs]
+  Map.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
+                                | i <- [0..n-1]
+                                , let (ki, a) = inp i ]
 
 -- | Run a SortF carrier on an input function.
 {-# INLINE runSortF #-}
