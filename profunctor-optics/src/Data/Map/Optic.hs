@@ -33,11 +33,32 @@ module Data.Map.Optic (
   , lookedGE
   , lookedGT
   , validated
+    -- * Lazy variants
+  , altered'
+  , ialtered'
+    -- * Sort-based operators
+  , toMapOfL
+  , countingOfL
+  , foldSortingL
+  , foldSorting1L
+  , mconcatSortingL
+    -- * Merge (Sort + containers merge)
+  , mergingOfL
+  , innerMergeL
+  , outerMergeL
+  , leftMergeL
+  , rightMergeL
+    -- * Sort merge tactics
+  , sortedMatched
+  , sortedMissing
 ) where
 
 import Data.Profunctor.Optic
+import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
 import qualified Data.Map.Lazy as Map
+import qualified Data.Map.Strict as MapS
+import qualified Data.Map.Merge.Strict as Merge
 import Prelude
 
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
@@ -91,13 +112,13 @@ ifolded = ixfoldVl Map.traverseWithKey
 -- | /O(log n)/. Alter the value at a specific key.
 --
 altered :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered k = setter $ \ab -> Map.alter ab k
+altered k = setter $ \ab -> MapS.alter ab k
 {-# INLINE altered #-}
 
 -- | /O(log n)/. Indexed alter.
 --
 ialtered :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ialtered k = ixsetter $ \kab -> Map.alter (kab k) k
+ialtered k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ialtered #-}
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
@@ -171,3 +192,107 @@ lookedGT k = ixtraversal0' (Map.lookupGT k) (flip $ Map.insert k)
 validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = filtered Map.valid
 {-# INLINE validated #-}
+
+---------------------------------------------------------------------
+-- Lazy variants
+---------------------------------------------------------------------
+
+-- | /O(log n)/. Lazy alter (values not forced on insert).
+--
+altered' :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
+altered' k = setter $ \ab -> Map.alter ab k
+{-# INLINE altered' #-}
+
+-- | /O(log n)/. Lazy indexed alter.
+--
+ialtered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
+ialtered' k = ixsetter $ \kab -> Map.alter (kab k) k
+{-# INLINE ialtered' #-}
+
+---------------------------------------------------------------------
+-- Sort-based operators
+---------------------------------------------------------------------
+
+-- | Build a 'Map.Map' keyed by lens focus from a list.
+toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
+toMapOfL _ [] = Map.empty
+toMapOfL o xs = Map.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
+
+-- | Count occurrences per key from a list.
+countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
+countingOfL _ [] = Map.empty
+countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+
+-- | Sort through a lens, then right-fold each group.
+foldSortingL :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
+foldSortingL o g z xs = map (foldr g z) (Map.elems $ toMapOfL o xs)
+
+-- | Sort through a lens, then reduce each non-empty group.
+foldSorting1L :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
+foldSorting1L o f xs = map (foldr1 f) (Map.elems $ toMapOfL o xs)
+
+-- | Sort through a lens, then monoidal concat per group.
+mconcatSortingL :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
+mconcatSortingL o g xs = map (foldMap g) (Map.elems $ toMapOfL o xs)
+
+---------------------------------------------------------------------
+-- Merge (Sort + containers merge)
+---------------------------------------------------------------------
+
+-- | Merge two lists through lenses using containers merge tactics.
+mergingOfL :: Ord a
+           => Lens' s a -> Lens' t a
+           -> Merge.SimpleWhenMissing a [s] c
+           -> Merge.SimpleWhenMissing a [t] c
+           -> Merge.SimpleWhenMatched a [s] [t] c
+           -> [s] -> [t] -> Map.Map a c
+mergingOfL lo ro wml wmr wm xs ys =
+  Merge.merge wml wmr wm (toMapOfL lo xs) (toMapOfL ro ys)
+
+-- | Inner merge: only keys present in both inputs.
+innerMergeL :: Ord a
+            => Lens' s a -> Lens' t a
+            -> (a -> [s] -> [t] -> c)
+            -> [s] -> [t] -> Map.Map a c
+innerMergeL lo ro f =
+  mergingOfL lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+
+-- | Full outer merge.
+outerMergeL :: Ord a
+            => Lens' s a -> Lens' t a
+            -> (a -> [s] -> c) -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
+            -> [s] -> [t] -> Map.Map a c
+outerMergeL lo ro fl fr fb =
+  mergingOfL lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+-- | Left merge: all keys from left.
+leftMergeL :: Ord a
+           => Lens' s a -> Lens' t a
+           -> (a -> [s] -> c) -> (a -> [s] -> [t] -> c)
+           -> [s] -> [t] -> Map.Map a c
+leftMergeL lo ro fl fb =
+  mergingOfL lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+
+-- | Right merge: all keys from right.
+rightMergeL :: Ord a
+            => Lens' s a -> Lens' t a
+            -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
+            -> [s] -> [t] -> Map.Map a c
+rightMergeL lo ro fr fb =
+  mergingOfL lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+---------------------------------------------------------------------
+-- Sort merge tactics
+---------------------------------------------------------------------
+
+-- | Construct a 'WhenMatched' merge tactic from a 'Sort'.
+-- Uses @i = ()@ (one position per key).
+sortedMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
+sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
+  h (const (k, (x, y)))
+
+-- | Construct a 'WhenMissing' merge tactic from a 'Sort'.
+-- Uses @i = ()@ (one position per key).
+sortedMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
+sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
+  h (const (k, x))

@@ -57,6 +57,9 @@ library
 
       Data.List.Optic
       Data.Map.Optic
+      Data.Set.Optic
+      Data.IntMap.Optic
+      Data.IntSet.Optic
       Data.Sequence.Optic
       Data.Tree.Optic
 
@@ -96,6 +99,19 @@ library
     , semigroupoids          >= 5
     , transformers           >= 0.5
 
+benchmark bench
+  type:              exitcode-stdio-1.0
+  main-is:           Main.hs
+  ghc-options:       -Wall -O2 -rtsopts
+  hs-source-dirs:    bench
+  default-language:  Haskell2010
+
+  build-depends:
+      base
+    , containers
+    , criterion           >= 1.5
+    , profunctor-optics
+
 -- doctest suite temporarily disabled — needs updating for Sort module.
 -- See feat/sort branch for tracking.
 --
@@ -117,6 +133,9 @@ test-suite properties
   other-modules:     Test.Carrier
                    , Test.Data.List.Optic
                    , Test.Data.Map.Optic
+                   , Test.Data.Set.Optic
+                   , Test.Data.IntMap.Optic
+                   , Test.Data.IntSet.Optic
                    , Test.Data.Profunctor.Optic.Sort
                    , Test.Data.Sequence.Optic
                    , Test.Data.Tree.Optic
