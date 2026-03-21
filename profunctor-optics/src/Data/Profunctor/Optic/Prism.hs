@@ -13,9 +13,18 @@ module Data.Profunctor.Optic.Prism (
   , prism'
   , handling
   , clonePrism
+    -- * Reprism
+  , Reprism
+  , Reprism'
+  , reprism
+  , reprism'
+  , rehandling
+  , cloneReprism
     -- * Optics
   , left
   , right
+  , releft
+  , reright
   , just
   , nothing
   , prefixed
@@ -29,8 +38,10 @@ module Data.Profunctor.Optic.Prism (
   , toPastroSum
   , toTambaraSum
   , withPrism
+  , withReprism
     -- * Classes
   , Choice(..)
+  , Cochoice(..)
 ) where
 
 import Control.Monad (guard)
@@ -101,6 +112,42 @@ clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o $ \sta bt -> prism sta bt
 
 ---------------------------------------------------------------------
+-- 'Reprism'
+---------------------------------------------------------------------
+
+-- | Obtain a 'Reprism' from a viewer and a matcher.
+--
+-- @'reprism' sa bat ≡ 're' ('prism' sta bt)@ (with roles swapped)
+--
+-- A 'Reprism' is simultaneously a 'View' and a 'Review':
+--
+-- @
+-- 'Data.Profunctor.Optic.View.view' ('reprism' sa bat) ≡ sa
+-- @
+--
+reprism :: (s -> a) -> (b -> Either a t) -> Reprism s t a b
+reprism sa bat = unright . dimap (id ||| sa) bat
+{-# INLINE reprism #-}
+
+-- | Obtain a simple 'Reprism' from a viewer and a 'Maybe' matcher.
+--
+reprism' :: (s -> a) -> (a -> Maybe s) -> Reprism' s a
+reprism' sa as = reprism sa $ \b -> maybe (Left b) Right (as b)
+{-# INLINE reprism' #-}
+
+-- | Obtain a 'Reprism' from its free tensor representation.
+--
+rehandling :: (Either c s -> a) -> (b -> Either c t) -> Reprism s t a b
+rehandling csa bct = unright . dimap csa bct
+{-# INLINE rehandling #-}
+
+-- | Clone a 'Reprism'.
+--
+cloneReprism :: AReprism s t a b -> Reprism s t a b
+cloneReprism o = withReprism o reprism
+{-# INLINE cloneReprism #-}
+
+---------------------------------------------------------------------
 -- Common 'Prism's and 'Coprism's
 ---------------------------------------------------------------------
 
@@ -113,6 +160,22 @@ left pab = left' pab
 --
 right :: Prism (c + a) (c + b) a b
 right pab = right' pab
+
+-- | 'Reprism' out of the @Left@ constructor.
+--
+-- @'releft' ≡ 're' 'left'@
+--
+releft :: Reprism a b (Either a c) (Either b c)
+releft = unleft
+{-# INLINE releft #-}
+
+-- | 'Reprism' out of the @Right@ constructor.
+--
+-- @'reright' ≡ 're' 'right'@
+--
+reright :: Reprism a b (Either c a) (Either c b)
+reright = unright
+{-# INLINE reright #-}
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --

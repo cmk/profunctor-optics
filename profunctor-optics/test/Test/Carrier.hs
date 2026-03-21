@@ -10,8 +10,8 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
-import Data.Profunctor.Optic.Lens (grate, lensVl)
-import Data.Profunctor.Optic.Prism (just)
+import Data.Profunctor.Optic.Lens (grate, lensVl, relens, refirst)
+import Data.Profunctor.Optic.Prism (just, reprism, releft)
 import Data.Profunctor.Optic.Traversal (traversed)
 import Data.Profunctor.Optic.Setter (set)
 import Data.Functor.Identity
@@ -107,6 +107,55 @@ prop_prism_idempotent :: Property
 prop_prism_idempotent = withTests 1000 . property $ do
   s <- forAll $ gen_either int int
   assert $ Prop.idempotent_prism left_ s
+
+---------------------------------------------------------------------
+-- Relens
+---------------------------------------------------------------------
+
+-- Relens' (Int, Char) (Int, Char) — the identity relens
+refirst_ :: Relens' (Int, Char) (Int, Char)
+refirst_ = relens (\a _ -> a) id
+
+prop_relens_const :: Property
+prop_relens_const = withTests 1000 . property $ do
+  a <- forAll $ gen_pair int char
+  assert $ Prop.const_relens refirst_ a
+
+prop_relens_tofrom :: Property
+prop_relens_tofrom = withTests 1000 . property $ do
+  a <- forAll $ gen_pair int char
+  s <- forAll $ gen_pair int char
+  assert $ Prop.tofrom_relens refirst_ a s
+
+prop_relens_idempotent :: Property
+prop_relens_idempotent = withTests 1000 . property $ do
+  a <- forAll $ gen_pair int char
+  s1 <- forAll $ gen_pair int char
+  s2 <- forAll $ gen_pair int char
+  assert $ Prop.idempotent_relens refirst_ a s1 s2
+
+---------------------------------------------------------------------
+-- Reprism
+---------------------------------------------------------------------
+
+-- Reprism' (Either Int Char) (Either Int Char) — views Left, matches back
+releft_ :: Reprism' (Either Int Char) (Either Int Char)
+releft_ = reprism id (\a -> case a of Left _ -> Right a; Right _ -> Left a)
+
+prop_reprism_tofrom :: Property
+prop_reprism_tofrom = withTests 1000 . property $ do
+  a <- forAll $ gen_either int char
+  assert $ Prop.tofrom_reprism releft_ a
+
+prop_reprism_fromto :: Property
+prop_reprism_fromto = withTests 1000 . property $ do
+  s <- forAll $ gen_either int char
+  assert $ Prop.fromto_reprism releft_ s
+
+prop_reprism_idempotent :: Property
+prop_reprism_idempotent = withTests 1000 . property $ do
+  a <- forAll $ gen_either int char
+  assert $ Prop.idempotent_reprism releft_ a
 
 ---------------------------------------------------------------------
 -- Traversal0 (Affine)
