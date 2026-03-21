@@ -6,15 +6,14 @@
 --
 -- * 'Lens' (Strong + Choice) → Sort1
 -- * Sort2 reified (+ Costrong + Cochoice) → Sort2
--- * 'Colens' (Closed) → Sort3
+-- * 'Colens' (Closed) → SortF
 module Data.Profunctor.Optic.Sort
   ( -- * Reified optic types
-    ASort1, ASort2, ASort3
+    ASort1, ASort2
 
     -- * Core runners (carrier pattern)
   , builds1
   , builds2
-  , builds3
   , buildsWith1
 
     -- * Sort1 operators (Lens, Strong + Choice)
@@ -33,25 +32,19 @@ module Data.Profunctor.Optic.Sort
   , nubbingBack
   , groupingDescBack
 
-    -- * Sort3 operators (Closed, Coaffine, Cotraversing)
-  , sortingUnder
-  , cosortingOf
-  , zipsSorting
-
-    -- * SortF operators
+    -- * SortF operators (Closed, Coaffine, Cotraversing)
   , sortingUnderF
   , cosortingOfF
   , zipsSortingF
   , sortingVectorF
+
+    -- * SortF merge tactics
   , sortedMatchedF
   , sortedMissingF
 
     -- * Indexed sorting (key = index)
   , sortingIx
   , toMapIx
-
-    -- * Sort3 for Int-indexed containers
-  , sortingVector
 
     -- * Post-sort folds
   , foldSorting
@@ -64,10 +57,6 @@ module Data.Profunctor.Optic.Sort
   , outerMerge
   , leftMerge
   , rightMerge
-
-    -- * Sort3 merge tactics
-  , sortedMatched
-  , sortedMissing
 
     -- * Joins (by key extractor, not optic-based)
   , joiningOf
@@ -96,7 +85,6 @@ import qualified Data.Map.Merge.Strict as Merge
 
 type ASort1 k s t a b = Sort1 k a b -> Sort1 k s t
 type ASort2 k s t a b = Sort2 k a b -> Sort2 k s t
-type ASort3 i j k s t a b = Sort3 i j k a b -> Sort3 i j k s t
 
 -- ===================================================================
 -- Core runners (carrier pattern)
@@ -111,10 +99,6 @@ builds1 o key carrier xs =
 builds2 :: ASort2 k s t a b -> (s -> k) -> Sort2 k a b -> NonEmpty s -> NonEmpty [t]
 builds2 o key carrier xs =
   runSort2 (o carrier) (fmap (\s -> (key s, s)) xs)
-
--- | Apply a reified Sort3 optic to a Sort3 carrier.
-builds3 :: ASort3 i j k s t a b -> Sort3 i j k a b -> Sort3 i j k s t
-builds3 o = o
 
 -- | Sort and transform through a reified optic.
 buildsWith1 :: Ord k => ASort1 k s t a b -> (s -> k) -> (a -> b) -> NonEmpty s -> [NonEmpty t]
@@ -213,45 +197,6 @@ groupingDescBack o xs =
   runSort2 (o (sortOn2 Down mkSort2)) (fmap (\s -> (s ^. o, s)) xs)
 
 -- ===================================================================
--- Sort3 operators (Closed)
--- ===================================================================
-
--- | Sort under a 'Colens' / grate: lift a Sort3 through a Closed
--- optic to sort representable structures pointwise.
---
--- @
--- 'sortingUnder' grate8 :: Sort3 i j k (I8 -> Bool) (I8 -> Bool) -> Sort3 i j k Word8 Word8
--- @
---
-sortingUnder :: Colens s t a b
-             -> Sort3 i j k a b -> Sort3 i j k s t
-sortingUnder g = g
-
--- | Sort through a 'Cotraversal': lift a Sort3 through a
--- @Distributive@ functor. Requires @'Monoid' i@ for the 'Choice'
--- and 'Cotraversing' instances on Sort3.
---
--- @
--- 'cosortingOf' bits8 :: Sort3 I8 Int Bool Bool Bool -> Sort3 I8 Int Bool Word8 Word8
--- @
---
-cosortingOf :: Monoid i
-            => Cotraversal s t a b
-            -> Sort3 i j k a b -> Sort3 i j k s t
-cosortingOf o = o
-
--- | Merge two Sort3 results pointwise. Given a binary combiner on
--- the output type, produce a Sort3 that applies both sorts to the
--- same input and combines their results at each @(j, k)@ position.
---
--- @
--- 'zipsSorting' f s1 s2 = Sort3 $ \\inp j k -> f ('runSort3' s1 inp j k) ('runSort3' s2 inp j k)
--- @
---
-zipsSorting :: (b -> b -> b) -> Sort3 i j k a b -> Sort3 i j k a b -> Sort3 i j k a b
-zipsSorting f (Sort3 h1) (Sort3 h2) = Sort3 $ \inp j k -> f (h1 inp j k) (h2 inp j k)
-
--- ===================================================================
 -- Indexed sorting (key = index)
 -- ===================================================================
 
@@ -330,33 +275,6 @@ sortedMatchedF (SortF h) = Merge.zipWithMatched $ \k x y ->
 sortedMissingF :: SortF () k x y -> Merge.SimpleWhenMissing k x y
 sortedMissingF (SortF h) = Merge.mapMissing $ \k x ->
   h (const (k, x))
-
--- ===================================================================
--- Sort3 for Int-indexed containers
--- ===================================================================
-
--- | Sort a 'Vector' by a key-extraction function using Sort3.
---
--- The vector is treated as an @Int@-indexed representable container.
--- The Sort3 carrier groups positions by key; results are materialized
--- into a 'Map' of vectors.
---
--- @
--- 'sortingVector' fst (V.fromList [(2,"b"), (1,"a"), (2,"c")])
---   = Map.fromList [(1, V.fromList ["a"]), (2, V.fromList ["b","c"])]
--- @
---
-sortingVector :: Ord k
-              => (a -> k)
-              -> V.Vector a -> Map.Map k (V.Vector a)
-sortingVector key v =
-  let n = V.length v
-      s = mkSort3N n
-      inp i = (key (v V.! i), v V.! i)
-      -- Use Sort3 to look up each position's value under its key.
-      -- Materialize by collecting keys and building groups.
-      keyCounts = Map.fromListWith (+) [(key (v V.! i), 1 :: Int) | i <- [0..n-1]]
-  in  Map.mapWithKey (\k cnt -> V.generate cnt (\j -> runSort3 s inp j k)) keyCounts
 
 -- ===================================================================
 -- Post-sort fold operators
@@ -461,30 +379,6 @@ rightMerge :: Ord a
            -> NonEmpty s -> NonEmpty t -> Map.Map a c
 rightMerge lo ro fr fb =
   mergingOf lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
-
--- ===================================================================
--- Sort3 merge tactics
--- ===================================================================
-
--- | Construct a 'WhenMatched' tactic from a Sort3 carrier.
---
--- The carrier uses @i = ()@ since a merge tactic has exactly one
--- \"position\" per key. The carrier calls @inp ()@ to receive the
--- matched pair.
---
-sortedMatched :: Sort3 () j k (x, y) z -> j -> Merge.SimpleWhenMatched k x y z
-sortedMatched (Sort3 h) j = Merge.zipWithMatched $ \k x y ->
-  h (const (k, (x, y))) j k
-
--- | Construct a 'WhenMissing' tactic from a Sort3 carrier.
---
--- The carrier uses @i = ()@ since a merge tactic has exactly one
--- \"position\" per key. The carrier calls @inp ()@ to receive the
--- missing value.
---
-sortedMissing :: Sort3 () j k x y -> j -> Merge.SimpleWhenMissing k x y
-sortedMissing (Sort3 h) j = Merge.mapMissing $ \k x ->
-  h (const (k, x)) j k
 
 -- ===================================================================
 -- Joins (by key extractor, not optic-based)
