@@ -1,11 +1,13 @@
-# Sprint 6 — Vector, primitive array, and array optics
+# Sprint 6 — Vector, primitive array, array, and hashable optics
 
 ## Scope
 
 Prototype profunctor optics and Sort operators for the three
-array-like container libraries: `vector`, `primitive`, and `array`.
-These are all Int-indexed (or Ix-indexed) representable types,
-making them natural Sort3 carriers via `mkSort3N`.
+array-like container libraries (`vector`, `primitive`, `array`)
+and the `hashable` library. The array types are Int-indexed
+(or Ix-indexed) representable types, making them natural Sort3
+carriers via `mkSort3N`. Hashable provides an alternative
+discrimination key to `Ord`, enabling unordered grouping.
 
 ## Rationale
 
@@ -30,7 +32,8 @@ each backend to see whether a leaner approach works better.
 | S6.3  | Data.Primitive.Array.Optic       | PrimArray optics (Prim constraint)                  |
 | S6.4  | Data.Array.Optic                 | Array optics (Ix-indexed, multi-dimensional)        |
 | S6.5  | Data.Profunctor.Optic.Sort       | Generic sortingArray for any generate/index pair    |
-| S6.6  | Test.Prop.Array                  | Hedgehog properties                                 |
+| S6.6  | Data.Profunctor.Sort / Optic.Sort| Hashable-keyed grouping (unordered discrimination)  |
+| S6.7  | Test.Prop.Array                  | Hedgehog properties                                 |
 
 ## Key design decisions
 
@@ -141,6 +144,61 @@ sortingRep :: Ord k
            -> c -> Map k c'
 ```
 
+### S6.6 — Hashable-keyed grouping
+
+`Hashable` provides O(1) average-case discrimination via hashing,
+complementing `Ord`'s O(log n) tree-based discrimination. The
+discrimination library uses `hashing :: Hashable a => Group a`
+for this. For Sort, the key insight is: where `Ord k` gives
+sorted groups (Map), `Hashable k` gives unsorted groups (HashMap).
+
+```haskell
+-- | Sort1 carrier using Hashable instead of Ord.
+-- Groups by hash, producing a HashMap of groups.
+mkSort1H :: Hashable k => Sort1 k a a
+
+-- | Group by Hashable key through a lens.
+groupingHashOf :: Hashable a
+               => Lens' s a
+               -> NonEmpty s -> HashMap a (NonEmpty s)
+
+-- | Unordered toMap via Hashable.
+toHashMapOf :: Hashable a
+            => Lens' s a
+            -> NonEmpty s -> HashMap a (NonEmpty s)
+
+-- | Count occurrences per Hashable key.
+countingHashOf :: Hashable a
+               => Lens' s a
+               -> NonEmpty s -> HashMap a Int
+
+-- | Merge two collections via Hashable keys + HashMap merge.
+mergingHashOf :: Hashable a
+              => Lens' s a
+              -> Lens' t a
+              -> (a -> NonEmpty s -> NonEmpty t -> c)  -- matched
+              -> NonEmpty s -> NonEmpty t -> HashMap a c
+```
+
+The `Hashed a` wrapper (caches hash) could also serve as an
+optimization for repeated lookups — a Sort carrier that uses
+`Hashed k` instead of `k` avoids rehashing.
+
+### Hashable vs Ord design axis
+
+| | Ord k | Hashable k |
+|---|---|---|
+| **Grouping** | Sorted (Map) | Unsorted (HashMap) |
+| **mkSort1** | `Map.fromListWith` | `HashMap.fromListWith` |
+| **Complexity** | O(n log n) | O(n) average |
+| **Output** | `Map k v` | `HashMap k v` |
+| **Sort3 carrier** | `mkSort3N` with Map | `mkSort3NH` with HashMap |
+| **Merge** | `Map.merge` | `HashMap.unionWith` etc. |
+
+Both share the same Sort profunctor types — the difference is
+only in the carrier construction (`mkSort1` vs `mkSort1H`) and
+output container type.
+
 ## Hedgehog properties
 
 | Prop  | Description                                                      |
@@ -155,6 +213,10 @@ sortingRep :: Ord k
 | P68   | `arrayGrate`: `over arrayGrate id arr == arr`                    |
 | P69   | `sortingRep` agrees with `sortingVector` for boxed Vector        |
 | P70   | `sortingRep` agrees with `sortingPrimArray` for PrimArray        |
+| P71   | `groupingHashOf` groups share same key                           |
+| P72   | `groupingHashOf` preserves element count                         |
+| P73   | `toHashMapOf` keys = set of focused values                       |
+| P74   | `countingHashOf` counts agree with `countingOf` (same data)      |
 
 ## Work order
 
@@ -164,7 +226,8 @@ sortingRep :: Ord k
 4. S6.2 — Unboxed Vector optics
 5. S6.3 — PrimArray optics + P64–P65
 6. S6.4 — Array optics + P66–P68
-7. Green P61–P70
+7. S6.6 — Hashable-keyed grouping + P71–P74
+8. Green P61–P74
 
 ## Key files
 
@@ -175,6 +238,7 @@ sortingRep :: Ord k
 - `/Users/cmk/Documents/Code/haskell/vector/vector/src/Data/Vector.hs` — reference
 - `/Users/cmk/Documents/Code/haskell/primitive/Data/Primitive/PrimArray.hs` — reference
 - `/Users/cmk/Documents/Code/haskell/array/Data/Array/IArray.hs` — reference
+- `/Users/cmk/Documents/Code/haskell/hashable/src/Data/Hashable.hs` — reference
 
 ## Dependencies
 
@@ -182,3 +246,5 @@ Will need to add to profunctor-optics-sort (or a new package):
 - `vector` (already added)
 - `primitive`
 - `array`
+- `hashable`
+- `unordered-containers` (for HashMap output)

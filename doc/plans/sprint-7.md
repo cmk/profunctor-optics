@@ -27,6 +27,7 @@ we should establish similar baselines for sorting.
 | S7.4  | bench/Merge.hs                | mergingOf vs direct Map.merge                      |
 | S7.5  | bench/Compose.hs              | Optic composition overhead (sortingOf vs raw Sort1)|
 | S7.6  | bench/Array.hs                | sortingRep for Vector/PrimArray/Array               |
+| S7.7  | bench/Hash.hs                 | Hashable vs Ord discrimination                      |
 
 ## Benchmark groups
 
@@ -107,6 +108,22 @@ sortingRep across backends:
 This measures materialization cost across backends.
 ```
 
+### S7.7 — Hashable vs Ord discrimination
+
+```
+Compare Ord-keyed (Map) vs Hashable-keyed (HashMap) grouping:
+  - groupingOf (Ord, Map) vs groupingHashOf (Hashable, HashMap)
+  - toMapOf vs toHashMapOf
+  - countingOf vs countingHashOf
+  - Varying sizes: 100, 1K, 10K, 100K
+  - Varying key cardinality: low (10 keys) vs high (n/2 keys)
+
+Baselines:
+  - Map.fromListWith directly
+  - HashMap.fromListWith directly
+  - discrimination group vs sort
+```
+
 ## Benchmark infrastructure
 
 ```haskell
@@ -119,6 +136,7 @@ main = defaultMain
   , mergeBenchmarks
   , composeBenchmarks
   , arrayBenchmarks
+  , hashBenchmarks
   ]
 ```
 
@@ -145,6 +163,8 @@ benchmark sort-bench
     , vector
     , primitive
     , array
+    , hashable
+    , unordered-containers
 ```
 
 ## Expected results and what to look for
@@ -158,6 +178,7 @@ benchmark sort-bench
 | mergingOf vs direct Map.merge | ~1.0x (thin wrapper) | >1.5x |
 | sortingVector vs V.modify sort | 5-20x slower (materialization overhead) | >50x |
 | Sort3 mkSort3N vs mkSort1 | Sort3 slower (function indirection) | >10x |
+| Hashable vs Ord grouping | HashMap 1.5-3x faster (O(n) vs O(n log n)) | HashMap slower |
 
 ## Work order
 
