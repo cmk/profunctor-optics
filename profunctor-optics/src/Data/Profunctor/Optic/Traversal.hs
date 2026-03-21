@@ -76,9 +76,7 @@ module Data.Profunctor.Optic.Traversal (
   , cycled
     -- * Operators
   , matches
-  , (*~)
   , sequenceOf
-  , (**~)
   , traverseOf
   , ixtraverses
   , backwards
@@ -86,9 +84,7 @@ module Data.Profunctor.Optic.Traversal (
   , mapAccumsR
   , scansl1
   , scansr1
-  , (/~)
-  , collects 
-  , (//~)
+  , collects
   , cotraverses
   , cxtraverses
     -- * Classes
@@ -715,7 +711,7 @@ sequenceOf o = traverseOf o id
 -- /Benchmark: 0.89x vs direct fmap — GHC optimizes Star carrier well. See "Data.Profunctor.Optic.Bench"./
 --
 traverseOf :: ATraversal f s t a b -> (a -> f b) -> s -> f t
-traverseOf = (**~)
+traverseOf o = runStar #. o .# Star
 {-# INLINE traverseOf #-}
 
 -- | Traverse over an 'Ixtraversal'.
@@ -726,7 +722,7 @@ traverseOf = (**~)
 --
 -- @since 0.0.3
 ixtraverses :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
-ixtraverses o f = curry (o **~ uncurry f) mempty
+ixtraverses o f = curry (traverseOf o $ uncurry f) mempty
 {-# INLINE ixtraverses #-}
 
 -- | This allows you to 'Control.Traversable.traverse' the elements of a 'Traversing' or 'Traversing1' optic in the opposite order.
@@ -809,7 +805,7 @@ collects o = cotraverses o id
 -- | Cotraverse over a 'Cotraversal'.
 --
 cotraverses :: ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
-cotraverses = (//~)
+cotraverses o = runCostar #. o .# Costar
 {-# INLINE cotraverses #-}
 
 -- | Cotraverse over a 'Cxtraversal'.
@@ -820,5 +816,5 @@ cotraverses = (//~)
 --
 -- @since 0.0.3
 cxtraverses :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
-cxtraverses o f = flip (o //~ flip f) mempty
+cxtraverses o f = flip (cotraverses o $ flip f) mempty
 {-# INLINE cxtraverses #-}

@@ -20,13 +20,10 @@ module Data.Profunctor.Optic.View (
   , toProduct
   , fromSum
     -- * Operators
-  , (^.)
   , view
   , views
-  , (^%)
   , ixview
   , ixviews
-  , (.^)
   , review
   , reviews
   , cxreview
@@ -208,7 +205,6 @@ cxfrom f = coercel . rmap (\ib _ -> f ib)
 -- Operators
 ---------------------------------------------------------------------
 
-infix 8 ^.
 
 -- | An infix alias for 'view'.
 --
@@ -218,17 +214,6 @@ infix 8 ^.
 -- >>> ("hello","world") ^. second'
 -- "world"
 --
--- >>> 5 ^. to succ
--- 6
---
--- >>> import Data.Complex
--- >>> ((0, 1 :+ 2), 3) ^. first' . second' . to magnitude
--- 2.23606797749979
---
-(^.) :: s -> AView a s a -> a
-(^.) = flip view
-{-# INLINE ( ^. ) #-}
-
 -- | View the focus of an optic.
 --
 -- @
@@ -264,22 +249,7 @@ views :: MonadReader s m => AView r s a -> (a -> r) -> m r
 views o f = asks $ foldMapOf o f
 {-# INLINE views #-}
 
-infix 8 ^%
-
 -- | View the focus of an indexed optic along with its index.
---
--- /Note/: if the optic focuses on more than one element, then
--- the returned index will be a monoidal sum of all indices visited.
---
--- >>> [("foo",41), ("bar",42), ("baz",43)] ^% ix "yo" traversed . ixfirst
--- (Just "yoyoyo","foobarbaz")
---
--- @since 0.0.3
-(^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
-(^%) = flip ixview
-{-# INLINE (^%) #-}
-
--- | A prefix alias for '^%'.
 --
 -- >>> ixview ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
 -- (Just (Sum {getSum = 0}),"foo")
@@ -298,16 +268,6 @@ ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k 
 ixviews o f = asks $ ixfolds o f
 {-# INLINE ixviews #-}
 
-infix 8 .^
-
--- | An infix alias of 'review'.
---
--- >>> from succ .^ 5
--- 6
---
-(.^) :: AReview t b -> b -> t
-(.^) = review
-{-# INLINE (.^) #-}
 
 -- | Review the focus of an optic.
 --

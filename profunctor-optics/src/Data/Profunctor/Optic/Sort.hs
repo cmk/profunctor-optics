@@ -62,7 +62,7 @@ import Data.Ord (Down(..))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types (Lens')
-import Data.Profunctor.Optic.View ((^.))
+import Data.Profunctor.Optic.View (view)
 import Prelude (Int, Ord, Bounded, Enum, Eq, seq,
                 (+), (-), head, map, fst, snd, length, const, (.), ($), flip, fmap, foldMap, foldr, foldr1, (++))
 
@@ -144,13 +144,13 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
 sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
 sortingOfL _ [] = []
 sortingOfL o xs = Map.elems $ Map.fromListWith (flip (++))
-  [(s ^. o, [s]) | s <- xs]
+  [(view o s, [s]) | s <- xs]
 
 -- | Sort a list in descending order through a lens.
 sortingDescOfL :: Ord a => Lens' s a -> [s] -> [[s]]
 sortingDescOfL _ [] = []
 sortingDescOfL o xs = Map.elems $ Map.fromListWith (flip (++))
-  [(Down (s ^. o), [s]) | s <- xs]
+  [(Down (view o s), [s]) | s <- xs]
 
 -- | Group a list through a lens.
 groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
@@ -168,12 +168,12 @@ nubbingOfL o xs = map head $ sortingOfL o xs
 -- | Build a 'Map.Map' keyed by lens focus from a list.
 toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
 toMapOfL _ [] = Map.empty
-toMapOfL o xs = Map.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
+toMapOfL o xs = Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
 
 -- | Count occurrences per key from a list.
 countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
 countingOfL _ [] = Map.empty
-countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+countingOfL o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
 
 ---------------------------------------------------------------------
 -- Post-sort foldMapOf (List)

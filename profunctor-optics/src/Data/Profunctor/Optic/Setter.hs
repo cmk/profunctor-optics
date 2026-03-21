@@ -39,14 +39,8 @@ module Data.Profunctor.Optic.Setter (
   , modded
   , cond
     -- * Operators
-  , (.~)
-  , (..~)
   , over
-  , (%~)
-  , (%%~)
   , ixover
-  , (#~)
-  , (##~)
   , cxover
   , set
   , sets
@@ -57,8 +51,6 @@ module Data.Profunctor.Optic.Setter (
   , cxset
   , cxsets
     -- * mtl
-  , (.=)
-  , (..=)
   , assigns
   , modifies
   , locally
@@ -413,46 +405,16 @@ cxsets o f = flip (cosets o $ flip f) mempty
 -- Mtl
 ---------------------------------------------------------------------
 
-infix 4 .=, ..=
-
 -- | Replace the target(s) of a settable in a monadic state.
 --
--- This is an infiversion of 'assigns'.
---
--- >>> execState (do first' .= 1; second' .= 2) (3,4)
--- (1,2)
--- >>> execState (bitraversed .= 3) (1,2)
--- (3,3)
---
-(.=) :: MonadState s m => Optic (->) s s a b -> b -> m ()
-o .= b = State.modify (o .~ b)
-{-# INLINE (.=) #-}
+assigns :: MonadState s m => Optic (->) s s a b -> b -> m ()
+assigns o b = State.modify (o (const b))
+{-# INLINE assigns #-}
 
 -- | Map over the target(s) of a 'Setter' in a monadic state.
 --
--- This is an infiversion of 'modifies'.
---
--- >>> execState (do just ..= (+1) ) Nothing
--- Nothing
--- >>> execState (do first' ..= (+1) ;second' ..= (+2)) (1,2)
--- (2,4)
--- >>> execState (do bitraversed ..= (+1)) (1,2)
--- (2,3)
---
-(..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
-o ..= f = State.modify (o ..~ f)
-{-# INLINE (..=) #-}
-
--- | A prefix alias for '.='.
---
-assigns :: MonadState s m => Optic (->) s s a b -> b -> m ()
-assigns = (.=)
-{-# INLINE assigns #-}
-
--- | A prefix alias for '..='
---
 modifies :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
-modifies = (..=)
+modifies o f = State.modify (o f)
 {-# INLINE modifies #-}
 
 -- | Modify the value of a 'Reader' environment.
@@ -470,11 +432,11 @@ modifies = (..=)
 -- Compare 'forwarded'.
 --
 locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
-locally o f = Reader.local $ o ..~ f
+locally o f = Reader.local (o f)
 {-# INLINE locally #-}
 
 -- | Write to a fragment of a larger 'Writer' format.
 --
 scribe :: MonadWriter w m => Monoid s => Optic (->) s w a b -> b -> m ()
-scribe o b = Writer.tell (mempty & o .~ b)
+scribe o b = Writer.tell (o (const b) mempty)
 {-# INLINE scribe #-}
