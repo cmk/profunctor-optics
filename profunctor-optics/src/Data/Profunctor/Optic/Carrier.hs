@@ -17,13 +17,17 @@ module Data.Profunctor.Optic.Carrier (
     -- * Prism carriers
   , APrism
   , APrism'
+  , AReprism
+  , AReprism'
     -- * Lens carriers
   , ALens
   , AColens
+  , ARelens
   , AIxlens
   , ACxlens
   , ALens'
   , AColens'
+  , ARelens'
   , AIxlens'
   , ACxlens'
     -- * Traversal carriers
@@ -65,7 +69,9 @@ module Data.Profunctor.Optic.Carrier (
     -- * Carrier operators
   , withIso
   , withPrism
+  , withReprism
   , withLens
+  , withRelens
   , withIxlens
   , withColens
   , withCxlens
@@ -79,7 +85,9 @@ module Data.Profunctor.Optic.Carrier (
     -- * Carrier profunctors
   , IsoRep(..)
   , PrismRep(..)
+  , ReprismRep(..)
   , LensRep(..)
+  , RelensRep(..)
   , IxlensRep(..)
   , ColensRep(..)
   , CxlensRep(..)
@@ -168,6 +176,10 @@ type APrism s t a b = Optic (PrismRep a b) s t a b
 
 type APrism' s a = APrism s s a a
 
+type AReprism s t a b = Optic (ReprismRep a b) s t a b
+
+type AReprism' s a = AReprism s s a a
+
 ---------------------------------------------------------------------
 -- Lens carriers
 ---------------------------------------------------------------------
@@ -183,6 +195,10 @@ type ACxlens k s t a b = Cxoptic (CxlensRep k a b) k s t a b
 type ALens' s a = ALens s s a a
 
 type AColens' s a = AColens s s a a
+
+type ARelens s t a b = Optic (RelensRep a b) s t a b
+
+type ARelens' s a = ARelens s s a a
 
 type AIxlens' k s a = AIxlens k s s a a
 
@@ -291,6 +307,12 @@ withPrism' :: APrism s s a b -> ((s -> Maybe a) -> (b -> s) -> r) -> r
 withPrism' o f = withPrism o $ \sta bt -> f (either (const Nothing) Just . sta) bt
 {-# INLINE withPrism' #-}
 
+-- | Extract the two functions that characterize a 'Reprism'.
+--
+withReprism :: AReprism s t a b -> ((s -> a) -> (b -> Either a t) -> r) -> r
+withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
+{-# INLINE withReprism #-}
+
 -- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
@@ -303,6 +325,12 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 withIxlens :: Monoid k => AIxlens k s t a b -> ((s -> (k , a)) -> (s -> b -> t) -> r) -> r
 withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
 {-# INLINE withIxlens #-}
+
+-- | Extract the two functions that characterize a 'Relens'.
+--
+withRelens :: ARelens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
+withRelens o f = case o (RelensRep (flip const) id) of RelensRep x y -> f x y
+{-# INLINE withRelens #-}
 
 -- | Extract the function that characterizes a 'Colens'.
 --
@@ -408,6 +436,28 @@ instance Choice (PrismRep a b) where
   {-# INLINE right' #-}
 
 ---------------------------------------------------------------------
+-- ReprismRep
+---------------------------------------------------------------------
+
+-- | The 'ReprismRep' profunctor precisely characterizes a 'Reprism'.
+--
+data ReprismRep a b s t = ReprismRep (s -> a) (b -> Either a t)
+
+instance Functor (ReprismRep a b s) where
+  fmap f (ReprismRep sa bat) = ReprismRep sa (B.second f . bat)
+  {-# INLINE fmap #-}
+
+instance Profunctor (ReprismRep a b) where
+  lmap f (ReprismRep sa bat) = ReprismRep (sa . f) bat
+  {-# INLINE lmap #-}
+  rmap = fmap
+  {-# INLINE rmap #-}
+
+instance Cochoice (ReprismRep a b) where
+  unleft (ReprismRep sca batc) = ReprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  {-# INLINE unleft #-}
+
+---------------------------------------------------------------------
 -- LensRep
 ---------------------------------------------------------------------
 
@@ -433,6 +483,22 @@ instance Representable (LensRep a b) where
 
   tabulate f = LensRep (\s -> info (f s)) (\s -> vals (f s))
 
+
+---------------------------------------------------------------------
+-- RelensRep
+---------------------------------------------------------------------
+
+-- | The 'RelensRep' profunctor precisely characterizes a 'Relens'.
+--
+data RelensRep a b s t = RelensRep (b -> s -> a) (b -> t)
+
+instance Profunctor (RelensRep a b) where
+  dimap f g (RelensRep bsa bt) = RelensRep (\b s -> bsa b (f s)) (g . bt)
+
+instance Costrong (RelensRep a b) where
+  unfirst (RelensRep bsca btc) = RelensRep bsa bt
+    where bsa b s = bsca b (s, snd (btc b))
+          bt b    = fst (btc b)
 
 ---------------------------------------------------------------------
 -- IxlensRep

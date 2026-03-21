@@ -37,10 +37,13 @@ module Data.Profunctor.Optic.Types (
   , Iso, Iso'
     -- * Prism
   , Prism, Prism'
+  , Reprism, Reprism'
     -- * Lens
   , Lens, Colens
+  , Relens
   , Ixlens, Cxlens
   , Lens', Colens'
+  , Relens'
   , Ixlens', Cxlens'
     -- * Traversal
   , Traversal0, Cotraversal0
@@ -174,7 +177,19 @@ type Iso' s a = Iso s s a a
 --
 type Prism s t a b = forall p. Choice p => Optic p s t a b
 
+-- | \( \mathsf{Reprism}\;S\;A = \exists D, S \cong D + A \) (Re-reversed)
+--
+-- The 'Re'-dual of 'Prism'. A 'Reprism' is simultaneously a 'View' and a 'Review'.
+--
+-- @
+-- 're' :: 'Prism' s t a b -> 'Reprism' b a t s
+-- @
+--
+type Reprism s t a b = forall p. Cochoice p => Optic p s t a b
+
 type Prism' s a = Prism s s a a
+
+type Reprism' s a = Reprism s s a a
 
 ---------------------------------------------------------------------
 -- Lens
@@ -188,15 +203,27 @@ type Lens s t a b = forall p. Strong p => Optic p s t a b
 --
 type Colens s t a b = forall p. Closed p => Optic p s t a b 
 
-type Ixlens k s t a b = forall p. Strong p => Ixoptic p k s t a b 
+-- | \( \mathsf{Relens}\;S\;A = \exists C, S \cong C \times A \) (Re-reversed)
+--
+-- The 'Re'-dual of 'Lens'. A 'Relens' is simultaneously a 'View' and a 'Review'.
+--
+-- @
+-- 're' :: 'Lens' s t a b -> 'Relens' b a t s
+-- @
+--
+type Relens s t a b = forall p. Costrong p => Optic p s t a b
 
-type Cxlens k s t a b = forall p. Closed p => Cxoptic p k s t a b 
+type Ixlens k s t a b = forall p. Strong p => Ixoptic p k s t a b
+
+type Cxlens k s t a b = forall p. Closed p => Cxoptic p k s t a b
 
 type Lens' s a = Lens s s a a
 
 type Colens' s a = Colens s s a a
 
-type Ixlens' k s a = Ixlens k s s a a 
+type Relens' s a = Relens s s a a
+
+type Ixlens' k s a = Ixlens k s s a a
 
 type Cxlens' k t b = Cxlens k t t b b
 
@@ -362,19 +389,24 @@ between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
 between f g = (f .) . (. g)
 {-# INLINE between #-}
 
--- | Reverse an optic to obtain its dual.
+-- | Reverse an optic to obtain its 'Re'-dual.
 --
 -- @
 -- 're' . 're'  ≡ id
 -- @
 --
+-- 're' swaps 'Strong' \(\leftrightarrow\) 'Costrong' and 'Choice' \(\leftrightarrow\) 'Cochoice':
+--
 -- @
--- 're' :: 'Iso' s t a b   -> 'Iso' b a t s
--- 're' :: 'Lens' s t a b  -> 'Colens' b a t s
--- 're' :: 'Prism' s t a b -> 'Coprism' b a t s
--- 're' :: 'Traversal' s t a b  -> 'Cotraversal' b a t s
--- 're' :: 'View' s t a b  -> 'Review' b a t s
+-- 're' :: 'Iso' s t a b    -> 'Iso' b a t s
+-- 're' :: 'Lens' s t a b   -> 'Relens' b a t s
+-- 're' :: 'Prism' s t a b  -> 'Reprism' b a t s
+-- 're' :: 'View' s a       -> 'Review' a s
+-- 're' :: 'Review' t b     -> 'View' b t
 -- @
+--
+-- Note: this is not the same as the categorical co-dual ('Colens', 'Cotraversal', etc.),
+-- which replaces 'Strong' with 'Closed'.
 --
 -- >>> 5 ^. re left'
 -- Left 5
@@ -387,7 +419,6 @@ re o = (between runRe Re) o id
 --
 newtype Re p s t a b = Re { runRe :: p b a -> p t s }
 
--- TODO: Closed, Representable, Corepresentable instances
 instance Profunctor p => Profunctor (Re p s t) where
   dimap f g (Re p) = Re (p . dimap g f)
 
