@@ -583,7 +583,9 @@ infix 8 ^..
 -- 'lists' 'folded_' = 'Data.Foldable.toList'
 -- @
 --
--- /Benchmark: 6.5x overhead vs direct toList (Const\/Endo accumulation path). See "Data.Profunctor.Optic.Bench"./
+-- /Benchmark: 1.73x vs Map.elems on Map (fair comparison). ~8x vs/
+-- /foldr (:) [] on lists (unfair — foldr (:) [] on [a] is id)./
+-- /See "Data.Profunctor.Optic.Bench"./
 --
 lists :: AFold (Endo [a]) s a -> s -> [a]
 lists o = foldsr o (:) []

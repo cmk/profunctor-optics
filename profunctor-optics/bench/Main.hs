@@ -112,17 +112,15 @@ traversalGroup = bgroup "traversal"
 
 foldGroup :: Benchmark
 foldGroup = bgroup "fold"
-  [ let (optic, direct) = benchFold folded id
-    in bgroup "folded"
-      [ bgroup "100"
-        [ bench "optic"  $ nf optic  list100
-        , bench "direct" $ nf direct list100
-        ]
-      , bgroup "1K"
-        [ bench "optic"  $ nf optic  list1K
-        , bench "direct" $ nf direct list1K
-        ]
-      ]
+  [ bgroup "lists-on-list-100"
+    [ bench "lists-optic"  $ nf (lists folded) list100
+    , bench "foldr-(:)-[]" $ nf (foldr (:) []) list100
+    ]
+  , bgroup "lists-on-map-100"
+    [ bench "lists-optic"  $ nf (lists (MO.values)) map100
+    , bench "Map.elems"    $ nf Map.elems map100
+    , bench "toList"       $ nf (foldr (:) [] . Map.elems) map100
+    ]
   ]
 
 ---------------------------------------------------------------------
