@@ -45,9 +45,13 @@ module Data.Profunctor.Sort
   , eitherSortF
   , maybeSortF
 
-    -- * SortF carriers
+    -- * SortF carriers (Ord)
   , mkSortF
   , mkSortFN
+
+    -- * SortF carriers (Hashable)
+  , mkSortFH
+  , mkSortFNH
 
     -- * Sort1 (non-empty in, can fail)
   , Sort1(..)
@@ -62,6 +66,7 @@ module Data.Profunctor.Sort
   ) where
 
 import Control.Arrow (first, second)
+import Data.Hashable (Hashable)
 import Control.Category (Category)
 import Control.Coapplicative (Coapplicative(..))
 import Data.Either (lefts, rights)
@@ -76,6 +81,7 @@ import Data.Functor.Coapply (Coapply(..))
 
 import qualified Control.Category as C
 import qualified Data.List.NonEmpty as NE
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Map.Strict as Map
 
 -- ===================================================================
@@ -244,6 +250,21 @@ mkSortF = SortF $ \inp ->
 mkSortFN :: Ord k => Int -> SortF Int k a (Map.Map k [a])
 mkSortFN n = SortF $ \inp ->
   Map.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
+                                | i <- [0..n-1]
+                                , let (ki, a) = inp i ]
+
+-- | Hashable carrier for finite index types.
+-- Groups by key, producing a 'HashMap' of lists.
+mkSortFH :: (Bounded i, Enum i, Hashable k, Eq k) => SortF i k a (HM.HashMap k [a])
+mkSortFH = SortF $ \inp ->
+  HM.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
+                                | i <- [minBound..maxBound]
+                                , let (ki, a) = inp i ]
+
+-- | Hashable carrier for Int-indexed containers of known size.
+mkSortFNH :: (Hashable k, Eq k) => Int -> SortF Int k a (HM.HashMap k [a])
+mkSortFNH n = SortF $ \inp ->
+  HM.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
                                 | i <- [0..n-1]
                                 , let (ki, a) = inp i ]
 

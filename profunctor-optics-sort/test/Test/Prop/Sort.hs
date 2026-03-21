@@ -29,6 +29,8 @@ import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import Data.Char (isUpper, isLower)
 import Data.Functor.Index (I8(..))
+import qualified Data.HashMap.Strict as HM
+import Data.Hashable (Hashable)
 import Data.Monoid (Sum(..))
 import qualified Data.Text as T
 import Data.Ord (Down(..))
@@ -601,6 +603,42 @@ prop_P78_groupTaggedRep = property $ do
         resultKeys = Map.keysSet result
         inputKeys = Map.keysSet $ Map.fromList [(k, ()) | k <- ks]
     resultKeys === inputKeys
+
+---------------------------------------------------------------------
+-- P71–P74: Hashable-keyed grouping
+---------------------------------------------------------------------
+
+-- P71: groupingHashOf groups share same key
+prop_P71_groupingHashOf_same_key :: Property
+prop_P71_groupingHashOf_same_key = property $ do
+    xs <- forAll genPairNE
+    let result = groupingHashOf fstL xs
+    assert $ all (\(k, g) -> all (\s -> s ^. fstL == k) g) (HM.toList result)
+
+-- P72: groupingHashOf preserves element count
+prop_P72_groupingHashOf_preserves :: Property
+prop_P72_groupingHashOf_preserves = property $ do
+    xs <- forAll genPairNE
+    let result = groupingHashOf fstL xs
+        totalElems = sum $ fmap length result
+    totalElems === length xs
+
+-- P73: toHashMapOf keys = set of focused values
+prop_P73_toHashMapOf_keys :: Property
+prop_P73_toHashMapOf_keys = property $ do
+    xs <- forAll genPairNE
+    let m = toHashMapOf fstL xs
+        mapKeys = HM.keysSet m
+        inputKeys = HM.keysSet $ HM.fromList [(s ^. fstL, ()) | s <- NE.toList xs]
+    mapKeys === inputKeys
+
+-- P74: countingHashOf agrees with countingOf
+prop_P74_countingHashOf_agrees :: Property
+prop_P74_countingHashOf_agrees = property $ do
+    xs <- forAll genPairNE
+    let ordCounts = Map.toAscList $ countingOf fstL xs
+        hashCounts = L.sort $ HM.toList $ countingHashOf fstL xs
+    ordCounts === hashCounts
 
 ---------------------------------------------------------------------
 -- P57: Optic composition through SortF

@@ -51,9 +51,11 @@ library
     , bytestring             >= 0.11
     , coapplicative          >= 0.0.2
     , containers             >= 0.5
+    , hashable               >= 1.4
     , profunctors            >= 5.4
     , profunctor-optics      >= 0.0.3
     , text                   >= 2.0
+    , unordered-containers   >= 0.2
     , vector                 >= 0.12
 
 test-suite properties
@@ -80,8 +82,10 @@ test-suite properties
     , hedgehog               >= 1.0
     , profunctors
     , profunctor-optics
+    , hashable
     , profunctor-optics-sort
     , profunctor-optics-strings
     , scheme-extensions
     , text
+    , unordered-containers
     , vector

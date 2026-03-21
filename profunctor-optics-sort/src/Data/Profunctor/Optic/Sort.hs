@@ -47,6 +47,12 @@ module Data.Profunctor.Optic.Sort
   , groupingBytes
   , sortingChars
 
+    -- * Hashable-keyed grouping
+  , sortingRepH
+  , groupingHashOf
+  , toHashMapOf
+  , countingHashOf
+
     -- * SortF merge tactics
   , sortedMatchedF
   , sortedMissingF
@@ -75,10 +81,12 @@ module Data.Profunctor.Optic.Sort
   , rightJoinOf
   ) where
 
+import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Ord (Down(..))
 import Data.Word (Word8)
 import qualified Data.ByteString as BS
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Text as T
 import qualified Data.Vector as V
 import Data.Profunctor
@@ -333,6 +341,45 @@ groupingBytes = sortingBytes id
 -- | Sort a strict 'T.Text' by a key on each character.
 sortingChars :: Ord k => (Char -> k) -> T.Text -> Map.Map k T.Text
 sortingChars = sortingRep T.length T.index T.pack
+
+-- ===================================================================
+-- Hashable-keyed grouping
+-- ===================================================================
+
+-- | Sort any @Int@-indexed representable container by 'Hashable' key.
+-- Produces a 'HM.HashMap' of groups (unordered).
+--
+sortingRepH :: (Hashable k, Eq k)
+            => (c -> Int) -> (c -> Int -> a) -> ([a] -> c')
+            -> (a -> k) -> c -> HM.HashMap k c'
+sortingRepH len idx build key c =
+  let n = len c
+      result = runSortF (mkSortFNH n) (\i -> (key (idx c i), idx c i))
+  in  fmap build result
+
+-- | Group through a lens using 'Hashable'. Produces 'HM.HashMap'.
+--
+groupingHashOf :: (Hashable a, Eq a)
+               => Lens' s a
+               -> NonEmpty s -> HM.HashMap a (NonEmpty s)
+groupingHashOf o xs =
+  let pairs = [(s ^. o, s) | s <- NE.toList xs]
+  in  HM.fromListWith (<>) [(k, v :| []) | (k, v) <- pairs]
+
+-- | Build a 'HM.HashMap' keyed by lens focus. Unordered 'toMapOf'.
+--
+toHashMapOf :: (Hashable a, Eq a)
+            => Lens' s a
+            -> NonEmpty s -> HM.HashMap a (NonEmpty s)
+toHashMapOf = groupingHashOf
+
+-- | Count occurrences per 'Hashable' key through a lens.
+--
+countingHashOf :: (Hashable a, Eq a)
+               => Lens' s a
+               -> NonEmpty s -> HM.HashMap a Int
+countingHashOf o xs =
+  HM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- NE.toList xs]
 
 -- | Construct a 'WhenMatched' merge tactic from a SortF.
 --
