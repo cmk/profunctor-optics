@@ -1,3 +1,4 @@
+{-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeFamilies #-}
 -- | Profunctor sort with separated key, input, and output parameters.
 --
@@ -35,8 +36,29 @@
 -- * Lists can be empty (failure) → elements accessible → Strong + Choice
 -- * Functions are total (no failure) → elements hidden → Closed
 module Data.Profunctor.Sort
-  ( -- * Sort1 (non-empty in, can fail)
-    Sort1(..)
+  ( -- * SortF (indexed Fmt)
+    SortF(..)
+  , runSortF
+
+    -- * SortF composition
+  , (%.)
+  , bindSortF
+  , catSortF
+
+    -- * SortF construction
+  , sortF
+  , remapSortF
+
+    -- * SortF sum-type combinators
+  , eitherSortF
+  , maybeSortF
+
+    -- * SortF carriers
+  , mkSortF
+  , mkSortFN
+
+    -- * Sort1 (non-empty in, can fail)
+  , Sort1(..)
   , mkSort1
   , sortOn1
 
@@ -58,17 +80,180 @@ module Data.Profunctor.Sort
   ) where
 
 import Control.Arrow (first, second)
+import Control.Category (Category)
 import Control.Coapplicative (Coapplicative(..))
 import Data.Either (lefts, rights)
+import Data.Functor.Compose (Compose(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
 import Data.Profunctor.Rep (Corepresentable(..))
 import Data.Profunctor.Sieve (Cosieve(..))
+import Data.Profunctor.Types (Costar(..))
 
 import Data.Functor.Coapply (Coapply(..))
 
+import qualified Control.Category as C
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+
+-- ===================================================================
+--  SortF — (i -> (k, a)) -> b
+-- ===================================================================
+
+-- | An indexed continuation profunctor for discrimination.
+--
+-- @SortF i k a b = (i -> (k, a)) -> b@ is the indexed generalization
+-- of @Fmt m a b = (m -> a) -> b@ from @stringfmt@:
+--
+-- @
+-- Fmt   m a b = SortF m () a b    — indexed by m, trivial key
+-- SortF i k a b                    — indexed by i, keyed by k
+-- @
+--
+-- @SortF@ is @Costar (Compose ((->) i) ((,) k))@. All instances
+-- derive via this representation.
+--
+newtype SortF i k a b = SortF { unSortF :: (i -> (k, a)) -> b }
+  deriving (Functor, Applicative, Monad)
+    via Costar (Compose ((->) i) ((,) k)) a
+  deriving (Profunctor, Closed, Costrong, Cochoice)
+    via Costar (Compose ((->) i) ((,) k))
+
+instance Cosieve (SortF i k) (Compose ((->) i) ((,) k)) where
+  cosieve (SortF f) = f . getCompose
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (SortF i k) where
+  type Corep (SortF i k) = Compose ((->) i) ((,) k)
+  cotabulate f = SortF (f . Compose)
+  {-# INLINE cotabulate #-}
+
+instance (Monoid i, Monoid k) => Category (SortF i k) where
+  id = SortF $ \inp -> snd (inp mempty)
+  (.) = (%.)
+  {-# INLINE id #-}
+  {-# INLINE (.) #-}
+
+---------------------------------------------------------------------
+-- SortF composition
+---------------------------------------------------------------------
+
+-- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+--
+-- Analogous to Fmt's @(%)@: @f %. g@ runs @g@ first (producing an
+-- intermediate @b@), then @f@ consumes that @b@. Both halves read
+-- from the same input @(i -> (k, a))@, and their keys combine.
+--
+-- @
+-- (f '%. g) '%.' h = f '%. (g '%. h)
+-- @
+--
+-- | Indexed bind: inspect the key @k@ and choose a continuation.
+--
+-- @m@ produces a @b@ given @(i -> (k, a))@. The callback @f@ receives
+-- the key at each position and returns a SortF that provides the @a@.
+--
+-- Analogous to Fmt's @bind@.
+{-# INLINE bindSortF #-}
+bindSortF :: SortF i k a b -> (k -> SortF i k a' a) -> SortF i k a' b
+bindSortF (SortF m) f = SortF $ \inp ->
+  m (\i -> let (k, _) = inp i in (k, unSortF (f k) inp))
+
+-- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+--
+-- @f %. g@ runs both on the same input. The output of @g@ feeds
+-- into @f@, and keys from both halves combine.
+--
+-- | Compose two sort passes. Keys accumulate via 'Semigroup'.
+--
+-- Defined as: @f %. g = f \`bindSortF\` \\k1 -> g \`bindSortF\` \\k2 -> sortF (k1 <> k2, ?)@
+--
+-- More directly: @g@ runs on the input to produce @b@, then @f@
+-- sees that @b@ as its value at each position, with the original key.
+infixr 9 %.
+{-# INLINE (%.) #-}
+(%.) :: Semigroup k => SortF i k b c -> SortF i k a b -> SortF i k a c
+SortF f %. SortF g = SortF $ \inp ->
+  f (\i -> (fst (inp i), g inp))
+
+-- | Fold multiple sort passes via 'Semigroup' key accumulation.
+--
+-- Analogous to Fmt's @cat@.
+{-# INLINE catSortF #-}
+catSortF :: (Monoid i, Monoid k, Foldable f) => f (SortF i k a a) -> SortF i k a a
+catSortF = foldr (%.) C.id
+
+---------------------------------------------------------------------
+-- SortF construction
+---------------------------------------------------------------------
+
+-- | Constant: embed a key-value pair.
+--
+-- Analogous to Fmt's @fmt@.
+{-# INLINE sortF #-}
+sortF :: (k, a) -> SortF i k a (k, a)
+sortF ka = SortF $ const ka
+
+-- Note: Fmt's fmt1 doesn't translate directly to SortF because
+-- Fmt's m is both the index AND the monoid, while SortF separates
+-- them into i and k. Use sortF or mkSortF/mkSortFN instead.
+
+-- | Remap keys. @remapSortF f@ transforms a @SortF@ that groups
+-- by @k2@ into one that groups by @k1@, applying @f@ to map
+-- keys from @k1@ to @k2@ in the input.
+--
+-- Analogous to Fmt's @refmt@.
+{-# INLINE remapSortF #-}
+remapSortF :: (k1 -> k2) -> SortF i k2 a b -> SortF i k1 a b
+remapSortF f (SortF g) = SortF $ \inp -> g (first f . inp)
+
+---------------------------------------------------------------------
+-- SortF sum-type combinators
+---------------------------------------------------------------------
+
+-- | Sort an Either: apply left sort to Lefts, right sort to Rights.
+-- Samples at 'mempty' to decide the branch.
+--
+-- Analogous to Fmt's @either1@.
+{-# INLINE eitherSortF #-}
+eitherSortF :: Monoid i => SortF i k a c -> SortF i k b c -> SortF i k (Either a b) c
+eitherSortF (SortF l) (SortF r) = SortF $ \inp ->
+  case snd (inp mempty) of
+    Left a0  -> l (\i -> second (either id (const a0)) (inp i))
+    Right b0 -> r (\i -> second (either (const b0) id) (inp i))
+
+-- | Sort a Maybe: apply sort to Justs, use default for Nothings.
+-- Samples at 'mempty' to decide.
+--
+-- Analogous to Fmt's @maybe1@.
+{-# INLINE maybeSortF #-}
+maybeSortF :: Monoid i => c -> SortF i k a c -> SortF i k (Maybe a) c
+maybeSortF def (SortF f) = SortF $ \inp ->
+  case snd (inp mempty) of
+    Nothing -> def
+    Just a0 -> f (\i -> second (maybe a0 id) (inp i))
+
+---------------------------------------------------------------------
+-- SortF carriers
+---------------------------------------------------------------------
+
+-- | Identity carrier for finite index types.
+-- Groups by key, producing a 'Map' of lists.
+mkSortF :: (Bounded i, Enum i, Ord k) => SortF i k a (Map.Map k [a])
+mkSortF = SortF $ \inp ->
+  let pairs = [(ki, a) | i <- [minBound..maxBound], let (ki, a) = inp i]
+  in  Map.fromListWith (flip (++)) [(k, [a]) | (k, a) <- pairs]
+
+-- | Identity carrier for Int-indexed containers of known size.
+mkSortFN :: Ord k => Int -> SortF Int k a (Map.Map k [a])
+mkSortFN n = SortF $ \inp ->
+  let pairs = [(ki, a) | i <- [0..n-1], let (ki, a) = inp i]
+  in  Map.fromListWith (flip (++)) [(k, [a]) | (k, a) <- pairs]
+
+-- | Run a SortF carrier on an input function.
+{-# INLINE runSortF #-}
+runSortF :: SortF i k a b -> (i -> (k, a)) -> b
+runSortF = unSortF
 
 -- ===================================================================
 --  Sort1 — NonEmpty (k, a) -> [NonEmpty b]

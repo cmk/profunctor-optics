@@ -34,12 +34,15 @@ library
       src
 
   default-extensions:
+      DerivingVia
       FlexibleContexts
+      FlexibleInstances
       MultiParamTypeClasses
       RankNTypes
       TupleSections
       TypeFamilies
       TypeOperators
+      UndecidableInstances
 
   ghc-options: -Wall
 
