@@ -38,6 +38,14 @@ module Data.Profunctor.Optic.Sort
   , cosortingOf
   , zipsSorting
 
+    -- * SortF operators
+  , sortingUnderF
+  , cosortingOfF
+  , zipsSortingF
+  , sortingVectorF
+  , sortedMatchedF
+  , sortedMissingF
+
     -- * Indexed sorting (key = index)
   , sortingIx
   , toMapIx
@@ -270,6 +278,58 @@ toMapIx o xs =
   Map.fromList [(k, g) | g <- sortingIx o xs, let k = fst (NE.head pairs)]
   where pairs = fmap (\(k, s) -> (k, (k, s))) xs
 -- TODO: this is not right — revisit when indexed operators are fleshed out
+
+-- ===================================================================
+-- SortF operators
+-- ===================================================================
+
+-- | Lift a SortF through a 'Colens' (Closed).
+--
+sortingUnderF :: Colens s t a b -> SortF i k a b -> SortF i k s t
+sortingUnderF g = g
+
+-- | Lift a SortF through a 'Cotraversal' (Coaffine + Cotraversing).
+-- Requires @'Monoid' i@ for the 'Choice' instance.
+--
+cosortingOfF :: Monoid i => Cotraversal s t a b -> SortF i k a b -> SortF i k s t
+cosortingOfF o = o
+
+-- | Merge two SortF results pointwise.
+--
+zipsSortingF :: (b -> b -> b) -> SortF i k a b -> SortF i k a b -> SortF i k a b
+zipsSortingF f (SortF h1) (SortF h2) = SortF $ \inp -> f (h1 inp) (h2 inp)
+
+-- | Sort a 'Vector' by key using SortF.
+--
+-- The vector is an @Int@-indexed representable container.
+-- Groups positions by key via 'mkSortFN', producing a 'Map'
+-- of vectors.
+--
+sortingVectorF :: Ord k
+               => (a -> k)
+               -> V.Vector a -> Map.Map k (V.Vector a)
+sortingVectorF key v =
+  let n = V.length v
+      result = runSortF (mkSortFN n) (\i -> (key (v V.! i), v V.! i))
+  in  fmap V.fromList result
+
+-- | Construct a 'WhenMatched' merge tactic from a SortF.
+--
+-- Uses @i = ()@ (one position per key). The carrier calls
+-- @inp ()@ to receive the matched pair.
+--
+sortedMatchedF :: SortF () k (x, y) z -> Merge.SimpleWhenMatched k x y z
+sortedMatchedF (SortF h) = Merge.zipWithMatched $ \k x y ->
+  h (const (k, (x, y)))
+
+-- | Construct a 'WhenMissing' merge tactic from a SortF.
+--
+-- Uses @i = ()@ (one position per key). The carrier calls
+-- @inp ()@ to receive the missing value.
+--
+sortedMissingF :: SortF () k x y -> Merge.SimpleWhenMissing k x y
+sortedMissingF (SortF h) = Merge.mapMissing $ \k x ->
+  h (const (k, x))
 
 -- ===================================================================
 -- Sort3 for Int-indexed containers
