@@ -47,6 +47,7 @@ module Data.Profunctor.Optic.Types (
   , Ixlens', Cxlens'
     -- * Traversal
   , Traversal0, Cotraversal0
+  , AffineTraversal, AffineTraversal'
   , Traversal, Cotraversal
   , Traversal1, Cotraversal1
   , Ixtraversal0, Cxtraversal0
@@ -60,6 +61,7 @@ module Data.Profunctor.Optic.Types (
   , Ixtraversal1', Cxtraversal1'
     -- * Fold
   , Fold0, Cofold0
+  , AffineFold
   , Fold, Cofold
   , Fold1, Cofold1
   , Ixfold0, Cxfold0
@@ -269,6 +271,12 @@ type Cxtraversal1 k s t a b = forall p. (Closed p, Cotraversing1 p) => Cxoptic p
 
 type Traversal0' s a = Traversal0 s s a a
 
+-- | Alias for 'Traversal0'.
+type AffineTraversal s t a b = Traversal0 s t a b
+
+-- | Alias for 'Traversal0''.
+type AffineTraversal' s a = Traversal0' s a
+
 type Cotraversal0' t b = Cotraversal0 t t b b
 
 type Traversal' s a = Traversal s s a a
@@ -295,7 +303,10 @@ type Cxtraversal1' k t b = Cxtraversal1 k t t b b
 -- Fold
 ---------------------------------------------------------------------
 
-type Fold0 s a = forall p. (Affine p, CoercingR p) => Optic' p s a 
+type Fold0 s a = forall p. (Affine p, CoercingR p) => Optic' p s a
+
+-- | Alias for 'Fold0'.
+type AffineFold s a = Fold0 s a 
 
 type Fold s a = forall p. (Affine p, Traversing p, CoercingR p) => Optic' p s a
 

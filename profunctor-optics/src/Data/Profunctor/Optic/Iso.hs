@@ -169,7 +169,7 @@ cloneIso k = withIso k $ \sa bt -> iso sa bt
 -- Optics
 ---------------------------------------------------------------------
 
--- | Obtain an 'Iso'' directly from type equality constraints.
+-- | Obtain an 'Iso'' directly from type equaled constraints.
 --
 -- >>> :t (^. equaled)
 -- (^. equaled) :: a -> a

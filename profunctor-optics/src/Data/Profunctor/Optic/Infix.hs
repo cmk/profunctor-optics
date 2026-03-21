@@ -34,7 +34,7 @@
 --
 -- @
 --   (.~)    set       (..~)    over
---   (*~)    starSet   (**~)    starOver   (= 'traverses')
+--   (*~)    starSet   (**~)    starOver   (= 'traverseOf')
 --   (%~)    ixset     (%%~)    ixover
 --   (\/~)    coset     (\/\/~)    coover     (= 'cotraverses')
 --   (#~)    cxset     (##~)    cxover
@@ -139,10 +139,10 @@ infixr 9  %, #
 
 -- | Fold to a list.
 --
--- @s '^..' o ≡ 'F.lists' o s@
+-- @s '^..' o ≡ 'F.toListOf' o s@
 --
 (^..) :: s -> AFold (Endo [a]) s a -> [a]
-(^..) = flip F.lists
+(^..) = flip F.toListOf
 {-# INLINE (^..) #-}
 
 ---------------------------------------------------------------------
@@ -225,9 +225,9 @@ infixr 9  %, #
 (*~) o b = o **~ const b
 {-# INLINE (*~) #-}
 
--- | Effectful over via 'Star'. Equivalent to 'Data.Profunctor.Optic.Traversal.traverses'.
+-- | Effectful over via 'Star'. Equivalent to 'Data.Profunctor.Optic.Traversal.traverseOf'.
 --
--- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverses' o f@
+-- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverseOf' o f@
 --
 (**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
 (**~) o = runStar #. o .# Star
