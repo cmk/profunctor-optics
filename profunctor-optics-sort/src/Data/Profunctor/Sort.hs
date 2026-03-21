@@ -118,7 +118,7 @@ instance Corepresentable (SortF i k) where
   cotabulate f = SortF (f . Compose)
   {-# INLINE cotabulate #-}
 
-instance (Monoid i, Monoid k) => Category (SortF i k) where
+instance Monoid i => Category (SortF i k) where
   id = SortF $ \inp -> snd (inp mempty)
   (.) = (%.)
   {-# INLINE id #-}
@@ -168,7 +168,7 @@ SortF f %. SortF g = SortF $ \inp ->
 -- for @Category@ 'id' (the seed of the fold).
 --
 {-# INLINE catSortF #-}
-catSortF :: (Monoid i, Monoid k, Foldable f) => f (SortF i k a a) -> SortF i k a a
+catSortF :: (Monoid i, Foldable f) => f (SortF i k a a) -> SortF i k a a
 catSortF = foldr (%.) C.id
 
 ---------------------------------------------------------------------
