@@ -7,7 +7,7 @@ import qualified Hedgehog.Gen as Gen
 import qualified Hedgehog.Range as Range
 
 import Data.Container.Pattern
-import Data.Map.Optic (depth, sizes, rebalanced)
+import Data.Map.Fold.Optic (depth, sizes, rebalanced)
 import qualified Data.Map as Map
 import qualified Data.IntMap as IntMap
 import qualified Data.Set as Set
