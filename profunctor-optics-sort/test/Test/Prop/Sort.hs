@@ -30,6 +30,7 @@ import Data.Ord (Down(..))
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Map.Merge.Strict as Merge
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -543,6 +544,53 @@ prop_P40_refirst_sort3 = property $ do
         intSort = refirst pairSort :: Sort3 Int Int Int Int Int
         inp i = (i, i * 10)
     runSort3 intSort inp 0 3 === 30
+
+---------------------------------------------------------------------
+-- P41–P44: Merge operators
+---------------------------------------------------------------------
+
+-- P41: innerMerge only keeps matching keys
+prop_P41_innerMerge :: Property
+prop_P41_innerMerge = property $ do
+    let xs = (1, "a") :| [(2, "b"), (3, "c")]
+        ys = (2, "x") :| [(3, "y"), (4, "z")]
+        result = innerMerge fstL fstL (\_ l r -> (NE.toList l, NE.toList r)) xs ys
+    Map.keys result === [2, 3]
+
+-- P42: outerMerge keeps all keys from both
+prop_P42_outerMerge :: Property
+prop_P42_outerMerge = property $ do
+    let xs = (1, "a") :| [(2, "b")]
+        ys = (2, "x") :| [(3, "y")]
+        result = outerMerge fstL fstL
+                   (\_ l -> Left (NE.toList l))
+                   (\_ r -> Right (NE.toList r))
+                   (\_ l r -> Left (NE.toList l ++ NE.toList r))
+                   xs ys
+    Map.keys result === [1, 2, 3]
+
+-- P43: leftMerge keeps all left keys
+prop_P43_leftMerge :: Property
+prop_P43_leftMerge = property $ do
+    let xs = (1, "a") :| [(2, "b"), (3, "c")]
+        ys = (2, "x") :| [(4, "z")]
+        result = leftMerge fstL fstL
+                   (\_ l -> NE.toList l)
+                   (\_ l _r -> NE.toList l)
+                   xs ys
+    Map.keys result === [1, 2, 3]
+
+-- P44: mergingOf with custom tactics
+prop_P44_mergingOf_custom :: Property
+prop_P44_mergingOf_custom = property $ do
+    let xs = (1, "a") :| [(2, "b")]
+        ys = (1, "x") :| [(3, "z")]
+        result = mergingOf fstL fstL
+                   (Merge.mapMissing $ \_ l -> length l)        -- left-only: count
+                   (Merge.mapMissing $ \_ r -> length r * 10)   -- right-only: count * 10
+                   (Merge.zipWithMatched $ \_ l r -> length l + length r)  -- both: sum counts
+                   xs ys
+    result === Map.fromList [(1, 2), (2, 1), (3, 10)]
 
 ---------------------------------------------------------------------
 -- Helpers
