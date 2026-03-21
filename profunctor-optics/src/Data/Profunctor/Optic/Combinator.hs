@@ -13,6 +13,8 @@ module Data.Profunctor.Optic.Combinator (
   , costar
   , unstar
   , uncostar
+  , costrong
+  , cochoice
     -- * Indexed constructors
   , reix
   , recx
@@ -120,6 +122,22 @@ unstar f = copure . runStar f
 uncostar :: Applicative f => Costar f a b -> a -> b
 uncostar f = runCostar f . pure
 {-# INLINE uncostar #-}
+
+-- | Undo product structure via 'Costrong'.
+--
+-- @costrong :: ((t, s) -> a) -> 'Relens' s t a t@
+--
+costrong :: Costrong p => ((t, s) -> a) -> p a t -> p s t
+costrong f = unsecond . dimap f (\a -> (a, a))
+{-# INLINE costrong #-}
+
+-- | Undo sum structure via 'Cochoice'.
+--
+-- @cochoice :: (b -> Either s t) -> 'Reprism' s t s b@
+--
+cochoice :: Cochoice p => (b -> Either s t) -> p s b -> p s t
+cochoice f = unright . dimap (either id id) f
+{-# INLINE cochoice #-}
 
 -- | Map over the indices of an indexed optic.
 --

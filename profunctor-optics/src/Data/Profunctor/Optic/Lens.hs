@@ -30,6 +30,13 @@ module Data.Profunctor.Optic.Lens (
   , cloneLensVl
   , cloneColens
   , cloneColensVl
+    -- * Relens
+  , Relens
+  , Relens'
+  , relens
+  , relensVl
+  , rematching
+  , cloneRelens
     -- * Optics
   , first
   , ixfirst
@@ -39,6 +46,8 @@ module Data.Profunctor.Optic.Lens (
   , ixsecond
   , cosecond
   , cxsecond
+  , refirst
+  , resecond
   , closed
   , cxclosed
   , united
@@ -53,7 +62,7 @@ module Data.Profunctor.Optic.Lens (
   , coview
   , zipsWith
   , zipsWith3
-  , zipsWith4 
+  , zipsWith4
   , zipsWithF
   , zipsWithKey
   , toPastro
@@ -62,11 +71,13 @@ module Data.Profunctor.Optic.Lens (
   , toEnvironment
   , withLens
   , withColens
+  , withRelens
   , withIxlens
   , withCxlens
     -- * Classes
   , Strong(..)
   , Closed(..)
+  , Costrong(..)
 ) where
 
 import Control.Monad.Cont
@@ -397,7 +408,44 @@ cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 {-# INLINE cloneColensVl #-}
 
 ---------------------------------------------------------------------
--- Optics 
+-- 'Relens'
+---------------------------------------------------------------------
+
+-- | Obtain a 'Relens' from a co-getter and co-setter.
+--
+-- @'relens' bsa bt ≡ 're' ('lens' sa sbt)@ (with roles swapped)
+--
+-- A 'Relens' is simultaneously a 'View' and a 'Review':
+--
+-- @
+-- 'Data.Profunctor.Optic.View.review' ('relens' bsa bt) ≡ bt
+-- @
+--
+relens :: (b -> s -> a) -> (b -> t) -> Relens s t a b
+relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
+{-# INLINE relens #-}
+
+-- | Obtain a 'Relens' from its van Laarhoven representation.
+--
+relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Relens s t a b
+relensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
+  where swap (a, b) = (b, a)
+{-# INLINE relensVl #-}
+
+-- | Obtain a 'Relens' from its free tensor representation.
+--
+rematching :: ((c, s) -> a) -> (b -> (c, t)) -> Relens s t a b
+rematching csa bct = unsecond . dimap csa bct
+{-# INLINE rematching #-}
+
+-- | Clone a 'Relens'.
+--
+cloneRelens :: ARelens s t a b -> Relens s t a b
+cloneRelens o = withRelens o relens
+{-# INLINE cloneRelens #-}
+
+---------------------------------------------------------------------
+-- Optics
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -423,6 +471,22 @@ second = second'
 cosecond :: Colens a b (c, a) (c, b)
 cosecond = cloneColens unsecondCorep
 {-# INLINE cosecond #-}
+
+-- | 'Relens' into the first component of a pair.
+--
+-- @'refirst' ≡ 're' 'first'@
+--
+refirst :: Relens a b (a, c) (b, c)
+refirst = unfirst
+{-# INLINE refirst #-}
+
+-- | 'Relens' into the second component of a pair.
+--
+-- @'resecond' ≡ 're' 'second'@
+--
+resecond :: Relens a b (c, a) (c, b)
+resecond = unsecond
+{-# INLINE resecond #-}
 
 -- | There is a '()' in everything.
 --
