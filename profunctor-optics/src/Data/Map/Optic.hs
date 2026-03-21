@@ -217,26 +217,26 @@ ialtered' k = ixsetter $ \kab -> Map.alter (kab k) k
 --
 -- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
-toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
-toMapOfL _ [] = Map.empty
-toMapOfL o xs = Map.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
+toMapOfL :: Ord a => Lens' s a -> [s] -> MapS.Map a [s]
+toMapOfL _ [] = MapS.empty
+toMapOfL o xs = MapS.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
 
 -- | Count occurrences per key from a list.
-countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
-countingOfL _ [] = Map.empty
-countingOfL o xs = Map.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+countingOfL :: Ord a => Lens' s a -> [s] -> MapS.Map a Int
+countingOfL _ [] = MapS.empty
+countingOfL o xs = MapS.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 
 -- | Sort through a lens, then right-fold each group.
 foldSortingL :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
-foldSortingL o g z xs = map (foldr g z) (Map.elems $ toMapOfL o xs)
+foldSortingL o g z xs = map (foldr g z) (MapS.elems $ toMapOfL o xs)
 
 -- | Sort through a lens, then reduce each non-empty group.
 foldSorting1L :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
-foldSorting1L o f xs = map (foldr1 f) (Map.elems $ toMapOfL o xs)
+foldSorting1L o f xs = map (foldr1 f) (MapS.elems $ toMapOfL o xs)
 
 -- | Sort through a lens, then monoidal concat per group.
 mconcatSortingL :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
-mconcatSortingL o g xs = map (foldMap g) (Map.elems $ toMapOfL o xs)
+mconcatSortingL o g xs = map (foldMap g) (MapS.elems $ toMapOfL o xs)
 
 ---------------------------------------------------------------------
 -- Merge (Sort + containers merge)
