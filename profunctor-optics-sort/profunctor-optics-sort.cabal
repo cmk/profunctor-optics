@@ -48,10 +48,12 @@ library
 
   build-depends:
       base                   >= 4.16   && < 5.0
+    , bytestring             >= 0.11
     , coapplicative          >= 0.0.2
     , containers             >= 0.5
     , profunctors            >= 5.4
     , profunctor-optics      >= 0.0.3
+    , text                   >= 2.0
     , vector                 >= 0.12
 
 test-suite properties
@@ -72,6 +74,7 @@ test-suite properties
 
   build-depends:
       base
+    , bytestring
     , coapplicative
     , containers
     , hedgehog               >= 1.0
@@ -80,4 +83,5 @@ test-suite properties
     , profunctor-optics-sort
     , profunctor-optics-strings
     , scheme-extensions
+    , text
     , vector
