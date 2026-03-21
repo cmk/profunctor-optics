@@ -288,9 +288,9 @@ reliftedF :: Apply f => Cosetter1 (f a) (f b) a b
 reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
 {-# INLINE reliftedF #-}
 
--- | Variant of 'reliftedA' specialized to zip-lists.
+-- | Variant of 'reliftedA' specialized to zip-toListOf.
 --
--- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
+-- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
 --
 -- @since 0.0.3
 zipListed :: Cosetter [a] [b] a b
@@ -355,7 +355,7 @@ set o b = sets o $ const b
 -- | Set the focus of a 'Setter'.
 --
 sets ::  ASetter s t a b -> (a -> b) -> s -> t
-sets o = (runIdentity #.) #. traverses o .# (Identity #.)
+sets o = (runIdentity #.) #. traverseOf o .# (Identity #.)
 {-# INLINE sets #-}
 
 -- | Set the focus of a 'Ixsetter'.

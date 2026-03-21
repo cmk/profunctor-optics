@@ -898,7 +898,7 @@ instance a ~ b => Coapplicative (Index a b) where
 --
 -- See also 'Data.Profunctor.Optic.Lens.cloneColensVl'.
 --
--- 'Coindex' can also be used to compose indexed maps, folds, or traversals directly.
+-- 'Coindex' can also be used to compose indexed maps, foldMapOf, or traversals directly.
 --
 -- For example, using the @containers@ library:
 --
@@ -949,7 +949,7 @@ infixr 9 <<<<
 
 -- | Compose two coindexes.
 --
--- When /s/ is a 'Monoid', 'Coindex' can be used to compose indexed traversals, folds, etc.
+-- When /s/ is a 'Monoid', 'Coindex' can be used to compose indexed traversals, foldMapOf, etc.
 --
 -- For example, to keep track of only the first index seen, use @Data.Monoid.First@:
 --

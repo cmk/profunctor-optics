@@ -57,7 +57,7 @@ module Data.Map.Optic (
   , cxmapped
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (toMapOfL, countingOfL, sortingOfL, sortingDescOfL, groupingOfL, nubbingOfL, foldSortingL, foldSorting1L, mconcatSortingL, sortingString, mergingOfL, innerMergeL, outerMergeL, leftMergeL, rightMergeL, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.View (rxfrom)
@@ -247,7 +247,7 @@ mconcatSortingL o g xs = map (foldMap g) (MapS.elems $ toMapOfL o xs)
 -- Merge (Sort + containers merge)
 ---------------------------------------------------------------------
 
--- | Merge two lists through lenses using containers merge tactics.
+-- | Merge two toListOf through lenses using containers merge tactics.
 mergingOfL :: Ord a
            => Lens' s a -> Lens' t a
            -> Merge.SimpleWhenMissing a [s] c

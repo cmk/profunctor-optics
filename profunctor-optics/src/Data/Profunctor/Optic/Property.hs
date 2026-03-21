@@ -251,23 +251,23 @@ idempotent_traversal0 o s a1 a2 = withAffine o $ \_ sbt -> sbt (sbt s a1) a2 == 
 -- A 'Traversal' is a valid 'Setter' with the following additional laws:
 
 id_traversal :: Eq s => Traversal' s a -> s -> Bool
-id_traversal o = M.join invertible $ runIdentity . traverses o Identity 
+id_traversal o = M.join invertible $ runIdentity . traverseOf o Identity 
 
 id_traversal1 :: Eq s => Traversal1' s a -> s -> Bool
-id_traversal1 o = M.join invertible $ runIdentity . traverses o Identity 
+id_traversal1 o = M.join invertible $ runIdentity . traverseOf o Identity 
 
 pure_traversal :: Eq (f s) => Applicative f => ATraversal' f s a -> s -> Bool
-pure_traversal o = liftA2 (==) (traverses o pure) pure
+pure_traversal o = liftA2 (==) (traverseOf o pure) pure
 
 compose_traversal :: Eq (f (g s)) => Applicative' f => Applicative' g => Traversal' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal o f g = liftA2 (==) lhs rhs
-  where lhs = fmap (traverses o f) . traverses o g
-        rhs = getCompose . traverses o (Compose . fmap f . g)
+  where lhs = fmap (traverseOf o f) . traverseOf o g
+        rhs = getCompose . traverseOf o (Compose . fmap f . g)
 
 compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (a -> g a) -> (a -> f a) -> s -> Bool
 compose_traversal1 o f g s = lhs s == rhs s
-  where lhs = fmap (traverses o f) . traverses o g
-        rhs = getCompose . traverses o (Compose . fmap f . g)
+  where lhs = fmap (traverseOf o f) . traverseOf o g
+        rhs = getCompose . traverseOf o (Compose . fmap f . g)
 
 ---------------------------------------------------------------------
 -- 'Cotraversal'

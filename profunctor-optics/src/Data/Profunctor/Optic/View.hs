@@ -261,7 +261,7 @@ view o = views o id
 -- ["foo","bar","baz"]
 --
 views :: MonadReader s m => AView r s a -> (a -> r) -> m r
-views o f = asks $ folds o f
+views o f = asks $ foldMapOf o f
 {-# INLINE views #-}
 
 infix 8 ^%
