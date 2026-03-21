@@ -52,7 +52,7 @@ import qualified Data.Map.Lazy as Map
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
 --
 fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = foldsWithKey o Map.singleton
+fromIxfold o = ixfolds o Map.singleton
 {-# INLINE fromIxfold #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.
@@ -91,7 +91,7 @@ iat k = ixtraversal0' (\s -> (k,) <$> Map.lookup k s) (flip $ Map.insert k)
 --
 -- Subject to list fusion.
 --
--- >>> lists values $ Map.fromList [(1,3),(2,4)]
+-- >>> toListOf values $ Map.fromList [(1,3),(2,4)]
 -- [3,4]
 --
 values :: Fold (Map.Map k a) a

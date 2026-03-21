@@ -793,7 +793,7 @@ makeFieldOpticsForDatatype :: OpticRules -> D.DatatypeInfo -> HasFieldClasses [D
 makeFieldOpticsForDatatype rules info =
   do perDef <- liftState $ do
        fieldCons <- traverse normalizeConstructor cons
-       let allFields  = lists (folded . second . folded . first . folded) fieldCons
+       let allFields  = toListOf (folded . second . folded . first . folded) fieldCons
        let defCons    = over normFieldLabels (expandName allFields) fieldCons
            allDefs    = setOf (normFieldLabels . folded) defCons
        sequenceA (fromSet (buildScaffold rules s defCons) allDefs)
@@ -867,7 +867,7 @@ makeClassyClass className methodName s defs = do
   let ss   = map (\(_, (_, ostab, _)) -> stabToS ostab) defs
   (sub,s') <- unifyTypes (s : ss)
   c <- newName "c"
-  let vars = lists typeVars s'
+  let vars = toListOf typeVars s'
       fd   | null vars = []
            | otherwise = [FunDep [c] vars]
 
@@ -903,7 +903,7 @@ makeClassyInstance rules className methodName s defs = do
 
   where
   instanceHead = className `conAppsT` (s : map VarT vars)
-  vars         = lists typeVars s
+  vars         = toListOf typeVars s
   rules'       = rules { _generateSigs    = False
                        , _generateClasses = False
                        }
@@ -950,7 +950,7 @@ buildScaffold rules s cons defName =
 
   do (s',t,a,b) <- buildStab s (concatMap snd consForDef)
 
-     let prev o s = listToMaybe (lists o s)
+     let prev o s = listToMaybe (toListOf o s)
 
          defType
            | Just (_,cx,a') <- prev forallt a =
@@ -982,7 +982,7 @@ buildScaffold rules s cons defName =
                          | otherwise                   = TraversalType
                in OpticStab optic s' t a b
 
-         opticType | not (null (lists forallt a)) = ViewType
+         opticType | not (null (toListOf forallt a)) = ViewType
                    | not (_allowUpdates rules) = ViewType
                    | isoCase                   = IsoType
                    | otherwise                 = LensType
@@ -1010,7 +1010,7 @@ buildScaffold rules s cons defName =
   lensCase = all (\x -> lengthOf (second . folded . right) x == 1) consForDef
 
   --affectedFields :: [Int]
-  --affectedFields = lists (folded . t33 . to length) scaffolds
+  --affectedFields = toListOf (folded . t33 . to length) scaffolds
 
   --lensCase :: Bool
   --lensCase = all (== 1) affectedFields

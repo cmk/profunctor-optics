@@ -98,14 +98,14 @@ prop_P10_worded_splits = property $ do
     view BO.worded ("hello world" :: B8.ByteString) === ["hello", "world"]
     view TO.worded ("hello world" :: T.Text) === ["hello", "world"]
 
--- P11: bytes traverses each byte
+-- P11: bytes traverseOf each byte
 prop_P11_bytes_count :: Property
 prop_P11_bytes_count = property $ do
     bs <- forAll $ Gen.utf8 (Range.linear 0 50) Gen.alpha
-    lists BO.bytes bs === BS.unpack bs
+    toListOf BO.bytes bs === BS.unpack bs
 
--- P12: chars traverses each char
+-- P12: chars traverseOf each char
 prop_P12_chars_count :: Property
 prop_P12_chars_count = property $ do
     t <- forAll $ Gen.text (Range.linear 0 50) Gen.alpha
-    lists TO.chars t === T.unpack t
+    toListOf TO.chars t === T.unpack t
