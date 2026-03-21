@@ -10,7 +10,7 @@ module Data.Profunctor.Optic.View (
   , to
   , ixto
   , from
-  , rxfrom
+  , cxfrom
   , cloneView
   , cloneReview
     -- * Optics
@@ -24,13 +24,13 @@ module Data.Profunctor.Optic.View (
   , view
   , views
   , (^%)
-  , viewWithKey
-  , viewsWithKey
+  , ixview
+  , ixviews
   , (.^)
   , review
   , reviews
-  , reviewWithKey
-  , reviewsWithKey
+  , cxreview
+  , cxreviews
     -- * MonadState
   , use
   , uses
@@ -196,13 +196,13 @@ ixlike k a = ixto (const (k, a))
 
 -- | TODO: Document
 --
--- >>> cofoldsWithKey (rxfrom Map.mapWithKey # rxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfolds (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
-rxfrom :: ((k -> b) -> t) -> Rxview k t b
-rxfrom f = coercel . rmap (\ib _ -> f ib)
-{-# INLINE rxfrom #-}
+cxfrom :: ((k -> b) -> t) -> Cxreview k t b
+cxfrom f = coercel . rmap (\ib _ -> f ib)
+{-# INLINE cxfrom #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -276,27 +276,27 @@ infix 8 ^%
 --
 -- @since 0.0.3
 (^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
-(^%) = flip viewWithKey
+(^%) = flip ixview
 {-# INLINE (^%) #-}
 
 -- | A prefix alias for '^%'.
 --
--- >>> viewWithKey ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
+-- >>> ixview ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
 -- (Just (Sum {getSum = 0}),"foo")
 --
 -- @since 0.0.3
-viewWithKey :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
-viewWithKey o = viewsWithKey o $ \k a -> (Just k, a)
-{-# INLINE viewWithKey #-}
+ixview :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
+ixview o = ixviews o $ \k a -> (Just k, a)
+{-# INLINE ixview #-}
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
--- Use 'viewWithKey' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
+-- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
 --
 -- @since 0.0.3
-viewsWithKey :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
-viewsWithKey o f = asks $ foldsWithKey o f
-{-# INLINE viewsWithKey #-}
+ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
+ixviews o f = asks $ ixfolds o f
+{-# INLINE ixviews #-}
 
 infix 8 .^
 
@@ -342,20 +342,20 @@ reviews o f = f . unTagged #. o .# Tagged
 -- | Bring a function of the index of a co-indexed optic into the current environment.
 --
 -- @since 0.0.3
-reviewWithKey :: ARxview k t b -> b -> (k -> t)
-reviewWithKey o = reviewsWithKey o id
-{-# INLINE reviewWithKey #-}
+cxreview :: ACxreview k t b -> b -> (k -> t)
+cxreview o = cxreviews o id
+{-# INLINE cxreview #-}
 
 -- | Bring a continuation of the index of a co-indexed optic into the current environment.
 --
 -- @
--- reviewsWithKey :: ARxview k t b -> ((k -> t) -> r) -> b -> r
+-- cxreviews :: ACxreview k t b -> ((k -> t) -> r) -> b -> r
 -- @
 --
 -- @since 0.0.3
-reviewsWithKey :: ARxview k t b -> ((k -> t) -> r) -> b -> r
-reviewsWithKey o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
-{-# INLINE reviewsWithKey #-}
+cxreviews :: ACxreview k t b -> ((k -> t) -> r) -> b -> r
+cxreviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
+{-# INLINE cxreviews #-}
 
 ---------------------------------------------------------------------
 -- MonadState

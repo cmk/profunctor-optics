@@ -273,7 +273,7 @@ compose_traversal1 o f g s = lhs s == rhs s
 -- 'Cotraversal'
 ---------------------------------------------------------------------
 {-
--- | A 'Cotraversal' is a valid 'Resetter' with the following additional law:
+-- | A 'Cotraversal' is a valid 'Cosetter' with the following additional law:
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --

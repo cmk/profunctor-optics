@@ -9,19 +9,19 @@ module Data.Profunctor.Optic.Setter (
     -- * Setter
     Setter
   , Setter'
-  , Resetter
-  , Resetter'
+  , Cosetter
+  , Cosetter'
   , setter
   , ixsetter
   , closing
-  , resetter
+  , cosetter
     -- * Setter1
   , Setter1
   , Setter1'
-  , Resetter1
-  , Resetter1'
+  , Cosetter1
+  , Cosetter1'
   , setter1
-  , resetter1
+  , cosetter1
     -- * Optics
   , cod
   , dom
@@ -44,18 +44,18 @@ module Data.Profunctor.Optic.Setter (
   , over
   , (%~)
   , (%%~)
-  , overWithKey
+  , ixover
   , (#~)
   , (##~)
-  , reoverWithKey
+  , cxover
   , set
   , sets
-  , setWithKey
-  , setsWithKey
-  , reset
-  , resets
-  , resetWithKey
-  , resetsWithKey
+  , ixset
+  , ixsets
+  , coset
+  , cosets
+  , cxset
+  , cxsets
     -- * mtl
   , (.=)
   , (..=)
@@ -133,8 +133,8 @@ setter abst = sieved abst . represent (\f -> distribute . fmap f)
 -- | Build an 'Ixsetter' from an indexed function.
 --
 -- @
--- 'ixsetter' '.' 'setsWithKey' ≡ 'id'
--- 'setsWithKey' '.' 'ixsetter' ≡ 'id'
+-- 'ixsetter' '.' 'ixsets' ≡ 'id'
+-- 'ixsets' '.' 'ixsetter' ≡ 'id'
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -157,7 +157,7 @@ closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 {-# INLINE closing #-}
 
--- | Obtain a 'Resetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
+-- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input function satisfies the following
@@ -167,9 +167,9 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 --
 -- * @abst f . abst g ≡ abst (f . g)@
 --
-resetter :: ((a -> t) -> s -> t) -> Resetter s t a t
-resetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
-{-# INLINE resetter #-}
+cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
+cosetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
+{-# INLINE cosetter #-}
 
 ---------------------------------------------------------------------
 -- Setter1
@@ -185,9 +185,9 @@ setter1 abst = sieved abst . represent (\f -> distribute1 . fmap f)
 -- | TODO: Document
 --
 -- @since 0.0.3
-resetter1 :: ((a -> t) -> s -> t) -> Resetter1 s t a t
-resetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
-{-# INLINE resetter1 #-}
+cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
+cosetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
+{-# INLINE cosetter1 #-}
 
 ---------------------------------------------------------------------
 -- Optics 
@@ -277,14 +277,14 @@ liftedA = setter liftA
 
 -- | TODO: Document
 --
-reliftedA :: Applicative f => Resetter (f a) (f b) a b
+reliftedA :: Applicative f => Cosetter (f a) (f b) a b
 reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
 {-# INLINE reliftedA #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-reliftedF :: Apply f => Resetter1 (f a) (f b) a b
+reliftedF :: Apply f => Cosetter1 (f a) (f b) a b
 reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
 {-# INLINE reliftedF #-}
 
@@ -293,7 +293,7 @@ reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
 -- Useful because lists are not 'Control.Coapplicative.Coapplicative'.
 --
 -- @since 0.0.3
-zipListed :: Resetter [a] [b] a b
+zipListed :: Cosetter [a] [b] a b
 zipListed = dimap ZipList getZipList . reliftedA
 {-# INLINE zipListed #-}
 
@@ -360,54 +360,54 @@ sets o = (runIdentity #.) #. traverses o .# (Identity #.)
 
 -- | Set the focus of a 'Ixsetter'.
 --
--- Equivalent to 'setsWithKey' with the current value ignored.
+-- Equivalent to 'ixsets' with the current value ignored.
 --
 -- @
--- 'set' o ≡ 'setWithKey' o '.' 'const'
+-- 'set' o ≡ 'ixset' o '.' 'const'
 -- @
 --
 -- @since 0.0.3
-setWithKey :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
-setWithKey o = setsWithKey o . (const .)
-{-# INLINE setWithKey #-}
+ixset :: Monoid i => AIxsetter i s t a b -> (i -> b) -> s -> t
+ixset o = ixsets o . (const .)
+{-# INLINE ixset #-}
 
 -- | Set the focus of a 'Ixsetter'.
 --
 -- @since 0.0.3
-setsWithKey :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
-setsWithKey o f = curry (sets o $ uncurry f) mempty
-{-# INLINE setsWithKey #-}
+ixsets :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
+ixsets o f = curry (sets o $ uncurry f) mempty
+{-# INLINE ixsets #-}
 
--- | Set the focus of a 'Resetter'.
+-- | Set the focus of a 'Cosetter'.
 --
 -- @
--- 'reset' o b = (o '/~' b) . 'Data.Functor.Identity'
+-- 'coset' o b = (o '/~' b) . 'Data.Functor.Identity'
 -- @
 --
-reset :: AResetter s t a b -> b -> s -> t
-reset o b = resets o $ const b
+coset :: ACosetter s t a b -> b -> s -> t
+coset o b = cosets o $ const b
 
--- | Set the focus of a 'Resetter'.
+-- | Set the focus of a 'Cosetter'.
 --
-resets :: AResetter s t a b -> (a -> b) -> s -> t
-resets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
-{-# INLINE resets #-}
+cosets :: ACosetter s t a b -> (a -> b) -> s -> t
+cosets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
+{-# INLINE cosets #-}
 
--- | Set the focus of a 'Rxsetter'.
+-- | Set the focus of a 'Cxsetter'.
 --
--- Equivalent to 'resetsWithKey' with the current value ignored.
+-- Equivalent to 'cxsets' with the current value ignored.
 --
 -- @since 0.0.3
-resetWithKey :: Monoid i => ARxsetter i s t a b -> (i -> b) -> s -> t 
-resetWithKey o ib = resetsWithKey o $ flip (const ib)
-{-# INLINE resetWithKey #-}
+cxset :: Monoid i => ACxsetter i s t a b -> (i -> b) -> s -> t 
+cxset o ib = cxsets o $ flip (const ib)
+{-# INLINE cxset #-}
 
--- | Set the focus of a 'Rxsetter'.
+-- | Set the focus of a 'Cxsetter'.
 --
 -- @since 0.0.3
-resetsWithKey :: Monoid i => ARxsetter i s t a b -> (i -> a -> b) -> s -> t 
-resetsWithKey o f = flip (resets o $ flip f) mempty
-{-# INLINE resetsWithKey #-}
+cxsets :: Monoid i => ACxsetter i s t a b -> (i -> a -> b) -> s -> t 
+cxsets o f = flip (cosets o $ flip f) mempty
+{-# INLINE cxsets #-}
 
 ---------------------------------------------------------------------
 -- Mtl

@@ -69,7 +69,7 @@ import Prelude
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
 --
 fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = foldsWithKey o Map.singleton
+fromIxfold o = ixfolds o Map.singleton
 {-# INLINE fromIxfold #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.

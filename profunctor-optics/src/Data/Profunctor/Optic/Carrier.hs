@@ -54,18 +54,18 @@ module Data.Profunctor.Optic.Carrier (
   , ACxfold
     -- * Setter carriers
   , ASetter
-  , AResetter
+  , ACosetter
   , AIxsetter
-  , ARxsetter
+  , ACxsetter
   , ASetter'
-  , AResetter'
+  , ACosetter'
   , AIxsetter'
-  , ARxsetter'
+  , ACxsetter'
     -- * View carriers
   , AView
   , AReview
   , AIxview
-  , ARxview
+  , ACxreview
     -- * Carrier operators
   , withIso
   , withPrism
@@ -258,19 +258,19 @@ type ACxfold r k t b = ACxtraversal' (Const r) k t b
 
 type ASetter s t a b = ATraversal Identity s t a b
 
-type AResetter s t a b = ACotraversal Identity s t a b
+type ACosetter s t a b = ACotraversal Identity s t a b
 
 type AIxsetter k s t a b = AIxtraversal Identity k s t a b
 
-type ARxsetter k s t a b = ACxtraversal Identity k s t a b
+type ACxsetter k s t a b = ACxtraversal Identity k s t a b
 
 type ASetter' s a = ASetter s s a a
 
-type AResetter' s a = AResetter s s a a
+type ACosetter' s a = ACosetter s s a a
 
 type AIxsetter' k s a = AIxsetter k s s a a
 
-type ARxsetter' k t b = ARxsetter k t t b b
+type ACxsetter' k t b = ACxsetter k t t b b
 
 ---------------------------------------------------------------------
 -- View carriers
@@ -282,7 +282,7 @@ type AReview t b = Optic' Tagged t b
 
 type AIxview k s a = AIxfold (Maybe k, a) k s a
 
-type ARxview k t b = Cxoptic' Tagged k t b
+type ACxreview k t b = Cxoptic' Tagged k t b
 
 ---------------------------------------------------------------------
 -- Carrier operators

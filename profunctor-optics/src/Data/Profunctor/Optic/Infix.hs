@@ -154,7 +154,7 @@ infixr 9  %, #
 -- @s '^%' o ≡ 'V.ixview' o s@
 --
 (^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
-(^%) = flip V.viewWithKey
+(^%) = flip V.ixview
 {-# INLINE (^%) #-}
 
 -- | Fold to an indexed list.
@@ -162,7 +162,7 @@ infixr 9  %, #
 -- @s '^%%' o ≡ 'F.ixlists' o s@
 --
 (^%%) :: Monoid k => s -> AIxfold (Endo [(k, a)]) k s a -> [(k, a)]
-(^%%) = flip F.listsWithKey
+(^%%) = flip F.ixlists
 {-# INLINE (^%%) #-}
 
 ---------------------------------------------------------------------
@@ -187,10 +187,10 @@ infixr 9  %, #
 
 -- | Indexed co-dual view (indexed review).
 --
--- @o '^#' b ≡ 'V.reviewWithKey' o b@
+-- @o '^#' b ≡ 'V.cxreview' o b@
 --
-(^#) :: ARxview k t b -> b -> (k -> t)
-(^#) = V.reviewWithKey
+(^#) :: ACxreview k t b -> b -> (k -> t)
+(^#) = V.cxreview
 {-# INLINE (^#) #-}
 
 ---------------------------------------------------------------------
@@ -242,7 +242,7 @@ infixr 9  %, #
 -- @o '%~' f ≡ 'S.ixset' o f@
 --
 (%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
-(%~) = S.setWithKey
+(%~) = S.ixset
 {-# INLINE (%~) #-}
 
 -- | Indexed over.
@@ -250,7 +250,7 @@ infixr 9  %, #
 -- @o '%%~' f ≡ 'S.ixover' o f@
 --
 (%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(%%~) = S.setsWithKey
+(%%~) = S.ixsets
 {-# INLINE (%%~) #-}
 
 ---------------------------------------------------------------------
@@ -282,7 +282,7 @@ infixr 9  %, #
 -- @o '#~' f ≡ 'S.cxset' o f@
 --
 (#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t
-(#~) = S.resetWithKey
+(#~) = S.cxset
 {-# INLINE (#~) #-}
 
 -- | Indexed co-dual over.
@@ -290,7 +290,7 @@ infixr 9  %, #
 -- @o '##~' f ≡ 'S.cxover' o f@
 --
 (##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-(##~) = S.resetsWithKey
+(##~) = S.cxsets
 {-# INLINE (##~) #-}
 
 ---------------------------------------------------------------------
