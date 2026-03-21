@@ -48,10 +48,12 @@ library
 
   build-depends:
       base                   >= 4.16   && < 5.0
+    , array                  >= 0.5
     , bytestring             >= 0.11
     , coapplicative          >= 0.0.2
     , containers             >= 0.5
     , hashable               >= 1.4
+    , primitive              >= 0.7
     , profunctors            >= 5.4
     , profunctor-optics      >= 0.0.3
     , text                   >= 2.0
@@ -82,7 +84,9 @@ test-suite properties
     , hedgehog               >= 1.0
     , profunctors
     , profunctor-optics
+    , array
     , hashable
+    , primitive
     , profunctor-optics-sort
     , profunctor-optics-strings
     , scheme-extensions
