@@ -54,6 +54,10 @@ library
       Data.Profunctor.Optic.Sort
       Data.Profunctor.Optic.Property
 
+      Data.List.Optic
+      Data.Sequence.Optic
+      Data.Tree.Optic
+
   other-modules: Data.Profunctor.Optic.Import
 
   default-language: Haskell2010
@@ -109,12 +113,16 @@ test-suite properties
   type:              exitcode-stdio-1.0
   main-is:           test.hs
   other-modules:     Test.Carrier
+                   , Test.Data.List.Optic
+                   , Test.Data.Sequence.Optic
+                   , Test.Data.Tree.Optic
   ghc-options:       -Wall -threaded
   hs-source-dirs:    test
   default-language:  Haskell2010
 
   build-depends:
       base
+    , containers
     , hedgehog               >= 1.0
     , profunctors
     , profunctor-optics
