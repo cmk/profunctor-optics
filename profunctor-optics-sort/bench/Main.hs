@@ -1,0 +1,120 @@
+{-# LANGUAGE BangPatterns #-}
+
+-- | Focused pre-merge benchmarks for SortF.
+--
+-- Three questions:
+-- 1. Carrier overhead: mkSortFN vs hand-written Map.fromListWith
+-- 2. Optic composition: grate8 carrier vs bare carrier
+-- 3. INLINE effectiveness: does DerivingVia specialize?
+module Main (main) where
+
+import Criterion.Main
+import Data.Functor.Index (I8(..))
+import Data.Monoid (Sum(..))
+import Data.Profunctor.Sort
+import Data.Word (Word8)
+import Data.Word.Optic (grate8, bits8)
+import qualified Data.Map.Strict as Map
+
+main :: IO ()
+main = defaultMain
+  [ carrierOverhead
+  , opticComposition
+  , pipelineOverhead
+  ]
+
+---------------------------------------------------------------------
+-- 1. Carrier overhead: mkSortFN vs hand-written Map.fromListWith
+---------------------------------------------------------------------
+
+carrierOverhead :: Benchmark
+carrierOverhead = bgroup "carrier-overhead"
+  [ bgroup (show n)
+    [ bench "mkSortFN"   $ nf (viaSortF n) keyFn
+    , bench "direct-Map" $ nf (directMap n) keyFn
+    ]
+  | n <- [100, 1000, 10000]
+  ]
+  where
+    keyFn :: Int -> Int
+    keyFn i = i `mod` 50
+
+-- SortF carrier: mkSortFN + runSortF
+viaSortF :: Int -> (Int -> Int) -> Map.Map Int [Int]
+viaSortF n key = runSortF (mkSortFN n) (\i -> (key i, i))
+
+-- Hand-written: same logic, no SortF wrapper
+directMap :: Int -> (Int -> Int) -> Map.Map Int [Int]
+directMap n key =
+  Map.fromListWith (flip (++)) [ k `seq` (k, [i])
+                                | i <- [0..n-1]
+                                , let !k = key i ]
+
+---------------------------------------------------------------------
+-- 2. Optic composition: grate8 carrier vs bare carrier
+---------------------------------------------------------------------
+
+opticComposition :: Benchmark
+opticComposition = bgroup "optic-composition"
+  [ bench "bare-carrier"  $ nf bareCarrier  inputW8
+  , bench "grate8-lifted" $ nf grate8Lifted inputW8
+  , bench "bits8-lifted"  $ nf bits8Lifted  inputW8
+  ]
+  where
+    inputW8 :: I8 -> (Int, Word8)
+    inputW8 _ = (0, 42)
+
+-- Bare SortF carrier operating on (I8 -> Bool)
+bareCarrier :: (I8 -> (Int, Word8)) -> Word8
+bareCarrier = runSortF baseSortF
+  where
+    baseSortF :: SortF I8 Int Word8 Word8
+    baseSortF = SortF $ \inp -> snd (inp I81)
+
+-- Same carrier lifted through grate8 (Closed)
+grate8Lifted :: (I8 -> (Int, Word8)) -> Word8
+grate8Lifted = runSortF liftedSortF
+  where
+    baseSortF :: SortF I8 Int (I8 -> Bool) (I8 -> Bool)
+    baseSortF = SortF $ \inp -> snd (inp I81)
+    liftedSortF :: SortF I8 Int Word8 Word8
+    liftedSortF = grate8 baseSortF
+
+-- Same carrier lifted through bits8 (Cotraversal, needs Monoid i)
+bits8Lifted :: (I8 -> (Int, Word8)) -> Word8
+bits8Lifted = runSortF liftedSortF
+  where
+    baseSortF :: SortF I8 Int Bool Bool
+    baseSortF = SortF $ \inp -> snd (inp I81)
+    liftedSortF :: SortF I8 Int Word8 Word8
+    liftedSortF = bits8 baseSortF
+
+---------------------------------------------------------------------
+-- 3. Pipeline overhead: (%.) composition vs single pass
+---------------------------------------------------------------------
+
+pipelineOverhead :: Benchmark
+pipelineOverhead = bgroup "pipeline"
+  [ bgroup (show n)
+    [ bench "single-pass" $ nf (singlePass n) keyFn
+    , bench "two-pass"    $ nf (twoPass n)    keyFn
+    ]
+  | n <- [100, 1000, 10000]
+  ]
+  where
+    keyFn :: Int -> Int
+    keyFn i = i `mod` 50
+
+-- Single SortF pass
+singlePass :: Int -> (Int -> Int) -> Map.Map Int [Int]
+singlePass n key = runSortF (mkSortFN n) (\i -> (key i, i))
+
+-- Two passes chained with (%.)
+-- First pass: extract the value. Second pass: build the Map.
+-- The (%.) pipelines g's output as f's input value.
+twoPass :: Int -> (Int -> Int) -> Map.Map Int [Int]
+twoPass n key = runSortF (mkSortFN n %. extractSortF) (\i -> (key i, i))
+  where
+    -- First stage: extract the value at each position (identity on values)
+    extractSortF :: SortF Int Int Int Int
+    extractSortF = SortF $ \inp -> snd (inp 0)
