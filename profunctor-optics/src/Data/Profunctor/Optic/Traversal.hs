@@ -80,7 +80,7 @@ module Data.Profunctor.Optic.Traversal (
   , sequences
   , (**~)
   , traverses
-  , traversesWithKey
+  , ixtraverses
   , backwards
   , mapAccumsL
   , mapAccumsR
@@ -90,7 +90,7 @@ module Data.Profunctor.Optic.Traversal (
   , collects 
   , (//~)
   , cotraverses
-  , cotraversesWithKey
+  , cxtraverses
     -- * Classes
   , Strong(..)
   , Choice(..)
@@ -293,13 +293,13 @@ ixtraversalVl f = traversalVl $ \kab -> f (curry kab) . snd
 
 -- | Iteratively index a traversal with an incrementing value.
 --
--- >>> B.first getSum <$> listsWithKey (ix (Sum 1) traversed) "foobar"
+-- >>> B.first getSum <$> ixlists (ix (Sum 1) traversed) "foobar"
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
--- >>> listsWithKey (noix traversed . ix "o" traversed) ["foo", "bar"]
+-- >>> ixlists (noix traversed . ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("",'b'),("o",'a'),("oo",'r')]
--- >>> listsWithKey (ix "x" traversed % ix "o" traversed) ["foo", "bar"]
+-- >>> ixlists (ix "x" traversed % ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("x",'b'),("xo",'a'),("xoo",'r')]
--- >>> B.first getSum <$> listsWithKey (ix (Sum 3) traversed % ix (Sum 1) traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (ix (Sum 3) traversed % ix (Sum 1) traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3
@@ -312,9 +312,9 @@ ix k o = ixrepresent $ \f s ->
 --
 -- Useful as the first optic in a chain when no indexed equivalent is at hand.
 --
--- >>> B.first getSum <$> listsWithKey (noix traversed . ix (Sum 1) traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (noix traversed . ix (Sum 1) traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> listsWithKey (ix (Sum 1) traversed . noix traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixlists (ix (Sum 1) traversed . noix traversed) ["foo", "bar"]
 -- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
 --
 -- @since 0.0.3
@@ -721,13 +721,13 @@ traverses = (**~)
 -- | Traverse over an 'Ixtraversal'.
 --
 -- @
--- 'traversesWithKey' o f = 'curry' ('traverses' o '$' 'uncurry' f) 'mempty'
+-- 'ixtraverses' o f = 'curry' ('traverses' o '$' 'uncurry' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-traversesWithKey :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
-traversesWithKey o f = curry (o **~ uncurry f) mempty
-{-# INLINE traversesWithKey #-}
+ixtraverses :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
+ixtraverses o f = curry (o **~ uncurry f) mempty
+{-# INLINE ixtraverses #-}
 
 -- | This allows you to 'Control.Traversable.traverse' the elements of a 'Traversing' or 'Traversing1' optic in the opposite order.
 --
@@ -815,10 +815,10 @@ cotraverses = (//~)
 -- | Cotraverse over a 'Cxtraversal'.
 --
 -- @
--- 'cotraversesWithKey' o f = 'flip' ('cotraverses' o '$' 'flip' f) 'mempty'
+-- 'cxtraverses' o f = 'flip' ('cotraverses' o '$' 'flip' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-cotraversesWithKey :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
-cotraversesWithKey o f = flip (o //~ flip f) mempty
-{-# INLINE cotraversesWithKey #-}
+cxtraverses :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
+cxtraverses o f = flip (o //~ flip f) mempty
+{-# INLINE cxtraverses #-}
