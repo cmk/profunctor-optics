@@ -9,9 +9,11 @@
 module Main (main) where
 
 import Criterion.Main
+import Data.Functor.Compose (Compose(..))
 import Data.Functor.Index (I8(..))
 import Data.Monoid (Sum(..))
 import Data.Profunctor.Sort
+import Data.Profunctor.Types (Costar(..))
 import Data.Word (Word8)
 import Data.Word.Optic (grate8, bits8)
 import qualified Data.Map.Strict as Map
@@ -56,38 +58,61 @@ directMap n key =
 
 opticComposition :: Benchmark
 opticComposition = bgroup "optic-composition"
-  [ bench "bare-carrier"  $ nf bareCarrier  inputW8
-  , bench "grate8-lifted" $ nf grate8Lifted inputW8
-  , bench "bits8-lifted"  $ nf bits8Lifted  inputW8
+  [ bench "bare-carrier"         $ nf bareCarrier      inputW8
+  , bench "grate8-SortF"         $ nf grate8SortF      inputW8
+  , bench "grate8-Costar"        $ nf grate8Costar     inputCostar
+  , bench "bits8-SortF"          $ nf bits8SortF       inputW8
+  , bench "bits8-Costar"         $ nf bits8Costar      inputCostar
   ]
   where
     inputW8 :: I8 -> (Int, Word8)
     inputW8 _ = (0, 42)
 
--- Bare SortF carrier operating on (I8 -> Bool)
+    inputCostar :: Compose ((->) I8) ((,) Int) Word8
+    inputCostar = Compose $ \_ -> (0, 42)
+
+-- Bare SortF carrier: trivial (one function call)
 bareCarrier :: (I8 -> (Int, Word8)) -> Word8
 bareCarrier = runSortF baseSortF
   where
     baseSortF :: SortF I8 Int Word8 Word8
     baseSortF = SortF $ \inp -> snd (inp I81)
 
--- Same carrier lifted through grate8 (Closed)
-grate8Lifted :: (I8 -> (Int, Word8)) -> Word8
-grate8Lifted = runSortF liftedSortF
+-- grate8 applied to SortF
+grate8SortF :: (I8 -> (Int, Word8)) -> Word8
+grate8SortF = runSortF liftedSortF
   where
     baseSortF :: SortF I8 Int (I8 -> Bool) (I8 -> Bool)
     baseSortF = SortF $ \inp -> snd (inp I81)
     liftedSortF :: SortF I8 Int Word8 Word8
     liftedSortF = grate8 baseSortF
 
--- Same carrier lifted through bits8 (Cotraversal, needs Monoid i)
-bits8Lifted :: (I8 -> (Int, Word8)) -> Word8
-bits8Lifted = runSortF liftedSortF
+-- grate8 applied to raw Costar (same Corep functor, no SortF)
+grate8Costar :: Compose ((->) I8) ((,) Int) Word8 -> Word8
+grate8Costar = runCostar liftedCostar
+  where
+    baseCostar :: Costar (Compose ((->) I8) ((,) Int)) (I8 -> Bool) (I8 -> Bool)
+    baseCostar = Costar $ \(Compose inp) -> snd (inp I81)
+    liftedCostar :: Costar (Compose ((->) I8) ((,) Int)) Word8 Word8
+    liftedCostar = grate8 baseCostar
+
+-- bits8 applied to SortF
+bits8SortF :: (I8 -> (Int, Word8)) -> Word8
+bits8SortF = runSortF liftedSortF
   where
     baseSortF :: SortF I8 Int Bool Bool
     baseSortF = SortF $ \inp -> snd (inp I81)
     liftedSortF :: SortF I8 Int Word8 Word8
     liftedSortF = bits8 baseSortF
+
+-- bits8 applied to raw Costar (same Corep functor, no SortF)
+bits8Costar :: Compose ((->) I8) ((,) Int) Word8 -> Word8
+bits8Costar = runCostar liftedCostar
+  where
+    baseCostar :: Costar (Compose ((->) I8) ((,) Int)) Bool Bool
+    baseCostar = Costar $ \(Compose inp) -> snd (inp I81)
+    liftedCostar :: Costar (Compose ((->) I8) ((,) Int)) Word8 Word8
+    liftedCostar = bits8 baseCostar
 
 ---------------------------------------------------------------------
 -- 3. Pipeline overhead: (%.) composition vs single pass
