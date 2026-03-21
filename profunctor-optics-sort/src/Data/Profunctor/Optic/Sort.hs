@@ -54,6 +54,10 @@ module Data.Profunctor.Optic.Sort
   , leftMerge
   , rightMerge
 
+    -- * Sort3 merge tactics
+  , sortedMatched
+  , sortedMissing
+
     -- * Joins (by key extractor, not optic-based)
   , joiningOf
   , innerJoinOf
@@ -366,6 +370,34 @@ rightMerge :: Ord a
            -> NonEmpty s -> NonEmpty t -> Map.Map a c
 rightMerge lo ro fr fb =
   mergingOf lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+-- ===================================================================
+-- Sort3 merge tactics
+-- ===================================================================
+
+-- | Construct a 'WhenMatched' tactic from a Sort3 carrier.
+--
+-- The Sort3 is fed the matched pair @(x, y)@ via a constant input
+-- function. The carrier's @i@ parameter is the pair type @(x, y)@,
+-- and it receives the merge key @k@ and the actual values at that
+-- key.
+--
+-- @
+-- 'sortedMatched' :: Sort3 (x, y) j k (x, y) z -> j -> 'SimpleWhenMatched' k x y z
+-- @
+--
+sortedMatched :: Sort3 (x, y) j k (x, y) z -> j -> Merge.SimpleWhenMatched k x y z
+sortedMatched (Sort3 h) j = Merge.zipWithMatched $ \k x y ->
+  h (const (k, (x, y))) j k
+
+-- | Construct a 'WhenMissing' tactic from a Sort3 carrier.
+--
+-- The Sort3 is fed the missing value @x@ via a constant input
+-- function. The carrier's @i@ parameter is @x@.
+--
+sortedMissing :: Sort3 x j k x y -> j -> Merge.SimpleWhenMissing k x y
+sortedMissing (Sort3 h) j = Merge.mapMissing $ \k x ->
+  h (const (k, x)) j k
 
 -- ===================================================================
 -- Joins (by key extractor, not optic-based)
