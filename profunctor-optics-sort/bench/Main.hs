@@ -63,10 +63,15 @@ opticComposition = bgroup "optic-composition"
   , bench "grate8-Costar"        $ nf grate8Costar     inputCostar
   , bench "bits8-SortF"          $ nf bits8SortF       inputW8
   , bench "bits8-Costar"         $ nf bits8Costar      inputCostar
+  , bench "bare-Int-idx"        $ nf bareCarrierInt   inputInt
+  , bench "grate8-Int-idx"      $ nf grate8IntIdx     inputInt
   ]
   where
     inputW8 :: I8 -> (Int, Word8)
     inputW8 _ = (0, 42)
+
+    inputInt :: Int -> (Int, Word8)
+    inputInt _ = (0, 42)
 
     inputCostar :: Compose ((->) I8) ((,) Int) Word8
     inputCostar = Compose $ \_ -> (0, 42)
@@ -113,6 +118,23 @@ bits8Costar = runCostar liftedCostar
     baseCostar = Costar $ \(Compose inp) -> snd (inp I81)
     liftedCostar :: Costar (Compose ((->) I8) ((,) Int)) Word8 Word8
     liftedCostar = bits8 baseCostar
+
+-- Same as bare but with Int index instead of I8
+bareCarrierInt :: (Int -> (Int, Word8)) -> Word8
+bareCarrierInt = runSortF baseSortF
+  where
+    baseSortF :: SortF Int Int Word8 Word8
+    baseSortF = SortF $ \inp -> snd (inp 0)
+
+-- grate8 with Int-indexed SortF (Int is Monoid via Sum, but we just
+-- need Closed here so Int works directly)
+grate8IntIdx :: (Int -> (Int, Word8)) -> Word8
+grate8IntIdx = runSortF liftedSortF
+  where
+    baseSortF :: SortF Int Int (I8 -> Bool) (I8 -> Bool)
+    baseSortF = SortF $ \inp -> snd (inp 0)
+    liftedSortF :: SortF Int Int Word8 Word8
+    liftedSortF = grate8 baseSortF
 
 ---------------------------------------------------------------------
 -- 3. Pipeline overhead: (%.) composition vs single pass
