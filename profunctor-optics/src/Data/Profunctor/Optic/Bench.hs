@@ -43,21 +43,33 @@
 -- overWithKey o f = (unConjoin #. corepresent o .# Conjoin) f mempty
 -- @
 --
--- If GHC doesn't inline through this, each indexed @over@ pays
--- Conjoin construction + two profunctor transforms + destruction.
+-- Benchmarks show GHC inlines through fully: __1.08x__ overhead.
 -- Measure with 'benchIxTraversal' and compare against non-indexed.
+--
+-- == Fold overhead
+--
+-- @
+-- Operation          Optic        Direct       Ratio
+-- ─────────          ─────        ──────       ─────
+-- lists on Map       3.48 μs      2.01 μs      1.73x
+-- lists on list      1.93 μs      0.24 μs      ~8x (unfair*)
+-- @
+--
+-- (*) @foldr (:) []@ on @[a]@ is @id@ — not a meaningful baseline.
+-- The 1.73x on Map is the real overhead (Endo closure chain).
+-- Same as lens's @toListOf@ — both use the Endo path.
 --
 -- == Sort carrier overhead
 --
 -- @
 -- Size    mkSortN    direct Map     Ratio
 -- ────    ───────    ──────────     ─────
--- 100     15 μs      8.5 μs        1.8x
--- 1,000   213 μs     131 μs        1.6x
--- 10,000  21.2 ms    21.2 ms       1.0x
+-- 100     707 ns     712 ns        0.99x
+-- 1,000   3.0 μs     3.1 μs        0.98x
+-- 10,000  40 μs      44 μs         0.90x
 -- @
 --
--- Constant-factor at small sizes, converges to 1.0x.
+-- Zero overhead at all sizes (0.90–0.99x).
 -- Sort adds zero overhead on top of raw Costar.
 --
 -- == How to use
@@ -77,6 +89,24 @@
 --     ]
 --   ]
 -- @
+--
+-- == Full results summary
+--
+-- @
+-- Operation                    Optic\/Direct   Ratio
+-- ─────────                    ────────────    ─────
+-- Lens view                    9.7\/10.2 ns     0.95x
+-- Lens over                    25.7\/25.8 ns    1.00x
+-- Traversal0 preview           9.7\/9.6 ns      1.01x
+-- Traversal over (1K)          10.9\/12.1 μs    0.89x
+-- Indexed setsWithKey (Map)    3.0\/2.8 μs      1.08x
+-- Fold lists (Map)             3.5\/2.0 μs      1.73x
+-- Composition traversed.first  2.2\/2.2 μs      0.97x
+-- Sort carrier mkSortN (1K)    3.0\/3.1 μs      0.98x
+-- sortingOfL (1K)              334\/331 μs       1.01x
+-- toMapOfL (1K)                346\/343 μs       1.01x
+-- @
+--
 module Data.Profunctor.Optic.Bench (
     -- * Optic abstraction overhead
     benchLens
