@@ -12,11 +12,20 @@ module Data.List.Optic (
   , ifiltered
   , itraversed
   , ifolded
+    -- * Sort-based operators
+  , sortingOfL
+  , sortingDescOfL
+  , groupingOfL
+  , nubbingOfL
+  , sortingString
 ) where
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)
+import Data.Ord (Down(..))
+import qualified Data.Map.Strict as Map
 import Prelude
 
 -- | /O(n)/. Affine traversal into the value at an index of a list.
@@ -58,3 +67,32 @@ itraversed = ixtraversalVl $ \f -> traverse (uncurry f) . zip [0..]
 ifolded :: Ixfold Int [a] a
 ifolded = ixfoldVl $ \f -> traverse (uncurry f) . zip [0..]
 {-# INLINE ifolded #-}
+
+---------------------------------------------------------------------
+-- Sort-based operators
+---------------------------------------------------------------------
+
+-- | Sort a list through a lens. Returns @[]@ on empty input.
+sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingOfL _ [] = []
+sortingOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+  [(s ^. o, [s]) | s <- xs]
+
+-- | Sort a list in descending order through a lens.
+sortingDescOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingDescOfL _ [] = []
+sortingDescOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+  [(Down (s ^. o), [s]) | s <- xs]
+
+-- | Group a list through a lens.
+groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
+groupingOfL = sortingOfL
+
+-- | Deduplicate a list through a lens, keeping first per group.
+nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
+nubbingOfL _ [] = []
+nubbingOfL o xs = map head $ sortingOfL o xs
+
+-- | Sort a 'String' by a key on each character.
+sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
+sortingString = sortingRep length (\s i -> s !! i) id
