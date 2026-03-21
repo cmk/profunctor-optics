@@ -19,6 +19,7 @@ import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
+import qualified Control.Category as C
 import Data.Profunctor.Optic.Sort
 import Data.Profunctor.Choice (left')
 import Data.Word (Word8)
@@ -681,6 +682,103 @@ prop_P50_mkSort3N = property $ do
     runSort3 s inp 1 "a" === 30
     -- key "b" has position 1 → value 20
     runSort3 s inp 0 "b" === 20
+
+---------------------------------------------------------------------
+-- SortF properties
+---------------------------------------------------------------------
+
+-- SF1: SortF dimap id id = id
+prop_SF1_sortF_dimap_id :: Property
+prop_SF1_sortF_dimap_id = property $ do
+    let s = mkSortFN 5 :: SortF Int Int Int (Map.Map Int [Int])
+        inp i = (i `mod` 3, i * 10)
+    runSortF (dimap id id s) inp === runSortF s inp
+
+-- SF2: mkSortFN groups correctly
+prop_SF2_mkSortFN :: Property
+prop_SF2_mkSortFN = property $ do
+    let s = mkSortFN 4 :: SortF Int Int Char (Map.Map Int [Char])
+        inp 0 = (1, 'a')
+        inp 1 = (2, 'b')
+        inp 2 = (1, 'c')
+        inp 3 = (2, 'd')
+        inp _ = (0, '?')
+        result = runSortF s inp
+    result === Map.fromList [(1, ['a','c']), (2, ['b','d'])]
+
+-- SF3: Category id . f = f (needs Monoid i, Monoid k)
+prop_SF3_category_left_id :: Property
+prop_SF3_category_left_id = property $ do
+    let s = SortF (\inp -> snd (inp (Sum 0)) + 1) :: SortF (Sum Int) (Sum Int) Int Int
+        inp i = (Sum (getSum i `mod` 2), getSum i * 10)
+    runSortF (C.id C.. s) inp === runSortF s inp
+
+-- SF4: Category f . id = f
+prop_SF4_category_right_id :: Property
+prop_SF4_category_right_id = property $ do
+    let s = SortF (\inp -> snd (inp (Sum 0)) + 1) :: SortF (Sum Int) (Sum Int) Int Int
+        inp i = (Sum (getSum i `mod` 2), getSum i * 10)
+    runSortF (s C.. C.id) inp === runSortF s inp
+
+-- SF5: (%.) composition
+prop_SF5_compose :: Property
+prop_SF5_compose = property $ do
+    let s1 = SortF (\inp -> snd (inp 0) + 1) :: SortF Int (Sum Int) Int Int
+        s2 = SortF (\inp -> snd (inp 0) * 2) :: SortF Int (Sum Int) Int Int
+        composed = s1 %. s2
+        inp i = (Sum i, i + 10)
+    -- s2 runs on inp: snd (inp 0) * 2 = 10 * 2 = 20
+    -- s1 sees (\i -> (fst (inp i), 20)): snd (...) + 1 = 20 + 1 = 21
+    runSortF composed inp === 21
+
+-- SF6: remapSortF id = id
+prop_SF6_remapSortF_id :: Property
+prop_SF6_remapSortF_id = property $ do
+    let s = mkSortFN 3 :: SortF Int Int Int (Map.Map Int [Int])
+        inp i = (i, i * 10)
+    runSortF (remapSortF id s) inp === runSortF s inp
+
+-- SF7: eitherSortF partitions correctly
+prop_SF7_eitherSortF :: Property
+prop_SF7_eitherSortF = property $ do
+    let sl = SortF (\inp -> "left:" ++ show (snd (inp (Sum 0)))) :: SortF (Sum Int) Int Int String
+        sr = SortF (\inp -> "right:" ++ show (snd (inp (Sum 0)))) :: SortF (Sum Int) Int Int String
+        combined = eitherSortF sl sr
+        -- All Left input
+        inpL :: Sum Int -> (Int, Either Int Int)
+        inpL _ = (1, Left 42)
+        -- All Right input
+        inpR :: Sum Int -> (Int, Either Int Int)
+        inpR _ = (1, Right 99)
+    runSortF combined inpL === "left:42"
+    runSortF combined inpR === "right:99"
+
+-- SF8: maybeSortF with Nothing returns default
+prop_SF8_maybeSortF :: Property
+prop_SF8_maybeSortF = property $ do
+    let sf = SortF (\inp -> snd (inp (Sum 0)) * 2) :: SortF (Sum Int) Int Int Int
+        combined = maybeSortF 0 sf
+        inpJust :: Sum Int -> (Int, Maybe Int)
+        inpJust _ = (1, Just 21)
+        inpNothing :: Sum Int -> (Int, Maybe Int)
+        inpNothing _ = (1, Nothing)
+    runSortF combined inpJust === 42
+    runSortF combined inpNothing === 0
+
+-- SF9: bindSortF allows key-dependent logic
+prop_SF9_bindSortF :: Property
+prop_SF9_bindSortF = property $ do
+    let base = SortF (\inp -> snd (inp 0)) :: SortF Int Int Int Int
+        -- Bind: if key > 1, negate the result
+        refined = bindSortF base $ \k ->
+          if k > 1 then SortF (\inp -> negate (snd (inp 0)))
+                   else SortF (\inp -> snd (inp 0))
+        inpLowKey :: Int -> (Int, Int)
+        inpLowKey _ = (0, 42)
+        inpHighKey :: Int -> (Int, Int)
+        inpHighKey _ = (5, 42)
+    runSortF refined inpLowKey === 42
+    runSortF refined inpHighKey === (-42)
 
 ---------------------------------------------------------------------
 -- Helpers
