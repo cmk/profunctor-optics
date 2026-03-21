@@ -32,9 +32,7 @@ module Data.Profunctor.Optic.Sort
   , nubbingBack
   , groupingDescBack
 
-    -- * SortF operators (Closed, Coaffine, Cotraversing)
-  , sortingUnderF
-  , cosortingOfF
+    -- * SortF operators
   , zipsSortingF
   , sortingVectorF
 
@@ -228,16 +226,16 @@ toMapIx o xs =
 -- SortF operators
 -- ===================================================================
 
--- | Lift a SortF through a 'Colens' (Closed).
+-- Note: Colens and Cotraversal optics compose with SortF by
+-- direct application — no wrapper needed:
 --
-sortingUnderF :: Colens s t a b -> SortF i k a b -> SortF i k s t
-sortingUnderF g = g
-
--- | Lift a SortF through a 'Cotraversal' (Coaffine + Cotraversing).
--- Requires @'Monoid' i@ for the 'Choice' instance.
+-- @
+-- grate8 carrier  :: SortF I8 k Word8 Word8    -- Colens (Closed)
+-- bits8  carrier  :: SortF I8 k Word8 Word8    -- Cotraversal (Monoid i)
+-- @
 --
-cosortingOfF :: Monoid i => Cotraversal s t a b -> SortF i k a b -> SortF i k s t
-cosortingOfF o = o
+-- The optic IS the composition. See grate8/bits8 docs in
+-- profunctor-optics-strings.
 
 -- | Merge two SortF results pointwise.
 --
