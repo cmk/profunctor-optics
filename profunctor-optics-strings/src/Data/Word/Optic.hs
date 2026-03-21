@@ -15,7 +15,7 @@
 -- over bits8 id 42  ==  42
 --
 -- \-\- indexed: flip only even-positioned bits
--- reoverWithKey ibits8 (\\i b -> if even (fromEnum i) then not b else b) 0xFF
+-- cxover ibits8 (\\i b -> if even (fromEnum i) then not b else b) 0xFF
 -- @
 module Data.Word.Optic (
     -- * Bit-level cotraversals

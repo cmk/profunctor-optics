@@ -95,7 +95,7 @@ packing1 :: MS.IsSequence s => (Element s -> a) -> (NonNull s -> b -> t) -> Meal
 packing1 sa sbt = mealy sa $ sbt . NN.fromNonEmpty . F1.toNonEmpty
 {-# INLINE packing1 #-}
 
--- | Chunk strict sequences into a lazy sequence through a 'Moore'.
+-- | Chunk strict sequenceOf into a lazy sequence through a 'Moore'.
 --
 chunking :: MS.LazySequence l s => (s -> a) -> (l -> b -> t) -> Moore s t a b
 chunking sa sbt = moore sa $ sbt . MS.fromChunks . F.toList
@@ -127,7 +127,7 @@ taken' :: MS.LazySequence l s => (b -> MS.Index l) -> Moore s l (MS.Index s) b
 taken' f = chunking MS.lengthIndex $ \s b -> MS.take (f b) s
 {-# INLINE taken' #-}
 
--- | Pad sequences to a uniform length.
+-- | Pad sequenceOf to a uniform length.
 --
 padded :: MS.IsSequence s => Element s -> Moore s [s] (MS.Index s) (MS.Index s)
 padded w = listing MS.lengthIndex $ \s b -> fmap (\x -> MS.take b (x <> MS.replicate b w)) s

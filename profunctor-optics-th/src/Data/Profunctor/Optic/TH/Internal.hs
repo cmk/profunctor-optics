@@ -184,4 +184,4 @@ quantifyType' exclude c t = ForallT vs c t
     vs = map (`PlainTV` SpecifiedSpec)
        $ filter (`Set.notMember` exclude)
        $ nub -- stable order
-       $ lists typeVars t
+       $ toListOf typeVars t

@@ -19,9 +19,9 @@ import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
-import Data.Profunctor.Optic.Combinator (reoverWithKey, (#))
-import Data.Profunctor.Optic.Fold (cofoldsWithKey)
-import Data.Profunctor.Optic.View (rxfrom)
+import Data.Profunctor.Optic.Combinator (cxover, (#))
+import Data.Profunctor.Optic.Fold (cxfolds)
+import Data.Profunctor.Optic.View (cxfrom)
 import qualified Control.Category as C
 import Data.Profunctor.Optic.Sort.Backend
 import Data.Profunctor.Choice (Choice(..), Cochoice(..)  )
@@ -734,20 +734,20 @@ prop_P94_sortingString = property $ do
 -- P80–P88: Sprint 11 — Coindexed operators and carrier transformers
 ---------------------------------------------------------------------
 
--- P80: reoverWithKey through ibits8 on (->) is non-trivial
+-- P80: cxover through ibits8 on (->) is non-trivial
 -- ibits8 :: Cxlens I8 Word8 Word8 Bool Bool
--- reoverWithKey :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
+-- cxover :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
 prop_P80_reoverWithKey_ibits8 :: Property
 prop_P80_reoverWithKey_ibits8 = property $ do
     -- Flip all even-positioned bits
-    let result = reoverWithKey ibits8 (\i b -> if even (fromEnum i) then not b else b) (0xFF :: Word8)
+    let result = cxover ibits8 (\i b -> if even (fromEnum i) then not b else b) (0xFF :: Word8)
     result === 0xAA
 
--- P81: reoverWithKey identity = id
+-- P81: cxover identity = id
 prop_P81_reoverWithKey_id :: Property
 prop_P81_reoverWithKey_id = property $ do
     w <- forAll $ Gen.word8 Range.constantBounded
-    reoverWithKey ibits8 (\_ b -> b) w === w
+    cxover ibits8 (\_ b -> b) w === w
 
 -- P82: (#) coindexed composition typechecks on Sort
 -- ibits8 # ibits8 would compose two coindexed optics with
@@ -760,9 +760,9 @@ prop_P82_hash_compose :: Property
 prop_P82_hash_compose = property $ do
     -- Use cxlens on a pair to test (#) composition
     -- cxfirst :: Cxlens' k (a, c) a  (if it existed)
-    -- For now, just verify reoverWithKey works through a single ibits8
+    -- For now, just verify cxover works through a single ibits8
     w <- forAll $ Gen.word8 Range.constantBounded
-    let result = reoverWithKey ibits8 (\_ _ -> True) w
+    let result = cxover ibits8 (\_ _ -> True) w
     result === 0xFF  -- all bits set to True
 
 -- P84: unfirst . first' = id on Sort2 (Costrong/Strong roundtrip)
@@ -815,9 +815,9 @@ prop_P88_hash_compose_sort = property $ do
     -- ibits8 :: Cxlens I8 Word8 Word8 Bool Bool
     -- We can't chain ibits8 # ibits8 (types don't align at seam).
     --
-    -- Instead verify reoverWithKey works with ibits8 through Sort
+    -- Instead verify cxover works with ibits8 through Sort
     -- by checking the coindex is accessible and correct.
-    let result = reoverWithKey ibits8 (\i _ -> i == I81) (0 :: Word8)
+    let result = cxover ibits8 (\i _ -> i == I81) (0 :: Word8)
     -- I81 is bit 0 (the least significant bit). Setting only
     -- bit 0 to True gives 1.
     result === 1
@@ -830,14 +830,14 @@ prop_P88_hash_compose_sort = property $ do
 -- So: ibits8 # (iso fromBits8 toBits8 . ibits8) should work
 -- ... but iso isn't coindexed. Simpler: test (#) on (->).
 --
--- reoverWithKey (ibits8 # ibits8) would need Bool = Word8 at the seam.
+-- cxover (ibits8 # ibits8) would need Bool = Word8 at the seam.
 -- That doesn't hold. (#) is for composing coindexed optics at
 -- different levels (e.g. map-of-maps), not for iterating the same one.
 --
--- Verify (#) works on (->) with two rxfrom-style coindexed optics:
+-- Verify (#) works on (->) with two cxfrom-style coindexed optics:
 -- This is already tested in the profunctor-optics doctest for (#).
 -- For Sort, (#) works mechanically (Sort is Corepresentable).
--- We verify by applying corepsWithKey to a single ibits8 on Sort:
+-- We verify by applying cxreps to a single ibits8 on Sort:
 
 ---------------------------------------------------------------------
 -- P89: (#) coindexed composition — the map-of-maps use case
@@ -846,13 +846,13 @@ prop_P88_hash_compose_sort = property $ do
 -- P89: Two levels of Map.mapWithKey composed with (#).
 -- The coindices (String keys) accumulate monoidally.
 -- This is the doctest example from Combinator.hs applied
--- via cofoldsWithKey.
+-- via cxfolds.
 prop_P89_hash_map_of_maps :: Property
 prop_P89_hash_map_of_maps = property $ do
     let -- Two levels of coindexed mapWithKey
-        twoLevel = rxfrom Map.mapWithKey # rxfrom Map.mapWithKey
+        twoLevel = cxfrom Map.mapWithKey # cxfrom Map.mapWithKey
         -- Apply: fold the nested map, accumulating coindexed keys
-        result = cofoldsWithKey twoLevel
+        result = cxfolds twoLevel
                    (\k r a -> Map.singleton k (a + r))
                    (1.0 :: Double)
                    (Map.fromList [("k", Map.fromList [("l", 2.0 :: Double)])])

@@ -6,8 +6,8 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.List.Optic (
-    lists
-  , listsWithKey
+    toListOf
+  , ixlists
   , at
   , iat
   , imapped 

@@ -81,7 +81,7 @@ import qualified Data.Map.Strict as Map
 ---------------------------------------------------------------------
 
 -- | Identity carrier for finite index types.
--- Groups by key, producing a 'Map' of lists.
+-- Groups by key, producing a 'Map' of toListOf.
 --
 -- Note: the lazy @(,)@ in @Sort@'s type is needed for DerivingVia.
 -- Strictness is applied here at the carrier level: keys and values
@@ -100,7 +100,7 @@ mkSortN n = Sort $ \inp ->
                                 , let (ki, a) = inp i ]
 
 -- | Hashable carrier for finite index types.
--- Groups by key, producing a 'HashMap' of lists.
+-- Groups by key, producing a 'HashMap' of toListOf.
 mkSortH :: (Bounded i, Enum i, Hashable k, Eq k) => Sort i k a (HM.HashMap k [a])
 mkSortH = Sort $ \inp ->
   HM.fromListWith (flip (++)) [ ki `seq` a `seq` (ki, [a])
