@@ -218,6 +218,10 @@ instance Cochoice (Sort2 k) where
 -- Strong (can't extract context) and Choice (can't partition).
 -- But @(->) j . (->) k@ on the output is Distributive, recovering
 -- Closed (which the list-based variants lost).
+-- | Note: @Sort3 i j k a b ≅ Costar (Sort3Corep i j k) a b@, but
+-- 'DerivingVia' cannot be used because the isomorphism is not
+-- representational (it requires packing\/unpacking @j@ and @k@ into
+-- the 'Sort3Corep' constructor).
 newtype Sort3 i j k a b = Sort3 { runSort3 :: (i -> (k, a)) -> j -> k -> b }
 
 instance Profunctor (Sort3 i j k) where
