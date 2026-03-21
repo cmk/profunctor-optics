@@ -20,7 +20,7 @@ import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
 import qualified Control.Category as C
-import Data.Profunctor.Optic.Sort
+import Data.Profunctor.Optic.Sort.Backend
 import Data.Profunctor.Choice (left')
 import Data.Word (Word8)
 import Data.Word.Optic (grate8, bits8, ibits8)
