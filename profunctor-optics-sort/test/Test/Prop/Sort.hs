@@ -421,21 +421,21 @@ prop_SF9_bindSortF = property $ do
 -- SF10–SF14: SortF operator tests
 ---------------------------------------------------------------------
 
--- SF10: sortingUnderF grate8
-prop_SF10_sortingUnderF_grate8 :: Property
-prop_SF10_sortingUnderF_grate8 = property $ do
+-- SF10: grate8 composes with SortF by direct application (Closed)
+prop_SF10_grate8_sortF :: Property
+prop_SF10_grate8_sortF = property $ do
     w <- forAll $ Gen.word8 Range.constantBounded
     let carrier = SortF (\inp -> snd (inp 0)) :: SortF Int Int (I8 -> Bool) (I8 -> Bool)
-        lifted = sortingUnderF grate8 carrier
+        lifted = grate8 carrier  -- direct application, no wrapper
         inp i = (i, w)
     runSortF lifted inp === w
 
--- SF11: cosortingOfF bits8
-prop_SF11_cosortingOfF_bits8 :: Property
-prop_SF11_cosortingOfF_bits8 = property $ do
+-- SF11: bits8 composes with SortF by direct application (Cotraversing, Monoid i)
+prop_SF11_bits8_sortF :: Property
+prop_SF11_bits8_sortF = property $ do
     w <- forAll $ Gen.word8 Range.constantBounded
     let carrier = SortF (\inp -> snd (inp (Sum 0))) :: SortF (Sum Int) Int Bool Bool
-        lifted = cosortingOfF bits8 carrier
+        lifted = bits8 carrier  -- direct application, no wrapper
         inp _ = (0 :: Int, w)
     runSortF lifted inp === w
 
