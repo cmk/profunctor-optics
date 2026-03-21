@@ -46,12 +46,20 @@ module Data.Profunctor.Optic.Property (
   , id_setter
   , compose_setter
   , idempotent_setter
-) where 
+    -- * Sort
+  , Sort
+  , id_sort
+  , compose_sort
+  , id_category_sort
+  , assoc_category_sort
+) where
 
 import Control.Monad as M (join)
 import Control.Applicative
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
+import Prelude (Bool(..), Eq(..), Monoid, (&&))
+import qualified Control.Category as C
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
@@ -243,3 +251,31 @@ compose_setter o f g s = (over o f . over o g) s == over o (f . g) s
 --
 idempotent_setter :: Eq s => Setter' s a -> s -> a -> a -> Bool
 idempotent_setter o s a b = set o b (set o a s) == set o b s
+
+---------------------------------------------------------------------
+-- 'Sort'
+---------------------------------------------------------------------
+
+-- | @dimap id id ≡ id@
+--
+id_sort :: Eq b => Sort i k a b -> (i -> (k, a)) -> Bool
+id_sort s inp = runSort (dimap id id s) inp == runSort s inp
+
+-- | @dimap f g . dimap h k ≡ dimap (h . f) (g . k)@
+--
+compose_sort :: Eq c => Sort i k a c -> (a -> a) -> (c -> c) -> (a -> a) -> (c -> c) -> (i -> (k, a)) -> Bool
+compose_sort s f g h k inp =
+  runSort (dimap f g . dimap h k $ s) inp == runSort (dimap (h . f) (g . k) s) inp
+
+-- | @id . f ≡ f@ and @f . id ≡ f@
+--
+id_category_sort :: (Monoid i, Eq b) => Sort i k a b -> (i -> (k, a)) -> Bool
+id_category_sort s inp =
+  runSort (C.id C.. s) inp == runSort s inp &&
+  runSort (s C.. C.id) inp == runSort s inp
+
+-- | @(f . g) . h ≡ f . (g . h)@
+--
+assoc_category_sort :: (Monoid i, Eq d) => Sort i k a b -> Sort i k b c -> Sort i k c d -> (i -> (k, a)) -> Bool
+assoc_category_sort f g h inp =
+  runSort ((h C.. g) C.. f) inp == runSort (h C.. (g C.. f)) inp
