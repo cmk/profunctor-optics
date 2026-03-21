@@ -6,7 +6,7 @@ Prototype profunctor optics and Sort operators for the three
 array-like container libraries (`vector`, `primitive`, `array`)
 and the `hashable` library. The array types are Int-indexed
 (or Ix-indexed) representable types, making them natural Sort3
-carriers via `mkSort3N`. Hashable provides an alternative
+carriers via `mkSortFN`. Hashable provides an alternative
 discrimination key to `Ord`, enabling unordered grouping.
 
 ## Rationale
@@ -31,9 +31,10 @@ each backend to see whether a leaner approach works better.
 | S6.2  | Data.Vector.Unboxed.Optic        | Unboxed Vector optics (Unbox constraint)            |
 | S6.3  | Data.Primitive.Array.Optic       | PrimArray optics (Prim constraint)                  |
 | S6.4  | Data.Array.Optic                 | Array optics (Ix-indexed, multi-dimensional)        |
-| S6.5  | Data.Profunctor.Optic.Sort       | Generic sortingArray for any generate/index pair    |
+| S6.5  | Data.Profunctor.Optic.Sort       | Generic sortingRep for any generate/index pair      |
 | S6.6  | Data.Profunctor.Sort / Optic.Sort| Hashable-keyed grouping (unordered discrimination)  |
-| S6.7  | Test.Prop.Array                  | Hedgehog properties                                 |
+| S6.7  | Data.Profunctor.Optic.Sort       | Tagged sort: sort keys + permute values              |
+| S6.8  | Test.Prop.Array                  | Hedgehog properties                                 |
 
 ## Key design decisions
 
@@ -60,13 +61,13 @@ These map to Sort3's input/output:
 
 `Array i e` uses `Ix i` instead of raw `Int`. This is interesting
 for Sort3 because `i` could be multi-dimensional: `(Int, Int)` for
-matrices, `(Int, Int, Int)` for 3D arrays. A `mkSort3Ix` variant
+matrices, `(Int, Int, Int)` for 3D arrays. A `mkSortFIx` variant
 would enumerate `range (lo, hi)` instead of `[0..n-1]`.
 
 ### Unboxed constraints
 
 `Vector.Unboxed` requires `Unbox a`, `PrimArray` requires `Prim a`.
-Sort3 carriers are polymorphic in `a`, so the constraint only matters
+SortF carriers are polymorphic in `a`, so the constraint only matters
 at the materialization boundary (when building the output container).
 
 ## New functions
@@ -121,8 +122,8 @@ primArrayGrate :: Prim a => Colens (PrimArray a) (PrimArray b) (Int -> a) (Int -
 ### S6.4 — Array optics
 
 ```haskell
--- | Ix-aware Sort3 carrier.
-mkSort3Ix :: (Ix i, Ord k) => (i, i) -> Sort3 i Int k a a
+-- | Ix-aware SortF carrier.
+mkSortFIx :: (Ix i, Ord k) => (i, i) -> Sort3 i Int k a a
 
 -- | Sort an Array by key, preserving Ix structure.
 sortingArray :: (Ix i, Ord k)
@@ -143,6 +144,49 @@ sortingRep :: Ord k
            -> (a -> k)            -- key
            -> c -> Map k c'
 ```
+
+### S6.7 — Tagged sort (inspired by primitive-sort)
+
+`primitive-sort` has `sortTagged :: karr k -> varr v -> (karr k, varr v)`
+which sorts a key array and permutes a value array in tandem. This is
+the array-level version of what SortF does: `(i -> (k, a))` is a
+tabulated key-value pair. Tagged sort operators bridge this with
+concrete array backends.
+
+The key insight: SortF's input `(i -> (k, a))` can be constructed
+from two parallel arrays (keys + values) indexed by `Int`:
+
+```haskell
+-- | Tagged sort: sort keys and permute values in tandem.
+-- Concrete instances for each array backend.
+
+-- Vector
+sortTaggedVector :: Ord k
+                 => V.Vector k -> V.Vector v -> (V.Vector k, V.Vector v)
+
+-- PrimArray (keys must be Prim + Ord)
+sortTaggedPrimArray :: (Prim k, Ord k, Prim v)
+                    => PrimArray k -> PrimArray v -> (PrimArray k, PrimArray v)
+
+-- Array (Ix-indexed)
+sortTaggedArray :: (Ix i, Ord k)
+               => Array i k -> Array i v -> (Array i k, Array i v)
+
+-- | Sort + deduplicate: tagged sort that keeps first occurrence per key.
+sortUniqueTaggedVector :: Ord k
+                       => V.Vector k -> V.Vector v -> (V.Vector k, V.Vector v)
+
+-- | Group by key, returning Map from keys to value-vectors.
+-- This is sortTagged but materialized into a Map rather than
+-- a flat sorted array.
+groupTaggedVector :: Ord k
+                  => V.Vector k -> V.Vector v -> Map k (V.Vector v)
+```
+
+These are thin wrappers: construct `inp i = (keys ! i, values ! i)`,
+run through `mkSortFN`, materialize result. The SortF carrier does
+the grouping; the wrapper handles materialization into the target
+array type.
 
 ### S6.6 — Hashable-keyed grouping
 
@@ -198,7 +242,7 @@ optimization for repeated lookups — a Sort carrier that uses
 | **mkSort1** | `Map.fromListWith` | `HashMap.fromListWith` |
 | **Complexity** | O(n log n) | O(n) average |
 | **Output** | `Map k v` | `HashMap k v` |
-| **Sort3 carrier** | `mkSort3N` with Map | `mkSort3NH` with HashMap |
+| **SortF carrier** | `mkSortFN` with Map | `mkSortFNH` with HashMap |
 | **Merge** | `Map.merge` (WhenMatched/WhenMissing) | `unionWith`/`intersectionWith` (simpler) |
 
 Both share the same Sort profunctor types — the difference is
@@ -221,7 +265,7 @@ is containers-only. For HashMap merges, use the simpler
 | P63   | `vectorGrate`: `over vectorGrate id v == v`                      |
 | P64   | `sortingPrimArray` groups by key correctly                       |
 | P65   | `sortingPrimArray` preserves element count                       |
-| P66   | `mkSort3Ix` with 2D bounds groups correctly                      |
+| P66   | `mkSortFIx` with 2D bounds groups correctly                      |
 | P67   | `sortingArray` preserves all (index, element) pairs              |
 | P68   | `arrayGrate`: `over arrayGrate id arr == arr`                    |
 | P69   | `sortingRep` agrees with `sortingVector` for boxed Vector        |
@@ -230,6 +274,11 @@ is containers-only. For HashMap merges, use the simpler
 | P72   | `groupingHashOf` preserves element count                         |
 | P73   | `toHashMapOf` keys = set of focused values                       |
 | P74   | `countingHashOf` counts agree with `countingOf` (same data)      |
+| P75   | `sortTaggedVector` keys are sorted in output                     |
+| P76   | `sortTaggedVector` preserves all (key, value) pairs              |
+| P77   | `sortUniqueTaggedVector` has no duplicate keys                   |
+| P78   | `groupTaggedVector` keys = set of input keys                     |
+| P79   | `groupTaggedVector` total value count = input length             |
 
 ## Work order
 
@@ -239,19 +288,21 @@ is containers-only. For HashMap merges, use the simpler
 4. S6.2 — Unboxed Vector optics
 5. S6.3 — PrimArray optics + P64–P65
 6. S6.4 — Array optics + P66–P68
-7. S6.6 — Hashable-keyed grouping + P71–P74
-8. Green P61–P74
+7. S6.7 — Tagged sort operators + P75–P79
+8. S6.6 — Hashable-keyed grouping + P71–P74
+9. Green P61–P79
 
 ## Key files
 
 - `profunctor-optics-sort/src/Data/Profunctor/Optic/Sort.hs` — sortingRep, sortingVectorOf
-- `profunctor-optics-sort/src/Data/Profunctor/Sort.hs` — mkSort3Ix
-- New modules TBD: may create in profunctor-optics-sort or in
-  a new profunctor-optics-arrays package
+- `profunctor-optics-sort/src/Data/Profunctor/Sort.hs` — mkSortFIx
+- New modules TBD: concrete instances per array type, eventually
+  spread into per-type optics modules
 - `/Users/cmk/Documents/Code/haskell/vector/vector/src/Data/Vector.hs` — reference
 - `/Users/cmk/Documents/Code/haskell/primitive/Data/Primitive/PrimArray.hs` — reference
 - `/Users/cmk/Documents/Code/haskell/array/Data/Array/IArray.hs` — reference
 - `/Users/cmk/Documents/Code/haskell/hashable/src/Data/Hashable.hs` — reference
+- `/Users/cmk/Documents/Code/haskell/primitive-sort/src/Data/Primitive/Sort.hs` — sortTagged reference
 
 ## Dependencies
 
