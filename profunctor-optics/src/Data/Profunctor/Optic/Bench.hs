@@ -2,17 +2,14 @@
 {-# LANGUAGE BangPatterns #-}
 -- | Benchmark builders and performance documentation for profunctor optics.
 --
--- This module provides reusable functions for measuring optic
--- performance, analogous to how "Data.Profunctor.Optic.Property"
--- provides reusable predicates for law-testing.
+-- This module provides reusable benchmark constructors, analogous to
+-- how "Data.Profunctor.Optic.Property" provides law-testing predicates.
+-- Each builder returns a pair @(optic-based, direct)@ — feed both to
+-- @Criterion.nf@ and compare.
 --
--- Import into your @bench\/Main.hs@ alongside @Criterion@ to build
--- benchmarks for your own optics.
+-- No Criterion dependency — the builders return plain functions.
 --
--- == Performance hierarchy for Closed-side optics
---
--- When composing optics with 'Sort' or 'Costar'-shaped carriers,
--- the optic path determines the constant-factor overhead:
+-- == Performance hierarchy: Closed-side optics
 --
 -- @
 -- Optic path       Cost\/elem  Constraint         Example
@@ -22,20 +19,33 @@
 -- cotraversal      ~44 ns     Cotraversing       bitsN
 -- @
 --
--- The coindexed path (via 'Cxlens') avoids the 'Distributive'
--- overhead entirely. Prefer coindexed optics for 6-7x speedup
--- over cotraversals.
+-- The coindexed path avoids 'Distributive' reconstruction entirely.
+-- Prefer coindexed optics for 6-7x speedup over cotraversals.
 --
--- The carrier itself ('Sort', 'Costar') adds __zero__ overhead —
--- the cost is entirely from the optic. Benchmarks confirm:
+-- == Performance hierarchy: Strong-side optics
 --
 -- @
--- Benchmark              Sort carrier    raw Costar    Ratio
--- ─────────              ────────────    ──────────    ─────
--- grate8                 167 ns          167 ns        1.00x
--- bits8                  1072 ns         1000 ns       1.07x
--- ibits8                 12 ns           —             ~bare
+-- Optic path       Cost       Constraint         Example
+-- ─────────────    ────       ──────────         ───────
+-- lens             ~0         Strong             fstL
+-- prism            ~0         Choice             left'
+-- traversal        O(n)       Traversing         traversed
 -- @
+--
+-- Lens\/prism are essentially free (function application).
+-- Traversal is linear, dominated by 'Applicative' reconstruction.
+--
+-- == Indexed optic overhead (RISK AREA)
+--
+-- Indexed operators route through 'Conjoin' wrapping:
+--
+-- @
+-- overWithKey o f = (unConjoin #. corepresent o .# Conjoin) f mempty
+-- @
+--
+-- If GHC doesn't inline through this, each indexed @over@ pays
+-- Conjoin construction + two profunctor transforms + destruction.
+-- Measure with 'benchIxTraversal' and compare against non-indexed.
 --
 -- == Sort carrier overhead
 --
@@ -47,43 +57,197 @@
 -- 10,000  21.2 ms    21.2 ms       1.0x
 -- @
 --
--- Constant-factor overhead at small sizes, converges to 1.0x.
--- Dominated by @Map.fromListWith@ at scale.
+-- Constant-factor at small sizes, converges to 1.0x.
+-- Sort adds zero overhead on top of raw Costar.
 --
--- == Pipeline overhead
---
--- The '%.' composition operator adds __zero__ overhead.
--- Single-pass and two-pass benchmarks are identical within
--- measurement noise.
-module Data.Profunctor.Optic.Bench (
-    -- * Sort carrier comparison
-    benchSortVsDirect
-    -- * Optic composition comparison
-  , benchOpticOnSort
-) where
-
-import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
-import Data.Profunctor.Optic.Sort (mkSortN)
-import qualified Data.Map.Strict as Map
-import Prelude
-
--- | Build a pair of functions for benchmarking 'Sort' carrier
--- overhead against direct @Map.fromListWith@.
+-- == How to use
 --
 -- @
 -- import Criterion.Main
+-- import Data.Profunctor.Optic
+-- import Data.Profunctor.Optic.Bench
 --
 -- main = defaultMain
---   [ bgroup "carrier"
---     [ bench "mkSortN"  $ nf (fst $ benchSortVsDirect 1000 (`mod` 50)) ()
---     , bench "direct"   $ nf (snd $ benchSortVsDirect 1000 (`mod` 50)) ()
+--   [ bgroup "lens"
+--     [ let (viaOptic, direct) = benchLens fstL fst (\\(_, b) a -> (a, b)) (1, "x")
+--       in bgroup "view"
+--         [ bench "optic"  $ nf (fst viaOptic) (1 :: Int, "x")
+--         , bench "direct" $ nf (fst direct)   (1 :: Int, "x")
+--         ]
 --     ]
 --   ]
 -- @
+module Data.Profunctor.Optic.Bench (
+    -- * Optic abstraction overhead
+    benchLens
+  , benchTraversal
+  , benchTraversal0
+  , benchFold
+  , benchColens
+    -- * Indexed overhead
+  , benchIxTraversal
+  , benchIxFold
+    -- * Composition
+  , benchCompose2
+    -- * Container baselines
+  , benchSortingOfL
+  , benchToMapOfL
+    -- * Sort carrier
+  , benchSortVsDirect
+  , benchOpticOnSort
+    -- * Scaling
+  , benchScaling
+) where
+
+import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
+import Data.Profunctor.Optic.Combinator (over, overWithKey)
+import Data.Profunctor.Optic.Fold (lists, folds, foldsWithKey, preview)
+import Data.Profunctor.Optic.Lens (lensVl)
+import Data.Profunctor.Optic.Sort (mkSortN, sortingRep)
+import Data.Profunctor.Optic.Setter (sets, setsWithKey)
+import Data.Profunctor.Optic.Traversal (traverses)
+import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.View (view)
+import Data.Profunctor.Optic.Import
+import Data.List.Optic (sortingOfL)
+import Data.Map.Optic (toMapOfL)
+import qualified Data.Map.Strict as Map
+import Prelude
+
+---------------------------------------------------------------------
+-- Optic abstraction overhead
+---------------------------------------------------------------------
+
+-- | Compare Lens view\/over vs direct get\/set.
+--
+-- Returns @((opticView, opticOver), (directGet, directOver))@.
+--
+benchLens :: Lens' s a
+          -> (s -> a)              -- ^ direct getter
+          -> (s -> a -> s)         -- ^ direct setter
+          -> (a -> a)              -- ^ modification function
+          -> ((s -> a, s -> s), (s -> a, s -> s))
+benchLens o get _set f =
+  ( (view o, over o f)
+  , (get,    \s -> _set s (f (get s)))
+  )
+
+-- | Compare Traversal over vs direct fmap-like.
+--
+-- Returns @(opticOver, directOver)@.
+--
+benchTraversal :: Traversal' s a
+               -> ((a -> a) -> s -> s)   -- ^ direct map
+               -> (a -> a)               -- ^ modification function
+               -> (s -> s, s -> s)
+benchTraversal o direct f = (over o f, direct f)
+
+-- | Compare Traversal0 preview vs direct.
+--
+benchTraversal0 :: Traversal0' s a
+                -> (s -> Maybe a)        -- ^ direct preview
+                -> (s -> Maybe a, s -> Maybe a)
+benchTraversal0 o direct = (preview o, direct)
+
+-- | Compare Fold lists vs direct.
+--
+benchFold :: Fold s a
+          -> (s -> [a])                  -- ^ direct toList
+          -> (s -> [a], s -> [a])
+benchFold o direct = (lists o, direct)
+
+-- | Compare Colens over vs direct.
+--
+benchColens :: Colens' s a
+            -> ((a -> a) -> s -> s)      -- ^ direct map
+            -> (a -> a)
+            -> (s -> s, s -> s)
+benchColens o direct f = (over o f, direct f)
+
+---------------------------------------------------------------------
+-- Indexed overhead
+---------------------------------------------------------------------
+
+-- | Compare indexed traversal vs non-indexed.
+--
+-- This is the key benchmark for measuring Conjoin overhead.
+--
+-- Returns @(indexed, nonIndexed)@.
+--
+benchIxTraversal :: Monoid k
+                 => Ixtraversal' k s a
+                 -> Traversal' s a
+                 -> (k -> a -> a)         -- ^ indexed modification
+                 -> (a -> a)              -- ^ non-indexed modification
+                 -> (s -> s, s -> s)
+benchIxTraversal ixo o ixf f =
+  ( overWithKey ixo ixf
+  , over o f
+  )
+
+-- | Compare indexed fold vs non-indexed.
+--
+benchIxFold :: (Monoid k, Monoid r)
+            => Ixfold k s a
+            -> Fold s a
+            -> (k -> a -> r)              -- ^ indexed fold function
+            -> (a -> r)                   -- ^ non-indexed fold function
+            -> (s -> r, s -> r)
+benchIxFold ixo o ixf f =
+  ( foldsWithKey ixo ixf
+  , folds o f
+  )
+
+---------------------------------------------------------------------
+-- Composition
+---------------------------------------------------------------------
+
+-- | Compare composed optic vs direct composed function.
+--
+benchCompose2 :: Optic (->) s s a a
+              -> Optic (->) a a b b
+              -> (b -> b)
+              -> ((b -> b) -> s -> s)     -- ^ direct composed
+              -> (s -> s, s -> s)
+benchCompose2 o1 o2 f direct =
+  ( over (o1 . o2) f
+  , direct f
+  )
+
+---------------------------------------------------------------------
+-- Container baselines
+---------------------------------------------------------------------
+
+-- | Compare sortingOfL vs Data.List.sortOn + manual grouping.
+--
+benchSortingOfL :: Ord a
+                => Lens' s a
+                -> [s]
+                -> ([s] -> [[s]], [s] -> [[s]])
+benchSortingOfL o xs =
+  ( sortingOfL o
+  , \ys -> Map.elems $ Map.fromListWith (flip (++))
+      [(view o s, [s]) | s <- ys]
+  )
+
+-- | Compare toMapOfL vs direct Map.fromListWith.
+--
+benchToMapOfL :: Ord a
+              => Lens' s a
+              -> ([s] -> Map.Map a [s], [s] -> Map.Map a [s])
+benchToMapOfL o =
+  ( toMapOfL o
+  , \xs -> Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
+  )
+
+---------------------------------------------------------------------
+-- Sort carrier
+---------------------------------------------------------------------
+
+-- | Compare Sort carrier vs direct Map.fromListWith.
 --
 benchSortVsDirect :: Ord k
-                  => Int          -- ^ number of elements
-                  -> (Int -> k)   -- ^ key extractor
+                  => Int -> (Int -> k)
                   -> (() -> Map.Map k [Int], () -> Map.Map k [Int])
 benchSortVsDirect n key =
   ( const viaSortResult
@@ -94,18 +258,23 @@ benchSortVsDirect n key =
     directResult = Map.fromListWith (flip (++))
       [ k `seq` (k, [i]) | i <- [0..n-1], let !k = key i ]
 
--- | Benchmark an optic composed with a 'Sort' carrier.
---
--- Returns a function that runs the optic-lifted carrier on
--- the given input. Compare against a bare carrier to measure
--- optic overhead.
---
--- @
--- let lifted = benchOpticOnSort grate8 baseCarrier
--- bench "grate8+Sort" $ nf lifted inp
--- @
+-- | Benchmark an optic composed with a Sort carrier.
 --
 benchOpticOnSort :: (Sort i k a b -> Sort i k s t)
                  -> Sort i k a b
                  -> (i -> (k, s)) -> t
 benchOpticOnSort optic carrier = runSort (optic carrier)
+
+---------------------------------------------------------------------
+-- Scaling
+---------------------------------------------------------------------
+
+-- | Build inputs at multiple sizes for scaling benchmarks.
+--
+-- @
+-- let inputs = benchScaling [100, 1000, 10000] (\\n -> [1..n])
+-- defaultMain [ bgroup (show n) [bench "f" $ nf myFn inp] | (n, inp) <- inputs ]
+-- @
+--
+benchScaling :: [Int] -> (Int -> a) -> [(Int, a)]
+benchScaling sizes gen = [(n, gen n) | n <- sizes]
