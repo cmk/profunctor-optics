@@ -7,6 +7,8 @@
 {-# LANGUAGE TypeFamilies          #-}
 -- | Profunctor optics for 'Data.Map.Map'.
 --
+-- Unprimed variants are lazy. Primed (@'@) variants are strict.
+--
 -- For structural optics (depth, sizes, rebalanced) that require
 -- pattern functors, see @Data.Map.Fold.Optic@ in
 -- @profunctor-optics-containers@.
@@ -33,7 +35,7 @@ module Data.Map.Optic (
   , lookedGE
   , lookedGT
   , validated
-    -- * Lazy variants
+    -- * Strict variants
   , altered'
   , ialtered'
     -- * Sort-based operators
@@ -109,16 +111,16 @@ ifolded :: Ixfold k (Map.Map k a) a
 ifolded = ixfoldVl Map.traverseWithKey
 {-# INLINE ifolded #-}
 
--- | /O(log n)/. Alter the value at a specific key.
+-- | /O(log n)/. Alter the value at a specific key (lazy).
 --
 altered :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered k = setter $ \ab -> MapS.alter ab k
+altered k = setter $ \ab -> Map.alter ab k
 {-# INLINE altered #-}
 
--- | /O(log n)/. Indexed alter.
+-- | /O(log n)/. Indexed alter (lazy).
 --
 ialtered :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ialtered k = ixsetter $ \kab -> MapS.alter (kab k) k
+ialtered k = ixsetter $ \kab -> Map.alter (kab k) k
 {-# INLINE ialtered #-}
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
@@ -194,19 +196,19 @@ validated = filtered Map.valid
 {-# INLINE validated #-}
 
 ---------------------------------------------------------------------
--- Lazy variants
+-- Strict variants
 ---------------------------------------------------------------------
 
--- | /O(log n)/. Lazy alter (values not forced on insert).
+-- | /O(log n)/. Strict alter (values forced on insert).
 --
 altered' :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered' k = setter $ \ab -> Map.alter ab k
+altered' k = setter $ \ab -> MapS.alter ab k
 {-# INLINE altered' #-}
 
--- | /O(log n)/. Lazy indexed alter.
+-- | /O(log n)/. Strict indexed alter.
 --
 ialtered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ialtered' k = ixsetter $ \kab -> Map.alter (kab k) k
+ialtered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ialtered' #-}
 
 ---------------------------------------------------------------------
