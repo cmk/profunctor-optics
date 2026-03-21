@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 -- | Profunctor optics for 'Data.IntMap.IntMap'.
 --
--- Strict variants are the default. Lazy variants are ticked (@'@).
+-- Unprimed variants are lazy. Primed (@'@) variants are strict.
 module Data.IntMap.Optic (
     -- * Access
     at
@@ -85,16 +85,16 @@ ifolded :: Ixfold Int (IM.IntMap a) a
 ifolded = ixfoldVl IM.traverseWithKey
 {-# INLINE ifolded #-}
 
--- | /O(log n)/. Strict alter.
+-- | /O(log n)/. Alter (lazy).
 --
 altered :: Int -> Setter' (IM.IntMap a) (Maybe a)
-altered k = setter $ \ab -> IM.alter ab k
+altered k = setter $ \ab -> IML.alter ab k
 {-# INLINE altered #-}
 
--- | /O(log n)/. Lazy alter.
+-- | /O(log n)/. Alter (strict, values forced on insert).
 --
-altered' :: Int -> Setter' (IML.IntMap a) (Maybe a)
-altered' k = setter $ \ab -> IML.alter ab k
+altered' :: Int -> Setter' (IM.IntMap a) (Maybe a)
+altered' k = setter $ \ab -> IM.alter ab k
 {-# INLINE altered' #-}
 
 -- | /O(log n)/. Indexed alter.
