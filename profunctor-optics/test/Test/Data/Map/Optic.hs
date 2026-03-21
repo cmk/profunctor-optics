@@ -8,8 +8,6 @@ import qualified Hedgehog.Range as Range
 
 import Data.Map.Optic
 import Data.Profunctor.Optic
-import Data.Profunctor.Optic.Fold (cofoldsWithKey)
-import Data.Profunctor.Optic.Combinator ((#))
 import qualified Data.Map as Map
 
 tests :: IO Bool
@@ -75,7 +73,7 @@ prop_alteredF_roundtrip = property $ do
 prop_cxmapped_cofold :: Property
 prop_cxmapped_cofold = property $ do
     let nested = Map.fromList [("a", Map.fromList [("x", 1 :: Int), ("y", 2)])]
-        result = cofoldsWithKey (cxmapped # cxmapped)
+        result = cxfolds (cxmapped # cxmapped)
                    (\k r a -> Map.singleton k (a + r))
                    (0 :: Int)
                    nested
@@ -87,7 +85,7 @@ prop_cxmapped_cofold = property $ do
 prop_cxmapped_single :: Property
 prop_cxmapped_single = property $ do
     let m = Map.fromList [("a", 1 :: Int), ("b", 2)]
-        result = cofoldsWithKey cxmapped
+        result = cxfolds cxmapped
                    (\k _r a -> Map.singleton k a)
                    (0 :: Int)
                    m

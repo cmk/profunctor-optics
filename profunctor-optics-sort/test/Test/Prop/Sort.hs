@@ -12,7 +12,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens)
 import Data.Profunctor.Optic.Lens (lens)
-import Data.Profunctor.Optic.View ((^.))
+import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Rep (Corepresentable(..))
 import Data.Profunctor.Sieve (Cosieve(..))
 import Data.Functor.Coapply (Coapply(..))
@@ -146,13 +146,13 @@ prop_P12_sortingOf_same_key :: Property
 prop_P12_sortingOf_same_key = property $ do
     xs <- forAll genPairNE
     let groups = sortingOf fstL xs
-    assert $ all (\g -> allEqual (fmap (^. fstL) g)) groups
+    assert $ all (\g -> allEqual (fmap (view fstL) g)) groups
 
 -- P13: groups are in ascending key order
 prop_P13_sortingOf_ascending :: Property
 prop_P13_sortingOf_ascending = property $ do
     xs <- forAll genPairNE
-    let keys = map (\g -> NE.head g ^. fstL) (sortingOf fstL xs)
+    let keys = map (\g -> view fstL (NE.head g)) (sortingOf fstL xs)
     keys === L.sort keys
 
 -- P14: total element count across groups = input count
@@ -168,7 +168,7 @@ prop_P15_nubbingOf_one_per_key :: Property
 prop_P15_nubbingOf_one_per_key = property $ do
     xs <- forAll genPairNE
     let nubbed = nubbingOf fstL xs
-        keys = map (^. fstL) nubbed
+        keys = map (view fstL) nubbed
     keys === L.nub keys
 
 ---------------------------------------------------------------------
@@ -179,7 +179,7 @@ prop_P15_nubbingOf_one_per_key = property $ do
 prop_P16_sortingDescOf_descending :: Property
 prop_P16_sortingDescOf_descending = property $ do
     xs <- forAll genPairNE
-    let keys = map (\g -> NE.head g ^. fstL) (sortingDescOf fstL xs)
+    let keys = map (\g -> view fstL (NE.head g)) (sortingDescOf fstL xs)
     keys === L.sortBy (flip compare) keys
 
 -- P17: toMapOf keys = set of focused values
@@ -188,7 +188,7 @@ prop_P17_toMapOf_keys = property $ do
     xs <- forAll genPairNE
     let m = toMapOf fstL xs
         mapKeys = Map.keysSet m
-        inputKeys = Map.keysSet $ Map.fromList [(s ^. fstL, ()) | s <- NE.toList xs]
+        inputKeys = Map.keysSet $ Map.fromList [(view fstL s, ()) | s <- NE.toList xs]
     mapKeys === inputKeys
 
 -- P18: toMapOf values agree with sortingOf groups
@@ -197,7 +197,7 @@ prop_P18_toMapOf_agrees = property $ do
     xs <- forAll genPairNE
     let m = toMapOf fstL xs
         groups = sortingOf fstL xs
-        fromGroups = Map.fromList [(NE.head g ^. fstL, g) | g <- groups]
+        fromGroups = Map.fromList [(view fstL (NE.head g), g) | g <- groups]
     m === fromGroups
 
 ---------------------------------------------------------------------
@@ -659,7 +659,7 @@ prop_P71_groupingHashOf_same_key :: Property
 prop_P71_groupingHashOf_same_key = property $ do
     xs <- forAll genPairNE
     let result = groupingHashOf fstL xs
-    assert $ all (\(k, g) -> all (\s -> s ^. fstL == k) g) (HM.toList result)
+    assert $ all (\(k, g) -> all (\s -> view fstL s == k) g) (HM.toList result)
 
 -- P72: groupingHashOf preserves element count
 prop_P72_groupingHashOf_preserves :: Property
@@ -675,7 +675,7 @@ prop_P73_toHashMapOf_keys = property $ do
     xs <- forAll genPairNE
     let m = toHashMapOf fstL xs
         mapKeys = HM.keysSet m
-        inputKeys = HM.keysSet $ HM.fromList [(s ^. fstL, ()) | s <- NE.toList xs]
+        inputKeys = HM.keysSet $ HM.fromList [(view fstL s, ()) | s <- NE.toList xs]
     mapKeys === inputKeys
 
 -- P74: countingHashOf agrees with countingOf
@@ -710,7 +710,7 @@ prop_P92_nubbingOfL :: Property
 prop_P92_nubbingOfL = property $ do
     xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
     let result = nubbingOfL fstL xs
-        keys = map (^. fstL) result
+        keys = map (view fstL) result
     keys === L.nub keys
 
 -- P93: toMapOfL keys = set of focused values
