@@ -15,7 +15,7 @@ import Data.Monoid (Sum(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Types (Costar(..))
 import Data.Word (Word8)
-import Data.Word.Optic (grate8, bits8)
+import Data.Word.Optic (grate8, bits8, ibits8)
 import qualified Data.Map.Strict as Map
 
 main :: IO ()
@@ -63,6 +63,7 @@ opticComposition = bgroup "optic-composition"
   , bench "grate8-Costar"        $ nf grate8Costar     inputCostar
   , bench "bits8-SortF"          $ nf bits8SortF       inputW8
   , bench "bits8-Costar"         $ nf bits8Costar      inputCostar
+  , bench "ibits8-SortF"         $ nf ibits8SortF      inputW8
   , bench "bare-Int-idx"        $ nf bareCarrierInt   inputInt
   , bench "grate8-Int-idx"      $ nf grate8IntIdx     inputInt
   ]
@@ -118,6 +119,16 @@ bits8Costar = runCostar liftedCostar
     baseCostar = Costar $ \(Compose inp) -> snd (inp I81)
     liftedCostar :: Costar (Compose ((->) I8) ((,) Int)) Word8 Word8
     liftedCostar = bits8 baseCostar
+
+-- ibits8 (cxlens, coindexed) — should be 6-7x faster than bits8
+ibits8SortF :: (I8 -> (Int, Word8)) -> (I8 -> Word8)
+ibits8SortF = runSortF liftedSortF
+  where
+    -- Carrier output is (I8 -> Bool) for the Cx wrapping
+    baseSortF :: SortF I8 Int Bool (I8 -> Bool)
+    baseSortF = SortF $ \inp -> const (snd (inp I81))
+    liftedSortF :: SortF I8 Int Word8 (I8 -> Word8)
+    liftedSortF = ibits8 baseSortF
 
 -- Same as bare but with Int index instead of I8
 bareCarrierInt :: (Int -> (Int, Word8)) -> Word8
