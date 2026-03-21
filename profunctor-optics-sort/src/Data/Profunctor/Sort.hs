@@ -53,6 +53,7 @@ module Data.Profunctor.Sort
 
     -- * Sort3 carriers
   , mkSort3
+  , mkSort3N
   , sortOn3
   ) where
 
@@ -317,12 +318,27 @@ instance Monoid i => Coapplicative (Sort3Corep i j k) where
 mkSort3 :: (Bounded i, Enum i, Ord k) => Sort3 i Int k a a
 mkSort3 = Sort3 $ \inp j k ->
   let pairs = [(ki, (i, a)) | i <- [minBound..maxBound], let (ki, a) = inp i]
-      grouped = Map.fromListWith (++) [(ki, [ia]) | (ki, ia) <- pairs]
+      grouped = Map.fromListWith (flip (++)) [(ki, [ia]) | (ki, ia) <- pairs]
       lookupAt kv idx = case Map.lookup kv grouped of
-        Nothing -> snd $ snd $ head pairs  -- fallback: shouldn't happen for valid k
+        Nothing -> snd $ snd $ head pairs
         Just ias -> let n = length ias
                     in  snd (ias !! (idx `mod` n))
   in  lookupAt k j
+
+-- | Identity Sort3 carrier for @Int@-indexed containers of known size.
+--
+-- Like 'mkSort3', but enumerates positions @[0..n-1]@ instead of
+-- @[minBound..maxBound]@. Use for vectors, arrays, strict
+-- ByteStrings, and other dynamically-sized representable types.
+--
+mkSort3N :: Ord k => Int -> Sort3 Int Int k a a
+mkSort3N n = Sort3 $ \inp j k ->
+  let pairs = [(ki, (i, a)) | i <- [0..n-1], let (ki, a) = inp i]
+      grouped = Map.fromListWith (flip (++)) [(ki, [ia]) | (ki, ia) <- pairs]
+  in  case Map.lookup k grouped of
+        Nothing  -> snd $ snd $ head pairs
+        Just ias -> let len = length ias
+                    in  snd (ias !! (j `mod` len))
 
 -- | Re-key a Sort3 carrier by a projection (applied to input keys
 -- and output key lookups).

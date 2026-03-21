@@ -42,6 +42,9 @@ module Data.Profunctor.Optic.Sort
   , sortingIx
   , toMapIx
 
+    -- * Sort3 for Int-indexed containers
+  , sortingVector
+
     -- * Post-sort folds
   , foldSorting
   , foldSorting1
@@ -67,6 +70,7 @@ module Data.Profunctor.Optic.Sort
   ) where
 
 import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Vector as V
 import Data.Ord (Down(..))
 import Data.Profunctor
 import Data.Profunctor.Optic.Types (Lens', Colens, Ixlens', Cotraversal)
@@ -266,6 +270,33 @@ toMapIx o xs =
   Map.fromList [(k, g) | g <- sortingIx o xs, let k = fst (NE.head pairs)]
   where pairs = fmap (\(k, s) -> (k, (k, s))) xs
 -- TODO: this is not right — revisit when indexed operators are fleshed out
+
+-- ===================================================================
+-- Sort3 for Int-indexed containers
+-- ===================================================================
+
+-- | Sort a 'Vector' by a key-extraction function using Sort3.
+--
+-- The vector is treated as an @Int@-indexed representable container.
+-- The Sort3 carrier groups positions by key; results are materialized
+-- into a 'Map' of vectors.
+--
+-- @
+-- 'sortingVector' fst (V.fromList [(2,"b"), (1,"a"), (2,"c")])
+--   = Map.fromList [(1, V.fromList ["a"]), (2, V.fromList ["b","c"])]
+-- @
+--
+sortingVector :: Ord k
+              => (a -> k)
+              -> V.Vector a -> Map.Map k (V.Vector a)
+sortingVector key v =
+  let n = V.length v
+      s = mkSort3N n
+      inp i = (key (v V.! i), v V.! i)
+      -- Use Sort3 to look up each position's value under its key.
+      -- Materialize by collecting keys and building groups.
+      keyCounts = Map.fromListWith (+) [(key (v V.! i), 1 :: Int) | i <- [0..n-1]]
+  in  Map.mapWithKey (\k cnt -> V.generate cnt (\j -> runSort3 s inp j k)) keyCounts
 
 -- ===================================================================
 -- Post-sort fold operators

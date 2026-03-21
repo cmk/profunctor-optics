@@ -30,6 +30,7 @@ import Data.Ord (Down(..))
 import qualified Data.List as L
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Map.Strict as Map
+import qualified Data.Vector as V
 import qualified Data.Map.Merge.Strict as Merge
 
 tests :: IO Bool
@@ -646,6 +647,40 @@ prop_P47_sort3_full_merge = property $ do
                    (sortedMatched matchT ())
                    m1 m2
     result === Map.fromList [(1, -10), (2, 220), (3, 600)]
+
+---------------------------------------------------------------------
+-- P48–P50: Sort3 for Vector (Int-indexed)
+---------------------------------------------------------------------
+
+-- P48: sortingVector groups by key correctly
+prop_P48_sortingVector :: Property
+prop_P48_sortingVector = property $ do
+    let v = V.fromList [(2, "b"), (1, "a"), (2, "c"), (1, "d")]
+        result = sortingVector fst v
+    Map.keys result === [1, 2]
+    fmap V.toList result === Map.fromList [(1, [(1,"a"), (1,"d")]), (2, [(2,"b"), (2,"c")])]
+
+-- P49: sortingVector preserves all elements
+prop_P49_sortingVector_preserves :: Property
+prop_P49_sortingVector_preserves = property $ do
+    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let v = V.fromList xs
+        result = sortingVector fst v
+        totalElems = sum $ fmap V.length result
+    totalElems === V.length v
+
+-- P50: mkSort3N identity: lookup returns the right value
+prop_P50_mkSort3N :: Property
+prop_P50_mkSort3N = property $ do
+    let v = V.fromList [("a", 10), ("b", 20), ("a", 30)]
+        n = V.length v
+        s = mkSort3N n
+        inp i = (fst (v V.! i), snd (v V.! i))
+    -- key "a" has positions 0, 2 → values 10, 30
+    runSort3 s inp 0 "a" === 10
+    runSort3 s inp 1 "a" === 30
+    -- key "b" has position 1 → value 20
+    runSort3 s inp 0 "b" === 20
 
 ---------------------------------------------------------------------
 -- Helpers

@@ -49,6 +49,7 @@ library
     , containers             >= 0.5
     , profunctors            >= 5.4
     , profunctor-optics      >= 0.0.3
+    , vector                 >= 0.12
 
 test-suite properties
   type:              exitcode-stdio-1.0
@@ -76,3 +77,4 @@ test-suite properties
     , profunctor-optics-sort
     , profunctor-optics-strings
     , scheme-extensions
+    , vector
