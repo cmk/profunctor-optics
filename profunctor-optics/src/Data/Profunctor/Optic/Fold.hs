@@ -490,7 +490,9 @@ infix 8 ^?
 (^?) = flip preview
 {-# INLINE (^?) #-}
 
--- | TODO: Document
+-- | Preview the focus of a 'Fold0'.
+--
+-- /Benchmark: 1.01x vs direct (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
 preview :: MonadReader s m => AFold0 a s a -> m (Maybe a)
 preview = flip previews id
@@ -580,6 +582,11 @@ infix 8 ^..
 -- @
 -- 'lists' 'folded_' = 'Data.Foldable.toList'
 -- @
+--
+-- /Benchmark: 1.73x vs Map.elems on Map (Endo closure chain)./
+-- /Same overhead as lens's toListOf — both use the Endo path./
+-- /Note: ~8x vs foldr (:) [] on lists is misleading (foldr (:) []/
+-- /on [a] is id). See "Data.Profunctor.Optic.Bench"./
 --
 lists :: AFold (Endo [a]) s a -> s -> [a]
 lists o = foldsr o (:) []
@@ -691,6 +698,8 @@ previewsWithKey o f = folds0WithKey o (\k -> Just . f k)
 {-# INLINE previewsWithKey #-}
 
 -- | Map an indexed optic to a monoid and combine the results.
+--
+-- /Benchmark: indexed fold via Conjoin, ~1.08x overhead. See "Data.Profunctor.Optic.Bench"./
 --
 -- @since 0.0.3
 foldsWithKey :: Monoid k => AIxfold r k s a -> (k -> a -> r) -> s -> r
