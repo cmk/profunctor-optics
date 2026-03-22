@@ -26,16 +26,16 @@ module Data.Profunctor.Optic.Combinator (
     -- * Miscellaneous optics
   , ixmap
   , cxmap
-  , constl
-  , constr
-  , shiftl
-  , shiftr
-  , coercel 
-  , coercer
-  , represent
-  , ixrepresent
-  , corepresent
-  , cxrepresent
+  , constL
+  , constR
+  , shiftedL
+  , shiftedR
+  , coercedL 
+  , coercedR
+  , representing
+  , ixrepresenting
+  , corepresenting
+  , cxrepresenting
     -- * Operations on representable profunctors
   , (.)
   , over
@@ -202,69 +202,71 @@ cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r)
 -- Operations on arbitrary profunctors
 ---------------------------------------------------------------------
 
--- | TODO: Document
+-- | 'dimap' for indexed optics. Maps over the outer types of an
+-- 'Ixoptic' without affecting the index.
 --
 -- @since 0.0.3
 ixmap :: Profunctor p => (s -> a) -> (b -> t) -> Ixoptic p k s t a b
 ixmap sa bt = dimap (fmap sa) bt
 {-# INLINE ixmap #-}
 
--- | TODO: Document
+-- | 'dimap' for coindexed optics. Maps over the outer types of a
+-- 'Cxoptic' without affecting the coindex.
 --
 -- @since 0.0.3
-cxmap :: Profunctor p => (s -> a) -> (b -> t) -> Cxoptic p k s t a b 
+cxmap :: Profunctor p => (s -> a) -> (b -> t) -> Cxoptic p k s t a b
 cxmap sa bt = dimap sa (fmap bt)
 {-# INLINE cxmap #-}
 
-constl :: Profunctor p => b -> Optic p a c b c
-constl = lmap . const
-{-# INLINE constl #-}
+constL :: Profunctor p => b -> Optic p a c b c
+constL = lmap . const
+{-# INLINE constL #-}
 
-constr :: Profunctor p => c -> Optic p a c a b
-constr = rmap . const
-{-# INLINE constr #-}
+constR :: Profunctor p => c -> Optic p a c a b
+constR = rmap . const
+{-# INLINE constR #-}
 
-shiftl :: Profunctor p => Optic p b (c + d) (a + b) c
-shiftl = dimap Right Left
-{-# INLINE shiftl #-}
+shiftedL :: Profunctor p => Optic p b (c + d) (a + b) c
+shiftedL = dimap Right Left
+{-# INLINE shiftedL #-}
 
-shiftr :: Profunctor p => Optic p (a , b) c b (c , d)
-shiftr = dimap snd fst
-{-# INLINE shiftr #-}
+shiftedR :: Profunctor p => Optic p (a , b) c b (c , d)
+shiftedR = dimap snd fst
+{-# INLINE shiftedR #-}
 
-coercel :: Profunctor p => CoercingL p => Optic p c b a b
-coercel = B.first absurd . lmap absurd
-{-# INLINE coercel #-}
+coercedL :: Profunctor p => CoercingL p => Optic p c b a b
+coercedL = B.first absurd . lmap absurd
+{-# INLINE coercedL #-}
 
-coercer :: Profunctor p => CoercingR p => Optic p a c a b
-coercer = rmap absurd . contramap absurd
-{-# INLINE coercer #-}
-
--- | TODO: Document
---
-represent :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> Optic p s t a b
-represent f = tabulate . f . sieve
-{-# INLINE represent #-}
+coercedR :: Profunctor p => CoercingR p => Optic p a c a b
+coercedR = rmap absurd . contramap absurd
+{-# INLINE coercedR #-}
 
 -- | TODO: Document
 --
--- @since 0.0.3
-ixrepresent :: Representable p => ((i -> a -> Rep p b) -> s -> Rep p t) -> Ixoptic p i s t a b
-ixrepresent f = represent $ \ab -> f (curry ab) . snd
-{-# INLINE ixrepresent #-}
-
--- | TODO: Document
---
-corepresent :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> Optic p s t a b
-corepresent f = cotabulate . f . cosieve
-{-# INLINE corepresent #-}
+representing :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> Optic p s t a b
+representing f = tabulate . f . sieve
+{-# INLINE representing #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-cxrepresent :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> t) -> Cxoptic p i s t a b
-cxrepresent f = corepresent $ \ab -> const . f (flip ab)
-{-# INLINE cxrepresent #-}
+ixrepresenting :: Representable p => ((i -> a -> Rep p b) -> s -> Rep p t) -> Ixoptic p i s t a b
+ixrepresenting f = representing $ \ab -> f (curry ab) . snd
+{-# INLINE ixrepresenting #-}
+
+-- | TODO: Document
+--
+corepresenting :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> Optic p s t a b
+corepresenting f = cotabulate . f . cosieve
+{-# INLINE corepresenting #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> t) -> Cxoptic p i s t a b
+cxrepresenting f = corepresenting $ \ab -> const . f (flip ab)
+{-# INLINE cxrepresenting #-}
 
 ---------------------------------------------------------------------
 -- Operations on representable profunctors
@@ -309,10 +311,10 @@ infixr 8 %
 --
 -- @since 0.0.3
 (%) :: Monoid i => Representable p => Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
-f % g = ixrepresent . runCoindex $ (Coindex . ixreps) f <<<< (Coindex . ixreps) g
+f % g = ixrepresenting . runCoindex $ (Coindex . ixreps) f <<<< (Coindex . ixreps) g
 {-# INLINE (%) #-}
 {-
-f % g = represent $ \ia1a2 (ic,c1) -> 
+f % g = representing $ \ia1a2 (ic,c1) -> 
           (fmap flip . flip . ixrepn) f ic c1 $ \ib b1 -> 
             (fmap flip . flip . ixrepn) g ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
   where ixrepn o h = curry $ reps o $ uncurry h
@@ -326,7 +328,7 @@ f % g = represent $ \ia1a2 (ic,c1) ->
 --
 -- @since 0.0.3
 ixover :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-ixover o f = (unConjoin #. corepresent o .# Conjoin) f mempty
+ixover o f = (unConjoin #. corepresenting o .# Conjoin) f mempty
 {-# INLINE ixover #-}
 
 infixr 8 #
@@ -342,9 +344,9 @@ infixr 8 #
 --
 -- @since 0.0.3
 (#) :: Monoid i => Corepresentable p => Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
-f # g = cxrepresent . runCoindex $ (Coindex . cxreps) f <<<< (Coindex . cxreps) g
+f # g = cxrepresenting . runCoindex $ (Coindex . cxreps) f <<<< (Coindex . cxreps) g
 {-
-f # g = corepresent $ \a1ka2 c1 kc -> 
+f # g = corepresenting $ \a1ka2 c1 kc -> 
           (fmap flip . flip . cxrepn) f kc c1 $ \kb b1 -> 
             (fmap flip . flip . cxrepn) g kb b1 $ \ka a1 -> a1ka2 a1 (kb <> ka)
   where cxrepn o f = flip $ coreps o $ flip f
@@ -359,7 +361,7 @@ f # g = corepresent $ \a1ka2 c1 kc ->
 --
 -- @since 0.0.3
 cxover :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
-cxover o f = (unConjoin #. represent o .# Conjoin) f mempty
+cxover o f = (unConjoin #. representing o .# Conjoin) f mempty
 {-# INLINE cxover #-}
 
 -- | TODO: Document
