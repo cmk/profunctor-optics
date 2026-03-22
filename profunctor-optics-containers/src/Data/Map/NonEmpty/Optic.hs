@@ -46,7 +46,7 @@ import qualified Data.Map.NonEmpty as Map
 -- | /O(1)/. Create a 'Map.NEMap' from an 'Ixfold1'.
 --
 fromIxfold1 :: Ord k => Monoid k => AIxfold (Unsafe.Map k a) k s a -> s -> Unsafe.Map k a
-fromIxfold1 o = ixfolds o Unsafe.singleton
+fromIxfold1 o = ixfoldMapOf o Unsafe.singleton
 {-# INLINE fromIxfold1 #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.NEMap'.

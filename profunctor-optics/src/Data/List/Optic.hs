@@ -6,17 +6,23 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.List.Optic (
+    -- * Optics
+    -- ** Traversal0, Ixtraversal0
     at
-  , iat
-  , imapped
-  , ifiltered
-  , itraversed
-  , ifolded
+  , ixat
+    -- ** Traversal, Ixtraversal
+  , ixtraversed
+    -- ** Fold, Ixfold
+  , ixfolded
+    -- ** Setter, Ixsetter
+  , ixmapped
+  , ixfiltered
+    -- * Operators
     -- * Sort-based operators (Lens, Ord)
-  , sortingOfL
-  , sortingDescOfL
-  , groupingOfL
-  , nubbingOfL
+  , sortingOf
+  , sortingDescOf
+  , groupingOf
+  , nubbingOf
   , sortingString
     -- * Comparator-based operators (*By)
   , groupSortBy
@@ -30,7 +36,7 @@ module Data.List.Optic (
   , uniqueSortOn
 ) where
 
-import Data.Profunctor.Optic hiding (sortingOfL, sortingDescOfL, groupingOfL, nubbingOfL, sortingString)
+import Data.Profunctor.Optic hiding (sortingOf, sortingDescOf, groupingOf, nubbingOf, sortingString)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)
@@ -51,33 +57,36 @@ at k = traversalVl0 $ \point f xs -> if k < 0 then point xs else
 
 -- | /O(n)/. Indexed affine traversal into the value at an index.
 --
-iat :: Int -> Ixtraversal0' Int [a] a
-iat i = ixtraversal0' (\s -> listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == i]) (\s a -> zipWith (\j x -> if i == j then a else x) [0..] s)
-{-# INLINE iat #-}
-
--- | /O(n)/. 'Ixsetter' over the values of a list.
---
-imapped :: Ixsetter Int [a] [b] a b
-imapped = ixsetter $ \f -> zipWith f [0..]
-{-# INLINE imapped #-}
-
--- | /O(n)/. 'Ixsetter' filtering the values of a list.
---
-ifiltered :: Ixsetter Int [a] [a] a Bool
-ifiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
-{-# INLINE ifiltered #-}
+ixat :: Int -> Ixtraversal0' Int [a] a
+ixat i = ixtraversal0' f g
+  where
+    f s = listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == i]
+    g s a = zipWith (\j x -> if i == j then a else x) [0..] s
+{-# INLINE ixat #-}
 
 -- | /O(n)/. 'Ixtraversal' over the values of a list.
 --
-itraversed :: Ixtraversal Int [a] [b] a b
-itraversed = ixtraversalVl $ \f -> traverse (uncurry f) . zip [0..]
-{-# INLINE itraversed #-}
+ixtraversed :: Ixtraversal Int [a] [b] a b
+ixtraversed = ixtraversalVl $ \f -> traverse (uncurry f) . zip [0..]
+{-# INLINE ixtraversed #-}
 
 -- | /O(n)/. 'Ixfold' over the values of a list.
 --
-ifolded :: Ixfold Int [a] a
-ifolded = ixfoldVl $ \f -> traverse (uncurry f) . zip [0..]
-{-# INLINE ifolded #-}
+ixfolded :: Ixfold Int [a] a
+ixfolded = ixfoldVl $ \f -> traverse (uncurry f) . zip [0..]
+{-# INLINE ixfolded #-}
+
+-- | /O(n)/. 'Ixsetter' over the values of a list.
+--
+ixmapped :: Ixsetter Int [a] [b] a b
+ixmapped = ixsetter $ \f -> zipWith f [0..]
+{-# INLINE ixmapped #-}
+
+-- | /O(n)/. 'Ixsetter' filtering the values of a list.
+--
+ixfiltered :: Ixsetter Int [a] [a] a Bool
+ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
+{-# INLINE ixfiltered #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators
@@ -87,25 +96,25 @@ ifolded = ixfoldVl $ \f -> traverse (uncurry f) . zip [0..]
 --
 -- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
-sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingOfL _ [] = []
-sortingOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+sortingOf :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingOf _ [] = []
+sortingOf o xs = Map.elems $ Map.fromListWith (flip (++))
   [(s ^. o, [s]) | s <- xs]
 
 -- | Sort a list in descending order through a lens.
-sortingDescOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingDescOfL _ [] = []
-sortingDescOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+sortingDescOf :: Ord a => Lens' s a -> [s] -> [[s]]
+sortingDescOf _ [] = []
+sortingDescOf o xs = Map.elems $ Map.fromListWith (flip (++))
   [(Down (s ^. o), [s]) | s <- xs]
 
 -- | Group a list through a lens.
-groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-groupingOfL = sortingOfL
+groupingOf :: Ord a => Lens' s a -> [s] -> [[s]]
+groupingOf = sortingOf
 
 -- | Deduplicate a list through a lens, keeping first per group.
-nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
-nubbingOfL _ [] = []
-nubbingOfL o xs = map head $ sortingOfL o xs
+nubbingOf :: Ord a => Lens' s a -> [s] -> [s]
+nubbingOf _ [] = []
+nubbingOf o xs = map head $ sortingOf o xs
 
 -- | Sort a 'String' by a key on each character.
 sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
@@ -160,6 +169,10 @@ groupSortOn key grp = groupSortBy (comparing fst) grp_val . map inj
     grp_val (k, a) kas = grp k a (map snd kas)
     inj x = k `seq` (k, x) where k = key x
 
+-- | Sort by comparator, aggregating duplicates with the monoid.
+monoidSortBy :: Monoid a => (a -> a -> Ordering) -> [a] -> [a]
+monoidSortBy cmp = groupSortBy cmp (\x xs -> x <> mconcat xs)
+
 -- | Sort, aggregating duplicates with the monoid.
 --
 -- @
@@ -173,9 +186,9 @@ monoidSort = monoidSortBy compare
 monoidSortOn :: (Monoid a, Ord k) => (a -> k) -> [a] -> [a]
 monoidSortOn key = groupSortOn key (\_ x xs -> x <> mconcat xs)
 
--- | Sort by comparator, aggregating duplicates with the monoid.
-monoidSortBy :: Monoid a => (a -> a -> Ordering) -> [a] -> [a]
-monoidSortBy cmp = groupSortBy cmp (\x xs -> x <> mconcat xs)
+-- | Sort by comparator, discarding duplicates (keeps first).
+uniqueSortBy :: (a -> a -> Ordering) -> [a] -> [a]
+uniqueSortBy cmp = groupSortBy cmp const
 
 -- | Sort, discarding duplicates.
 --
@@ -189,7 +202,3 @@ uniqueSort = uniqueSortBy compare
 -- | Sort by projection, discarding duplicates (keeps first).
 uniqueSortOn :: Ord k => (a -> k) -> [a] -> [a]
 uniqueSortOn key = groupSortOn key (\_ x _ -> x)
-
--- | Sort by comparator, discarding duplicates (keeps first).
-uniqueSortBy :: (a -> a -> Ordering) -> [a] -> [a]
-uniqueSortBy cmp = groupSortBy cmp const

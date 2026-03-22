@@ -1,4 +1,4 @@
-# profunctor-optics Overhaul Plan
+# profunctor-optics Overhaul Plan — targeting v1.0.0
 
 Improvement areas identified by comparing profunctor-optics against lens and
 optics-core, and auditing the current codebase. Organized by category with
@@ -248,3 +248,70 @@ Phase 5 — Container infrastructure (decision needed on class constraint):
 
 Phase 6 — Polish:
   - D1-D4 (docs, tests, cleanup)
+
+---
+
+## F. Release Readiness
+
+### F1. Stale Moore/Mealy exports in `Types.hs` (P1)
+- [ ] `Types.hs` exports Moore/Mealy types that were moved to
+  `profunctor-optics-folds`. Either remove the stale exports or add
+  re-exports from the folds package.
+- **Why**: Blocks clean compilation or gives users broken imports.
+
+### F2. Stale doc references across modules (P1)
+- [ ] ~25 doc references to `Data.Profunctor.Optic.Property` across Fold,
+  Setter, Iso, Lens, Traversal, Prism modules — update or remove
+- [ ] 1 doc reference to removed `Data.Profunctor.Optic.Moore` in
+  `Traversal.hs` — remove
+- **Why**: Broken Haddock links in published docs.
+
+### F3. Doctest suite disabled (P2)
+- [ ] Add doctests to `Sort.hs` (the stated blocker in cabal file)
+- [ ] Uncomment doctest stanza in cabal file
+- [ ] Verify all existing doctests still pass
+- **Note**: Overlaps with D2. Listed here for release-gate visibility.
+
+### F4. ChangeLog.md (P1)
+- [ ] Replace placeholder template with real release notes for 0.0.3 → 1.0.0
+- [ ] Document all breaking API changes (renames, removed modules, moved
+  types)
+- [ ] Document new functionality added
+
+### F5. README accuracy (P2)
+- [ ] Core package README claims features no longer in core (indexed
+  variants, property predicates, Moore/Mealy). Update to reflect current
+  state.
+- [ ] Root monorepo README is just "see individual packages" — consider a
+  brief overview of the ecosystem.
+
+### F6. Copyright year (P3)
+- [ ] Update copyright from 2019 to 2019-2026 in all cabal files
+- [ ] Update LICENSE files if applicable
+
+### F7. Unused import warnings (P2)
+- [ ] `Types.hs:108` — redundant `Data.Functor.Apply` import
+- [ ] `Carrier.hs:135` — redundant `Control.Category` import
+- [ ] `Carrier.hs:137` — redundant `Data.Profunctor.Types` re-export
+- [ ] `Carrier.hs:140` — redundant `Data.Monoid` import
+- [ ] `Carrier.hs:149` — redundant qualified `Control.Category` import
+- [ ] `Prism.hs:43` — redundant `Control.Monad` import
+- [ ] `Prism.hs:46` — redundant `(++)` import from `Data.List`
+- **Why**: Clean `-Wall` build for release.
+
+### F8. CI coverage (P2)
+- [ ] Restore GHC 9.4 and 9.8 test matrix (currently only 9.6)
+- [ ] Consider adding GHC 9.10 if deps support it
+- [ ] Re-enable benchmarks in CI (currently `False`)
+
+### F9. Support package version coordination (P3)
+- [ ] All support packages are at 0.0.1 — decide whether they get bumped
+  in lockstep with core or independently
+- [ ] Ensure support package dependency bounds on `profunctor-optics` are
+  compatible with the new version
+
+### F10. API rename completion (P1)
+- [ ] The current branch (`truncate`) has commits "Refactor API names"
+  1–5/n — determine if the rename series is complete
+- [ ] If not, finish remaining renames before cutting the release
+- [ ] Ensure all renames are reflected in the changelog

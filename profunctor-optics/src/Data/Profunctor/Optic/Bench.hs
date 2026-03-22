@@ -103,8 +103,8 @@
 -- Fold toListOf (Map)             3.5\/2.0 μs      1.73x
 -- Composition traversed.first  2.2\/2.2 μs      0.97x
 -- Sort carrier mkSortN (1K)    3.0\/3.1 μs      0.98x
--- sortingOfL (1K)              334\/331 μs       1.01x
--- toMapOfL (1K)                346\/343 μs       1.01x
+-- sortingOf (1K)              334\/331 μs       1.01x
+-- toMapOf' (1K)                346\/343 μs       1.01x
 -- @
 --
 module Data.Profunctor.Optic.Bench (
@@ -120,8 +120,8 @@ module Data.Profunctor.Optic.Bench (
     -- * Composition
   , benchCompose2
     -- * Container baselines
-  , benchSortingOfL
-  , benchToMapOfL
+  , benchSortingOf
+  , benchToMapOf
     -- * Sort carrier
   , benchSortVsDirect
   , benchOpticOnSort
@@ -131,7 +131,7 @@ module Data.Profunctor.Optic.Bench (
 
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Combinator (over, ixover)
-import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfolds, preview)
+import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfoldMapOf, preview)
 import Data.Profunctor.Optic.Lens (lensVl)
 import Data.Profunctor.Optic.Sort (mkSortN, sortingRep)
 import Data.Profunctor.Optic.Setter (sets, ixsets)
@@ -139,8 +139,8 @@ import Data.Profunctor.Optic.Traversal (traverseOf)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Optic.Import
-import Data.List.Optic (sortingOfL)
-import Data.Map.Optic (toMapOfL)
+import Data.List.Optic (sortingOf)
+import Data.Map.Optic (toMapOf')
 import qualified Data.Map.Strict as Map
 import Prelude
 
@@ -224,7 +224,7 @@ benchIxFold :: (Monoid k, Monoid r)
             -> (a -> r)                   -- ^ non-indexed fold function
             -> (s -> r, s -> r)
 benchIxFold ixo o ixf f =
-  ( ixfolds ixo ixf
+  ( ixfoldMapOf ixo ixf
   , foldMapOf o f
   )
 
@@ -248,25 +248,25 @@ benchCompose2 o1 o2 f direct =
 -- Container baselines
 ---------------------------------------------------------------------
 
--- | Compare sortingOfL vs Data.List.sortOn + manual grouping.
+-- | Compare sortingOf vs Data.List.sortOn + manual grouping.
 --
-benchSortingOfL :: Ord a
+benchSortingOf :: Ord a
                 => Lens' s a
                 -> [s]
                 -> ([s] -> [[s]], [s] -> [[s]])
-benchSortingOfL o xs =
-  ( sortingOfL o
+benchSortingOf o xs =
+  ( sortingOf o
   , \ys -> Map.elems $ Map.fromListWith (flip (++))
       [(view o s, [s]) | s <- ys]
   )
 
--- | Compare toMapOfL vs direct Map.fromListWith.
+-- | Compare toMapOf' vs direct Map.fromListWith.
 --
-benchToMapOfL :: Ord a
+benchToMapOf :: Ord a
               => Lens' s a
               -> ([s] -> Map.Map a [s], [s] -> Map.Map a [s])
-benchToMapOfL o =
-  ( toMapOfL o
+benchToMapOf o =
+  ( toMapOf' o
   , \xs -> Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
   )
 

@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 module Data.List.Optic (
     toListOf
-  , ixlists
+  , ixtoListOf
   , at
   , iat
   , imapped 

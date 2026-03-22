@@ -20,7 +20,7 @@ import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
 import Data.Profunctor.Optic.Combinator (cxover, (#))
-import Data.Profunctor.Optic.Fold (cxfolds)
+import Data.Profunctor.Optic.Fold (cxfoldMapOf)
 import Data.Profunctor.Optic.View (cxfrom)
 import qualified Control.Category as C
 import Data.Profunctor.Optic.Sort.Backend
@@ -846,13 +846,13 @@ prop_P88_hash_compose_sort = property $ do
 -- P89: Two levels of Map.mapWithKey composed with (#).
 -- The coindices (String keys) accumulate monoidally.
 -- This is the doctest example from Combinator.hs applied
--- via cxfolds.
+-- via cxfoldMapOf.
 prop_P89_hash_map_of_maps :: Property
 prop_P89_hash_map_of_maps = property $ do
     let -- Two levels of coindexed mapWithKey
         twoLevel = cxfrom Map.mapWithKey # cxfrom Map.mapWithKey
         -- Apply: fold the nested map, accumulating coindexed keys
-        result = cxfolds twoLevel
+        result = cxfoldMapOf twoLevel
                    (\k r a -> Map.singleton k (a + r))
                    (1.0 :: Double)
                    (Map.fromList [("k", Map.fromList [("l", 2.0 :: Double)])])

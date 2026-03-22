@@ -7,13 +7,13 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.Iso (
-    -- * Types
-    Equality
-  , Equality'
-  , Iso
-  , Iso'
+    -- * Constructors
+    Equality, Equality'
+  , Iso, Iso'
   , iso
   , isoVl
+  , reixing
+  , recxing
   , fmapping
   , contramapping
   , dimapping
@@ -43,9 +43,7 @@ module Data.Profunctor.Optic.Iso (
     -- * Operators
   , au
   , aup
-  , coover
-  , reixing
-  , recxing
+  , reover
   , withIso
   , re
     -- * Auxilliary Types
@@ -63,7 +61,6 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))
 import qualified Data.Functor.Rep as F
-import qualified Control.Monad as M (join)
 import qualified GHC.Generics as G
 
 -- $setup
@@ -109,7 +106,7 @@ import qualified GHC.Generics as G
 -- See 'Data.Profunctor.Optic.Property'.
 --
 iso :: (s -> a) -> (b -> t) -> Iso s t a b
-iso sa bt = dimap sa bt
+iso = dimap
 {-# INLINE iso #-}
 
 -- | Transform a Van Laarhoven 'Iso' into a profunctor 'Iso'.
@@ -119,6 +116,18 @@ isoVl abst = iso f g
   where f = getConst . (abst (Const . runIdentity)) . Identity
         g = runIdentity . (abst (Identity . getConst)) . Const
 {-# INLINE isoVl #-}
+
+-- | Remap the indices of an indexed optic.
+--
+reixing :: Profunctor p => AIso' k1 k2 -> Ixoptic p k1 s t a b -> Ixoptic p k2 s t a b
+reixing = flip withIso reix
+{-# INLINE reixing #-}
+
+-- | Remap the indices of a coindexed optic.
+--
+recxing :: Profunctor p => AIso' k1 k2 -> Cxoptic p k1 s t a b -> Cxoptic p k2 s t a b
+recxing = flip withIso recx
+{-# INLINE recxing #-}
 
 -- | Lift an 'Iso' into a pair of functors.
 --
@@ -176,7 +185,7 @@ cloneIso k = withIso k $ \sa bt -> iso sa bt
 -- >>> :t (^. equaled)
 -- (^. equaled) :: a -> a
 --
-equaled :: s ~ a => t ~ b => Iso s t a b
+equaled :: s ~ a => t ~ b => Equality s t a b
 equaled = id
 {-# INLINE equaled #-}
 
@@ -351,23 +360,11 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 -- | Given a conversion on one side of an 'Iso', recover the other.
 --
 -- @
--- 'coover' ≡ 'over' '.' 're'
+-- reover ≡ 'over' '.' 're'
 -- @
 --
 -- Compare 'Data.Profunctor.Optic.Setter.over'.
 --
-coover :: AIso s t a b -> (t -> s) -> b -> a
-coover o = withIso o $ \sa bt ts -> sa . ts . bt
-{-# INLINE coover #-}
-
--- | Remap the indices of an indexed optic.
---
-reixing :: Profunctor p => AIso' k1 k2 -> Ixoptic p k1 s t a b -> Ixoptic p k2 s t a b
-reixing o = withIso o reix
-{-# INLINE reixing #-}
-
--- | Remap the indices of a coindexed optic.
---
-recxing :: Profunctor p => AIso' k1 k2 -> Cxoptic p k1 s t a b -> Cxoptic p k2 s t a b
-recxing o = withIso o recx
-{-# INLINE recxing #-}
+reover :: AIso s t a b -> (t -> s) -> b -> a
+reover o = withIso o $ \sa bt ts -> sa . ts . bt
+{-# INLINE reover #-}
