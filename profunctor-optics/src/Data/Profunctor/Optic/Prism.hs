@@ -179,9 +179,9 @@ reright = unright
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
--- >>> Just 1 :| [Just 2, Just 3] & cotraverses just sum
+-- >>> Just 1 :| [Just 2, Just 3] & cotraverseOf just sum
 -- Just 6
--- >>> Nothing :| [Just 2, Just 3] & cotraverses just sum
+-- >>> Nothing :| [Just 2, Just 3] & cotraverseOf just sum
 -- Nothing
 --
 just :: Prism (Maybe a) (Maybe b) a b

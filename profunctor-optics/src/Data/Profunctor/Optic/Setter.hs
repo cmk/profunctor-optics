@@ -382,7 +382,7 @@ coset o b = cosets o $ const b
 -- | Set the focus of a 'Cosetter'.
 --
 cosets :: ACosetter s t a b -> (a -> b) -> s -> t
-cosets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
+cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity) 
 {-# INLINE cosets #-}
 
 -- | Set the focus of a 'Cxsetter'.

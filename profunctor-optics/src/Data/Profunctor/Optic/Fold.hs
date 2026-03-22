@@ -64,9 +64,9 @@ module Data.Profunctor.Optic.Fold (
   , foldlOf
   , foldrOf'
   , foldlOf'
-  , foldsrM
-  , foldslM
-  , traverses_
+  , foldrMOf
+  , foldlMOf
+  , traverseOf_
     -- * Query operators
   , has
   , hasn't
@@ -97,7 +97,7 @@ module Data.Profunctor.Optic.Fold (
   , ixfoldsl'
   , ixfoldsrM
   , ixfoldslM
-  , ixtraverses_
+  , ixtraverseOf_
     -- * EndoM
   , EndoM(..)
     -- * Classes
@@ -543,7 +543,7 @@ foldMapOf o = (getConst #.) #. traverseOf o .# (Const #.)
 -- Compare 'Data.Profunctor.Optic.View.reviews'.
 --
 cofoldMapOf :: ACotraversal (Const r) s t a b -> (r -> b) -> r -> t
-cofoldMapOf o = (.# Const) #. cotraverses o .# (.# getConst) 
+cofoldMapOf o = (.# Const) #. cotraverseOf o .# (.# getConst) 
 {-# INLINE cofoldMapOf #-}
 
 -- | TODO: Document
@@ -626,13 +626,13 @@ safeHead (x:_) = print x >> return x
 
 foo a r = safeHead a >>= (\x -> return $ x : r)
 
-λ> foldsrM folded_ foo "" ["alpha","beta","gamma"]
+λ> foldrMOf folded_ foo "" ["alpha","beta","gamma"]
 'g'
 'b'
 'a'
 "abg"
 
-λ> foldslM folded_ foo "" ["alpha","beta","gamma"]
+λ> foldlMOf folded_ foo "" ["alpha","beta","gamma"]
 "Ouch!"
 'x'
 'x'
@@ -641,32 +641,32 @@ foo a r = safeHead a >>= (\x -> return $ x : r)
 
 -- | Monadic right fold over an optic.
 --
--- >>> foldsrM folded_ (\x y -> Identity (x++y)) "" ["foo","bar","baz"]
+-- >>> foldrMOf folded_ (\x y -> Identity (x++y)) "" ["foo","bar","baz"]
 -- Identity "foobarbaz"
 --
-foldsrM :: Monad m => AFold ((Endo-Dual) (EndoM m r)) s a -> (a -> r -> m r) -> r -> s -> m r
-foldsrM o f r xs = foldlOf o f' mempty xs `appEndoM` r where f' e a = e <> EndoM (f a) -- f x z >>= k
-{-# INLINE foldsrM #-}
+foldrMOf :: Monad m => AFold ((Endo-Dual) (EndoM m r)) s a -> (a -> r -> m r) -> r -> s -> m r
+foldrMOf o f r xs = foldlOf o f' mempty xs `appEndoM` r where f' e a = e <> EndoM (f a) -- f x z >>= k
+{-# INLINE foldrMOf #-}
 
 -- | Monadic left fold over an optic.
 --
-foldslM :: Monad m => AFold (Endo (EndoM m r)) s a -> (r -> a -> m r) -> r -> s -> m r
-foldslM o f r xs = foldrOf o f' mempty xs `appEndoM` r where f' a e = e <> EndoM (`f` a)
-{-# INLINE foldslM #-}
+foldlMOf :: Monad m => AFold (Endo (EndoM m r)) s a -> (r -> a -> m r) -> r -> s -> m r
+foldlMOf o f r xs = foldrOf o f' mempty xs `appEndoM` r where f' a e = e <> EndoM (`f` a)
+{-# INLINE foldlMOf #-}
 
 -- | Applicative fold over an optic.
 --
 -- @
--- 'Data.Foldable.traverse_' ≡ 'traverses_' 'folded'
+-- 'Data.Foldable.traverse_' ≡ 'traverseOf_' 'folded'
 -- @
 --
--- >>> traverses_ bitraversed putStrLn ("hello","world")
+-- >>> traverseOf_ bitraversed putStrLn ("hello","world")
 -- hello
 -- world
 --
-traverses_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f ()
-traverses_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
-{-# INLINE traverses_ #-}
+traverseOf_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f ()
+traverseOf_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
+{-# INLINE traverseOf_ #-}
 
 ---------------------------------------------------------------------
 -- Query operators
@@ -879,7 +879,7 @@ ixfoldsl' o f r s = ixfoldsr o f' (Endo id) s `appEndo` r where f' k x (Endo acc
 -- | Monadic right fold over an indexed optic.
 --
 -- @
--- 'foldsrM' ≡ 'ixfoldrM' '.' 'const'
+-- 'foldrMOf' ≡ 'ixfoldrM' '.' 'const'
 -- @
 --
 -- @since 0.0.3
@@ -890,7 +890,7 @@ ixfoldsrM o f r xs = ixfoldsl o f' mempty xs `appEndoM` r where f' k e a = e <> 
 -- | Monadic left fold over an indexed optic.
 --
 -- @
--- 'foldslM' ≡ 'ixfoldslM' '.' 'const'
+-- 'foldlMOf' ≡ 'ixfoldslM' '.' 'const'
 -- @
 --
 -- @since 0.0.3
@@ -901,13 +901,13 @@ ixfoldslM o f r xs = ixfoldsr o f' mempty xs `appEndoM` r where f' k a e = e <> 
 -- | Applicative fold over an indexed optic.
 --
 -- @
--- 'ixtraverses_' 'ixfolded' ≡ 'traverseWithKey_'
+-- 'ixtraverseOf_' 'ixfolded' ≡ 'traverseWithKey_'
 -- @
 --
 -- @since 0.0.3
-ixtraverses_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k -> a -> f r) -> s -> f ()
-ixtraverses_ p f = ixfoldsr p (\k a fu -> void (f k a) *> fu) (pure ())
-{-# INLINE ixtraverses_ #-}
+ixtraverseOf_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k -> a -> f r) -> s -> f ()
+ixtraverseOf_ p f = ixfoldsr p (\k a fu -> void (f k a) *> fu) (pure ())
+{-# INLINE ixtraverseOf_ #-}
 
 ---------------------------------------------------------------------
 -- EndoM

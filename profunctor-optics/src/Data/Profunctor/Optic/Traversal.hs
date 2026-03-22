@@ -78,15 +78,15 @@ module Data.Profunctor.Optic.Traversal (
   , matches
   , sequenceOf
   , traverseOf
-  , ixtraverses
-  , backwards
-  , mapAccumsL
-  , mapAccumsR
-  , scansl1
-  , scansr1
-  , collects
-  , cotraverses
-  , cxtraverses
+  , ixtraverseOf
+  , reverseOf
+  , mapAccumLOf
+  , mapAccumROf
+  , scanl1Of
+  , scanr1Of
+  , collectOf
+  , cotraverseOf
+  , cxtraverseOf
     -- * Classes
   , Strong(..)
   , Choice(..)
@@ -358,11 +358,11 @@ retraversing bt bsa = corepresent cotraverse . (re $ lens bt bsa)
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose@
 --
--- The cotraversal laws can be restated in terms of 'cotraverses':
+-- The cotraversal laws can be restated in terms of 'cotraverseOf':
 --
--- * @cotraverses o (f . copure) ≡  fmap f . copure@
+-- * @cotraverseOf o (f . copure) ≡  fmap f . copure@
 --
--- * @cotraverses o f . fmap (cotraverses o g) == cotraverses o (f . fmap g . getCompose) . Compose@
+-- * @cotraverseOf o f . fmap (cotraverseOf o g) == cotraverseOf o (f . fmap g . getCompose) . Compose@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -395,7 +395,7 @@ beside x y p = tabulate go where go rss = bitraverse (sieve $ x p) (sieve $ y p)
 --
 -- @since 0.0.3
 reversing :: ATraversal (Backwards f) s t a b -> ATraversal f s t a b
-reversing = atraversal . backwards
+reversing = atraversal . reverseOf
 {-# INLINE reversing #-}
 
 ---------------------------------------------------------------------
@@ -517,11 +517,11 @@ retraversing1 bt bsa = corepresent cotraverse1 . (re $ lens bt bsa)
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose@
 --
--- The cotraversal1 laws can be restated in terms of 'cotraverses':
+-- The cotraversal1 laws can be restated in terms of 'cotraverseOf':
 --
--- * @cotraverses o (f . runIdentity) ≡  fmap f . runIdentity@
+-- * @cotraverseOf o (f . runIdentity) ≡  fmap f . runIdentity@
 --
--- * @cotraverses o f . fmap (cotraverses o g) == cotraverses o (f . fmap g . getCompose) . Compose@
+-- * @cotraverseOf o f . fmap (cotraverseOf o g) == cotraverseOf o (f . fmap g . getCompose) . Compose@
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
@@ -627,9 +627,9 @@ bitraversed1 = represent $ \f -> bitraverse1 f f
 
 -- | TODO: Document
 --
--- >>> cotraverses unforked (foldMap id) $ Left "foo" :| [Right "bar"]
+-- >>> cotraverseOf unforked (foldMap id) $ Left "foo" :| [Right "bar"]
 -- Left "foo"
--- >>> cotraverses unforked (foldMap id) $ Right "foo" :| [Right "bar"]
+-- >>> cotraverseOf unforked (foldMap id) $ Right "foo" :| [Right "bar"]
 -- Right "foobar"
 -- 
 -- @since 0.0.3
@@ -717,13 +717,13 @@ traverseOf o = runStar #. o .# Star
 -- | Traverse over an 'Ixtraversal'.
 --
 -- @
--- 'ixtraverses' o f = 'curry' ('traverseOf' o '$' 'uncurry' f) 'mempty'
+-- 'ixtraverseOf' o f = 'curry' ('traverseOf' o '$' 'uncurry' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-ixtraverses :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
-ixtraverses o f = curry (traverseOf o $ uncurry f) mempty
-{-# INLINE ixtraverses #-}
+ixtraverseOf :: Monoid k => AIxtraversal f k s t a b -> (k -> a -> f b) -> s -> f t
+ixtraverseOf o f = curry (traverseOf o $ uncurry f) mempty
+{-# INLINE ixtraverseOf #-}
 
 -- | This allows you to 'Control.Traversable.traverse' the elements of a 'Traversing' or 'Traversing1' optic in the opposite order.
 --
@@ -732,89 +732,89 @@ ixtraverses o f = curry (traverseOf o $ uncurry f) mempty
 -- This has no practical effect on a 'View', 'Setter', 'Lens' or 'Iso'.
 --
 -- @since 0.0.3
-backwards :: ATraversal (Backwards f) s t a b -> (a -> f b) -> s -> f t
-backwards o = (forwards #.) #. traverseOf o .# (Backwards #.)
-{-# INLINE backwards #-}
+reverseOf :: ATraversal (Backwards f) s t a b -> (a -> f b) -> s -> f t
+reverseOf o = (forwards #.) #. traverseOf o .# (Backwards #.)
+{-# INLINE reverseOf #-}
 
 -- | Generalize 'Data.Traversable.mapAccumL' to a 'Traversing' or 'Traversing1' optic.
 --
 -- @
--- 'mapAccumL' ≡ 'mapAccumsL' 'traverse'
+-- 'mapAccumL' ≡ 'mapAccumLOf' 'traverse'
 -- @
 --
--- 'mapAccumsL' accumulates 'State' from left to right.
+-- 'mapAccumLOf' accumulates 'State' from left to right.
 --
 -- @since 0.0.3
-mapAccumsL :: ATraversal (State r) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
-mapAccumsL o f acc0 s = swap (runState (traverseOf o g s) acc0) where
+mapAccumLOf :: ATraversal (State r) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
+mapAccumLOf o f acc0 s = swap (runState (traverseOf o g s) acc0) where
    g a = state $ \acc -> swap (f acc a)
 
 -- | Generalize 'Data.Traversable.mapAccumR' to a 'Traversing' or 'Traversing1' optic.
 --
 -- @
--- 'mapAccumR' ≡ 'mapAccumsR' 'traverse'
+-- 'mapAccumR' ≡ 'mapAccumROf' 'traverse'
 -- @
 --
--- 'mapAccumsR' accumulates 'State' from right to left.
+-- 'mapAccumROf' accumulates 'State' from right to left.
 --
 -- @since 0.0.3
-mapAccumsR :: ATraversal (Backwards (State r)) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
-mapAccumsR = mapAccumsL . reversing
-{-# INLINE mapAccumsR #-}
+mapAccumROf :: ATraversal (Backwards (State r)) s t a b -> (r -> a -> (r, b)) -> r -> s -> (r, t)
+mapAccumROf = mapAccumLOf . reversing
+{-# INLINE mapAccumROf #-}
 
 -- | Scan left over a 'Traversing' or 'Traversing1' optic.
 --
 -- @
--- 'scanl1' ≡ 'scansl1' 'traverse'
+-- 'scanl1' ≡ 'scanl1Of' 'traverse'
 -- @
 --
 -- @since 0.0.3
-scansl1 :: ATraversal (State (Maybe a)) s t a a -> (a -> a -> a) -> s -> t
-scansl1 o f = snd . mapAccumsL o step Nothing where
+scanl1Of :: ATraversal (State (Maybe a)) s t a a -> (a -> a -> a) -> s -> t
+scanl1Of o f = snd . mapAccumLOf o step Nothing where
   step Nothing a  = (Just a, a)
   step (Just s) a = (Just r, r) where r = f s a
-{-# INLINE scansl1 #-}
+{-# INLINE scanl1Of #-}
 
 -- | Scan left over a 'Traversing' or 'Traversing1' optic.
 --
 -- @
--- 'scanr1' ≡ 'scansr1' 'traverse'
+-- 'scanr1' ≡ 'scanr1Of' 'traverse'
 -- @
 --
 -- @since 0.0.3
-scansr1 :: ATraversal (Backwards (State (Maybe a))) s t a a -> (a -> a -> a) -> s -> t
-scansr1 o f = snd . mapAccumsR o step Nothing where
+scanr1Of :: ATraversal (Backwards (State (Maybe a))) s t a a -> (a -> a -> a) -> s -> t
+scanr1Of o f = snd . mapAccumROf o step Nothing where
   step Nothing a  = (Just a, a)
   step (Just s) a = (Just r, r) where r = f a s
-{-# INLINE scansr1 #-}
+{-# INLINE scanr1Of #-}
 
 -- | TODO: Document
 --
--- >>> collects cotraversed1 ["xxx","ooo"]
+-- >>> collectOf cotraversed1 ["xxx","ooo"]
 -- ["xo","xo","xo"]
--- >>> collects left' (1, Left "foo") :: Either (Int8, String) String
+-- >>> collectOf left' (1, Left "foo") :: Either (Int8, String) String
 -- Left (1,"foo")
--- >>> collects left' (1, Right "foo")
+-- >>> collectOf left' (1, Right "foo")
 -- Right "foo"
 --
-collects :: Coapply f => ACotraversal f s t a (f a) -> f s -> t
-collects o = cotraverses o id
-{-# INLINE collects #-}
+collectOf :: Coapply f => ACotraversal f s t a (f a) -> f s -> t
+collectOf o = cotraverseOf o id
+{-# INLINE collectOf #-}
 
 -- | Cotraverse over a co-representable optic.
 -- | Cotraverse over a 'Cotraversal'.
 --
-cotraverses :: ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
-cotraverses o = runCostar #. o .# Costar
-{-# INLINE cotraverses #-}
+cotraverseOf :: ACotraversal f s t a b -> (f a -> b) -> (f s -> t)
+cotraverseOf o = runCostar #. o .# Costar
+{-# INLINE cotraverseOf #-}
 
 -- | Cotraverse over a 'Cxtraversal'.
 --
 -- @
--- 'cxtraverses' o f = 'flip' ('cotraverses' o '$' 'flip' f) 'mempty'
+-- 'cxtraverseOf' o f = 'flip' ('cotraverseOf' o '$' 'flip' f) 'mempty'
 -- @
 --
 -- @since 0.0.3
-cxtraverses :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
-cxtraverses o f = flip (cotraverses o $ flip f) mempty
-{-# INLINE cxtraverses #-}
+cxtraverseOf :: Monoid k => ACxtraversal f k s t a b -> (k -> f a -> b) -> f s -> t
+cxtraverseOf o f = flip (cotraverseOf o $ flip f) mempty
+{-# INLINE cxtraverseOf #-}
