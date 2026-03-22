@@ -56,7 +56,15 @@ jobs:
         run: cabal build all --enable-tests --disable-benchmarks -j2 -v1
 
       - name: Test
-        run: cabal test all --enable-tests --disable-benchmarks --test-show-details=direct -j1
+        run: |
+          cabal test profunctor-optics --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-exceptions --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-folds --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-sequences --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-strings --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-containers --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-generics --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-th --enable-tests --disable-benchmarks --test-show-details=direct
 
   haddock:
     runs-on: ubuntu-latest
