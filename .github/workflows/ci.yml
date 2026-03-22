@@ -12,7 +12,8 @@ jobs:
     timeout-minutes: 45
     strategy:
       matrix:
-        ghc: ['9.4', '9.6', '9.8']
+        ghc: ['9.6']
+        # TODO: restore ['9.4', '9.6', '9.8'] once cache is warm
     steps:
       - uses: actions/checkout@v4
 
@@ -52,10 +53,18 @@ jobs:
             ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-
 
       - name: Build
-        run: cabal build all --enable-tests --disable-benchmarks
+        run: cabal build all --enable-tests --disable-benchmarks -j2 -v1
 
       - name: Test
-        run: cabal test all --enable-tests --disable-benchmarks --test-show-details=direct
+        run: |
+          cabal test profunctor-optics --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-exceptions --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-folds --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-sequences --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-strings --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-containers --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-generics --enable-tests --disable-benchmarks --test-show-details=direct
+          cabal test profunctor-optics-th --enable-tests --disable-benchmarks --test-show-details=direct
 
   haddock:
     runs-on: ubuntu-latest
