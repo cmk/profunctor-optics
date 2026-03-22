@@ -119,7 +119,7 @@ import qualified Data.Functor.Rep as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = sieved abst . represent (\f -> distribute . fmap f)
+setter abst = sieved abst . representing (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
 -- | Build an 'Ixsetter' from an indexed function.
@@ -160,7 +160,7 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- * @abst f . abst g ≡ abst (f . g)@
 --
 cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
-cosetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
+cosetter abst = cosieved abst . corepresenting (\f -> fmap f . sequenceA)
 {-# INLINE cosetter #-}
 
 ---------------------------------------------------------------------
@@ -171,14 +171,14 @@ cosetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 --
 -- @since 0.0.3
 setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
-setter1 abst = sieved abst . represent (\f -> distribute1 . fmap f)
+setter1 abst = sieved abst . representing (\f -> distribute1 . fmap f)
 {-# INLINE setter1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
 cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
-cosetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
+cosetter1 abst = cosieved abst . corepresenting (\f -> fmap f . sequence1)
 {-# INLINE cosetter1 #-}
 
 ---------------------------------------------------------------------

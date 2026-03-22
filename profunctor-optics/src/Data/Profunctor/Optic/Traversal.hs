@@ -225,7 +225,7 @@ atraversal f = Star #. f .# runStar
 -- "foobar"
 --
 traversing :: Traversable f => (s -> a) -> (s -> b -> t) -> Traversal (f s) (f t) a b
-traversing sa sbt = represent traverse . lens sa sbt
+traversing sa sbt = representing traverse . lens sa sbt
 {-# INLINE traversing #-}
 
 -- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
@@ -248,7 +248,7 @@ traversing sa sbt = represent traverse . lens sa sbt
 --
 -- @since 0.0.3
 ixtraversing :: Monoid k => Traversable f => (s -> (k , a)) -> (s -> b -> t) -> Ixtraversal k (f s) (f t) a b
-ixtraversing sia sbt = represent (\kab -> traverse (curry kab mempty) . snd) . ixlens sia sbt 
+ixtraversing sia sbt = representing (\kab -> traverse (curry kab mempty) . snd) . ixlens sia sbt 
 
 -- | Obtain a profunctor 'Traversal' from a Van Laarhoven 'Traversal'.
 --
@@ -268,7 +268,7 @@ ixtraversing sia sbt = represent (\kab -> traverse (curry kab mempty) . snd) . i
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversalVl :: (forall f. Applicative' f => (a -> f b) -> s -> f t) -> Traversal s t a b
-traversalVl f pab = represent f pab
+traversalVl f pab = representing f pab
 {-# INLINE traversalVl #-}
 
 -- | Lift an indexed VL traversal into an indexed profunctor traversal.
@@ -300,7 +300,7 @@ ixtraversalVl f = traversalVl $ \kab -> f (curry kab) . snd
 --
 -- @since 0.0.3
 ix :: Monoid k => k -> Traversal s t a b -> Ixtraversal k s t a b
-ix k o = ixrepresent $ \f s ->
+ix k o = ixrepresenting $ \f s ->
   flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
     Compose $ (f <$> get <*> pure a) <* modify (<> k)
 
@@ -315,7 +315,7 @@ ix k o = ixrepresent $ \f s ->
 --
 -- @since 0.0.3
 noix :: Monoid k => Traversal s t a b -> Ixtraversal k s t a b
-noix o = ixrepresent $ \iab s -> flip runStar s . o . Star $ iab mempty
+noix o = ixrepresenting $ \iab s -> flip runStar s . o . Star $ iab mempty
 
 -- | TODO: Document
 --
@@ -338,7 +338,7 @@ acotraversal f = Costar #. f .# runCostar
 -- * @sabt (\k -> f (k . sabt)) ≡ sabt (\k -> f ($ k))@
 --
 cotraversing :: Distributive g => (((s -> a) -> b) -> t) -> Cotraversal (g s) (g t) a b
-cotraversing sabt = corepresent cotraverse . grate sabt
+cotraversing sabt = corepresenting cotraverse . grate sabt
 
 -- | Obtain a 'Cotraversal' by embedding a reversed lens getter and setter into a 'Distributive' functor.
 --
@@ -347,7 +347,7 @@ cotraversing sabt = corepresent cotraverse . grate sabt
 -- @
 --
 retraversing :: Distributive g => (b -> t) -> (b -> s -> a) -> Cotraversal (g s) (g t) a b
-retraversing bt bsa = corepresent cotraverse . (re $ lens bt bsa)
+retraversing bt bsa = corepresenting cotraverse . (re $ lens bt bsa)
 
 -- | Obtain a profunctor 'Cotraversal' from a Van Laarhoven 'Cotraversal'.
 --
@@ -367,7 +367,7 @@ retraversing bt bsa = corepresent cotraverse . (re $ lens bt bsa)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 cotraversalVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cotraversal s t a b
-cotraversalVl f pab = corepresent f pab
+cotraversalVl f pab = corepresenting f pab
 
 -- | Lift a coindexed VL cotraversal into a coindexed profunctor cotraversal.
 --
@@ -428,7 +428,7 @@ reversing = atraversal . reverseOf
 -- Compare 'Data.Profunctor.Optic.Fold.folding'.
 --
 traversing1 :: Traversable1 f => (s -> a) -> (s -> b -> t) -> Traversal1 (f s) (f t) a b
-traversing1 sa sbt = represent traverse1 . lens sa sbt
+traversing1 sa sbt = representing traverse1 . lens sa sbt
 {-# INLINE traversing1 #-}
 
 -- | Obtain a 'Ixtraversal' by lifting an indexed lens getter and setter into a 'Traversable' functor.
@@ -451,7 +451,7 @@ traversing1 sa sbt = represent traverse1 . lens sa sbt
 --
 -- @since 0.0.3
 ixtraversing1 :: Monoid k => Traversable1 f => (s -> (k , a)) -> (s -> b -> t) -> Ixtraversal1 k (f s) (f t) a b
-ixtraversing1 sia sbt = represent (\kab -> traverse1 (curry kab mempty) . snd) . ixlens sia sbt 
+ixtraversing1 sia sbt = representing (\kab -> traverse1 (curry kab mempty) . snd) . ixlens sia sbt 
 
 -- | Obtain a profunctor 'Traversal1' from a Van Laarhoven 'Traversal1'.
 --
@@ -497,7 +497,7 @@ ixtraversalVl1 f = traversalVl1 $ \kab -> f (curry kab) . snd
 -- * @sabt (\k -> f (k . sabt)) ≡ sabt (\k -> f ($ k))@
 --
 cotraversing1 :: Distributive1 g => (((s -> a) -> b) -> t) -> Cotraversal1 (g s) (g t) a b
-cotraversing1 sabt = corepresent cotraverse1 . grate sabt
+cotraversing1 sabt = corepresenting cotraverse1 . grate sabt
 
 -- | Obtain a 'Cotraversal1' by embedding a reversed lens getter and setter into a 'Distributive1' functor.
 --
@@ -506,7 +506,7 @@ cotraversing1 sabt = corepresent cotraverse1 . grate sabt
 -- @
 --
 retraversing1 :: Distributive1 g => (b -> t) -> (b -> s -> a) -> Cotraversal1 (g s) (g t) a b
-retraversing1 bt bsa = corepresent cotraverse1 . (re $ lens bt bsa)
+retraversing1 bt bsa = corepresenting cotraverse1 . (re $ lens bt bsa)
 
 -- | Obtain a profunctor 'Cotraversal1' from a Van Laarhoven 'Cotraversal1'.
 --
@@ -613,7 +613,7 @@ cotraversed1 = cotraversalVl1 cotraverse1
 -- @
 --
 bitraversed :: Bitraversable f => Traversal (f a a) (f b b) a b
-bitraversed = represent $ \f -> bitraverse f f
+bitraversed = representing $ \f -> bitraverse f f
 {-# INLINE bitraversed #-}
 
 -- | Traverse both parts of a 'Bitraversable1' container with matching types.
@@ -622,7 +622,7 @@ bitraversed = represent $ \f -> bitraverse f f
 -- (5,5)
 --
 bitraversed1 :: Bitraversable1 r => Traversal1 (r a a) (r b b) a b
-bitraversed1 = represent $ \f -> bitraverse1 f f
+bitraversed1 = representing $ \f -> bitraverse1 f f
 {-# INLINE bitraversed1 #-}
 
 -- | TODO: Document
@@ -660,7 +660,7 @@ duplicated p = pappend p p
 -- @
 --
 repeated :: Traversal1' a a
-repeated = represent $ \g a -> go g a where go g a = g a .> go g a
+repeated = representing $ \g a -> go g a where go g a = g a .> go g a
 {-# INLINE repeated #-}
 
 -- | @x '^.' 'iterated' f@ returns an infinite 'Traversal1'' of repeated applications of @f@ to @x@.
@@ -673,7 +673,7 @@ repeated = represent $ \g a -> go g a where go g a = g a .> go g a
 -- [1,2,3]
 --
 iterated :: (a -> a) -> Traversal1' a a
-iterated f = represent $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
+iterated f = representing $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 {-# INLINE iterated #-}
 
 -- | Transform a 'Traversal1'' into a 'Traversal1'' that loops over its elements repeatedly.
@@ -682,7 +682,7 @@ iterated f = represent $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 -- [1,2,3,1,2,3,1]
 --
 cycling :: Apply f => ATraversal' f s a -> ATraversal' f s a
-cycling o = represent $ \g a -> go g a where go g a = (traverseOf o g) a .> go g a
+cycling o = representing $ \g a -> go g a where go g a = (traverseOf o g) a .> go g a
 {-# INLINE cycling #-}
 
 ---------------------------------------------------------------------

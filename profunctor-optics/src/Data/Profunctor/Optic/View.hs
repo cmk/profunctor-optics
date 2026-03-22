@@ -81,7 +81,7 @@ import Data.Profunctor.Optic.Fold
 -- @
 --
 to :: (s -> a) -> View s a
-to f = coercer . lmap f
+to f = coercedR . lmap f
 {-# INLINE to #-}
 
 -- | Obtain a 'Review' from an arbitrary function.
@@ -98,7 +98,7 @@ to f = coercer . lmap f
 -- @
 --
 from :: (b -> t) -> Review t b 
-from f = coercel . rmap f
+from f = coercedL . rmap f
 {-# INLINE from #-}
 
 -- | TODO: Document
@@ -181,7 +181,7 @@ fromSum l r = from (review l ||| review r)
 --
 -- @since 0.0.3
 ixto :: (s -> (k , a)) -> Ixview k s a
-ixto f = coercer . lmap (f . snd)
+ixto f = coercedR . lmap (f . snd)
 {-# INLINE ixto #-}
 
 -- | TODO: Document
@@ -198,7 +198,7 @@ ixlike k a = ixto (const (k, a))
 --
 -- @since 0.0.3
 cxfrom :: ((k -> b) -> t) -> Cxreview k t b
-cxfrom f = coercel . rmap (\ib _ -> f ib)
+cxfrom f = coercedL . rmap (\ib _ -> f ib)
 {-# INLINE cxfrom #-}
 
 ---------------------------------------------------------------------
