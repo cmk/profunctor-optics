@@ -421,7 +421,7 @@ generateUpdateableOptics :: Lens' OpticRules Bool
 generateUpdateableOptics = lensVl $ \f r -> fmap (\x -> r { _allowUpdates = x}) (f (_allowUpdates r))
 
 {- |
-Generate lenses using lazy pattern matches. This can allow fields of an undefined value to be initialized with lenses:
+Generate lenses using lazy pattern matchOf. This can allow fields of an undefined value to be initialized with lenses:
 
 @
 data Foo = Foo {_x :: Int, _y :: Bool}
@@ -1067,7 +1067,7 @@ buildStab s categorizedFields =
   unfixedTypeVars             = setOf typeVars s Set.\\ fixedTypeVars
 
 -- | Build the signature and definition for a single field optic.
--- In the case of a singleton constructor irrefutable matches are
+-- In the case of a singleton constructor irrefutable matchOf are
 -- used to enable the resulting lenses to be used on a bottom value.
 makeFieldOptic ::
   OpticRules ->

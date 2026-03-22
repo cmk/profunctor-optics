@@ -73,9 +73,9 @@ module Data.Profunctor.Optic.Traversal (
   , duplicated
   , repeated 
   , iterated
-  , cycled
+  , cycling
     -- * Operators
-  , matches
+  , matchOf
   , sequenceOf
   , traverseOf
   , ixtraverseOf
@@ -678,27 +678,27 @@ iterated f = represent $ \g a0 -> go g a0 where go g a = g a .> go g (f a)
 
 -- | Transform a 'Traversal1'' into a 'Traversal1'' that loops over its elements repeatedly.
 --
--- >>> take 7 $ (1 :| [2,3]) ^.. cycled traversed1
+-- >>> take 7 $ (1 :| [2,3]) ^.. cycling traversed1
 -- [1,2,3,1,2,3,1]
 --
-cycled :: Apply f => ATraversal' f s a -> ATraversal' f s a
-cycled o = represent $ \g a -> go g a where go g a = (traverseOf o g) a .> go g a
-{-# INLINE cycled #-}
+cycling :: Apply f => ATraversal' f s a -> ATraversal' f s a
+cycling o = represent $ \g a -> go g a where go g a = (traverseOf o g) a .> go g a
+{-# INLINE cycling #-}
 
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
--- | Test whether the optic matches or not.
+-- | Test whether the optic matchOf or not.
 --
--- >>> matches just (Just 2)
+-- >>> matchOf just (Just 2)
 -- Right 2
--- >>> matches just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
+-- >>> matchOf just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
 -- Left Nothing
 --
-matches :: ATraversal0 s t a b -> s -> t + a
-matches o = withAffine o $ \sta _ -> sta
-{-# INLINE matches #-}
+matchOf :: ATraversal0 s t a b -> s -> t + a
+matchOf o = withAffine o $ \sta _ -> sta
+{-# INLINE matchOf #-}
 
 -- | TODO: Document
 --

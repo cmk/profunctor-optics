@@ -250,7 +250,7 @@ without k =
 
 -- | Lift a 'Prism' through a 'Traversable' functor.
 -- 
--- Returns a 'Prism' that matches only if each element matches the original 'Prism'.
+-- Returns a 'Prism' that matchOf only if each element matchOf the original 'Prism'.
 --
 -- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right'
 -- []

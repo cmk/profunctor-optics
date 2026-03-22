@@ -268,7 +268,7 @@ groupingDescBack o xs =
 -- | Sort via an 'Ixlens'': the index IS the discrimination key.
 --
 -- No separate key extractor needed. The carrier is
--- @rmap snd mkSort1 :: Sort1 k (k, a) a@ which matches
+-- @rmap snd mkSort1 :: Sort1 k (k, a) a@ which matchOf
 -- @Ix (Sort1 k) k a a@.
 sortingIx :: Ord k
           => Ixlens' k s a
