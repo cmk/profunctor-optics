@@ -19,6 +19,7 @@ module Data.Profunctor.Optic.Import (
   , swap
   , eswap
   , fork
+  , fanout
   , join
   , eval
   , apply
@@ -38,7 +39,6 @@ module Data.Profunctor.Optic.Import (
   , module Export
 ) where
 
-import Control.Arrow as Export ((|||),(&&&),(+++),(***))
 import Control.Applicative as Export (liftA2, Alternative(..))
 import Control.Coapplicative as Export hiding (apply, branch)
 import Control.Category as Export hiding ((.), id)
@@ -101,6 +101,10 @@ eswap (Right x) = Left x
 fork :: a -> (a , a)
 fork a = (a, a)
 {-# INLINE fork #-}
+
+fanout :: (a -> b) -> (a -> c) -> a -> (b , c)
+fanout f g a = (f a, g a)
+{-# INLINE fanout #-}
 
 join :: (a + a) -> a
 join = either id id

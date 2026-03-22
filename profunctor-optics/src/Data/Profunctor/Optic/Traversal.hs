@@ -153,7 +153,7 @@ import qualified Data.Functor.Rep as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 traversal0 :: (s -> t + a) -> (s -> b -> t) -> Traversal0 s t a b
-traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (id ||| uncurry sbt) . right' . second'
+traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (either id (uncurry sbt)) . right' . second'
 {-# INLINE traversal0 #-}
 
 -- | Obtain a 'Traversal0'' from match and constructor functions.
@@ -165,7 +165,7 @@ traversal0' sa sas = traversal0 (\s -> maybe (Left s) Right (sa s)) sas
 -- | Transform a Van Laarhoven 'Traversal0' into a profunctor 'Traversal0'.
 --
 traversalVl0 :: (forall f. Functor f => (forall c. c -> f c) -> (a -> f b) -> s -> f t) -> Traversal0 s t a b
-traversalVl0 f = dimap (\s -> (s,) <$> eswap (f Right Left s)) (id ||| uncurry sbt) . right' . second'
+traversalVl0 f = dimap (\s -> (s,) <$> eswap (f Right Left s)) (either id (uncurry sbt)) . right' . second'
   where
     sbt s b = runIdentity $ f Identity (\_ -> Identity b) s
 {-# INLINE traversalVl0 #-}

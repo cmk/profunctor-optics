@@ -160,7 +160,7 @@ relike t = from (const t)
 -- @
 --
 toProduct :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
-toProduct l r = to (view l &&& view r)
+toProduct l r = to (fanout (view l) (view r))
 {-# INLINE toProduct #-}
 
 -- | Combine two 'Review's into a 'Review' from a sum.
@@ -170,7 +170,7 @@ toProduct l r = to (view l &&& view r)
 -- @
 --
 fromSum :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
-fromSum l r = from (review l ||| review r)
+fromSum l r = from (either (review l) (review r))
 {-# INLINE fromSum #-}
 
 ---------------------------------------------------------------------

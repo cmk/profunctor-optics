@@ -132,7 +132,7 @@ import qualified Data.Functor.Rep as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 lens :: (s -> a) -> (s -> b -> t) -> Lens s t a b
-lens sa sbt = dimap (id &&& sa) (uncurry sbt) . second'
+lens sa sbt = dimap (fanout id sa) (uncurry sbt) . second'
 {-# INLINE lens #-}
 
 -- | Obtain an indexed 'Lens' from an indexed getter and a setter.
@@ -175,7 +175,7 @@ ixlens ska sbt = ixlensVl $ \kab s -> sbt s <$> uncurry kab (ska s)
 -- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
 --
 lensVl :: (forall f. Functor f => (a -> f b) -> s -> f t) -> Lens s t a b
-lensVl abst = dimap ((info &&& vals) . abst (flip Index id)) (uncurry id . swap) . first'
+lensVl abst = dimap ((fanout info vals) . abst (flip Index id)) (uncurry id . swap) . first'
 {-# INLINE lensVl #-}
 
 -- | Transform an indexed Van Laarhoven lens into an indexed profunctor 'Lens'.
@@ -266,7 +266,7 @@ grate f = dimap (flip ($)) f . closed
 -- See 'Data.Profunctor.Optic.Property'.
 --
 colens :: (b -> s -> a) -> (b -> t) -> Colens s t a b
-colens bsa bt = cosecond . dimap (uncurry bsa) (id &&& bt)
+colens bsa bt = cosecond . dimap (uncurry bsa) (fanout id bt)
 
 -- | TODO: Document
 --
@@ -309,7 +309,7 @@ grateVl o = dimap (curry eval) ((o trivial) . Coindex) . closed
 -- However removing the annotation will result in a faulty optic.
 -- 
 colensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Colens s t a b
-colensVl o = cofirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
+colensVl o = cofirst . dimap (uncurry id . swap) ((fanout info vals) . o (flip Index id))
 
 -- | Transform a coindexed Van Laarhoven grate into a coindexed profunctor grate.
 --
@@ -341,7 +341,7 @@ matching sca cbt = dimap sca cbt . second'
 
 -- | Obtain a 'Colens' from its free tensor representation.
 --
--- >>> fib = comatching (uncurry L.take . swap) (id &&& L.reverse) --fib :: Colens Int [Int] [Int] [Int]
+-- >>> fib = comatching (uncurry L.take . swap) (fanout id L.reverse) --fib :: Colens Int [Int] [Int] [Int]
 -- >>> 10 & fib ..~ \xs -> 1 : 1 : Prelude.zipWith (+) xs (drop 1 xs)
 -- [89,55,34,21,13,8,5,3,2,1,1]
 --
@@ -422,13 +422,13 @@ cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 -- @
 --
 relens :: (b -> s -> a) -> (b -> t) -> Relens s t a b
-relens bsa bt = unsecond . dimap (uncurry bsa) (id &&& bt)
+relens bsa bt = unsecond . dimap (uncurry bsa) (fanout id bt)
 {-# INLINE relens #-}
 
 -- | Obtain a 'Relens' from its van Laarhoven representation.
 --
 relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Relens s t a b
-relensVl o = unfirst . dimap (uncurry id . swap) ((info &&& vals) . o (flip Index id))
+relensVl o = unfirst . dimap (uncurry id . swap) ((fanout info vals) . o (flip Index id))
   where swap (a, b) = (b, a)
 {-# INLINE relensVl #-}
 
