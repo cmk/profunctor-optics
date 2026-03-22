@@ -75,7 +75,7 @@ import Data.Profunctor.Optic.Types
 --
 -- * @sta (bt b) ≡ Right b@
 --
--- * @(id ||| bt) (sta s) ≡ s@
+-- * @(either id bt) (sta s) ≡ s@
 --
 -- * @left sta (sta s) ≡ left Left (sta s)@
 --
@@ -89,7 +89,7 @@ import Data.Profunctor.Optic.Types
 -- See 'Data.Profunctor.Optic.Property'.
 --
 prism :: (s -> t + a) -> (b -> t) -> Prism s t a b
-prism sta bt pab = dimap sta (id ||| bt) (right' pab)
+prism sta bt pab = dimap sta (either id bt) (right' pab)
 
 -- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
@@ -126,7 +126,7 @@ clonePrism o = withPrism o $ \sta bt -> prism sta bt
 -- @
 --
 reprism :: (s -> a) -> (b -> Either a t) -> Reprism s t a b
-reprism sa bat = unright . dimap (id ||| sa) bat
+reprism sa bat = unright . dimap (either id sa) bat
 {-# INLINE reprism #-}
 
 -- | Obtain a simple 'Reprism' from a viewer and a 'Maybe' matcher.

@@ -49,10 +49,10 @@ module Data.Profunctor.Optic.Combinator (
   , cxreps
     -- * Arrow-style combinators
   , (<<*>>)
-  , (****)
-  , (++++)
-  , (&&&&)
-  , (||||)
+  , (***)
+  , (+++)
+  , (&&&)
+  , (|||)
   , liftR2
     -- * Divisible-style combinators
   , divide
@@ -402,37 +402,37 @@ infixl 4 <<*>>
 (<<*>>) = liftR2 ($)
 {-# INLINE (<<*>>) #-}
 
-infixr 3 ****
+infixr 3 ***
 
--- | Profunctor variant of '***'.
+-- | Profunctor variant of 'Control.Arrow.***'.
 --
-(****) :: Traversing1 p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
-p **** q = dimap fst (,) p <<*>> lmap snd q
-{-# INLINE (****) #-}
+(***) :: Traversing1 p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
+p *** q = dimap fst (,) p <<*>> lmap snd q
+{-# INLINE (***) #-}
 
-infixr 2 ++++
+infixr 2 +++
 
--- | Profunctor variant of '+++'.
+-- | Profunctor variant of 'Control.Arrow.+++'.
 --
-(++++) :: Cotraversing1 p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
-p ++++ q = cotabulate $ B.bimap (cosieve p) (cosieve q) . coapply
-{-# INLINE (++++) #-}
+(+++) :: Cotraversing1 p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
+p +++ q = cotabulate $ B.bimap (cosieve p) (cosieve q) . coapply
+{-# INLINE (+++) #-}
 
-infixr 3 &&&&
+infixr 3 &&&
 
--- | Profunctor variant of '&&&'.
+-- | Profunctor variant of 'Control.Arrow.&&&'.
 --
-(&&&&) ::  Traversing1 p => p a b1 -> p a b2 -> p a (b1 , b2)
-p &&&& q = liftR2 (,) p q
-{-# INLINE (&&&&) #-}
+(&&&) ::  Traversing1 p => p a b1 -> p a b2 -> p a (b1 , b2)
+p &&& q = liftR2 (,) p q
+{-# INLINE (&&&) #-}
 
-infixr 2 ||||
+infixr 2 |||
 
--- | Profunctor variant of '|||'.
+-- | Profunctor variant of 'Control.Arrow.|||'.
 --
-(||||) :: Cotraversing1 p => p a1 b -> p a2 b -> p (a1 + a2) b
-p |||| q = cotabulate $ either (cosieve p) (cosieve q) . coapply
-{-# INLINE (||||) #-}
+(|||) :: Cotraversing1 p => p a1 b -> p a2 b -> p (a1 + a2) b
+p ||| q = cotabulate $ either (cosieve p) (cosieve q) . coapply
+{-# INLINE (|||) #-}
 
 liftR2 :: Traversing1 p => (b -> c -> d) -> p a b -> p a c -> p a d
 liftR2 f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
@@ -445,7 +445,7 @@ liftR2 f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
 -- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:divide divide >.
 --
 divide :: Traversing1 p => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
-divide f p q = dimap f fst $ p **** q
+divide f p q = dimap f fst $ p *** q
 {-# INLINE divide #-}
 
 divide' :: Traversing1 p => p a1 b -> p a2 b -> p (a1 , a2) b
@@ -453,7 +453,7 @@ divide' = divide id
 {-# INLINE divide' #-}
 
 codivide :: Cotraversing1 p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
-codivide f p q = dimap Left f $ p ++++ q
+codivide f p q = dimap Left f $ p +++ q
 {-# INLINE codivide #-}
 
 codivide' :: Cotraversing1 p => p a b1 -> p a b2 -> p a (b1 + b2)
@@ -463,7 +463,7 @@ codivide' = codivide id
 -- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:choose choose >.
 --
 choose :: Cotraversing1 p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b 
-choose f p q = dimap f join $ p ++++ q
+choose f p q = dimap f join $ p +++ q
 {-# INLINE choose #-}
 
 choose' :: Cotraversing1 p => p a1 b -> p a2 b -> p (a1 + a2) b 
@@ -471,7 +471,7 @@ choose' = choose id
 {-# INLINE choose' #-}
 
 cochoose :: Traversing1 p => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
-cochoose f p q = dimap fork f $ p **** q
+cochoose f p q = dimap fork f $ p *** q
 {-# INLINE cochoose #-}
 
 cochoose' :: Traversing1 p => p a b1 -> p a b2 -> p a (b1, b2)

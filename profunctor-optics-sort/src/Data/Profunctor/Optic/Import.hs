@@ -21,10 +21,19 @@ module Data.Profunctor.Optic.Import
   , rfirst, rsecond
   ) where
 
-import Control.Arrow ((&&&), (|||))
 import Data.Bifunctor as B (Bifunctor(..), second)
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Iso
+import Data.Profunctor.Optic.Lens
+import Data.Profunctor.Optic.Prism
+import Data.Profunctor.Optic.Setter
+import Data.Profunctor.Optic.View
+import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Traversal
+import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Optic.Types
 
 -- ---------------------------------------------------------------------------
 -- Indexed dual optic types
@@ -72,7 +81,7 @@ jprism' isa as = prism (\(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)) as
 
 -- | Indexed 'Reprism'.
 rprism :: Monoid r => (r -> s -> a) -> (b -> Either a t) -> Rxprism r s t a b
-rprism rsa bat = reprism (const mempty &&& uncurry rsa) (B.first (mempty,) . bat)
+rprism rsa bat = reprism (fanout (const mempty) (uncurry rsa)) (B.first (mempty,) . bat)
 
 -- | Indexed 'Reprism'' from a 'Maybe' matcher.
 rprism' :: Monoid r => (r -> s -> a) -> (a -> Maybe s) -> Rxprism' r s a
