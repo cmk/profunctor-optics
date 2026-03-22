@@ -55,10 +55,10 @@ module Data.Profunctor.Optic.Traversal (
   , codivide
   , choose
   , (<<*>>)
-  , (****)
-  , (&&&&)
-  , (++++)
-  , (||||)
+  , (***)
+  , (&&&)
+  , (+++)
+  , (|||)
     -- * Optics
   , anulled
   , selected
@@ -634,7 +634,7 @@ bitraversed1 = representing $ \f -> bitraverse1 f f
 -- 
 -- @since 0.0.3
 unforked :: Cotraversal1 (a + a) (b + b) a b
-unforked p = p ++++ p
+unforked p = p +++ p
 {-# INLINE unforked #-}
 
 -- | Duplicate the results of a 'Traversal'. 

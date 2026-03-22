@@ -16,9 +16,9 @@ module Data.Profunctor.Optic.View (
     -- * Optics
   , like
   , ixlike
-  , relike
-  , toProduct
-  , fromSum
+  , unlike
+  , tupling
+  , summing
     -- * Operators
   , view
   , views
@@ -144,34 +144,34 @@ like a = to (const a)
 -- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
 --
 -- @
--- 'relike' a '.' 'relike' b ≡ 'relike' a
--- 'relike' a '.^' b ≡ a
--- 'relike' a '.^' b ≡ 'from' ('const' a) '#' b
+-- 'unlike' a '.' 'unlike' b ≡ 'unlike' a
+-- 'unlike' a '.^' b ≡ a
+-- 'unlike' a '.^' b ≡ 'from' ('const' a) '#' b
 -- @
 --
-relike :: t -> Review t b
-relike t = from (const t)
-{-# INLINE relike #-}
+unlike :: t -> Review t b
+unlike t = from (const t)
+{-# INLINE unlike #-}
 
 -- | Combine two 'View's into a 'View' to a product.
 --
 -- @
--- 'toProduct' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
+-- 'tupling' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
 -- @
 --
-toProduct :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
-toProduct l r = to (fanout (view l) (view r))
-{-# INLINE toProduct #-}
+tupling :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
+tupling l r = to (fanout (view l) (view r))
+{-# INLINE tupling #-}
 
 -- | Combine two 'Review's into a 'Review' from a sum.
 --
 -- @
--- 'fromSum' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
+-- 'summing' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
 -- @
 --
-fromSum :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
-fromSum l r = from (either (review l) (review r))
-{-# INLINE fromSum #-}
+summing :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
+summing l r = from (either (review l) (review r))
+{-# INLINE summing #-}
 
 ---------------------------------------------------------------------
 -- Indexed optics 
