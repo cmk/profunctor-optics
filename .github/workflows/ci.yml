@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     strategy:
       matrix:
         ghc: ['9.4', '9.6', '9.8']
@@ -40,7 +41,7 @@ jobs:
       - name: Configure project
         run: |
           printf 'packages:\n  profunctor-optics/\n  profunctor-optics-exceptions/\n  profunctor-optics-folds/\n  profunctor-optics-sequences/\n  profunctor-optics-strings/\n  profunctor-optics-containers/\n  profunctor-optics-generics/\n  profunctor-optics-th/\noptional-packages:\n  scheme-extensions\n  coapplicative\n  fault\n' > cabal.project
-          printf 'tests: True\nwrite-ghc-environment-files: always\n' > cabal.project.local
+          printf 'tests: True\nbenchmarks: False\nwrite-ghc-environment-files: always\n' > cabal.project.local
 
       - name: Cache cabal store
         uses: actions/cache@v4
