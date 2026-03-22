@@ -6,40 +6,43 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Prism (
-    -- * Prism
+    -- * Constructors
     Prism
   , Prism'
   , prism
   , prism'
   , handling
   , clonePrism
-    -- * Reprism
+    -- *** Reversed Constructors
   , Reprism
   , Reprism'
   , reprism
   , reprism'
   , rehandling
+  , rehandling'
   , cloneReprism
     -- * Optics
   , left
   , right
-  , releft
-  , reright
   , just
   , nothing
   , prefixed
   , only
   , nearly
   , nthbit
+    -- *** Reversed Optics
+  , releft
+  , reright
     -- * Operators
+  , withPrism
   , aside
   , without
   , below
-  , toPastroSum
-  , toTambaraSum
-  , withPrism
+  , pastroSum
+  , tambaraSum
+    -- *** Reversed Operators
   , withReprism
-    -- * Classes
+    -- * Reexports
   , Choice(..)
   , Cochoice(..)
 ) where
@@ -48,9 +51,9 @@ import Control.Monad (guard)
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix,(++))
-import Data.Profunctor.Choice
+import Data.Profunctor.Choice hiding (tambaraSum, pastroSum)
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Import 
+import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 -- $setup
 -- >>> :set -XNoOverloadedStrings
@@ -64,7 +67,7 @@ import Data.Profunctor.Optic.Types
 -- >>> import Prelude
 
 ---------------------------------------------------------------------
--- 'Prism' & 'Cxprism'
+-- * Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Prism' from a constructor and a matcher function.
@@ -79,9 +82,9 @@ import Data.Profunctor.Optic.Types
 --
 -- * @left sta (sta s) ≡ left Left (sta s)@
 --
--- More generally, a profunctor optic must be monoidal as a natural 
+-- More generally, a profunctor optic must be monoidal as a natural
 -- transformation:
--- 
+--
 -- * @o id ≡ id@
 --
 -- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
@@ -112,7 +115,7 @@ clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o $ \sta bt -> prism sta bt
 
 ---------------------------------------------------------------------
--- 'Reprism'
+-- *** Reversed Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Reprism' from a viewer and a matcher.
@@ -141,6 +144,16 @@ rehandling :: (Either c s -> a) -> (b -> Either c t) -> Reprism s t a b
 rehandling csa bct = unright . dimap csa bct
 {-# INLINE rehandling #-}
 
+-- | Obtain a 'Reprism' from a single discriminating function.
+--
+-- @
+-- 'rehandling'' f ≡ 'rehandling' (either id id) f
+-- @
+--
+rehandling' :: (b -> Either s t) -> Reprism s t s b
+rehandling' f = unright . dimap (either id id) f
+{-# INLINE rehandling' #-}
+
 -- | Clone a 'Reprism'.
 --
 cloneReprism :: AReprism s t a b -> Reprism s t a b
@@ -148,7 +161,7 @@ cloneReprism o = withReprism o reprism
 {-# INLINE cloneReprism #-}
 
 ---------------------------------------------------------------------
--- Common 'Prism's and 'Coprism's
+-- * Optics
 ---------------------------------------------------------------------
 
 -- | Focus on the `Left` constructor of `Either`.
@@ -160,22 +173,6 @@ left pab = left' pab
 --
 right :: Prism (c + a) (c + b) a b
 right pab = right' pab
-
--- | 'Reprism' out of the @Left@ constructor.
---
--- @'releft' ≡ 're' 'left'@
---
-releft :: Reprism a b (Either a c) (Either b c)
-releft = unleft
-{-# INLINE releft #-}
-
--- | 'Reprism' out of the @Right@ constructor.
---
--- @'reright' ≡ 're' 'right'@
---
-reright :: Reprism a b (Either c a) (Either c b)
-reright = unright
-{-# INLINE reright #-}
 
 -- | Focus on the `Just` constructor of `Maybe`.
 --
@@ -212,7 +209,7 @@ only x = nearly x (x==)
 -- @'nearly' [] 'Prelude.null' :: 'Prism'' [a] ()@
 --
 -- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that @f x@ holds iff @x ≡ a@. 
+-- you must ensure that @f x@ holds iff @x ≡ a@.
 --
 nearly :: a -> (a -> Bool) -> Prism' a ()
 nearly x f = prism' (guard . f) (const x)
@@ -223,7 +220,27 @@ nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
 ---------------------------------------------------------------------
--- Operators
+-- *** Reversed Optics
+---------------------------------------------------------------------
+
+-- | 'Reprism' out of the @Left@ constructor.
+--
+-- @'releft' ≡ 're' 'left'@
+--
+releft :: Reprism a b (Either a c) (Either b c)
+releft = unleft
+{-# INLINE releft #-}
+
+-- | 'Reprism' out of the @Right@ constructor.
+--
+-- @'reright' ≡ 're' 'right'@
+--
+reright :: Reprism a b (Either c a) (Either c b)
+reright = unright
+{-# INLINE reright #-}
+
+---------------------------------------------------------------------
+-- * Operators
 ---------------------------------------------------------------------
 
 -- | Use a 'Prism' to lift part of a structure.
@@ -249,7 +266,7 @@ without k =
 {-# INLINE without #-}
 
 -- | Lift a 'Prism' through a 'Traversable' functor.
--- 
+--
 -- Returns a 'Prism' that matchOf only if each element matchOf the original 'Prism'.
 --
 -- >>> [Left 1, Right "foo", Left 4, Right "woot"] ^.. below right'
@@ -268,10 +285,14 @@ below k =
 
 -- | Use a 'Prism' to construct a 'PastroSum'.
 --
-toPastroSum :: APrism s t a b -> p a b -> PastroSum p s t
-toPastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswap . sta)
+pastroSum :: APrism s t a b -> p a b -> PastroSum p s t
+pastroSum o p = withPrism o $ \sta bt -> PastroSum (join . B.first bt) p (eswap . sta)
 
 -- | Use a 'Prism' to construct a 'TambaraSum'.
 --
-toTambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
-toTambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
+tambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
+tambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
+
+---------------------------------------------------------------------
+-- *** Reversed Operators
+---------------------------------------------------------------------

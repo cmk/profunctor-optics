@@ -4,28 +4,36 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 module Data.Profunctor.Optic.View (
-    -- * View
+    -- * Constructors
     View
-  , Review
   , to
-  , ixto
-  , from
-  , cxfrom
-  , cloneView
-  , cloneReview
-    -- * Optics
   , like
-  , ixlike
+  , cloneView
+    -- *** Dual Constructors
+  , Review
+  , from
   , unlike
+  , cloneReview
+    -- * Indexed Constructors
+  , ixto
+  , ixlike
+    -- *** Coindexed Constructors
+  , cxfrom
+    -- * Optics
   , tupling
+    -- *** Dual Optics
   , summing
     -- * Operators
   , view
   , views
-  , ixview
-  , ixviews
+  , viewing
+    -- *** Dual Operators
   , review
   , reviews
+    -- * Indexed Operators
+  , ixview
+  , ixviews
+    -- *** Coindexed Operators
   , cxreview
   , cxreviews
     -- * MonadState
@@ -57,7 +65,7 @@ import Data.Profunctor.Optic.Fold
 -- >>> import Data.Monoid (Sum(..))
 
 ---------------------------------------------------------------------
--- 'View' & 'Review'
+-- * Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'View' from an arbitrary function.
@@ -84,43 +92,6 @@ to :: (s -> a) -> View s a
 to f = coercedR . lmap f
 {-# INLINE to #-}
 
--- | Obtain a 'Review' from an arbitrary function.
---
--- @
--- 'from' ≡ 're' . 'to'
--- @
---
--- >>> review (from Prelude.length) [1,2,3]
--- 3
---
--- @
--- 'from' :: (b -> t) -> 'Review' t b
--- @
---
-from :: (b -> t) -> Review t b 
-from f = coercedL . rmap f
-{-# INLINE from #-}
-
--- | TODO: Document
---
--- @
--- 'cloneView' :: 'Monoid' a => 'AView' a s a -> 'Fold' s a
--- @
---
-cloneView :: AView a s a -> View s a
-cloneView o = to (view o)
-{-# INLINE cloneView #-}
-
--- | TODO: Document
---
-cloneReview :: AReview t b -> Review t b
-cloneReview o = from (review o)
-{-# INLINE cloneReview #-}
-
----------------------------------------------------------------------
--- Optics 
----------------------------------------------------------------------
-
 -- | Obtain a constant-valued (index-preserving) 'View' from an arbitrary value.
 --
 -- This can be useful as a second case 'failing' a 'Fold'
@@ -141,6 +112,37 @@ like :: a -> View s a
 like a = to (const a)
 {-# INLINE like #-}
 
+-- | TODO: Document
+--
+-- @
+-- 'cloneView' :: 'Monoid' a => 'AView' a s a -> 'Fold' s a
+-- @
+--
+cloneView :: AView a s a -> View s a
+cloneView o = to (view o)
+{-# INLINE cloneView #-}
+
+---------------------------------------------------------------------
+-- *** Dual Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Review' from an arbitrary function.
+--
+-- @
+-- 'from' ≡ 're' . 'to'
+-- @
+--
+-- >>> review (from Prelude.length) [1,2,3]
+-- 3
+--
+-- @
+-- 'from' :: (b -> t) -> 'Review' t b
+-- @
+--
+from :: (b -> t) -> Review t b
+from f = coercedL . rmap f
+{-# INLINE from #-}
+
 -- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
 --
 -- @
@@ -153,28 +155,14 @@ unlike :: t -> Review t b
 unlike t = from (const t)
 {-# INLINE unlike #-}
 
--- | Combine two 'View's into a 'View' to a product.
+-- | TODO: Document
 --
--- @
--- 'tupling' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
--- @
---
-tupling :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
-tupling l r = to (fanout (view l) (view r))
-{-# INLINE tupling #-}
-
--- | Combine two 'Review's into a 'Review' from a sum.
---
--- @
--- 'summing' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
--- @
---
-summing :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
-summing l r = from (either (review l) (review r))
-{-# INLINE summing #-}
+cloneReview :: AReview t b -> Review t b
+cloneReview o = from (review o)
+{-# INLINE cloneReview #-}
 
 ---------------------------------------------------------------------
--- Indexed optics 
+-- * Indexed Constructors
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -191,6 +179,10 @@ ixlike :: k -> a -> Ixview k s a
 ixlike k a = ixto (const (k, a))
 {-# INLINE ixlike #-}
 
+---------------------------------------------------------------------
+-- *** Coindexed Constructors
+---------------------------------------------------------------------
+
 -- | TODO: Document
 --
 -- >>> cxfolds (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
@@ -202,9 +194,36 @@ cxfrom f = coercedL . rmap (\ib _ -> f ib)
 {-# INLINE cxfrom #-}
 
 ---------------------------------------------------------------------
--- Operators
+-- * Optics
 ---------------------------------------------------------------------
 
+-- | Combine two 'View's into a 'View' to a product.
+--
+-- @
+-- 'tupling' :: 'View' s a1 -> 'View' s a2 -> 'View' s (a1 , a2)
+-- @
+--
+tupling :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
+tupling l r = to (fanout (view l) (view r))
+{-# INLINE tupling #-}
+
+---------------------------------------------------------------------
+-- *** Dual Optics
+---------------------------------------------------------------------
+
+-- | Combine two 'Review's into a 'Review' from a sum.
+--
+-- @
+-- 'summing' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
+-- @
+--
+summing :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
+summing l r = from (either (review l) (review r))
+{-# INLINE summing #-}
+
+---------------------------------------------------------------------
+-- * Operators
+---------------------------------------------------------------------
 
 -- | An infix alias for 'view'.
 --
@@ -249,25 +268,17 @@ views :: MonadReader s m => AView r s a -> (a -> r) -> m r
 views o f = asks $ foldMapOf o f
 {-# INLINE views #-}
 
--- | View the focus of an indexed optic along with its index.
+-- | Obtain a 'View' from an 'AFold0'.
 --
--- >>> ixview ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
--- (Just (Sum {getSum = 0}),"foo")
+-- @'viewing' ≡ 'to' '.' 'preview'@
 --
--- @since 0.0.3
-ixview :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
-ixview o = ixviews o $ \k a -> (Just k, a)
-{-# INLINE ixview #-}
+viewing :: AFold0 a s a -> View s (Maybe a)
+viewing o = coercedR . lmap (preview o)
+{-# INLINE viewing #-}
 
--- | Bring a function of the index and value of an indexed optic into the current environment.
---
--- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
---
--- @since 0.0.3
-ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
-ixviews o f = asks $ ixfolds o f
-{-# INLINE ixviews #-}
-
+---------------------------------------------------------------------
+-- *** Dual Operators
+---------------------------------------------------------------------
 
 -- | Review the focus of an optic.
 --
@@ -299,6 +310,33 @@ reviews :: AReview t b -> (t -> r) -> b -> r
 reviews o f = f . unTagged #. o .# Tagged
 {-# INLINE reviews #-}
 
+---------------------------------------------------------------------
+-- * Indexed Operators
+---------------------------------------------------------------------
+
+-- | View the focus of an indexed optic along with its index.
+--
+-- >>> ixview ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
+-- (Just (Sum {getSum = 0}),"foo")
+--
+-- @since 0.0.3
+ixview :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
+ixview o = ixviews o $ \k a -> (Just k, a)
+{-# INLINE ixview #-}
+
+-- | Bring a function of the index and value of an indexed optic into the current environment.
+--
+-- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
+--
+-- @since 0.0.3
+ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
+ixviews o f = asks $ ixfolds o f
+{-# INLINE ixviews #-}
+
+---------------------------------------------------------------------
+-- *** Coindexed Operators
+---------------------------------------------------------------------
+
 -- | Bring a function of the index of a co-indexed optic into the current environment.
 --
 -- @since 0.0.3
@@ -318,7 +356,7 @@ cxreviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# T
 {-# INLINE cxreviews #-}
 
 ---------------------------------------------------------------------
--- MonadState
+-- * MonadState
 ---------------------------------------------------------------------
 
 -- | TODO: Document

@@ -6,51 +6,57 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Setter (
-    -- * Setter
+    -- * Constructors
     Setter
   , Setter'
+  , setter
+  , closing
+    -- *** Dual Constructors
   , Cosetter
   , Cosetter'
-  , setter
-  , ixsetter
-  , closing
   , cosetter
-    -- * Setter1
+    -- *** Setter1
   , Setter1
   , Setter1'
+  , setter1
+    -- *** Cosetter1
   , Cosetter1
   , Cosetter1'
-  , setter1
   , cosetter1
+    -- * Indexed Constructors
+  , ixsetter
     -- * Optics
   , codomain
   , domain
   , fmapped
-  , imappedRep
   , contramapped
+  , imappedRep
   , liftedM
   , liftedA
-  , coliftedA
-  , coliftedF
-  , zipListed
   , forwarded
   , censored
   , zipped
   , modded
   , conditioned
+    -- *** Dual Optics
+  , coliftedA
+  , coliftedF
+  , zipListed
     -- * Operators
-  , over
-  , ixover
-  , cxover
   , set
   , sets
-  , ixset
-  , ixsets
+  , over
   , coset
   , cosets
+    -- * Indexed Operators
+  , ixset
+  , ixsets
+  , ixover
+    -- *** Coindexed Operators
   , cxset
   , cxsets
-    -- * mtl
+  , cxover
+    -- * MonadState / MonadReader / MonadWriter
   , assigns
   , modifies
   , localizes
@@ -91,7 +97,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Prelude
 
 ---------------------------------------------------------------------
--- Setter
+-- Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Setter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
@@ -109,9 +115,9 @@ import qualified Data.Functor.Rep as F
 --
 -- * @abst f . abst g ≡ abst (f . g)@
 --
--- More generally, a profunctor optic must be monoidal as a natural 
+-- More generally, a profunctor optic must be monoidal as a natural
 -- transformation:
--- 
+--
 -- * @o id ≡ id@
 --
 -- * @o ('Data.Profunctor.Composition.Procompose' p q) ≡ 'Data.Profunctor.Composition.Procompose' (o p) (o q)@
@@ -121,6 +127,58 @@ import qualified Data.Functor.Rep as F
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
 setter abst = indexing abst . representing (\f -> distribute . fmap f)
 {-# INLINE setter #-}
+
+-- | Every valid 'Colens' is a 'Setter'.
+--
+closing :: (((s -> a) -> b) -> t) -> Setter s t a b
+closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
+{-# INLINE closing #-}
+
+---------------------------------------------------------------------
+-- Dual Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input function satisfies the following
+-- properties:
+--
+-- * @abst id ≡ id@
+--
+-- * @abst f . abst g ≡ abst (f . g)@
+--
+cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
+cosetter abst = coindexing abst . corepresenting (\f -> fmap f . sequenceA)
+{-# INLINE cosetter #-}
+
+---------------------------------------------------------------------
+-- Setter1
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
+setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
+{-# INLINE setter1 #-}
+
+---------------------------------------------------------------------
+-- Cosetter1
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
+cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
+{-# INLINE cosetter1 #-}
+
+-- TODO: cxsetter, ixsetter1, cxsetter1 constructors
+
+---------------------------------------------------------------------
+-- Indexed Constructors
+---------------------------------------------------------------------
 
 -- | Build an 'Ixsetter' from an indexed function.
 --
@@ -140,51 +198,11 @@ setter abst = indexing abst . representing (\f -> distribute . fmap f)
 --
 -- @since 0.0.3
 ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
-ixsetter f = setter $ \iab -> f (curry iab) . snd 
+ixsetter f = setter $ \iab -> f (curry iab) . snd
 {-# INLINE ixsetter #-}
 
--- | Every valid 'Colens' is a 'Setter'.
---
-closing :: (((s -> a) -> b) -> t) -> Setter s t a b
-closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
-{-# INLINE closing #-}
-
--- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input function satisfies the following
--- properties:
---
--- * @abst id ≡ id@
---
--- * @abst f . abst g ≡ abst (f . g)@
---
-cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
-cosetter abst = coindexing abst . corepresenting (\f -> fmap f . sequenceA)
-{-# INLINE cosetter #-}
-
--- TODO: cxsetter, ixsetter1, cxsetter1 constructors
-
 ---------------------------------------------------------------------
--- Setter1
----------------------------------------------------------------------
-
--- | TODO: Document
---
--- @since 0.0.3
-setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
-setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
-{-# INLINE setter1 #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
-cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
-{-# INLINE cosetter1 #-}
-
----------------------------------------------------------------------
--- Optics 
+-- Optics
 ---------------------------------------------------------------------
 
 -- | Map covariantly over the output of a profunctor.
@@ -224,15 +242,6 @@ fmapped :: Functor f => Setter (f a) (f b) a b
 fmapped = setter fmap
 {-# INLINE fmapped #-}
 
--- | 'Ixsetter' on each value of a representable functor.
---
--- >>> 1 :+ 2 & ixany imappedRep %~ bool 20 10 . getAny
--- 20 :+ 10
---
-imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
-imappedRep = ixsetter F.imapRep
-{-# INLINE imappedRep #-}
-
 -- | 'Setter' on each value of a contravariant functor.
 --
 -- @
@@ -247,6 +256,15 @@ imappedRep = ixsetter F.imapRep
 contramapped :: Contravariant f => Setter (f b) (f a) a b
 contramapped = setter contramap
 {-# INLINE contramapped #-}
+
+-- | 'Ixsetter' on each value of a representable functor.
+--
+-- >>> 1 :+ 2 & ixany imappedRep %~ bool 20 10 . getAny
+-- 20 :+ 10
+--
+imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+imappedRep = ixsetter F.imapRep
+{-# INLINE imappedRep #-}
 
 -- | 'Setter' on each value of a monad.
 --
@@ -269,29 +287,7 @@ liftedA :: Applicative f => Setter (f a) (f b) a b
 liftedA = setter liftA
 {-# INLINE liftedA #-}
 
--- | TODO: Document
---
-coliftedA :: Applicative f => Cosetter (f a) (f b) a b
-coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
-{-# INLINE coliftedA #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-coliftedF :: Apply f => Cosetter1 (f a) (f b) a b
-coliftedF p = cotabulate $ fmap (cosieve p) . sequence1
-{-# INLINE coliftedF #-}
-
--- | Variant of 'coliftedA' specialized to zip-toListOf.
---
--- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
---
--- @since 0.0.3
-zipListed :: Cosetter [a] [b] a b
-zipListed = dimap ZipList getZipList . coliftedA
-{-# INLINE zipListed #-}
-
--- | 'Setter' on the local environment of a 'Reader'. 
+-- | 'Setter' on the local environment of a 'Reader'.
 --
 -- Use to lift reader actions into a larger environment:
 --
@@ -332,12 +328,38 @@ conditioned p = setter $ \f a -> if p a then f a else a
 {-# INLINE conditioned #-}
 
 ---------------------------------------------------------------------
+-- Dual Optics
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+coliftedA :: Applicative f => Cosetter (f a) (f b) a b
+coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
+{-# INLINE coliftedA #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+coliftedF :: Apply f => Cosetter1 (f a) (f b) a b
+coliftedF p = cotabulate $ fmap (cosieve p) . sequence1
+{-# INLINE coliftedF #-}
+
+-- | Variant of 'coliftedA' specialized to zip-toListOf.
+--
+-- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
+--
+-- @since 0.0.3
+zipListed :: Cosetter [a] [b] a b
+zipListed = dimap ZipList getZipList . coliftedA
+{-# INLINE zipListed #-}
+
+---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
 
 -- | Set the focus of a 'Setter'.
 --
--- @ 
+-- @
 -- 'set' o y ('set' o x a) ≡ 'set' o y a
 -- 'set' o b = 'Data.Functor.runIdentity' . (o *~ 'Data.Functor.Identity' b)
 -- @
@@ -351,6 +373,25 @@ set o b = sets o $ const b
 sets ::  ASetter s t a b -> (a -> b) -> s -> t
 sets o = (runIdentity #.) #. traverseOf o .# (Identity #.)
 {-# INLINE sets #-}
+
+-- | Set the focus of a 'Cosetter'.
+--
+-- @
+-- 'coset' o b = (o '/~' b) . 'Data.Functor.Identity'
+-- @
+--
+coset :: ACosetter s t a b -> b -> s -> t
+coset o b = cosets o $ const b
+
+-- | Set the focus of a 'Cosetter'.
+--
+cosets :: ACosetter s t a b -> (a -> b) -> s -> t
+cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity)
+{-# INLINE cosets #-}
+
+---------------------------------------------------------------------
+-- Indexed Operators
+---------------------------------------------------------------------
 
 -- | Set the focus of a 'Ixsetter'.
 --
@@ -372,39 +413,28 @@ ixsets :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 ixsets o f = curry (sets o $ uncurry f) mempty
 {-# INLINE ixsets #-}
 
--- | Set the focus of a 'Cosetter'.
---
--- @
--- 'coset' o b = (o '/~' b) . 'Data.Functor.Identity'
--- @
---
-coset :: ACosetter s t a b -> b -> s -> t
-coset o b = cosets o $ const b
-
--- | Set the focus of a 'Cosetter'.
---
-cosets :: ACosetter s t a b -> (a -> b) -> s -> t
-cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity) 
-{-# INLINE cosets #-}
+---------------------------------------------------------------------
+-- Coindexed Operators
+---------------------------------------------------------------------
 
 -- | Set the focus of a 'Cxsetter'.
 --
 -- Equivalent to 'cxsets' with the current value ignored.
 --
 -- @since 0.0.3
-cxset :: Monoid i => ACxsetter i s t a b -> (i -> b) -> s -> t 
+cxset :: Monoid i => ACxsetter i s t a b -> (i -> b) -> s -> t
 cxset o ib = cxsets o $ flip (const ib)
 {-# INLINE cxset #-}
 
 -- | Set the focus of a 'Cxsetter'.
 --
 -- @since 0.0.3
-cxsets :: Monoid i => ACxsetter i s t a b -> (i -> a -> b) -> s -> t 
+cxsets :: Monoid i => ACxsetter i s t a b -> (i -> a -> b) -> s -> t
 cxsets o f = flip (cosets o $ flip f) mempty
 {-# INLINE cxsets #-}
 
 ---------------------------------------------------------------------
--- Mtl
+-- MonadState / MonadReader / MonadWriter
 ---------------------------------------------------------------------
 
 -- | Replace the target(s) of a settable in a monadic state.
