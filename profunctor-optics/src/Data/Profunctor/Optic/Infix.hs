@@ -128,7 +128,7 @@ infix  4  .=, ..=
 --            view             toList           preview
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
 --   Ix      (^%)  'V.ixview'  (^%%)  'F.ixlists'
---   Co      (^/)  'V.review'  (^//)  'F.cofoldsa'
+--   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
 --   Cx      (^#)  'V.cxreview'
 -- @
 
@@ -190,10 +190,10 @@ infix  4  .=, ..=
 
 -- | Co-dual fold to a list.
 --
--- @o '^//' b ≡ 'F.cofoldsa' o b@
+-- @o '^//' b ≡ 'F.cofoldOfA' o b@
 --
 (^//) :: Coapplicative f => ACofold (f b) t b -> f b -> t
-(^//) = F.cofoldsa
+(^//) = F.cofoldOfA
 {-# INLINE (^//) #-}
 
 -- | Indexed co-dual view (indexed review).
