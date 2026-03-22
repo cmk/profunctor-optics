@@ -23,8 +23,8 @@ module Data.Profunctor.Optic.Setter (
   , setter1
   , cosetter1
     -- * Optics
-  , cod
-  , dom
+  , codomain
+  , domain
   , fmapped
   , imappedRep
   , contramapped
@@ -37,7 +37,7 @@ module Data.Profunctor.Optic.Setter (
   , censored
   , zipped
   , modded
-  , cond
+  , conditioned
     -- * Operators
   , over
   , ixover
@@ -190,31 +190,31 @@ cosetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- (dom ..~ f) g x ≡ f (g x)
--- cod @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
+-- (domain ..~ f) g x ≡ f (g x)
+-- codomain @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
 -- @
 --
--- >>> (cod ..~ show) length [1,2,3]
+-- >>> (codomain ..~ show) length [1,2,3]
 -- "3"
 --
-cod :: Profunctor p => Setter (p r a) (p r b) a b
-cod = setter rmap
-{-# INLINE cod #-}
+codomain :: Profunctor p => Setter (p r a) (p r b) a b
+codomain = setter rmap
+{-# INLINE codomain #-}
 
 -- | Map contravariantly over the input of a profunctor.
 --
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- ('dom' '..~' f) g x ≡ g (f x)
+-- ('domain' '..~' f) g x ≡ g (f x)
 -- @
 --
--- >>> (dom ..~ show) length [1,2,3]
+-- >>> (domain ..~ show) length [1,2,3]
 -- 7
 --
-dom :: Profunctor p => Setter (p b r) (p a r) a b
-dom = setter lmap
-{-# INLINE dom #-}
+domain :: Profunctor p => Setter (p b r) (p a r) a b
+domain = setter lmap
+{-# INLINE domain #-}
 
 -- | 'Setter' on each value of a functor.
 --
@@ -325,9 +325,9 @@ modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 --
 -- See also 'Data.Profunctor.Optic.Traversal0.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
 --
-cond :: (a -> Bool) -> Setter' a a
-cond p = setter $ \f a -> if p a then f a else a
-{-# INLINE cond #-}
+conditioned :: (a -> Bool) -> Setter' a a
+conditioned p = setter $ \f a -> if p a then f a else a
+{-# INLINE conditioned #-}
 
 ---------------------------------------------------------------------
 -- Operators
