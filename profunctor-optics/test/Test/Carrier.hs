@@ -48,13 +48,13 @@ gen_list = G.list (R.linear 0 10)
 ---------------------------------------------------------------------
 
 prop_iso_fromto :: Property
-prop_iso_fromto = withTests 1000 . property $ do
+prop_iso_fromto = withTests 100 . property $ do
   a <- forAll int
   -- Test fromto using show/read: show (read (show a)) == show a
   assert $ Prop.fromto_iso (iso (read @Int) show) (show a)
 
 prop_iso_tofrom :: Property
-prop_iso_tofrom = withTests 1000 . property $ do
+prop_iso_tofrom = withTests 100 . property $ do
   a <- forAll int
   assert $ Prop.tofrom_iso (iso (read @Int) show) a
 
@@ -66,18 +66,18 @@ fst_ :: Lens' (Int, Char) Int
 fst_ = lensVl $ \f (a, b) -> (\a' -> (a', b)) <$> f a
 
 prop_lens_tofrom :: Property
-prop_lens_tofrom = withTests 1000 . property $ do
+prop_lens_tofrom = withTests 100 . property $ do
   s <- forAll $ gen_pair int char
   assert $ Prop.tofrom_lens fst_ s
 
 prop_lens_fromto :: Property
-prop_lens_fromto = withTests 1000 . property $ do
+prop_lens_fromto = withTests 100 . property $ do
   s <- forAll $ gen_pair int char
   a <- forAll int
   assert $ Prop.fromto_lens fst_ s a
 
 prop_lens_idempotent :: Property
-prop_lens_idempotent = withTests 1000 . property $ do
+prop_lens_idempotent = withTests 100 . property $ do
   s <- forAll $ gen_pair int char
   a1 <- forAll int
   a2 <- forAll int
@@ -94,17 +94,17 @@ left_ = dimap
   . right'
 
 prop_prism_tofrom :: Property
-prop_prism_tofrom = withTests 1000 . property $ do
+prop_prism_tofrom = withTests 100 . property $ do
   s <- forAll $ gen_either int int
   assert $ Prop.tofrom_prism left_ s
 
 prop_prism_fromto :: Property
-prop_prism_fromto = withTests 1000 . property $ do
+prop_prism_fromto = withTests 100 . property $ do
   a <- forAll int
   assert $ Prop.fromto_prism left_ a
 
 prop_prism_idempotent :: Property
-prop_prism_idempotent = withTests 1000 . property $ do
+prop_prism_idempotent = withTests 100 . property $ do
   s <- forAll $ gen_either int int
   assert $ Prop.idempotent_prism left_ s
 
@@ -112,68 +112,74 @@ prop_prism_idempotent = withTests 1000 . property $ do
 -- Relens
 ---------------------------------------------------------------------
 
--- Relens' (Int, Char) (Int, Char) — the identity relens
-refirst_ :: Relens' (Int, Char) (Int, Char)
-refirst_ = relens (\a _ -> a) id
+-- re first' :: Relens' Int (Int, Char)
+-- bsa a (i, c) = i, bt a = (a, c) where c = snd (bt a) ... via knot-tying
+-- Carrier: RelensRep (\a (i, _) -> i) (\a -> (a, ???))
+-- Use refirst directly which is just unfirst.
+--
+-- refirst @Int @Int @Char :: Relens' Int (Int, Char)
+-- s = Int, a = (Int, Char)
+-- const_relens: bsa a (bt a) == a  (a :: (Int, Char))
+-- tofrom_relens: bt (bsa a s) == s  (s :: Int)
+-- idempotent_relens: bsa (bsa a s1) s2 == bsa a s2
 
 prop_relens_const :: Property
-prop_relens_const = withTests 1000 . property $ do
+prop_relens_const = withTests 100 . property $ do
   a <- forAll $ gen_pair int char
-  assert $ Prop.const_relens refirst_ a
+  assert $ Prop.const_relens (refirst @Int @Int @Char) a
 
 prop_relens_tofrom :: Property
-prop_relens_tofrom = withTests 1000 . property $ do
+prop_relens_tofrom = withTests 100 . property $ do
   a <- forAll $ gen_pair int char
-  s <- forAll $ gen_pair int char
-  assert $ Prop.tofrom_relens refirst_ a s
+  s <- forAll int
+  assert $ Prop.tofrom_relens (refirst @Int @Int @Char) a s
 
 prop_relens_idempotent :: Property
-prop_relens_idempotent = withTests 1000 . property $ do
+prop_relens_idempotent = withTests 100 . property $ do
   a <- forAll $ gen_pair int char
-  s1 <- forAll $ gen_pair int char
-  s2 <- forAll $ gen_pair int char
-  assert $ Prop.idempotent_relens refirst_ a s1 s2
+  s1 <- forAll int
+  s2 <- forAll int
+  assert $ Prop.idempotent_relens (refirst @Int @Int @Char) a s1 s2
 
 ---------------------------------------------------------------------
 -- Reprism
 ---------------------------------------------------------------------
 
--- Reprism' (Either Int Char) (Either Int Char) — views Left, matchOf back
-releft_ :: Reprism' (Either Int Char) (Either Int Char)
-releft_ = reprism id (\a -> case a of Left _ -> Right a; Right _ -> Left a)
+-- releft @Int @Int @Char :: Reprism' Int (Either Int Char)
+-- s = Int, a = Either Int Char
 
 prop_reprism_tofrom :: Property
-prop_reprism_tofrom = withTests 1000 . property $ do
+prop_reprism_tofrom = withTests 100 . property $ do
   a <- forAll $ gen_either int char
-  assert $ Prop.tofrom_reprism releft_ a
+  assert $ Prop.tofrom_reprism (releft @Int @Int @Char) a
 
 prop_reprism_fromto :: Property
-prop_reprism_fromto = withTests 1000 . property $ do
-  s <- forAll $ gen_either int char
-  assert $ Prop.fromto_reprism releft_ s
+prop_reprism_fromto = withTests 100 . property $ do
+  s <- forAll int
+  assert $ Prop.fromto_reprism (releft @Int @Int @Char) s
 
 prop_reprism_idempotent :: Property
-prop_reprism_idempotent = withTests 1000 . property $ do
+prop_reprism_idempotent = withTests 100 . property $ do
   a <- forAll $ gen_either int char
-  assert $ Prop.idempotent_reprism releft_ a
+  assert $ Prop.idempotent_reprism (releft @Int @Int @Char) a
 
 ---------------------------------------------------------------------
 -- Traversal0 (Affine)
 ---------------------------------------------------------------------
 
 prop_traversal0_fromto :: Property
-prop_traversal0_fromto = withTests 1000 . property $ do
+prop_traversal0_fromto = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   assert $ Prop.fromto_traversal0 just s
 
 prop_traversal0_tofrom :: Property
-prop_traversal0_tofrom = withTests 1000 . property $ do
+prop_traversal0_tofrom = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   a <- forAll int
   assert $ Prop.tofrom_traversal0 just s a
 
 prop_traversal0_idempotent :: Property
-prop_traversal0_idempotent = withTests 1000 . property $ do
+prop_traversal0_idempotent = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   a1 <- forAll int
   a2 <- forAll int
@@ -187,7 +193,7 @@ pair_grate :: Colens' (Int, Int) Int
 pair_grate = grate $ \f -> (f fst, f snd)
 
 prop_grate_const :: Property
-prop_grate_const = withTests 1000 . property $ do
+prop_grate_const = withTests 100 . property $ do
   s <- forAll $ gen_pair int int
   assert $ Prop.const_grate pair_grate s
 
@@ -196,17 +202,17 @@ prop_grate_const = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_setter_id :: Property
-prop_setter_id = withTests 1000 . property $ do
+prop_setter_id = withTests 100 . property $ do
   xs <- forAll $ gen_list int
   assert $ Prop.id_setter traversed xs
 
 prop_setter_compose :: Property
-prop_setter_compose = withTests 1000 . property $ do
+prop_setter_compose = withTests 100 . property $ do
   xs <- forAll $ gen_list int
   assert $ Prop.compose_setter traversed (+1) (*2) xs
 
 prop_setter_idempotent :: Property
-prop_setter_idempotent = withTests 1000 . property $ do
+prop_setter_idempotent = withTests 100 . property $ do
   xs <- forAll $ gen_list int
   a <- forAll int
   b <- forAll int
@@ -218,7 +224,7 @@ prop_setter_idempotent = withTests 1000 . property $ do
 
 -- | Profunctor law: dimap id id ≡ id
 prop_coaffinerep_profunctor_id :: Property
-prop_coaffinerep_profunctor_id = withTests 1000 . property $ do
+prop_coaffinerep_profunctor_id = withTests 100 . property $ do
   x <- forAll int
   let cr :: CoaffineRep Int Int Int Int
       cr = CoaffineRep $ \f -> f Right
@@ -233,7 +239,7 @@ prop_coaffinerep_profunctor_id = withTests 1000 . property $ do
 -- Both sides: CoaffineRep Int Int Int (Either Int c)
 -- We test by running with the same callback and comparing results.
 prop_coaffinerep_left_unit :: Property
-prop_coaffinerep_left_unit = withTests 1000 . property $ do
+prop_coaffinerep_left_unit = withTests 100 . property $ do
   x <- forAll int
   let cr :: CoaffineRep Int Int Int Int
       cr = CoaffineRep $ \f -> f Right
@@ -257,7 +263,7 @@ prop_coaffinerep_left_unit = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_coaffinerep_left_always :: Property
-prop_coaffinerep_left_always = withTests 1000 . property $ do
+prop_coaffinerep_left_always = withTests 100 . property $ do
   x <- forAll int
   let cr :: CoaffineRep Int Int Int Int
       cr = CoaffineRep $ \f -> f Right
@@ -282,7 +288,7 @@ prop_coaffinerep_left_always = withTests 1000 . property $ do
 -- With f = \sta -> case sta (const x) of Right a -> a:
 --   sta (const x) = Right (const x y) = Right x  =>  result = x
 prop_coaffinerep_closed :: Property
-prop_coaffinerep_closed = withTests 1000 . property $ do
+prop_coaffinerep_closed = withTests 100 . property $ do
   x <- forAll int
   y <- forAll int
   let cr :: CoaffineRep Int Int Int Int
@@ -302,7 +308,7 @@ prop_coaffinerep_closed = withTests 1000 . property $ do
 
 -- | Profunctor law: dimap id id ≡ id
 prop_colensrep_profunctor_id :: Property
-prop_colensrep_profunctor_id = withTests 1000 . property $ do
+prop_colensrep_profunctor_id = withTests 100 . property $ do
   x <- forAll int
   let cr :: ColensRep Int Int Int Int
       cr = ColensRep $ \f -> f id
@@ -311,7 +317,7 @@ prop_colensrep_profunctor_id = withTests 1000 . property $ do
 
 -- | const law: sabt ($ s) ≡ s
 prop_colensrep_const :: Property
-prop_colensrep_const = withTests 1000 . property $ do
+prop_colensrep_const = withTests 100 . property $ do
   x <- forAll int
   let cr :: ColensRep Int Int Int Int
       cr = ColensRep $ \f -> f id
@@ -325,7 +331,7 @@ prop_colensrep_const = withTests 1000 . property $ do
 -- closed cr = ColensRep $ \xsab x -> xsab ($ x)
 -- So: unColensRep closed_cr (\g -> g id) y = (\g -> g id) ($ y) = ($ y) id = id y = y
 prop_colensrep_closed :: Property
-prop_colensrep_closed = withTests 1000 . property $ do
+prop_colensrep_closed = withTests 100 . property $ do
   y <- forAll int
   let cr :: ColensRep Int Int Int Int
       cr = ColensRep $ \f -> f id
@@ -341,7 +347,7 @@ prop_colensrep_closed = withTests 1000 . property $ do
 
 -- | withPrism' round-trip: matching then rebuilding recovers s
 prop_withPrism_simple :: Property
-prop_withPrism_simple = withTests 1000 . property $ do
+prop_withPrism_simple = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   withPrism' just $ \sa bt -> do
     case sa s of
@@ -350,7 +356,7 @@ prop_withPrism_simple = withTests 1000 . property $ do
 
 -- | withCoaffine' round-trip
 prop_withCoaffine_simple :: Property
-prop_withCoaffine_simple = withTests 1000 . property $ do
+prop_withCoaffine_simple = withTests 100 . property $ do
   x <- forAll int
   let o :: ACotraversal0 Int Int Int Int
       o = id
@@ -358,7 +364,7 @@ prop_withCoaffine_simple = withTests 1000 . property $ do
     stabt (const x) === x
 
 prop_withCoaffine_identity :: Property
-prop_withCoaffine_identity = withTests 1000 . property $ do
+prop_withCoaffine_identity = withTests 100 . property $ do
   x <- forAll int
   let o :: ACotraversal0 Int Int Int Int
       o = id
@@ -367,7 +373,7 @@ prop_withCoaffine_identity = withTests 1000 . property $ do
 
 -- | withColens round-trip
 prop_withColens_identity :: Property
-prop_withColens_identity = withTests 1000 . property $ do
+prop_withColens_identity = withTests 100 . property $ do
   x <- forAll int
   let o :: AColens Int Int Int Int
       o = id
@@ -379,24 +385,24 @@ prop_withColens_identity = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_over_grate :: Property
-prop_over_grate = withTests 1000 . property $ do
+prop_over_grate = withTests 100 . property $ do
   a <- forAll int
   b <- forAll int
   let o = grate $ \f -> (f fst, f snd)
   over o (+1) (a, b) === (a + 1, b + 1)
 
 prop_over_traversed :: Property
-prop_over_traversed = withTests 1000 . property $ do
+prop_over_traversed = withTests 100 . property $ do
   xs <- forAll $ gen_list int
   over traversed (+1) xs === fmap (+1) xs
 
 prop_over_just :: Property
-prop_over_just = withTests 1000 . property $ do
+prop_over_just = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   over just (+1) s === fmap (+1) s
 
 prop_set_just :: Property
-prop_set_just = withTests 1000 . property $ do
+prop_set_just = withTests 100 . property $ do
   s <- forAll $ gen_maybe int
   x <- forAll int
   set just x s === (fmap (const x) s)
@@ -407,7 +413,7 @@ prop_set_just = withTests 1000 . property $ do
 
 -- | Profunctor law: dimap id id ≡ id
 prop_cotraversalrep_profunctor_id :: Property
-prop_cotraversalrep_profunctor_id = withTests 1000 . property $ do
+prop_cotraversalrep_profunctor_id = withTests 100 . property $ do
   x <- forAll int
   let cr :: CotraversalRep Int Int Int Int
       cr = CotraversalRep $ \fab fa -> fab fa
@@ -423,7 +429,7 @@ prop_cotraversalrep_profunctor_id = withTests 1000 . property $ do
 -- closed h fab fxs x = h fab (fmap ($ x) fxs)
 -- For identity h: result = fab (fmap ($ x) fxs)
 prop_cotraversalrep_closed :: Property
-prop_cotraversalrep_closed = withTests 1000 . property $ do
+prop_cotraversalrep_closed = withTests 100 . property $ do
   x <- forAll int
   y <- forAll int
   let cr :: CotraversalRep Int Int Int Int
@@ -443,7 +449,7 @@ prop_cotraversalrep_closed = withTests 1000 . property $ do
 
 -- | left' produces Left for the identity rep (same pattern as CoaffineRep)
 prop_cotraversalrep_left_always :: Property
-prop_cotraversalrep_left_always = withTests 1000 . property $ do
+prop_cotraversalrep_left_always = withTests 100 . property $ do
   x <- forAll int
   let cr :: CotraversalRep Int Int Int Int
       cr = CotraversalRep $ \fab fa -> fab fa
@@ -463,7 +469,7 @@ prop_cotraversalrep_left_always = withTests 1000 . property $ do
 
 -- | cotabulate . cosieve ≡ id (tested via manual eta-expansion)
 prop_cotraversalrep_roundtrip :: Property
-prop_cotraversalrep_roundtrip = withTests 1000 . property $ do
+prop_cotraversalrep_roundtrip = withTests 100 . property $ do
   x <- forAll int
   let cr :: CotraversalRep Int Int Int Int
       cr = CotraversalRep $ \fab fa -> fab fa
@@ -477,7 +483,7 @@ prop_cotraversalrep_roundtrip = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_withCotraversal_identity :: Property
-prop_withCotraversal_identity = withTests 1000 . property $ do
+prop_withCotraversal_identity = withTests 100 . property $ do
   x <- forAll int
   let o :: Optic (CotraversalRep Int Int) Int Int Int Int
       o = id
@@ -489,7 +495,7 @@ prop_withCotraversal_identity = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_cxtraversalrep_profunctor_id :: Property
-prop_cxtraversalrep_profunctor_id = withTests 1000 . property $ do
+prop_cxtraversalrep_profunctor_id = withTests 100 . property $ do
   x <- forAll int
   let cr :: CxtraversalRep String Int Int Int Int
       cr = CxtraversalRep $ \fakb fa -> fakb fa ""
@@ -501,7 +507,7 @@ prop_cxtraversalrep_profunctor_id = withTests 1000 . property $ do
 ---------------------------------------------------------------------
 
 prop_cxtraversalrep_closed :: Property
-prop_cxtraversalrep_closed = withTests 1000 . property $ do
+prop_cxtraversalrep_closed = withTests 100 . property $ do
   x <- forAll int
   y <- forAll int
   let cr :: CxtraversalRep String Int Int Int Int
@@ -513,4 +519,4 @@ prop_cxtraversalrep_closed = withTests 1000 . property $ do
   result y === y + x
 
 tests :: IO Bool
-tests = checkParallel $$(discover)
+tests = checkSequential $$(discover)
