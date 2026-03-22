@@ -150,12 +150,6 @@ rewrite f mbA = case cast mbA of
 children :: Data a => a -> [a]
 children = catMaybes . gmapQ cast
 
-elemOf :: Eq a => AFold (Endo [a]) s a -> a -> s -> Bool
-elemOf l x s = elem x (s ^.. l)
-
-lengthOf :: AFold (Endo [a]) s a -> s -> Int
-lengthOf l s = length (s ^.. l)
-
 setOf :: Ord a => AFold (Endo [a]) s a -> s -> Set a
 setOf o s = Set.fromList (s ^.. o)
 

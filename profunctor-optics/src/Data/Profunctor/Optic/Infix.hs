@@ -5,7 +5,7 @@
 
 -- | Infix operators for profunctor optics.
 --
--- This module collects all infix operators in one place. Every operator
+-- This module collectOf all infix operators in one place. Every operator
 -- is defined in terms of a named function elsewhere in the library, so
 -- users who prefer prefix style can avoid importing this module entirely.
 --
@@ -36,7 +36,7 @@
 --   (.~)    set       (..~)    over
 --   (*~)    starSet   (**~)    starOver   (= 'traverseOf')
 --   (%~)    ixset     (%%~)    ixover
---   (\/~)    coset     (\/\/~)    coover     (= 'cotraverses')
+--   (\/~)    coset     (\/\/~)    coover     (= 'cotraverseOf')
 --   (#~)    cxset     (##~)    cxover
 -- @
 --
@@ -291,9 +291,9 @@ infix  4  .=, ..=
 (/~) o b = o //~ const b
 {-# INLINE (/~) #-}
 
--- | Co-dual over via 'Costar'. Equivalent to 'Data.Profunctor.Optic.Traversal.cotraverses'.
+-- | Co-dual over via 'Costar'. Equivalent to 'Data.Profunctor.Optic.Traversal.cotraverseOf'.
 --
--- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverses' o f@
+-- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverseOf' o f@
 --
 (//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
 (//~) o = runCostar #. o .# Costar
