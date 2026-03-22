@@ -13,7 +13,7 @@ module Data.Profunctor.Optic.Prism (
   , prism'
   , handling
   , clonePrism
-    -- *** Reversed Constructors
+    -- ** Reversed Constructors
   , Reprism
   , Reprism'
   , reprism
@@ -30,7 +30,7 @@ module Data.Profunctor.Optic.Prism (
   , only
   , nearly
   , nthbit
-    -- *** Reversed Optics
+    -- ** Reversed Optics
   , releft
   , reright
     -- * Operators
@@ -40,7 +40,7 @@ module Data.Profunctor.Optic.Prism (
   , below
   , pastroSum
   , tambaraSum
-    -- *** Reversed Operators
+    -- ** Reversed Operators
   , withReprism
     -- * Reexports
   , Choice(..)
@@ -115,7 +115,7 @@ clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o $ \sta bt -> prism sta bt
 
 ---------------------------------------------------------------------
--- *** Reversed Constructors
+-- ** Reversed Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Reprism' from a viewer and a matcher.
@@ -220,7 +220,7 @@ nthbit :: Bits s => Int -> Prism' s ()
 nthbit n = prism' (guard . (flip testBit n)) (const $ bit n)
 
 ---------------------------------------------------------------------
--- *** Reversed Optics
+-- ** Reversed Optics
 ---------------------------------------------------------------------
 
 -- | 'Reprism' out of the @Left@ constructor.
@@ -294,5 +294,5 @@ tambaraSum :: Choice p => APrism s t a b -> p a b -> TambaraSum p s t
 tambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
 
 ---------------------------------------------------------------------
--- *** Reversed Operators
+-- ** Reversed Operators
 ---------------------------------------------------------------------

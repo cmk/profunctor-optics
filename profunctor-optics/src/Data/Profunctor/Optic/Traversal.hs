@@ -14,7 +14,7 @@ module Data.Profunctor.Optic.Traversal (
   , atraversal
   , beside
   , reversing
-    -- *** Dual Constructors
+    -- ** Dual Constructors
   , Cotraversal
   , Cotraversal'
   , cotraversalVl
@@ -27,7 +27,7 @@ module Data.Profunctor.Optic.Traversal (
   , traversal0
   , traversal0'
   , traversalVl0
-    -- *** Dual Traversal0 Constructors
+    -- ** Dual Traversal0 Constructors
   , Cotraversal0
   , Cotraversal0'
     -- ** Traversal1 Constructors
@@ -36,7 +36,7 @@ module Data.Profunctor.Optic.Traversal (
   , traversalVl1
   , traversing1
   , beside1
-    -- *** Dual Traversal1 Constructors
+    -- ** Dual Traversal1 Constructors
   , Cotraversal1
   , Cotraversal1'
   , cotraversalVl1
@@ -46,7 +46,7 @@ module Data.Profunctor.Optic.Traversal (
   , ixtraversalVl
   , ixtraversing
   , ix, noix
-    -- *** Coindexed Constructors
+    -- ** Coindexed Constructors
   , cxtraversalVl
     -- ** Indexed Traversal0 Constructors
   , ixtraversal0
@@ -55,7 +55,7 @@ module Data.Profunctor.Optic.Traversal (
     -- ** Indexed Traversal1 Constructors
   , ixtraversalVl1
   , ixtraversing1
-    -- *** Coindexed Traversal1 Constructors
+    -- ** Coindexed Traversal1 Constructors
   , cxtraversalVl1
     -- * Optics
   , traversed
@@ -66,13 +66,13 @@ module Data.Profunctor.Optic.Traversal (
   , repeated
   , iterated
   , cycling
-    -- *** Dual Optics
+    -- ** Dual Optics
   , cotraversed
   , unforked
     -- ** Traversal1 Optics
   , traversed1
   , bitraversed1
-    -- *** Dual Traversal1 Optics
+    -- ** Dual Traversal1 Optics
   , cotraversed1
     -- * Indexed Optics
   , itraversedRep
@@ -84,14 +84,14 @@ module Data.Profunctor.Optic.Traversal (
   , mapAccumROf
   , scanl1Of
   , scanr1Of
-    -- *** Dual Operators
+    -- ** Dual Operators
   , collectOf
   , cotraverseOf
     -- ** Traversal0 Operators
   , matchOf
     -- * Indexed Operators
   , ixtraverseOf
-    -- *** Coindexed Operators
+    -- ** Coindexed Operators
   , cxtraverseOf
     -- * Arrow-style combinators
   , pappend

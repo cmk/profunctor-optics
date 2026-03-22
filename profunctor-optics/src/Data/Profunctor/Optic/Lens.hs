@@ -15,7 +15,7 @@ module Data.Profunctor.Optic.Lens (
   , matching
   , cloneLens
   , cloneLensVl
-    -- *** Dual Constructors
+    -- ** Dual Constructors
   , Colens
   , Colens'
   , grate
@@ -27,7 +27,7 @@ module Data.Profunctor.Optic.Lens (
   , inside
   , cloneColens
   , cloneColensVl
-    -- *** Reversed Constructors
+    -- ** Reversed Constructors
   , Relens
   , Relens'
   , relens
@@ -38,7 +38,7 @@ module Data.Profunctor.Optic.Lens (
     -- * Indexed Constructors
   , ixlens
   , ixlensVl
-    -- *** Coindexed Constructors
+    -- ** Coindexed Constructors
   , cxlens
   , cxlensVl
     -- * Optics
@@ -46,7 +46,7 @@ module Data.Profunctor.Optic.Lens (
   , second
   , united
   , voided
-    -- *** Dual Optics
+    -- ** Dual Optics
   , cofirst
   , cosecond
   , represented
@@ -55,13 +55,13 @@ module Data.Profunctor.Optic.Lens (
   , continued
   , continuedT
   , calledCC
-    -- *** Reversed Optics
+    -- ** Reversed Optics
   , refirst
   , resecond
     -- * Indexed Optics
   , ixfirst
   , ixsecond
-    -- *** Coindexed Optics
+    -- ** Coindexed Optics
   , cxfirst
   , cxsecond
   , cxclosed
@@ -74,16 +74,16 @@ module Data.Profunctor.Optic.Lens (
   , zipsWithF
   , pastro
   , tambara
-    -- *** Dual Operators
+    -- ** Dual Operators
   , withColens
   , closure
   , environment
-    -- *** Reversed Operators
+    -- ** Reversed Operators
   , withRelens
     -- * Indexed Operators
   , withIxlens
   , cxzips
-    -- *** Coindexed Operators
+    -- ** Coindexed Operators
   , withCxlens
     -- * Reexports
   , Strong(..)

@@ -15,7 +15,7 @@ module Data.Profunctor.Optic.Fold (
   , foldVl
   , folding
   , failing
-    -- *** Dual Constructors
+    -- ** Dual Constructors
   , acofold
   , cofoldVl
   , cofolding
@@ -30,7 +30,7 @@ module Data.Profunctor.Optic.Fold (
   , fold1_
   , foldVl1
   , folding1
-    -- *** Dual Fold1 Constructors
+    -- ** Dual Fold1 Constructors
   , cofoldVl1
   , cofolding1
 
@@ -46,7 +46,7 @@ module Data.Profunctor.Optic.Fold (
   , folded
   , folded_
   , afolded
-    -- *** Dual Optics
+    -- ** Dual Optics
   , cofolded
   , acolist
     -- ** Fold0 Optics
@@ -87,7 +87,7 @@ module Data.Profunctor.Optic.Fold (
   , elemOf
   , headOf
   , lastOf
-    -- *** Dual Operators
+    -- ** Dual Operators
   , cofoldMapOf
   , cofoldOfA
     -- ** Fold0 Operators
@@ -106,7 +106,7 @@ module Data.Profunctor.Optic.Fold (
   , ixfoldrMOf
   , ixfoldlMOf
   , ixtraverseOf_
-    -- *** Coindexed Operators
+    -- ** Coindexed Operators
   , cxfoldMapOf
     -- ** Indexed Fold0 Operators
   , ixfoldOf0

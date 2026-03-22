@@ -9,7 +9,7 @@ module Data.Profunctor.Optic.View (
   , to
   , like
   , cloneView
-    -- *** Dual Constructors
+    -- ** Dual Constructors
   , Review
   , from
   , unlike
@@ -17,23 +17,23 @@ module Data.Profunctor.Optic.View (
     -- * Indexed Constructors
   , ixto
   , ixlike
-    -- *** Coindexed Constructors
+    -- ** Coindexed Constructors
   , cxfrom
     -- * Optics
   , tupling
-    -- *** Dual Optics
+    -- ** Dual Optics
   , summing
     -- * Operators
   , view
   , views
   , viewing
-    -- *** Dual Operators
+    -- ** Dual Operators
   , review
   , reviews
     -- * Indexed Operators
   , ixview
   , ixviews
-    -- *** Coindexed Operators
+    -- ** Coindexed Operators
   , cxreview
   , cxreviews
     -- * MonadState
@@ -123,7 +123,7 @@ cloneView o = to (view o)
 {-# INLINE cloneView #-}
 
 ---------------------------------------------------------------------
--- *** Dual Constructors
+-- ** Dual Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Review' from an arbitrary function.
@@ -180,7 +180,7 @@ ixlike k a = ixto (const (k, a))
 {-# INLINE ixlike #-}
 
 ---------------------------------------------------------------------
--- *** Coindexed Constructors
+-- ** Coindexed Constructors
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -208,7 +208,7 @@ tupling l r = to (fanout (view l) (view r))
 {-# INLINE tupling #-}
 
 ---------------------------------------------------------------------
--- *** Dual Optics
+-- ** Dual Optics
 ---------------------------------------------------------------------
 
 -- | Combine two 'Review's into a 'Review' from a sum.
@@ -277,7 +277,7 @@ viewing o = coercedR . lmap (preview o)
 {-# INLINE viewing #-}
 
 ---------------------------------------------------------------------
--- *** Dual Operators
+-- ** Dual Operators
 ---------------------------------------------------------------------
 
 -- | Review the focus of an optic.
@@ -334,7 +334,7 @@ ixviews o f = asks $ ixfoldMapOf o f
 {-# INLINE ixviews #-}
 
 ---------------------------------------------------------------------
--- *** Coindexed Operators
+-- ** Coindexed Operators
 ---------------------------------------------------------------------
 
 -- | Bring a function of the index of a co-indexed optic into the current environment.

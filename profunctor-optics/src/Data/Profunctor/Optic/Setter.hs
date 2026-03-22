@@ -11,7 +11,7 @@ module Data.Profunctor.Optic.Setter (
   , Setter'
   , setter
   , closing
-    -- *** Dual Constructors
+    -- ** Dual Constructors
   , Cosetter
   , Cosetter'
   , cosetter
@@ -19,7 +19,7 @@ module Data.Profunctor.Optic.Setter (
   , Setter1
   , Setter1'
   , setter1
-    -- *** Cosetter1 Constructors
+    -- ** Cosetter1 Constructors
   , Cosetter1
   , Cosetter1'
   , cosetter1
@@ -38,7 +38,7 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , conditioned
-    -- *** Dual Optics
+    -- ** Dual Optics
   , coliftedA
   , coliftedF
   , zipListed
@@ -46,14 +46,14 @@ module Data.Profunctor.Optic.Setter (
   , set
   , sets
   , over
-    -- *** Dual Operators
+    -- ** Dual Operators
   , coset
   , cosets
     -- * Indexed Operators
   , ixset
   , ixsets
   , ixover
-    -- *** Coindexed Operators
+    -- ** Coindexed Operators
   , cxset
   , cxsets
   , cxover
