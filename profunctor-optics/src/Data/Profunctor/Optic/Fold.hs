@@ -67,6 +67,23 @@ module Data.Profunctor.Optic.Fold (
   , foldsrM
   , foldslM
   , traverses_
+    -- * Query operators
+  , has
+  , hasn't
+  , anyOf
+  , allOf
+  , noneOf
+  , lengthOf
+  , sumOf
+  , productOf
+  , maximumOf
+  , minimumOf
+  , maximumByOf
+  , minimumByOf
+  , findOf
+  , elemOf
+  , headOf
+  , lastOf
     -- * Indexed operators
   , ixfolds0
   , ixpreview
@@ -92,6 +109,7 @@ module Data.Profunctor.Optic.Fold (
 ) where
 
 import Control.Applicative as A
+import Prelude (Num)
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
@@ -651,10 +669,115 @@ traverses_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
 {-# INLINE traverses_ #-}
 
 ---------------------------------------------------------------------
+-- Query operators
+---------------------------------------------------------------------
+
+-- | Check whether an optic matches any focus.
+--
+-- >>> has just (Just 1)
+-- True
+-- >>> has just Nothing
+-- False
+--
+has :: AFold0 a s a -> s -> Bool
+has o = maybe False (const True) . preview o
+{-# INLINE has #-}
+
+-- | Check whether an optic has no focus.
+--
+hasn't :: AFold0 a s a -> s -> Bool
+hasn't o = maybe True (const False) . preview o
+{-# INLINE hasn't #-}
+
+-- | Check whether any focus matches a predicate.
+--
+anyOf :: AFold Any s a -> (a -> Bool) -> s -> Bool
+anyOf o f = getAny . foldMapOf o (Any . f)
+{-# INLINE anyOf #-}
+
+-- | Check whether all foci match a predicate.
+--
+allOf :: AFold All s a -> (a -> Bool) -> s -> Bool
+allOf o f = getAll . foldMapOf o (All . f)
+{-# INLINE allOf #-}
+
+-- | Check that no focus matches a predicate.
+--
+noneOf :: AFold Any s a -> (a -> Bool) -> s -> Bool
+noneOf o f = not . anyOf o f
+{-# INLINE noneOf #-}
+
+-- | Count the number of foci.
+--
+lengthOf :: AFold (Sum Int) s a -> s -> Int
+lengthOf o = getSum . foldMapOf o (const (Sum 1))
+{-# INLINE lengthOf #-}
+
+-- | Sum all foci.
+--
+sumOf :: Num a => AFold (Sum a) s a -> s -> a
+sumOf o = getSum . foldMapOf o Sum
+{-# INLINE sumOf #-}
+
+-- | Multiply all foci.
+--
+productOf :: Num a => AFold (Product a) s a -> s -> a
+productOf o = getProduct . foldMapOf o Product
+{-# INLINE productOf #-}
+
+-- | Find the maximum focus, if any.
+--
+maximumOf :: Ord a => AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+maximumOf o = foldlOf' o (\acc a -> Just $ maybe a (max a) acc) Nothing
+{-# INLINE maximumOf #-}
+
+-- | Find the minimum focus, if any.
+--
+minimumOf :: Ord a => AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+minimumOf o = foldlOf' o (\acc a -> Just $ maybe a (min a) acc) Nothing
+{-# INLINE minimumOf #-}
+
+-- | Find the maximum focus by a comparison function, if any.
+--
+maximumByOf :: AFold (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+maximumByOf o cmp = foldlOf' o (\acc a -> Just $ maybe a (\b -> if cmp a b == GT then a else b) acc) Nothing
+{-# INLINE maximumByOf #-}
+
+-- | Find the minimum focus by a comparison function, if any.
+--
+minimumByOf :: AFold (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+minimumByOf o cmp = foldlOf' o (\acc a -> Just $ maybe a (\b -> if cmp a b == LT then a else b) acc) Nothing
+{-# INLINE minimumByOf #-}
+
+-- | Find the first focus matching a predicate, if any.
+--
+findOf :: AFold (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf o f = foldrOf o (\a r -> if f a then Just a else r) Nothing
+{-# INLINE findOf #-}
+
+-- | Check whether a value is a focus of an optic.
+--
+elemOf :: Eq a => AFold Any s a -> a -> s -> Bool
+elemOf o a = anyOf o (== a)
+{-# INLINE elemOf #-}
+
+-- | Retrieve the first focus, if any.
+--
+headOf :: AFold (Endo (Maybe a)) s a -> s -> Maybe a
+headOf o = foldrOf o (\a _ -> Just a) Nothing
+{-# INLINE headOf #-}
+
+-- | Retrieve the last focus, if any.
+--
+lastOf :: AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+lastOf o = foldlOf' o (\_ a -> Just a) Nothing
+{-# INLINE lastOf #-}
+
+---------------------------------------------------------------------
 -- Indexed operators
 ---------------------------------------------------------------------
 
--- | TODO: Document 
+-- | TODO: Document
 --
 -- @since 0.0.3
 ixfolds0 :: Monoid k => AIxfold0 r k s a -> (k -> a -> Maybe r) -> s -> Maybe r
