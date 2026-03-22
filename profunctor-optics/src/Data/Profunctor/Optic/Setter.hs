@@ -15,11 +15,11 @@ module Data.Profunctor.Optic.Setter (
   , Cosetter
   , Cosetter'
   , cosetter
-    -- *** Setter1
+    -- ** Setter1 Constructors
   , Setter1
   , Setter1'
   , setter1
-    -- *** Cosetter1
+    -- *** Cosetter1 Constructors
   , Cosetter1
   , Cosetter1'
   , cosetter1
@@ -46,6 +46,7 @@ module Data.Profunctor.Optic.Setter (
   , set
   , sets
   , over
+    -- *** Dual Operators
   , coset
   , cosets
     -- * Indexed Operators

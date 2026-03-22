@@ -52,7 +52,7 @@ import qualified Data.Map.Lazy as Map
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
 --
 fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = ixfolds o Map.singleton
+fromIxfold o = ixfoldMapOf o Map.singleton
 {-# INLINE fromIxfold #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.

@@ -131,7 +131,7 @@ module Data.Profunctor.Optic.Bench (
 
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Combinator (over, ixover)
-import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfolds, preview)
+import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfoldMapOf, preview)
 import Data.Profunctor.Optic.Lens (lensVl)
 import Data.Profunctor.Optic.Sort (mkSortN, sortingRep)
 import Data.Profunctor.Optic.Setter (sets, ixsets)
@@ -224,7 +224,7 @@ benchIxFold :: (Monoid k, Monoid r)
             -> (a -> r)                   -- ^ non-indexed fold function
             -> (s -> r, s -> r)
 benchIxFold ixo o ixf f =
-  ( ixfolds ixo ixf
+  ( ixfoldMapOf ixo ixf
   , foldMapOf o f
   )
 

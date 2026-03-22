@@ -185,7 +185,7 @@ ixlike k a = ixto (const (k, a))
 
 -- | TODO: Document
 --
--- >>> cxfolds (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfoldMapOf (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
@@ -330,7 +330,7 @@ ixview o = ixviews o $ \k a -> (Just k, a)
 --
 -- @since 0.0.3
 ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
-ixviews o f = asks $ ixfolds o f
+ixviews o f = asks $ ixfoldMapOf o f
 {-# INLINE ixviews #-}
 
 ---------------------------------------------------------------------

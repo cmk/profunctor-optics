@@ -606,9 +606,9 @@ resecond = unsecond
 
 -- | TODO: Document
 --
--- >>> B.first getSum <$> ixlists (noix traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
+-- >>> B.first getSum <$> ixtoListOf (noix traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> ixlists (ix (Sum 3) traversed % ixfirst % ix (Sum 1) traversed) [("foo",1), ("bar",2)]
+-- >>> B.first getSum <$> ixtoListOf (ix (Sum 3) traversed % ixfirst % ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3

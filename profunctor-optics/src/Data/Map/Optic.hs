@@ -69,7 +69,7 @@ import Prelude
 -- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
 --
 fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = ixfolds o Map.singleton
+fromIxfold o = ixfoldMapOf o Map.singleton
 {-# INLINE fromIxfold #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.
@@ -318,7 +318,7 @@ sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
 -- Compose with '(#)' for multi-level coindexed operations:
 --
 -- @
--- 'cxfolds' (cxmapped '#' cxmapped) f r nestedMap
+-- 'cxfoldMapOf' (cxmapped '#' cxmapped) f r nestedMap
 -- @
 --
 cxmapped :: Cxreview k (MapS.Map k a -> MapS.Map k b) (a -> b)

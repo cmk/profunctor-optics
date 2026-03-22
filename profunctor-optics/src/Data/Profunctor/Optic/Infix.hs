@@ -127,7 +127,7 @@ infix  4  .=, ..=
 -- @
 --            view             toList           preview
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
---   Ix      (^%)  'V.ixview'  (^%%)  'F.ixlists'
+--   Ix      (^%)  'V.ixview'  (^%%)  'F.ixtoListOf'
 --   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
 --   Cx      (^#)  'V.cxreview'
 -- @
@@ -170,10 +170,10 @@ infix  4  .=, ..=
 
 -- | Fold to an indexed list.
 --
--- @s '^%%' o ≡ 'F.ixlists' o s@
+-- @s '^%%' o ≡ 'F.ixtoListOf' o s@
 --
 (^%%) :: Monoid k => s -> AIxfold (Endo [(k, a)]) k s a -> [(k, a)]
-(^%%) = flip F.ixlists
+(^%%) = flip F.ixtoListOf
 {-# INLINE (^%%) #-}
 
 ---------------------------------------------------------------------

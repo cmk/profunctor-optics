@@ -7,57 +7,62 @@
 {-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 module Data.Profunctor.Optic.Fold (
-    -- * Fold0
-    Fold0
-  , fold0
-  , ixfold0
-  , afold0
-  , failing
-  , fold0'
-    -- * Fold
-  , Fold
+    -- * Constructors
+    Fold
   , Cofold
   , fold_
   , afold
-  , aixfold
-  , folding
   , foldVl
-  , ixfoldVl
+  , folding
+  , failing
+    -- *** Dual Constructors
   , acofold
-  , cofolding
   , cofoldVl
-    -- * Fold1
+  , cofolding
+    -- ** Fold0 Constructors
+  , Fold0
+  , fold0
+  , afold0
+  , fold0'
+    -- ** Fold1 Constructors
   , Fold1
   , Cofold1
   , fold1_
-  , folding1
   , foldVl1
-  , ixfoldVl1
-  , cofolding1
+  , folding1
+    -- *** Dual Fold1 Constructors
   , cofoldVl1
+  , cofolding1
+
+    -- * Indexed Constructors
+  , aixfold
+  , ixfoldVl
+    -- ** Indexed Fold0 Constructors
+  , ixfold0
+    -- ** Indexed Fold1 Constructors
+  , ixfoldVl1
+
     -- * Optics
+  , folded
+  , folded_
+  , afolded
+    -- *** Dual Optics
+  , cofolded
+  , acolist
+    -- ** Fold0 Optics
   , folded0
   , filtered
-  , folded
-  , cofolded
-  , folded_
-  , ixfoldedRep
-  , folded1 
+    -- ** Fold1 Optics
+  , folded1
   , folded1_
-  , afolded
   , afolded1
-  , acolist
   , acolist1
+    -- * Indexed Optics
+  , ixfoldedRep
+
     -- * Operators
-  , foldOf0
-  , preview
-  , previews
-  , preuse
-  , preuses
   , foldMapOf
-  , cofoldMapOf
   , foldOfA
-  , cofoldOfA
   , toListOf
   , foldrOf
   , foldlOf
@@ -66,7 +71,6 @@ module Data.Profunctor.Optic.Fold (
   , foldrMOf
   , foldlMOf
   , traverseOf_
-    -- * Query operators
   , has
   , hasn't
   , anyOf
@@ -83,23 +87,34 @@ module Data.Profunctor.Optic.Fold (
   , elemOf
   , headOf
   , lastOf
-    -- * Indexed operators
+    -- *** Dual Operators
+  , cofoldMapOf
+  , cofoldOfA
+    -- ** Fold0 Operators
+  , foldOf0
+  , preview
+  , previews
+  , preuse
+  , preuses
+    -- * Indexed Operators
+  , ixfoldMapOf
+  , ixtoListOf
+  , ixfoldrOf
+  , ixfoldlOf
+  , ixfoldrOf'
+  , ixfoldlOf'
+  , ixfoldrMOf
+  , ixfoldlMOf
+  , ixtraverseOf_
+    -- *** Coindexed Operators
+  , cxfoldMapOf
+    -- ** Indexed Fold0 Operators
   , ixfoldOf0
   , ixpreview
   , ixpreviews
-  , ixfolds
-  , cxfolds
-  , ixlists
-  , ixfoldsr
-  , ixfoldsl
-  , ixfoldsr'
-  , ixfoldsl'
-  , ixfoldsrM
-  , ixfoldslM
-  , ixtraverseOf_
-    -- * EndoM
+    -- * Auxiliary Types
   , EndoM(..)
-    -- * Classes
+    -- * Reexports
   , Strong(..)
   , Choice(..)
   , Closed(..)
@@ -143,70 +158,12 @@ import qualified Data.List.NonEmpty as NNL
 -- >>> import Prelude
 
 ---------------------------------------------------------------------
--- 'Fold0'
----------------------------------------------------------------------
-
--- | Obtain a 'Fold0' directly.
---
--- @
--- 'fold0' . 'preview' ≡ id
--- 'fold0' ('view' o) ≡ o . 'just'
--- @
---
--- >>> preview (fold0 listToMaybe) "foo"
--- Just 'f'
---
-fold0 :: (s -> Maybe a) -> Fold0 s a
-fold0 f = coercedR . lmap (\s -> maybe (Left s) Right (f s)) . right'
-{-# INLINE fold0 #-}
-
--- | Obtain an 'Ixfold0' directly.
---
--- @since 0.0.3
-ixfold0 :: (s -> Maybe (k, a)) -> Ixfold0 k s a
-ixfold0 g = ixtraversalVl0 (\point f s -> maybe (point s) (uncurry f) $ g s) . coercedR
-{-# INLINE ixfold0 #-}
-
--- | TODO: Document
---
-afold0 :: ((a -> Maybe r) -> s -> Maybe r) -> AFold0 r s a
-afold0 f = afold $ (Alt #.) #. f .# (getAlt #.) 
-{-# INLINE afold0 #-}
-
-infix 3 `failing`
-
--- | If the first 'Fold0' has no focus then try the second one.
---
-failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
-failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
-{-# INLINE failing #-}
-
--- | Obtain a 'Fold0' from a 'View'.
---
--- @
--- 'fold0'' o ≡ o . 'just'
--- 'fold0'' o ≡ 'fold0' ('view' o)
--- @
---
-fold0' :: View s (Maybe a) -> Fold0 s a
-fold0' o pab = o (just pab)
-{-# INLINE fold0' #-}
-
--- | Obtain a 'View' from a 'Fold0' 
---
--- > 'viewing' = 'to' . 'preview'
---
-viewing ::  AFold0 a s a -> View s (Maybe a)
-viewing o = coercedR . lmap (preview o)
-{-# INLINE viewing #-}
-
----------------------------------------------------------------------
--- Fold
+-- Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Fold' directly.
 --
--- @ 
+-- @
 -- 'fold_' ('toListOf' o) ≡ o
 -- 'fold_' f ≡ 'to' f . 'foldVl' 'traverse_'
 -- 'fold_' f ≡ 'coercedR' . 'lmap' f . 'lift' 'traverse_'
@@ -225,7 +182,7 @@ fold_ f = coercedR . lmap f . foldVl traverse_
 
 -- | TODO: Document
 --
--- @ 
+-- @
 -- 'afold' :: ((a -> r) -> s -> r) -> 'AFold' r s a
 -- @
 --
@@ -233,12 +190,11 @@ afold :: ((a -> r) -> s -> r) -> ATraversal (Const r) s t a b
 afold f = atraversal $ (Const #.) #. f .# (getConst #.)
 {-# INLINE afold #-}
 
--- | TODO: Document
+-- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
 --
--- @since 0.0.3
-aixfold :: ((k -> a -> r) -> s -> r) -> AIxtraversal (Const r) k s t a b
-aixfold f = afold $ \iar s -> f (curry iar) $ snd s
-{-# INLINE aixfold #-}
+foldVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
+foldVl f = coercedR . traversalVl f . coercedR
+{-# INLINE foldVl #-}
 
 -- | Obtain a 'Fold' from a 'Traversable' functor.
 --
@@ -251,24 +207,29 @@ folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = foldVl traverse . coercedR . lmap f
 {-# INLINE folding #-}
 
--- | Obtain a 'Fold' from a Van Laarhoven 'Fold'.
---
-foldVl :: (forall f. Applicative f => (a -> f b) -> s -> f t) -> Fold s a
-foldVl f = coercedR . traversalVl f . coercedR
-{-# INLINE foldVl #-}
+infix 3 `failing`
 
--- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
+-- | If the first 'Fold0' has no focus then try the second one.
 --
--- @since 0.0.3
-ixfoldVl :: (forall f. Applicative f => (k -> a -> f b) -> s -> f t) -> Ixfold k s a
-ixfoldVl f = coercedR . ixtraversalVl f . coercedR
-{-# INLINE ixfoldVl #-}
+failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
+failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
+{-# INLINE failing #-}
+
+---------------------------------------------------------------------
+-- Dual Constructors
+---------------------------------------------------------------------
 
 -- | TODO: Document
 --
 acofold :: ((r -> b) -> r -> t) -> ACofold r t b
 acofold f = acotraversal $ (.# getConst) #. f .# (.# Const)
 {-# INLINE acofold #-}
+
+-- | Obtain a 'Cofold' from a Van Laarhoven 'Cofold'.
+--
+cofoldVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cofold t b
+cofoldVl f = coercedL . cotraversalVl f . coercedL
+{-# INLINE cofoldVl #-}
 
 -- | TODO: Document
 --
@@ -278,19 +239,56 @@ cofolding :: Distributive g => (b -> t) -> Cofold (g t) b
 cofolding f = cofoldVl cotraverse . coercedL . rmap f
 {-# INLINE cofolding #-}
 
--- | Obtain a 'Cofold' from a Van Laarhoven 'Cofold'.
+---------------------------------------------------------------------
+-- Fold0 Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Fold0' directly.
 --
-cofoldVl :: (forall f. Coapplicative f => (f a -> b) -> f s -> t) -> Cofold t b
-cofoldVl f = coercedL . cotraversalVl f . coercedL
-{-# INLINE cofoldVl #-}
+-- @
+-- 'fold0' . 'preview' ≡ id
+-- 'fold0' ('view' o) ≡ o . 'just'
+-- @
+--
+-- >>> preview (fold0 listToMaybe) "foo"
+-- Just 'f'
+--
+fold0 :: (s -> Maybe a) -> Fold0 s a
+fold0 f = coercedR . lmap (\s -> maybe (Left s) Right (f s)) . right'
+{-# INLINE fold0 #-}
+
+-- | TODO: Document
+--
+afold0 :: ((a -> Maybe r) -> s -> Maybe r) -> AFold0 r s a
+afold0 f = afold $ (Alt #.) #. f .# (getAlt #.)
+{-# INLINE afold0 #-}
+
+-- | Obtain a 'Fold0' from a 'View'.
+--
+-- @
+-- 'fold0'' o ≡ o . 'just'
+-- 'fold0'' o ≡ 'fold0' ('view' o)
+-- @
+--
+fold0' :: View s (Maybe a) -> Fold0 s a
+fold0' o pab = o (just pab)
+{-# INLINE fold0' #-}
+
+-- | Obtain a 'View' from a 'Fold0'
+--
+-- > 'viewing' = 'to' . 'preview'
+--
+viewing ::  AFold0 a s a -> View s (Maybe a)
+viewing o = coercedR . lmap (preview o)
+{-# INLINE viewing #-}
 
 ---------------------------------------------------------------------
--- Fold1
+-- Fold1 Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Fold1' directly.
 --
--- @ 
+-- @
 -- 'fold1_' (toNonEmpty o) ≡ o
 -- 'fold1_' f ≡ 'to' f . 'foldVl1' 'traverse1_'
 -- 'fold1_' f ≡ 'coercedR' . 'lmap' f . 'lift' 'traverse1_'
@@ -304,6 +302,14 @@ fold1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
 fold1_ f = coercedR . lmap f . foldVl1 traverse1_
 {-# INLINE fold1_ #-}
 
+-- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
+--
+-- See 'Data.Profunctor.Optic.Property'.
+--
+foldVl1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
+foldVl1 f = coercedR . representing f . coercedR
+{-# INLINE foldVl1 #-}
+
 -- | Obtain a 'Fold1' from a 'Traversable1' functor.
 --
 -- @
@@ -315,20 +321,15 @@ folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
 folding1 f = foldVl1 traverse1 . coercedR . lmap f
 {-# INLINE folding1 #-}
 
--- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
---
--- See 'Data.Profunctor.Optic.Property'.
---
-foldVl1 :: (forall f. Apply f => (a -> f b) -> s -> f t) -> Fold1 s a
-foldVl1 f = coercedR . representing f . coercedR
-{-# INLINE foldVl1 #-}
+---------------------------------------------------------------------
+-- Dual Fold1 Constructors
+---------------------------------------------------------------------
 
--- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
+-- | Obtain a 'Cofold1' from a Van Laarhoven 'Cofold1'.
 --
--- @since 0.0.3
-ixfoldVl1 :: (forall f. Apply f => (k -> a -> f b) -> s -> f t) -> Ixfold1 k s a
-ixfoldVl1 f = coercedR . ixtraversalVl1 f . coercedR
-{-# INLINE ixfoldVl1 #-}
+cofoldVl1 :: (forall f. Coapply f => (f a -> b) -> f s -> t) -> Cofold1 t b
+cofoldVl1 f = coercedL . cotraversalVl1 f . coercedL
+{-# INLINE cofoldVl1 #-}
 
 -- | TODO: Document
 --
@@ -338,17 +339,67 @@ cofolding1 :: Distributive1 g => (b -> t) -> Cofold1 (g t) b
 cofolding1 f = cofoldVl1 cotraverse1 . coercedL . rmap f
 {-# INLINE cofolding1 #-}
 
--- | Obtain a 'Cofold1' from a Van Laarhoven 'Cofold1'.
+---------------------------------------------------------------------
+-- Indexed Constructors
+---------------------------------------------------------------------
+
+-- | TODO: Document
 --
-cofoldVl1 :: (forall f. Coapply f => (f a -> b) -> f s -> t) -> Cofold1 t b
-cofoldVl1 f = coercedL . cotraversalVl1 f . coercedL
-{-# INLINE cofoldVl1 #-}
+-- @since 0.0.3
+aixfold :: ((k -> a -> r) -> s -> r) -> AIxtraversal (Const r) k s t a b
+aixfold f = afold $ \iar s -> f (curry iar) $ snd s
+{-# INLINE aixfold #-}
+
+-- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
+--
+-- @since 0.0.3
+ixfoldVl :: (forall f. Applicative f => (k -> a -> f b) -> s -> f t) -> Ixfold k s a
+ixfoldVl f = coercedR . ixtraversalVl f . coercedR
+{-# INLINE ixfoldVl #-}
 
 ---------------------------------------------------------------------
--- Optics 
+-- Indexed Fold0 Constructors
 ---------------------------------------------------------------------
 
--- | The canonical 'Fold0'. 
+-- | Obtain an 'Ixfold0' directly.
+--
+-- @since 0.0.3
+ixfold0 :: (s -> Maybe (k, a)) -> Ixfold0 k s a
+ixfold0 g = ixtraversalVl0 (\point f s -> maybe (point s) (uncurry f) $ g s) . coercedR
+{-# INLINE ixfold0 #-}
+
+---------------------------------------------------------------------
+-- Indexed Fold1 Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
+--
+-- @since 0.0.3
+ixfoldVl1 :: (forall f. Apply f => (k -> a -> f b) -> s -> f t) -> Ixfold1 k s a
+ixfoldVl1 f = coercedR . ixtraversalVl1 f . coercedR
+{-# INLINE ixfoldVl1 #-}
+
+---------------------------------------------------------------------
+-- Optics
+---------------------------------------------------------------------
+
+-- | Obtain a 'Fold' from a 'Traversable' functor.
+--
+folded :: Traversable f => Fold (f a) a
+folded = folding id
+{-# INLINE folded #-}
+
+-- | The canonical 'Fold'.
+--
+-- @
+-- 'Data.Foldable.foldMap' ≡ 'withForget' 'folded_''
+-- @
+--
+folded_ :: Foldable f => Fold (f a) a
+folded_ = fold_ id
+{-# INLINE folded_ #-}
+
+-- | The canonical 'Fold0'.
 --
 -- >>> [Just 1, Nothing] ^.. folded . folded0
 -- [1]
@@ -365,53 +416,6 @@ folded0 = fold0 id
 filtered :: (a -> Bool) -> Fold0 a a
 filtered p = traversalVl0 (\point f a -> if p a then f a else point a) . coercedR
 {-# INLINE filtered #-}
-
--- | Obtain a 'Fold' from a 'Traversable' functor.
---
-folded :: Traversable f => Fold (f a) a
-folded = folding id
-{-# INLINE folded #-}
-
--- | TODO: Document
---
--- > 'cofoldVl' 'cotraverse' . 'from' f
---
-cofolded :: Distributive g => Cofold (g b) b
-cofolded = cofolding id
-{-# INLINE cofolded #-}
-
--- | The canonical 'Fold'.
---
--- @
--- 'Data.Foldable.foldMap' ≡ 'withForget' 'folded_''
--- @
---
-folded_ :: Foldable f => Fold (f a) a
-folded_ = fold_ id
-{-# INLINE folded_ #-}
-
--- | Obtain an 'Ixfold' from a 'F.Representable' functor.
---
--- @since 0.0.3
-ixfoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
-ixfoldedRep = ixfoldVl F.itraverseRep
-{-# INLINE ixfoldedRep #-}
-
--- | Obtain a 'Fold1' from a 'Traversable1' functor.
---
-folded1 :: Traversable1 f => Fold1 (f a) a
-folded1 = folding1 id
-{-# INLINE folded1 #-}
-
--- | The canonical 'Fold1'.
---
--- @
--- 'Data.Semigroup.Foldable.foldMap1' ≡ 'withForget' 'folded1_''
--- @
---
-folded1_ :: Foldable1 f => Fold1 (f a) a
-folded1_ = fold1_ id
-{-# INLINE folded1_ #-}
 
 -- | TODO: Document
 --
@@ -439,6 +443,49 @@ acolist = acofold L.unfoldr
 acolist1 :: ACofold a (NonEmpty b) (b, Maybe a)
 acolist1 = acofold NNL.unfoldr
 {-# INLINE acolist1 #-}
+
+---------------------------------------------------------------------
+-- Dual Optics
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+-- > 'cofoldVl' 'cotraverse' . 'from' f
+--
+cofolded :: Distributive g => Cofold (g b) b
+cofolded = cofolding id
+{-# INLINE cofolded #-}
+
+---------------------------------------------------------------------
+-- Fold1 Optics
+---------------------------------------------------------------------
+
+-- | Obtain a 'Fold1' from a 'Traversable1' functor.
+--
+folded1 :: Traversable1 f => Fold1 (f a) a
+folded1 = folding1 id
+{-# INLINE folded1 #-}
+
+-- | The canonical 'Fold1'.
+--
+-- @
+-- 'Data.Semigroup.Foldable.foldMap1' ≡ 'withForget' 'folded1_''
+-- @
+--
+folded1_ :: Foldable1 f => Fold1 (f a) a
+folded1_ = fold1_ id
+{-# INLINE folded1_ #-}
+
+---------------------------------------------------------------------
+-- Indexed Optics
+---------------------------------------------------------------------
+
+-- | Obtain an 'Ixfold' from a 'F.Representable' functor.
+--
+-- @since 0.0.3
+ixfoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
+ixfoldedRep = ixfoldVl F.itraverseRep
+{-# INLINE ixfoldedRep #-}
 
 {-
 import qualified Data.Functor.Foldable as F
@@ -471,6 +518,7 @@ acataA :: Recursive s => AFold (f a) s (Base s (f a))
 acataA = afold F.cataA
 {-# INLINE acataA #-}
 -}
+
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -542,20 +590,20 @@ foldMapOf o = (getConst #.) #. traverseOf o .# (Const #.)
 -- Compare 'Data.Profunctor.Optic.View.reviews'.
 --
 cofoldMapOf :: ACotraversal (Const r) s t a b -> (r -> b) -> r -> t
-cofoldMapOf o = (.# Const) #. cotraverseOf o .# (.# getConst) 
+cofoldMapOf o = (.# Const) #. cotraverseOf o .# (.# getConst)
 {-# INLINE cofoldMapOf #-}
 
 -- | TODO: Document
 --
 foldOfA :: Applicative f => AFold (f a) s a -> s -> f a
 foldOfA = flip foldMapOf pure
-{-# INLINE foldOfA #-} 
+{-# INLINE foldOfA #-}
 
 -- | TODO: Document
 --
 cofoldOfA :: Coapplicative f => ACofold (f b) t b -> f b -> t
 cofoldOfA = flip cofoldMapOf copure
-{-# INLINE cofoldOfA #-} 
+{-# INLINE cofoldOfA #-}
 
 
 -- | Infix alias of 'toListOf'.
@@ -596,7 +644,7 @@ toListOf o = foldrOf o (:) []
 foldrOf :: AFold (Endo r) s a -> (a -> r -> r) -> r -> s -> r
 foldrOf o f r = (`appEndo` r) . foldMapOf o (Endo . f)
 {-# INLINE foldrOf #-}
-  
+
 -- | Left fold over an optic.
 --
 foldlOf :: AFold ((Endo-Dual) r) s a -> (r -> a -> r) -> r -> s -> r
@@ -619,7 +667,7 @@ foldlOf' :: AFold (Endo (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
 foldlOf' o f r s = foldrOf o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo $ \z -> k $! f z x
 {-# INLINE foldlOf' #-}
 
-{- 
+{-
 safeHead [] = print "Ouch!" >> return 'x'
 safeHead (x:_) = print x >> return x
 
@@ -666,10 +714,6 @@ foldlMOf o f r xs = foldrOf o f' mempty xs `appEndoM` r where f' a e = e <> Endo
 traverseOf_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f ()
 traverseOf_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
 {-# INLINE traverseOf_ #-}
-
----------------------------------------------------------------------
--- Query operators
----------------------------------------------------------------------
 
 -- | Check whether an optic matchOf any focus.
 --
@@ -773,7 +817,7 @@ lastOf o = foldlOf' o (\_ a -> Just a) Nothing
 {-# INLINE lastOf #-}
 
 ---------------------------------------------------------------------
--- Indexed operators
+-- Indexed Operators
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -783,14 +827,14 @@ ixfoldOf0 :: Monoid k => AIxfold0 r k s a -> (k -> a -> Maybe r) -> s -> Maybe r
 ixfoldOf0 o f = curry ((getAlt #.) #. foldMapOf o .# (Alt #.) $ uncurry f) mempty
 {-# INLINE ixfoldOf0 #-}
 
--- | TODO: Document 
+-- | TODO: Document
 --
 -- @since 0.0.3
 ixpreview :: Monoid k => AIxfold0 (k , a) k s a -> s -> Maybe (k , a)
 ixpreview o = ixpreviews o (,)
 {-# INLINE ixpreview #-}
 
--- | TODO: Document 
+-- | TODO: Document
 --
 -- @since 0.0.3
 ixpreviews :: Monoid k => AIxfold0 r k s a -> (k -> a -> r) -> s -> Maybe r
@@ -802,78 +846,78 @@ ixpreviews o f = ixfoldOf0 o (\k -> Just . f k)
 -- /Benchmark: indexed fold via Conjoin, ~1.08x overhead. See "Data.Profunctor.Optic.Bench"./
 --
 -- @since 0.0.3
-ixfolds :: Monoid k => AIxfold r k s a -> (k -> a -> r) -> s -> r
-ixfolds o f = curry (foldMapOf o $ uncurry f) mempty
-{-# INLINE ixfolds #-}
+ixfoldMapOf :: Monoid k => AIxfold r k s a -> (k -> a -> r) -> s -> r
+ixfoldMapOf o f = curry (foldMapOf o $ uncurry f) mempty
+{-# INLINE ixfoldMapOf #-}
 
--- | TODO: Document 
+-- | TODO: Document
 --
 -- @since 0.0.3
-cxfolds :: Monoid k => ACxfold r k t b -> (k -> r -> b) -> r -> t
-cxfolds o f = flip (cofoldMapOf o $ flip f) mempty
-{-# INLINE cxfolds #-}
+cxfoldMapOf :: Monoid k => ACxfold r k t b -> (k -> r -> b) -> r -> t
+cxfoldMapOf o f = flip (cofoldMapOf o $ flip f) mempty
+{-# INLINE cxfoldMapOf #-}
 
 -- | Collect the fock of an indexed optic into a list of index-value pairs.
 --
 -- @
--- 'toListOf' l ≡ 'map' 'snd' '.' 'ixlists' l
+-- 'toListOf' l ≡ 'map' 'snd' '.' 'ixtoListOf' l
 -- @
 --
--- >>> ixlists (ix (Sum 1) traversed) ["foo","bar"]
+-- >>> ixtoListOf (ix (Sum 1) traversed) ["foo","bar"]
 -- [(Sum {getSum = 0},"foo"),(Sum {getSum = 1},"bar")]
 --
 -- @since 0.0.3
-ixlists :: Monoid k => AIxfold (Endo [(k, a)]) k s a -> s -> [(k, a)]
-ixlists o = ixfoldsr o (\k a -> ((k,a):)) []
-{-# INLINE ixlists #-}
+ixtoListOf :: Monoid k => AIxfold (Endo [(k, a)]) k s a -> s -> [(k, a)]
+ixtoListOf o = ixfoldrOf o (\k a -> ((k,a):)) []
+{-# INLINE ixtoListOf #-}
 
 -- | Indexed right fold over an indexed optic.
 --
 -- @
--- 'foldrOf' o ≡ 'ixfoldsr' o '.' 'const'
--- 'foldrWithKey' f ≡ 'ixfoldsr' 'ixfolded' f
+-- 'foldrOf' o ≡ 'ixfoldrOf' o '.' 'const'
+-- 'foldrWithKey' f ≡ 'ixfoldrOf' 'ixfolded' f
 -- @
 --
 -- @since 0.0.3
-ixfoldsr :: Monoid k => AIxfold (Endo r) k s a -> (k -> a -> r -> r) -> r -> s -> r
-ixfoldsr o f r = (`appEndo` r) . ixfolds o (\j -> Endo . f j)
-{-# INLINE ixfoldsr #-}
+ixfoldrOf :: Monoid k => AIxfold (Endo r) k s a -> (k -> a -> r -> r) -> r -> s -> r
+ixfoldrOf o f r = (`appEndo` r) . ixfoldMapOf o (\j -> Endo . f j)
+{-# INLINE ixfoldrOf #-}
 
 -- | Left fold over an indexed optic.
 --
 -- @
--- 'foldlOf' o ≡ 'ixfoldsl' o '.' 'const'
--- 'foldlWithKey' f ≡ 'ixfoldsl' 'ixfolded' f
+-- 'foldlOf' o ≡ 'ixfoldlOf' o '.' 'const'
+-- 'foldlWithKey' f ≡ 'ixfoldlOf' 'ixfolded' f
 -- @
 --
 -- @since 0.0.3
-ixfoldsl :: Monoid k => AIxfold ((Endo-Dual) r) k s a -> (k -> r -> a -> r) -> r -> s -> r
-ixfoldsl o f r = (`appEndo` r) . getDual . ixfolds o (\k -> Dual . Endo . flip (f k))
-{-# INLINE ixfoldsl #-}
+ixfoldlOf :: Monoid k => AIxfold ((Endo-Dual) r) k s a -> (k -> r -> a -> r) -> r -> s -> r
+ixfoldlOf o f r = (`appEndo` r) . getDual . ixfoldMapOf o (\k -> Dual . Endo . flip (f k))
+{-# INLINE ixfoldlOf #-}
 
 -- | Strict right fold over an indexed optic.
 --
 -- @
--- 'foldrOf'' o ≡ 'ixfoldsr'' o '.' 'const'
--- 'foldrWithKey'' f ≡ 'ixfoldsr'' 'ixfolded' f
+-- 'foldrOf'' o ≡ 'ixfoldrOf'' o '.' 'const'
+-- 'foldrWithKey'' f ≡ 'ixfoldrOf'' 'ixfolded' f
 -- @
 --
 -- @since 0.0.3
-ixfoldsr' :: Monoid k => AIxfold ((Endo-Dual) (Endo r)) k s a -> (k -> a -> r -> r) -> r -> s -> r
-ixfoldsr' o f r s = ixfoldsl o f' (Endo id) s `appEndo` r where f' k (Endo acc) x = Endo $ \ z -> acc $! f k x z
-{-# INLINE ixfoldsr' #-}
+ixfoldrOf' :: Monoid k => AIxfold ((Endo-Dual) (Endo r)) k s a -> (k -> a -> r -> r) -> r -> s -> r
+ixfoldrOf' o f r s = ixfoldlOf o f' (Endo id) s `appEndo` r where f' k (Endo acc) x = Endo $ \ z -> acc $! f k x z
+{-# INLINE ixfoldrOf' #-}
 
 -- | Strict left fold over an indexed optic.
 --
 -- @
--- 'foldlOf'' o ≡ 'ixfoldsl'' o '.' 'const'
--- 'foldlWithKey'' f ≡ 'ixfoldsl'' 'ixfolded' f
+-- 'foldlOf'' o ≡ 'ixfoldlOf'' o '.' 'const'
+-- 'foldlWithKey'' f ≡ 'ixfoldlOf'' 'ixfolded' f
 -- @
 --
 -- @since 0.0.3
-ixfoldsl' :: Monoid k => AIxfold (Endo (Endo r)) k s a -> (k -> r -> a -> r) -> r -> s -> r
-ixfoldsl' o f r s = ixfoldsr o f' (Endo id) s `appEndo` r where f' k x (Endo acc) = Endo $ \z -> acc $! f k z x
-{-# INLINE ixfoldsl' #-}
+ixfoldlOf' :: Monoid k => AIxfold (Endo (Endo r)) k s a -> (k -> r -> a -> r) -> r -> s -> r
+ixfoldlOf' o f r s = ixfoldrOf o f' (Endo id) s `appEndo` r where f' k x (Endo acc) = Endo $ \z -> acc $! f k z x
+{-# INLINE ixfoldlOf' #-}
 
 -- | Monadic right fold over an indexed optic.
 --
@@ -882,20 +926,20 @@ ixfoldsl' o f r s = ixfoldsr o f' (Endo id) s `appEndo` r where f' k x (Endo acc
 -- @
 --
 -- @since 0.0.3
-ixfoldsrM :: Monoid k => Monad m => AIxfold ((Endo-Dual) (EndoM m r)) k s a -> (k -> a -> r -> m r) -> r -> s -> m r
-ixfoldsrM o f r xs = ixfoldsl o f' mempty xs `appEndoM` r where f' k e a = e <> EndoM (f k a)
-{-# INLINE ixfoldsrM #-}
+ixfoldrMOf :: Monoid k => Monad m => AIxfold ((Endo-Dual) (EndoM m r)) k s a -> (k -> a -> r -> m r) -> r -> s -> m r
+ixfoldrMOf o f r xs = ixfoldlOf o f' mempty xs `appEndoM` r where f' k e a = e <> EndoM (f k a)
+{-# INLINE ixfoldrMOf #-}
 
 -- | Monadic left fold over an indexed optic.
 --
 -- @
--- 'foldlMOf' ≡ 'ixfoldslM' '.' 'const'
+-- 'foldlMOf' ≡ 'ixfoldlMOf' '.' 'const'
 -- @
 --
 -- @since 0.0.3
-ixfoldslM :: Monoid k => Monad m => AIxfold (Endo (EndoM m r)) k s a -> (k -> r -> a -> m r) -> r -> s -> m r
-ixfoldslM o f r xs = ixfoldsr o f' mempty xs `appEndoM` r where f' k a e = e <> EndoM (flip (f k) a)
-{-# INLINE ixfoldslM #-}
+ixfoldlMOf :: Monoid k => Monad m => AIxfold (Endo (EndoM m r)) k s a -> (k -> r -> a -> m r) -> r -> s -> m r
+ixfoldlMOf o f r xs = ixfoldrOf o f' mempty xs `appEndoM` r where f' k a e = e <> EndoM (flip (f k) a)
+{-# INLINE ixfoldlMOf #-}
 
 -- | Applicative fold over an indexed optic.
 --
@@ -905,11 +949,11 @@ ixfoldslM o f r xs = ixfoldsr o f' mempty xs `appEndoM` r where f' k a e = e <> 
 --
 -- @since 0.0.3
 ixtraverseOf_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k -> a -> f r) -> s -> f ()
-ixtraverseOf_ p f = ixfoldsr p (\k a fu -> void (f k a) *> fu) (pure ())
+ixtraverseOf_ p f = ixfoldrOf p (\k a fu -> void (f k a) *> fu) (pure ())
 {-# INLINE ixtraverseOf_ #-}
 
 ---------------------------------------------------------------------
--- EndoM
+-- Auxiliary Types
 ---------------------------------------------------------------------
 
 newtype EndoM m a = EndoM { appEndoM :: a -> m a }

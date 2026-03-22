@@ -304,9 +304,9 @@ infixr 8 %
 --
 -- If you only need the final index then use /./.
 --
--- >>> ixlists (ix "*" traversed . ix "+" traversed) ["foo", "bar"]
+-- >>> ixtoListOf (ix "*" traversed . ix "+" traversed) ["foo", "bar"]
 -- [("",'f'),("+",'o'),("++",'o'),("",'b'),("+",'a'),("++",'r')]
--- >>> ixlists (ix "*" traversed % ix "+" traversed) ["foo", "bar"]
+-- >>> ixtoListOf (ix "*" traversed % ix "+" traversed) ["foo", "bar"]
 -- [("",'f'),("+",'o'),("++",'o'),("*",'b'),("*+",'a'),("*++",'r')]
 --
 -- @since 0.0.3
@@ -339,7 +339,7 @@ infixr 8 #
 --
 -- If you only need the final index then use /./.
 --
--- >>> cxfolds (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfoldMapOf (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
