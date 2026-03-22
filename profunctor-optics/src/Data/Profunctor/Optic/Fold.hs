@@ -672,7 +672,7 @@ traverseOf_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
 -- Query operators
 ---------------------------------------------------------------------
 
--- | Check whether an optic matches any focus.
+-- | Check whether an optic matchOf any focus.
 --
 -- >>> has just (Just 1)
 -- True
@@ -689,7 +689,7 @@ hasn't :: AFold0 a s a -> s -> Bool
 hasn't o = maybe True (const False) . preview o
 {-# INLINE hasn't #-}
 
--- | Check whether any focus matches a predicate.
+-- | Check whether any focus matchOf a predicate.
 --
 anyOf :: AFold Any s a -> (a -> Bool) -> s -> Bool
 anyOf o f = getAny . foldMapOf o (Any . f)
@@ -701,7 +701,7 @@ allOf :: AFold All s a -> (a -> Bool) -> s -> Bool
 allOf o f = getAll . foldMapOf o (All . f)
 {-# INLINE allOf #-}
 
--- | Check that no focus matches a predicate.
+-- | Check that no focus matchOf a predicate.
 --
 noneOf :: AFold Any s a -> (a -> Bool) -> s -> Bool
 noneOf o f = not . anyOf o f

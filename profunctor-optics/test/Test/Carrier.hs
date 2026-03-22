@@ -138,7 +138,7 @@ prop_relens_idempotent = withTests 1000 . property $ do
 -- Reprism
 ---------------------------------------------------------------------
 
--- Reprism' (Either Int Char) (Either Int Char) — views Left, matches back
+-- Reprism' (Either Int Char) (Either Int Char) — views Left, matchOf back
 releft_ :: Reprism' (Either Int Char) (Either Int Char)
 releft_ = reprism id (\a -> case a of Left _ -> Right a; Right _ -> Left a)
 
