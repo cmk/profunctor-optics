@@ -52,10 +52,10 @@ jobs:
             ${{ runner.os }}-ghc-${{ matrix.ghc }}-cabal-
 
       - name: Build
-        run: cabal build all --enable-tests
+        run: cabal build all --enable-tests --disable-benchmarks
 
       - name: Test
-        run: cabal test all --enable-tests --test-show-details=direct
+        run: cabal test all --enable-tests --disable-benchmarks --test-show-details=direct
 
   haddock:
     runs-on: ubuntu-latest
