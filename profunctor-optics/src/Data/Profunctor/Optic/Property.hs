@@ -279,16 +279,16 @@ compose_traversal1 o f g s = lhs s == rhs s
 --
 -- The cotraversal laws can be restated in terms of 'cotraverses1':
 --
--- * @cotraverses o (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @cotraverseOf o (f . runIdentity) ≡  fmap f . runIdentity @
 --
--- * @cotraverses o f . fmap (cotraverses o g) == cotraverses o (f . fmap g . getCompose) . Compose@
+-- * @cotraverseOf o f . fmap (cotraverseOf o g) == cotraverseOf o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
 compose_cotraversal :: Eq s => Coapplicative f => Coapplicative g => Cotraversal' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
 compose_cotraversal o f g = liftF2 (==) lhs rhs
-  where lhs = cotraverses o f . fmap (cotraverses o g) 
-        rhs = cotraverses o (f . fmap g . getCompose) . Compose
+  where lhs = cotraverseOf o f . fmap (cotraverseOf o g) 
+        rhs = cotraverseOf o (f . fmap g . getCompose) . Compose
 -}
 ---------------------------------------------------------------------
 -- 'Setter'

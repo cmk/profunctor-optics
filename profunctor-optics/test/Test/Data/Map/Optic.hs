@@ -39,7 +39,7 @@ prop_at_set_get = property $ do
     v <- forAll $ Gen.string (Range.linear 1 5) Gen.alpha
     preview (at k) (set (at k) v m) === Just v
 
--- values: fold collects all values
+-- values: fold collectOf all values
 prop_values_count :: Property
 prop_values_count = property $ do
     m <- forAll genMap

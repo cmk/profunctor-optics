@@ -40,7 +40,7 @@
 -- Indexed operators route through 'Conjoin' wrapping:
 --
 -- @
--- ixover o f = (unConjoin #. corepresent o .# Conjoin) f mempty
+-- ixover o f = (unConjoin #. corepresenting o .# Conjoin) f mempty
 -- @
 --
 -- Benchmarks show GHC inlines through fully: __1.08x__ overhead.

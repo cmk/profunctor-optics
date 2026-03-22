@@ -23,8 +23,8 @@ module Data.Profunctor.Optic.Setter (
   , setter1
   , cosetter1
     -- * Optics
-  , cod
-  , dom
+  , codomain
+  , domain
   , fmapped
   , imappedRep
   , contramapped
@@ -37,7 +37,7 @@ module Data.Profunctor.Optic.Setter (
   , censored
   , zipped
   , modded
-  , cond
+  , conditioned
     -- * Operators
   , over
   , ixover
@@ -119,7 +119,7 @@ import qualified Data.Functor.Rep as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = sieved abst . represent (\f -> distribute . fmap f)
+setter abst = sieved abst . representing (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
 -- | Build an 'Ixsetter' from an indexed function.
@@ -160,7 +160,7 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- * @abst f . abst g ≡ abst (f . g)@
 --
 cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
-cosetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
+cosetter abst = cosieved abst . corepresenting (\f -> fmap f . sequenceA)
 {-# INLINE cosetter #-}
 
 ---------------------------------------------------------------------
@@ -171,14 +171,14 @@ cosetter abst = cosieved abst . corepresent (\f -> fmap f . sequenceA)
 --
 -- @since 0.0.3
 setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
-setter1 abst = sieved abst . represent (\f -> distribute1 . fmap f)
+setter1 abst = sieved abst . representing (\f -> distribute1 . fmap f)
 {-# INLINE setter1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
 cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
-cosetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
+cosetter1 abst = cosieved abst . corepresenting (\f -> fmap f . sequence1)
 {-# INLINE cosetter1 #-}
 
 ---------------------------------------------------------------------
@@ -190,31 +190,31 @@ cosetter1 abst = cosieved abst . corepresent (\f -> fmap f . sequence1)
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- (dom ..~ f) g x ≡ f (g x)
--- cod @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
+-- (domain ..~ f) g x ≡ f (g x)
+-- codomain @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
 -- @
 --
--- >>> (cod ..~ show) length [1,2,3]
+-- >>> (codomain ..~ show) length [1,2,3]
 -- "3"
 --
-cod :: Profunctor p => Setter (p r a) (p r b) a b
-cod = setter rmap
-{-# INLINE cod #-}
+codomain :: Profunctor p => Setter (p r a) (p r b) a b
+codomain = setter rmap
+{-# INLINE codomain #-}
 
 -- | Map contravariantly over the input of a profunctor.
 --
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- ('dom' '..~' f) g x ≡ g (f x)
+-- ('domain' '..~' f) g x ≡ g (f x)
 -- @
 --
--- >>> (dom ..~ show) length [1,2,3]
+-- >>> (domain ..~ show) length [1,2,3]
 -- 7
 --
-dom :: Profunctor p => Setter (p b r) (p a r) a b
-dom = setter lmap
-{-# INLINE dom #-}
+domain :: Profunctor p => Setter (p b r) (p a r) a b
+domain = setter lmap
+{-# INLINE domain #-}
 
 -- | 'Setter' on each value of a functor.
 --
@@ -325,9 +325,9 @@ modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 --
 -- See also 'Data.Profunctor.Optic.Traversal0.predicated' & 'Data.Profunctor.Optic.Prism.filtered'.
 --
-cond :: (a -> Bool) -> Setter' a a
-cond p = setter $ \f a -> if p a then f a else a
-{-# INLINE cond #-}
+conditioned :: (a -> Bool) -> Setter' a a
+conditioned p = setter $ \f a -> if p a then f a else a
+{-# INLINE conditioned #-}
 
 ---------------------------------------------------------------------
 -- Operators
@@ -382,7 +382,7 @@ coset o b = cosets o $ const b
 -- | Set the focus of a 'Cosetter'.
 --
 cosets :: ACosetter s t a b -> (a -> b) -> s -> t
-cosets o = (.# Identity) #. cotraverses o .# (.# runIdentity) 
+cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity) 
 {-# INLINE cosets #-}
 
 -- | Set the focus of a 'Cxsetter'.

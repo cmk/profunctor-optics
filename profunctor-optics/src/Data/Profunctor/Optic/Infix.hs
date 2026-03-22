@@ -5,7 +5,7 @@
 
 -- | Infix operators for profunctor optics.
 --
--- This module collects all infix operators in one place. Every operator
+-- This module collectOf all infix operators in one place. Every operator
 -- is defined in terms of a named function elsewhere in the library, so
 -- users who prefer prefix style can avoid importing this module entirely.
 --
@@ -36,7 +36,7 @@
 --   (.~)    set       (..~)    over
 --   (*~)    starSet   (**~)    starOver   (= 'traverseOf')
 --   (%~)    ixset     (%%~)    ixover
---   (\/~)    coset     (\/\/~)    coover     (= 'cotraverses')
+--   (\/~)    coset     (\/\/~)    coover     (= 'cotraverseOf')
 --   (#~)    cxset     (##~)    cxover
 -- @
 --
@@ -128,7 +128,7 @@ infix  4  .=, ..=
 --            view             toList           preview
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
 --   Ix      (^%)  'V.ixview'  (^%%)  'F.ixlists'
---   Co      (^/)  'V.review'  (^//)  'F.cofoldsa'
+--   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
 --   Cx      (^#)  'V.cxreview'
 -- @
 
@@ -190,10 +190,10 @@ infix  4  .=, ..=
 
 -- | Co-dual fold to a list.
 --
--- @o '^//' b ≡ 'F.cofoldsa' o b@
+-- @o '^//' b ≡ 'F.cofoldOfA' o b@
 --
 (^//) :: Coapplicative f => ACofold (f b) t b -> f b -> t
-(^//) = F.cofoldsa
+(^//) = F.cofoldOfA
 {-# INLINE (^//) #-}
 
 -- | Indexed co-dual view (indexed review).
@@ -291,9 +291,9 @@ infix  4  .=, ..=
 (/~) o b = o //~ const b
 {-# INLINE (/~) #-}
 
--- | Co-dual over via 'Costar'. Equivalent to 'Data.Profunctor.Optic.Traversal.cotraverses'.
+-- | Co-dual over via 'Costar'. Equivalent to 'Data.Profunctor.Optic.Traversal.cotraverseOf'.
 --
--- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverses' o f@
+-- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverseOf' o f@
 --
 (//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
 (//~) o = runCostar #. o .# Costar

@@ -16,7 +16,7 @@ tests = checkParallel $$(discover)
 genIntSet :: Gen IS.IntSet
 genIntSet = IS.fromList <$> Gen.list (Range.linear 0 20) (Gen.int (Range.linear 0 50))
 
--- folded collects all elements
+-- folded collectOf all elements
 prop_folded_count :: Property
 prop_folded_count = property $ do
     s <- forAll genIntSet
