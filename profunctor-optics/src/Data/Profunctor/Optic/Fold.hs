@@ -50,15 +50,15 @@ module Data.Profunctor.Optic.Fold (
   , acolist
   , acolist1
     -- * Operators
-  , folds0
+  , foldOf0
   , preview
   , previews
   , preuse
   , preuses
   , foldMapOf
   , cofoldMapOf
-  , foldsa
-  , cofoldsa
+  , foldOfA
+  , cofoldOfA
   , toListOf
   , foldrOf
   , foldlOf
@@ -85,7 +85,7 @@ module Data.Profunctor.Optic.Fold (
   , headOf
   , lastOf
     -- * Indexed operators
-  , ixfolds0
+  , ixfoldOf0
   , ixpreview
   , ixpreviews
   , ixfolds
@@ -478,9 +478,9 @@ acataA = afold F.cataA
 
 -- | TODO: Document
 --
-folds0 :: AFold0 r s a -> (a -> Maybe r) -> s -> Maybe r
-folds0 o = (getAlt #.) #. foldMapOf o .# (Alt #.)
-{-# INLINE folds0 #-}
+foldOf0 :: AFold0 r s a -> (a -> Maybe r) -> s -> Maybe r
+foldOf0 o = (getAlt #.) #. foldMapOf o .# (Alt #.)
+{-# INLINE foldOf0 #-}
 
 
 -- | An infk alias for 'preview''.
@@ -505,7 +505,7 @@ preview = flip previews id
 -- | TODO: Document
 --
 previews :: MonadReader s m => AFold0 r s a -> (a -> r) -> m (Maybe r)
-previews o f = Reader.asks (folds0 o (Just . f))
+previews o f = Reader.asks (foldOf0 o (Just . f))
 {-# INLINE previews #-}
 
 -- | TODO: Document
@@ -548,15 +548,15 @@ cofoldMapOf o = (.# Const) #. cotraverseOf o .# (.# getConst)
 
 -- | TODO: Document
 --
-foldsa :: Applicative f => AFold (f a) s a -> s -> f a
-foldsa = flip foldMapOf pure
-{-# INLINE foldsa #-} 
+foldOfA :: Applicative f => AFold (f a) s a -> s -> f a
+foldOfA = flip foldMapOf pure
+{-# INLINE foldOfA #-} 
 
 -- | TODO: Document
 --
-cofoldsa :: Coapplicative f => ACofold (f b) t b -> f b -> t
-cofoldsa = flip cofoldMapOf copure
-{-# INLINE cofoldsa #-} 
+cofoldOfA :: Coapplicative f => ACofold (f b) t b -> f b -> t
+cofoldOfA = flip cofoldMapOf copure
+{-# INLINE cofoldOfA #-} 
 
 
 -- | Infix alias of 'toListOf'.
@@ -780,9 +780,9 @@ lastOf o = foldlOf' o (\_ a -> Just a) Nothing
 -- | TODO: Document
 --
 -- @since 0.0.3
-ixfolds0 :: Monoid k => AIxfold0 r k s a -> (k -> a -> Maybe r) -> s -> Maybe r
-ixfolds0 o f = curry ((getAlt #.) #. foldMapOf o .# (Alt #.) $ uncurry f) mempty
-{-# INLINE ixfolds0 #-}
+ixfoldOf0 :: Monoid k => AIxfold0 r k s a -> (k -> a -> Maybe r) -> s -> Maybe r
+ixfoldOf0 o f = curry ((getAlt #.) #. foldMapOf o .# (Alt #.) $ uncurry f) mempty
+{-# INLINE ixfoldOf0 #-}
 
 -- | TODO: Document 
 --
@@ -795,7 +795,7 @@ ixpreview o = ixpreviews o (,)
 --
 -- @since 0.0.3
 ixpreviews :: Monoid k => AIxfold0 r k s a -> (k -> a -> r) -> s -> Maybe r
-ixpreviews o f = ixfolds0 o (\k -> Just . f k)
+ixpreviews o f = ixfoldOf0 o (\k -> Just . f k)
 {-# INLINE ixpreviews #-}
 
 -- | Map an indexed optic to a monoid and combine the results.
