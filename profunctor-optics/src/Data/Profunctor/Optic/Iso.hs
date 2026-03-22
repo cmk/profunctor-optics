@@ -17,9 +17,9 @@ module Data.Profunctor.Optic.Iso (
   , fmapping
   , contramapping
   , dimapping
-  , toYoneda 
-  , toCoyoneda
-  , invert
+  , yoneda 
+  , coyoneda
+  , inverting
   , cloneIso
     -- * Optics
   , equaled
@@ -28,14 +28,14 @@ module Data.Profunctor.Optic.Iso (
   , generic1
   , adjuncted
   , tabulated
-  , sieved
-  , cosieved
+  , indexing
+  , coindexing
   , unzipped
   , cozipped
   , swapped 
-  , coswapped 
+  , eswapped 
   , associated 
-  , coassociated
+  , eassociated
   , excised
   , flipped 
   , involuted
@@ -43,10 +43,11 @@ module Data.Profunctor.Optic.Iso (
     -- * Operators
   , au
   , aup
-  , reover
-  , reixes
-  , recxes
+  , coover
+  , reixing
+  , recxing
   , withIso
+  , re
     -- * Auxilliary Types
   , Re(..)
     -- * Classes
@@ -139,25 +140,26 @@ dimapping f g = withIso f $ \sa1 bt1 -> withIso g $ \sa2 bt2 -> iso (dimap sa1 s
 
 -- | Lift an 'Iso' into a 'Yoneda'.
 --
-toYoneda :: Profunctor p => Iso s t a b -> p a b -> Yoneda p s t
-toYoneda o p = withIso o $ \sa bt -> Yoneda $ \f g -> dimap (sa . f) (g . bt) p 
-{-# INLINE toYoneda #-}
+yoneda :: Profunctor p => Iso s t a b -> p a b -> Yoneda p s t
+yoneda o p = withIso o $ \sa bt -> Yoneda $ \f g -> dimap (sa . f) (g . bt) p 
+{-# INLINE yoneda #-}
 
 -- | Lift an 'Iso' into a 'Coyoneda'.
 --
-toCoyoneda :: Iso s t a b -> p a b -> Coyoneda p s t
-toCoyoneda o p = withIso o $ \sa bt -> Coyoneda sa bt p
-{-# INLINE toCoyoneda #-}
+coyoneda :: Iso s t a b -> p a b -> Coyoneda p s t
+coyoneda o p = withIso o $ \sa bt -> Coyoneda sa bt p
+{-# INLINE coyoneda #-}
 
 -- | Invert an isomorphism.
 --
 -- @
--- 'invert' ('invert' o) ≡ o
+-- 'inverting' ('inverting' o) ≡ o
+-- 'inverting' ≡ 'cloneIso' '.' 're'
 -- @
 --
-invert :: AIso s t a b -> Iso b a t s
-invert o = withIso o $ \sa bt -> iso bt sa
-{-# INLINE invert #-}
+inverting :: AIso s t a b -> Iso b a t s
+inverting o = withIso o $ \sa bt -> iso bt sa
+{-# INLINE inverting #-}
 
 -- | Convert from 'AIso' back to any 'Iso'.
 --
@@ -222,15 +224,15 @@ tabulated = iso F.index F.tabulate
 
 -- | TODO: Document
 --
-sieved :: ((a -> b) -> s -> t) -> Iso s t (Index s x x) (Index s a b)
-sieved abst = iso (flip Index id) (\(Index s ab) -> abst ab s) 
-{-# INLINE sieved #-}
+indexing :: ((a -> b) -> s -> t) -> Iso s t (Index s x x) (Index s a b)
+indexing abst = iso (flip Index id) (\(Index s ab) -> abst ab s) 
+{-# INLINE indexing #-}
 
 -- | TODO: Document
 --
-cosieved :: ((a -> b) -> s -> t) -> Iso s t (Coindex t b a) (Coindex t x x)
-cosieved abst = iso (\s -> Coindex $ \ab -> abst ab s) trivial
-{-# INLINE cosieved #-}
+coindexing :: ((a -> b) -> s -> t) -> Iso s t (Coindex t b a) (Coindex t x x)
+coindexing abst = iso (\s -> Coindex $ \ab -> abst ab s) trivial
+{-# INLINE coindexing #-}
 
 -- | A right adjoint admits an intrinsic notion of zipping.
 --
@@ -252,9 +254,9 @@ swapped = iso swap swap
 
 -- | Swap sides of a sum.
 --
-coswapped :: Iso (a + b) (c + d) (b + a) (d + c)
-coswapped = iso eswap eswap
-{-# INLINE coswapped #-}
+eswapped :: Iso (a + b) (c + d) (b + a) (d + c)
+eswapped = iso eswap eswap
+{-# INLINE eswapped #-}
 
 -- | An 'Iso' defined by left-association of nested tuples.
 --
@@ -264,9 +266,9 @@ associated = iso assocl assocr
 
 -- | An 'Iso' defined by left-association of nested tuples.
 --
-coassociated :: Iso (a + (b + c)) (d + (e + f)) ((a + b) + c) ((d + e) + f)
-coassociated = iso eassocl eassocr
-{-# INLINE coassociated #-}
+eassociated :: Iso (a + (b + c)) (d + (e + f)) ((a + b) + c) ((d + e) + f)
+eassociated = iso eassocl eassocr
+{-# INLINE eassociated #-}
 
 -- | Excise a single value from a type.
 --
@@ -308,7 +310,7 @@ involuted f = iso f f
 
 -- | Uncurry a function.
 --
--- >>> (fst ^. invert uncurried) 3 4
+-- >>> (fst ^. inverting uncurried) 3 4
 -- 3
 --
 uncurried :: Iso (a -> b -> c) (d -> e -> f) ((a , b) -> c) ((d , e) -> f)
@@ -349,23 +351,23 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 -- | Given a conversion on one side of an 'Iso', recover the other.
 --
 -- @
--- 'reover' ≡ 'over' '.' 're'
+-- 'coover' ≡ 'over' '.' 're'
 -- @
 --
 -- Compare 'Data.Profunctor.Optic.Setter.over'.
 --
-reover :: AIso s t a b -> (t -> s) -> b -> a
-reover o = withIso o $ \sa bt ts -> sa . ts . bt
-{-# INLINE reover #-}
+coover :: AIso s t a b -> (t -> s) -> b -> a
+coover o = withIso o $ \sa bt ts -> sa . ts . bt
+{-# INLINE coover #-}
 
 -- | Remap the indices of an indexed optic.
 --
-reixes :: Profunctor p => AIso' k1 k2 -> Ixoptic p k1 s t a b -> Ixoptic p k2 s t a b
-reixes o = withIso o reix
-{-# INLINE reixes #-}
+reixing :: Profunctor p => AIso' k1 k2 -> Ixoptic p k1 s t a b -> Ixoptic p k2 s t a b
+reixing o = withIso o reix
+{-# INLINE reixing #-}
 
 -- | Remap the indices of a coindexed optic.
 --
-recxes :: Profunctor p => AIso' k1 k2 -> Cxoptic p k1 s t a b -> Cxoptic p k2 s t a b
-recxes o = withIso o recx
-{-# INLINE recxes #-}
+recxing :: Profunctor p => AIso' k1 k2 -> Cxoptic p k1 s t a b -> Cxoptic p k2 s t a b
+recxing o = withIso o recx
+{-# INLINE recxing #-}

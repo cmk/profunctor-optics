@@ -25,7 +25,7 @@ module Data.Profunctor.Optic.Lens (
   , inside
   , matching
   , comatching
-  , inverting
+  , grate'
   , cloneLens
   , cloneLensVl
   , cloneColens
@@ -377,9 +377,9 @@ cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 
 -- | Construct a 'Colens' from a pair of inverses.
 --
-inverting :: (s -> a) -> (b -> t) -> Colens s t a b
-inverting sa bt = grate $ \sab -> bt (sab sa)
-{-# INLINE inverting #-}
+grate' :: (s -> a) -> (b -> t) -> Colens s t a b
+grate' sa bt = grate $ \sab -> bt (sab sa)
+{-# INLINE grate' #-}
 
 -- | TODO: Document
 --

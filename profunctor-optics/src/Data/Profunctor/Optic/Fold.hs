@@ -13,8 +13,7 @@ module Data.Profunctor.Optic.Fold (
   , ixfold0
   , afold0
   , failing
-  , toFold0
-  , fromFold0
+  , fold0'
     -- * Fold
   , Fold
   , Cofold
@@ -185,21 +184,21 @@ failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
 -- | Obtain a 'Fold0' from a 'View'.
 --
 -- @
--- 'toFold0' o ≡ o . 'just'
--- 'toFold0' o ≡ 'fold0' ('view' o)
+-- 'fold0'' o ≡ o . 'just'
+-- 'fold0'' o ≡ 'fold0' ('view' o)
 -- @
 --
-toFold0 :: View s (Maybe a) -> Fold0 s a
-toFold0 o pab = o (just pab)
-{-# INLINE toFold0 #-}
+fold0' :: View s (Maybe a) -> Fold0 s a
+fold0' o pab = o (just pab)
+{-# INLINE fold0' #-}
 
 -- | Obtain a 'View' from a 'Fold0' 
 --
--- > 'fromFold0' = 'to' . 'preview'
+-- > 'viewing' = 'to' . 'preview'
 --
-fromFold0 ::  AFold0 a s a -> View s (Maybe a)
-fromFold0 o = coercedR . lmap (preview o)
-{-# INLINE fromFold0 #-}
+viewing ::  AFold0 a s a -> View s (Maybe a)
+viewing o = coercedR . lmap (preview o)
+{-# INLINE viewing #-}
 
 ---------------------------------------------------------------------
 -- Fold

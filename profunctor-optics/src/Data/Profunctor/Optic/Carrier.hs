@@ -832,7 +832,7 @@ instance Profunctor p => Profunctor (Split p c d) where
 instance Choice p => Choice (Split p c d) where
   right' (Split pab) = Split . dimap shuffle shuffle . right' $ pab
    where
-    shuffle = Right . Left ||| (Left ||| Right . Right)
+    shuffle = either (Right . Left) (either Left (Right . Right))
 
 -- ^ @
 -- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (Either s s') (Either t t') (Either a a') (Either b b')

@@ -30,8 +30,8 @@ module Data.Profunctor.Optic.Setter (
   , contramapped
   , liftedM
   , liftedA
-  , reliftedA
-  , reliftedF
+  , coliftedA
+  , coliftedF
   , zipListed
   , forwarded
   , censored
@@ -53,8 +53,8 @@ module Data.Profunctor.Optic.Setter (
     -- * mtl
   , assigns
   , modifies
-  , locally
-  , scribe
+  , localizes
+  , tells
 ) where
 
 import Control.Applicative (liftA,ZipList(..))
@@ -65,7 +65,7 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Iso (sieved,cosieved)
+import Data.Profunctor.Optic.Iso (indexing,coindexing)
 import Data.Profunctor.Optic.Traversal
 import qualified Data.Functor.Rep as F
 
@@ -119,7 +119,7 @@ import qualified Data.Functor.Rep as F
 -- See 'Data.Profunctor.Optic.Property'.
 --
 setter :: ((a -> b) -> s -> t) -> Setter s t a b
-setter abst = sieved abst . representing (\f -> distribute . fmap f)
+setter abst = indexing abst . representing (\f -> distribute . fmap f)
 {-# INLINE setter #-}
 
 -- | Build an 'Ixsetter' from an indexed function.
@@ -160,8 +160,10 @@ closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 -- * @abst f . abst g ≡ abst (f . g)@
 --
 cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
-cosetter abst = cosieved abst . corepresenting (\f -> fmap f . sequenceA)
+cosetter abst = coindexing abst . corepresenting (\f -> fmap f . sequenceA)
 {-# INLINE cosetter #-}
+
+-- TODO: cxsetter, ixsetter1, cxsetter1 constructors
 
 ---------------------------------------------------------------------
 -- Setter1
@@ -171,14 +173,14 @@ cosetter abst = cosieved abst . corepresenting (\f -> fmap f . sequenceA)
 --
 -- @since 0.0.3
 setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
-setter1 abst = sieved abst . representing (\f -> distribute1 . fmap f)
+setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
 {-# INLINE setter1 #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
 cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
-cosetter1 abst = cosieved abst . corepresenting (\f -> fmap f . sequence1)
+cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
 {-# INLINE cosetter1 #-}
 
 ---------------------------------------------------------------------
@@ -269,24 +271,24 @@ liftedA = setter liftA
 
 -- | TODO: Document
 --
-reliftedA :: Applicative f => Cosetter (f a) (f b) a b
-reliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
-{-# INLINE reliftedA #-}
+coliftedA :: Applicative f => Cosetter (f a) (f b) a b
+coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
+{-# INLINE coliftedA #-}
 
 -- | TODO: Document
 --
 -- @since 0.0.3
-reliftedF :: Apply f => Cosetter1 (f a) (f b) a b
-reliftedF p = cotabulate $ fmap (cosieve p) . sequence1
-{-# INLINE reliftedF #-}
+coliftedF :: Apply f => Cosetter1 (f a) (f b) a b
+coliftedF p = cotabulate $ fmap (cosieve p) . sequence1
+{-# INLINE coliftedF #-}
 
--- | Variant of 'reliftedA' specialized to zip-toListOf.
+-- | Variant of 'coliftedA' specialized to zip-toListOf.
 --
 -- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
 --
 -- @since 0.0.3
 zipListed :: Cosetter [a] [b] a b
-zipListed = dimap ZipList getZipList . reliftedA
+zipListed = dimap ZipList getZipList . coliftedA
 {-# INLINE zipListed #-}
 
 -- | 'Setter' on the local environment of a 'Reader'. 
@@ -420,23 +422,23 @@ modifies o f = State.modify (o f)
 -- | Modify the value of a 'Reader' environment.
 --
 -- @
--- 'locally' l 'id' a ≡ a
--- 'locally' l f '.' locally l g ≡ 'locally' l (f '.' g)
+-- 'localizes' l 'id' a ≡ a
+-- 'localizes' l f '.' localizes l g ≡ 'localizes' l (f '.' g)
 -- @
 --
--- >>> (1,1) & locally first' (+1) (uncurry (+))
+-- >>> (1,1) & localizes first' (+1) (uncurry (+))
 -- 3
--- >>> "," & locally (setter ($)) ("Hello" <>) (<> " world!")
+-- >>> "," & localizes (setter ($)) ("Hello" <>) (<> " world!")
 -- "Hello, world!"
 --
 -- Compare 'forwarded'.
 --
-locally :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
-locally o f = Reader.local (o f)
-{-# INLINE locally #-}
+localizes :: MonadReader s m => Optic (->) s s a b -> (a -> b) -> m r -> m r
+localizes o f = Reader.local (o f)
+{-# INLINE localizes #-}
 
 -- | Write to a fragment of a larger 'Writer' format.
 --
-scribe :: MonadWriter w m => Monoid s => Optic (->) s w a b -> b -> m ()
-scribe o b = Writer.tell (o (const b) mempty)
-{-# INLINE scribe #-}
+tells :: MonadWriter w m => Monoid s => Optic (->) s w a b -> b -> m ()
+tells o b = Writer.tell (o (const b) mempty)
+{-# INLINE tells #-}

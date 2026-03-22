@@ -96,7 +96,7 @@ tofrom_iso o a = withIso o $ \sa as -> sa (as a) == a
 
 -- | If we are able to view an existing focus, then building it will return the original structure.
 --
--- * @(id ||| bt) (sta s) ≡ s@
+-- * @(either id bt) (sta s) ≡ s@
 --
 tofrom_prism :: Eq s => Prism' s a -> s -> Bool
 tofrom_prism o s = withPrism o $ \sta bt -> either id bt (sta s) == s
