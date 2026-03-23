@@ -12,7 +12,7 @@ import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
 import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft)
-import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf)
+import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
 import Data.Monoid (Sum(..))
 import Data.Profunctor.Optic.Setter (set)
 import Data.Profunctor.Optic.Fold (acofold, cofoldMapOf)
@@ -431,6 +431,16 @@ prop_withCotraversal0_identity = withTests 100 . property $ do
   let o :: ACotraversal0 Int Int Int Int
       o = id
   withCotraversal0 o $ \stabt ->
+    stabt (const x) === x
+
+-- | cloneCotraversal0 round-trip: clone then run should give same result
+prop_cloneCotraversal0_roundtrip :: Property
+prop_cloneCotraversal0_roundtrip = withTests 100 . property $ do
+  x <- forAll int
+  let o :: ACotraversal0 Int Int Int Int
+      o = id
+      cloned = cloneCotraversal0 o
+  withCotraversal0 cloned $ \stabt ->
     stabt (const x) === x
 
 -- | withColens round-trip

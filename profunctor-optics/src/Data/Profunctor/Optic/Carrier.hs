@@ -690,7 +690,19 @@ instance Cochoice (ReprismRep a b) where
 -- Cotraversal0Rep
 ---------------------------------------------------------------------
 
--- TODO: Corepresentable, Coapplicative (Corep)
+-- Note: Cotraversal0Rep is NOT Corepresentable. The CPS form
+-- @((s -> t + a) -> b) -> t@ has @t@ appearing in both the output
+-- and the callback argument @s -> t + a@. A @Corep@ functor is
+-- parameterized by @s@ only, but the observation function
+-- @(s -> t + a) -> b@ depends on @t@ (the output type), which
+-- @Corep@ cannot capture. This is unlike @ColensRep@ (where the
+-- callback is @(s -> a) -> b@ with no output-type dependency) and
+-- @CotraversalRep@ (where the existential over @Coapplicative f@
+-- hides the dependency).
+--
+-- Consequence: @cotraversal0@ and @cloneCotraversal0@ cannot be
+-- built via the standard @cotabulate . f . cosieve@ pattern. They
+-- need a direct profunctor decomposition using @closed . right'@.
 
 -- | The 'Cotraversal0Rep' profunctor precisely characterizes 'Cotraversal0'.
 --
@@ -970,9 +982,12 @@ instance Functor (Coindex a b) where
 instance a ~ b => Apply (Coindex a b) where
   (Coindex slab) <.> (Coindex ab) = Coindex $ \la -> slab $ \sl -> ab (la . sl)
 
---TODO helpful to use grate ops w/ cotraverse1
---instance a ~ b => Coapply (Coindex a b) where
---  coapply (Coindex eab) = undefined
+-- Note: Coindex a a is NOT Coapply. Coindex a a s = (s -> a) -> a is
+-- the continuation monad Cont a, and continuations cannot decompose
+-- over sums: coapply :: ((x + y -> a) -> a) -> ((x -> a) -> a) + ((y -> a) -> a)
+-- is impossible because the continuation might use both branches
+-- (e.g. \f -> f (Left x) <> f (Right y)). The (->) r instance of
+-- Coapply works by sampling at mempty, but Cont has no such anchor.
 
 instance a ~ b => Applicative (Coindex a b) where
   pure s = Coindex ($ s)

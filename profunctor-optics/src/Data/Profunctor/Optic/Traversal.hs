@@ -47,6 +47,8 @@ module Data.Profunctor.Optic.Traversal (
     -- ** Cotraversal0, Cxtraversal0
   , Cotraversal0
   , Cotraversal0'
+  , cotraversal0
+  , cloneCotraversal0
     -- ** Cotraversal1, Cxtraversal1
   , Cotraversal1, Cotraversal1'
   , Cxtraversal1, Cxtraversal1'
@@ -547,6 +549,40 @@ cxtraversalVl f = cotraversalVl $ \akb -> const . f akb
 cloneCotraversalVl :: Coapplicative f => ACotraversal f s t a b -> (f a -> b) -> f s -> t
 cloneCotraversalVl = cotraverseOf
 {-# INLINE cloneCotraversalVl #-}
+
+---------------------------------------------------------------------
+-- Cotraversal0 Constructors
+---------------------------------------------------------------------
+
+---------------------------------------------------------------------
+-- Cotraversal0 Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Cotraversal0' from its CPS representation.
+--
+-- The construction uses @closed . right'@ (the dual of @second' . right'@
+-- used by 'traversal0'). After @closed@, the profunctor type is
+-- @p ((s -> t + a) -> t + a) ((s -> t + a) -> t + b)@. The right @dimap@
+-- uses 'stabt' to reconstruct @t@, relying on the CPS guarantee that
+-- when @sta s = Left t@, 'stabt' short-circuits without evaluating
+-- the callback result (lazy evaluation).
+--
+-- @since 0.0.3
+cotraversal0 :: (((s -> t + a) -> b) -> t) -> Cotraversal0 s t a b
+cotraversal0 stabt =
+  dimap (flip ($))
+        (\stab -> stabt $ \sta -> case stab sta of
+           Right b -> b
+           Left  _ -> error "cotraversal0: impossible — CPS short-circuits on Left")
+  . closed . right'
+{-# INLINE cotraversal0 #-}
+
+-- | Clone a 'Cotraversal0'.
+--
+-- @since 0.0.3
+cloneCotraversal0 :: ACotraversal0 s t a b -> Cotraversal0 s t a b
+cloneCotraversal0 o = withCotraversal0 o cotraversal0
+{-# INLINE cloneCotraversal0 #-}
 
 ---------------------------------------------------------------------
 -- Dual Traversal1 Constructors
