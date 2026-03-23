@@ -12,8 +12,9 @@ import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
 import Data.Profunctor.Optic.Lens (grate, lensVl, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft)
-import Data.Profunctor.Optic.Traversal (traversed)
+import Data.Profunctor.Optic.Traversal (traversed, cotraverseOf)
 import Data.Profunctor.Optic.Setter (set)
+import Data.Profunctor.Optic.Fold (acofold, cofoldMapOf)
 import Data.Functor.Identity
 import Data.Profunctor.Types (Profunctor(..))
 import Data.Profunctor.Choice (Choice(..))
@@ -518,6 +519,27 @@ prop_cxtraversalrep_closed = withTests 100 . property $ do
       result :: Int -> Int
       result = runCxtraversalRep closed_cr (\fa _ -> runIdentity fa) (Identity (+x))
   result y === y + x
+
+---------------------------------------------------------------------
+-- Cofold: validates Coaffine (Closed + Choice) constraint fix
+---------------------------------------------------------------------
+
+-- | cofoldMapOf identity law.
+-- Uses acofold (concrete carrier) to exercise the Cofold path.
+prop_cofold_id :: Property
+prop_cofold_id = withTests 100 . property $ do
+  x <- forAll int
+  let o :: ACofold Int Int Int
+      o = acofold id
+  Prop.id_cofold o x === True
+
+-- | cofoldMapOf composition law.
+prop_cofold_compose :: Property
+prop_cofold_compose = withTests 100 . property $ do
+  x <- forAll int
+  let o :: ACofold Int Int Int
+      o = acofold id
+  Prop.compose_cofold o (+1) (*2) x === True
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

@@ -50,7 +50,11 @@ module Data.Profunctor.Optic.Property (
   , compose_traversal1
     -- * Cotraversal
   , Cotraversal
-  --, compose_cotraversal
+  , compose_cotraversal
+    -- * Cofold
+  , Cofold
+  , id_cofold
+  , compose_cofold
     -- * Setter
   , Setter
   , id_setter
@@ -74,6 +78,7 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
+import Data.Profunctor.Optic.Fold
 -- invertible is provided by Import (inlined from lawz/Test.Function.Invertible)
 
 ---------------------------------------------------------------------
@@ -272,24 +277,38 @@ compose_traversal1 o f g s = lhs s == rhs s
 ---------------------------------------------------------------------
 -- 'Cotraversal'
 ---------------------------------------------------------------------
-{-
+
 -- | A 'Cotraversal' is a valid 'Cosetter' with the following additional law:
 --
 -- * @abst f . fmap (abst g) ≡ abst (f . fmap g . getCompose) . Compose @
 --
--- The cotraversal laws can be restated in terms of 'cotraverses1':
+-- The cotraversal laws can be restated in terms of 'cotraverseOf':
 --
--- * @cotraverseOf o (f . runIdentity) ≡  fmap f . runIdentity @
+-- * @cotraverseOf o (f . copure) ≡ fmap f . copure @
 --
--- * @cotraverseOf o f . fmap (cotraverseOf o g) == cotraverseOf o (f . fmap g . getCompose) . Compose@
+-- * @cotraverseOf o f . fmap (cotraverseOf o g) ≡ cotraverseOf o (f . fmap g . getCompose) . Compose@
 --
 -- See also < https://www.cs.ox.ac.uk/jeremy.gibbons/publications/iterator.pdf >
 --
 compose_cotraversal :: Eq s => Coapplicative f => Coapplicative g => Cotraversal' s a -> (f a -> a) -> (g a -> a) -> f (g s) -> Bool
-compose_cotraversal o f g = liftF2 (==) lhs rhs
-  where lhs = cotraverseOf o f . fmap (cotraverseOf o g) 
+compose_cotraversal o f g = liftA2 (==) lhs rhs
+  where lhs = cotraverseOf o f . fmap (cotraverseOf o g)
         rhs = cotraverseOf o (f . fmap g . getCompose) . Compose
--}
+
+---------------------------------------------------------------------
+-- 'Cofold'
+---------------------------------------------------------------------
+
+-- | @cofoldMapOf o id ≡ id@
+--
+id_cofold :: Eq t => ACofold t t t -> t -> Bool
+id_cofold o t = cofoldMapOf o id t == t
+
+-- | @cofoldMapOf o f . cofoldMapOf o g ≡ cofoldMapOf o (f . g)@
+--
+compose_cofold :: Eq t => ACofold t t t -> (t -> t) -> (t -> t) -> t -> Bool
+compose_cofold o f g t = (cofoldMapOf o f . cofoldMapOf o g) t == cofoldMapOf o (f . g) t
+
 ---------------------------------------------------------------------
 -- 'Setter'
 ---------------------------------------------------------------------
