@@ -60,6 +60,10 @@ module Data.Profunctor.Optic.Property (
   , id_setter
   , compose_setter
   , idempotent_setter
+    -- * Cosetter
+  , Cosetter
+  , id_cosetter
+  , compose_cosetter
     -- * Sort
   , Sort
   , id_sort
@@ -333,6 +337,20 @@ compose_setter o f g s = (over o f . over o g) s == over o (f . g) s
 --
 idempotent_setter :: Eq s => Setter' s a -> s -> a -> a -> Bool
 idempotent_setter o s a b = set o b (set o a s) == set o b s
+
+---------------------------------------------------------------------
+-- 'Cosetter'
+---------------------------------------------------------------------
+
+-- | @cosets o id ≡ id@
+--
+id_cosetter :: Eq s => ACosetter s s a a -> s -> Bool
+id_cosetter o s = cosets o id s == s
+
+-- | @cosets o f . cosets o g ≡ cosets o (f . g)@
+--
+compose_cosetter :: Eq s => ACosetter s s a a -> (a -> a) -> (a -> a) -> s -> Bool
+compose_cosetter o f g s = (cosets o f . cosets o g) s == cosets o (f . g) s
 
 ---------------------------------------------------------------------
 -- 'Sort'

@@ -221,6 +221,34 @@ prop_setter_idempotent = withTests 100 . property $ do
   assert $ Prop.idempotent_setter traversed xs a b
 
 ---------------------------------------------------------------------
+-- Traversal
+---------------------------------------------------------------------
+
+prop_traversal_id :: Property
+prop_traversal_id = withTests 100 . property $ do
+  xs <- forAll $ gen_list int
+  assert $ Prop.id_traversal traversed xs
+
+prop_traversal_compose :: Property
+prop_traversal_compose = withTests 100 . property $ do
+  xs <- forAll $ gen_list int
+  assert $ Prop.compose_traversal traversed (Identity . (+1)) (Identity . (*2)) xs
+
+---------------------------------------------------------------------
+-- Cosetter
+---------------------------------------------------------------------
+
+prop_cosetter_id :: Property
+prop_cosetter_id = withTests 100 . property $ do
+  s <- forAll $ gen_pair int int
+  assert $ Prop.id_cosetter (grate $ \f -> (f fst, f snd)) s
+
+prop_cosetter_compose :: Property
+prop_cosetter_compose = withTests 100 . property $ do
+  s <- forAll $ gen_pair int int
+  assert $ Prop.compose_cosetter (grate $ \f -> (f fst, f snd)) (+1) (*2) s
+
+---------------------------------------------------------------------
 -- Cotraversal0Rep carrier: Profunctor law
 ---------------------------------------------------------------------
 
