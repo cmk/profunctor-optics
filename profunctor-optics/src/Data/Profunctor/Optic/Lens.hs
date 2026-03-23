@@ -43,6 +43,8 @@ module Data.Profunctor.Optic.Lens (
   , rematching'
   , cloneRelens
   , cloneRelensVl
+  , rxlens
+  , rxlensVl
     -- * Optics
     -- ** Lens, Ixlens
   , first, second
@@ -497,6 +499,22 @@ cloneRelens o = withRelens o relens
 cloneRelensVl :: ARelens s t a b -> (forall f. Functor f => (t -> f s) -> b -> f a)
 cloneRelensVl o tf b = withRelens o $ \bsa bt -> bsa b <$> tf (bt b)
 {-# INLINE cloneRelensVl #-}
+
+-- | Obtain an indexed 'Relens' from an indexed getter and a setter.
+--
+-- @since 0.0.3
+rxlens :: (b -> s -> (r , a)) -> (b -> t) -> Rxlens r s t a b
+rxlens bsia bt = rxlensVl $ \ts b -> bsia b <$> (ts . bt $ b)
+{-# INLINE rxlens #-}
+
+-- | Transform an indexed Van Laarhoven relens into an indexed profunctor 'Relens'.
+--
+-- Compare 'ixlensVl' and 'relensVl'.
+--
+-- @since 0.0.3
+rxlensVl :: (forall f. Functor f => (t -> f s) -> b -> f (r, a)) -> Rxlens r s t a b
+rxlensVl f = relensVl $ \ts -> f (fmap snd . ts)
+{-# INLINE rxlensVl #-}
 
 ---------------------------------------------------------------------
 -- Optics

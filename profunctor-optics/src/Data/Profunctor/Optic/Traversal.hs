@@ -93,6 +93,7 @@ module Data.Profunctor.Optic.Traversal (
   , cotraverseOf
   , cxtraverseOf
   , collectOf
+  , cxcollectOf
     -- ** Cotraversal0, Cxtraversal0
     -- ** Cotraversal1, Cxtraversal1
     -- * Arrow-style combinators
@@ -911,3 +912,10 @@ cxtraverseOf o f = flip (cotraverseOf o $ flip f) mempty
 collectOf :: Coapply f => ACotraversal f s t a (f a) -> f s -> t
 collectOf o = cotraverseOf o id
 {-# INLINE collectOf #-}
+
+-- | Coindexed 'collectOf'.
+--
+-- @since 0.0.3
+cxcollectOf :: Monoid k => Coapply f => ACxtraversal f k s t a (f a) -> f s -> t
+cxcollectOf o = cxtraverseOf o (const id)
+{-# INLINE cxcollectOf #-}
