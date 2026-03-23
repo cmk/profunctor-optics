@@ -66,7 +66,7 @@
 -- Fixities are chosen to be consistent with the @lens@ library:
 --
 -- @
---   infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#
+--   infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#, ^##
 --   infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 --   infix  4  .=, ..=
 --   infixr 9  %, #
@@ -92,7 +92,8 @@ module Data.Profunctor.Optic.Infix (
     -- ** Basic view
   , (^/), (^//)
     -- ** Indexed view
-  , (^#)-- , (^##)
+  , (^#)
+  , (^##)
     -- ** Indexed set\/over
   , (#~), (##~)
     -- ** Effectful set\/over
@@ -115,7 +116,7 @@ import qualified Data.Profunctor.Optic.Combinator as C
 -- Fixity declarations
 ---------------------------------------------------------------------
 
-infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#
+infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#, ^##
 infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 infix  4  .=, ..=
 
@@ -141,7 +142,7 @@ infix  4  .=, ..=
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
 --   Ix      (^%)  'V.ixview'  (^%%)  'F.ixtoListOf'
 --   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
---   Cx      (^#)  'V.rxview'
+--   Cx      (^#)  'V.rxview'  (^##)  'F.cxfoldMapOf'
 -- @
 
 -- | View through an optic.
@@ -282,6 +283,14 @@ infix  4  .=, ..=
 (^#) :: ARxview k t b -> b -> (k -> t)
 (^#) = V.rxview
 {-# INLINE (^#) #-}
+
+-- | Coindexed cofold: apply a coindexed observation to build a result.
+--
+-- @o '^##' f r ≡ 'F.cxfoldMapOf' o f r@
+--
+(^##) :: Monoid k => ACxfold r k t b -> (k -> r -> b) -> r -> t
+(^##) = F.cxfoldMapOf
+{-# INLINE (^##) #-}
 
 ---------------------------------------------------------------------
 -- Set / over (indexed co-dual)
