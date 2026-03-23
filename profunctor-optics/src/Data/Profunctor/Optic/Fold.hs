@@ -7,14 +7,17 @@ module Data.Profunctor.Optic.Fold (
     -- ** Fold, Ixfold
     Fold, Ixfold
   , fold_
+  , ixfold_
   , afold
   , aixfold
   , foldVl
   , ixfoldVl
   , folding
+  , ixfolding
     -- ** Fold0, Ixfold0
   , Fold0, Ixfold0
   , afold0
+  , aixfold0
   , fold0
   , fold0'
   , ixfold0
@@ -22,18 +25,25 @@ module Data.Profunctor.Optic.Fold (
     -- ** Fold1, Ixfold1
   , Fold1, Ixfold1
   , fold1_
+  , ixfold1_
+  , afold1
+  , aixfold1
   , foldVl1
   , ixfoldVl1
   , folding1
+  , ixfolding1
     -- * Dual Constructors
     -- ** Cofold, Cxfold
   , Cofold, Cxfold
   , acofold
   , cofoldVl
+  , cxfoldVl
   , cofolding
     -- ** Cofold1, Cxfold1
   , Cofold1, Cxfold1
+  , acofold1
   , cofoldVl1
+  , cxfoldVl1
   , cofolding1
 
     -- * Optics
@@ -55,6 +65,7 @@ module Data.Profunctor.Optic.Fold (
   , cofolded
     -- ** Cofold1, Cxfold1
   , acolist1
+  , cofolded1
 
     -- * Operators
     -- ** Fold, Ixfold
@@ -213,6 +224,20 @@ folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = foldVl traverse . coercedR . lmap f
 {-# INLINE folding #-}
 
+-- | Obtain an 'Ixfold' directly from an indexed extraction function.
+--
+-- @since 0.0.3
+ixfold_ :: Foldable f => (s -> f (k , a)) -> Ixfold k s a
+ixfold_ f = ixfoldVl $ \kab s -> traverse_ (uncurry kab) (f s)
+{-# INLINE ixfold_ #-}
+
+-- | Obtain an 'Ixfold' from a 'Traversable' functor with an indexed getter.
+--
+-- @since 0.0.3
+ixfolding :: Traversable f => (s -> (k , a)) -> Ixfold k (f s) a
+ixfolding f = ixfoldVl $ \kab -> traverse (uncurry kab . f)
+{-# INLINE ixfolding #-}
+
 ---------------------------------------------------------------------
 -- Fold0 Constructors
 ---------------------------------------------------------------------
@@ -222,6 +247,13 @@ folding f = foldVl traverse . coercedR . lmap f
 afold0 :: ((a -> Maybe r) -> s -> Maybe r) -> AFold0 r s a
 afold0 f = afold $ (Alt #.) #. f .# (getAlt #.)
 {-# INLINE afold0 #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+aixfold0 :: ((k -> a -> Maybe r) -> s -> Maybe r) -> AIxfold0 r k s a
+aixfold0 f = aixfold $ \kar s -> Alt (f (\k a -> getAlt (kar k a)) s)
+{-# INLINE aixfold0 #-}
 
 -- | Obtain a 'Fold0' directly.
 --
@@ -283,6 +315,13 @@ fold1_ :: Foldable1 f => (s -> f a) -> Fold1 s a
 fold1_ f = coercedR . lmap f . foldVl1 traverse1_
 {-# INLINE fold1_ #-}
 
+-- | Obtain an 'Ixfold1' directly from an indexed extraction function.
+--
+-- @since 0.0.3
+ixfold1_ :: Foldable1 f => (s -> f (k , a)) -> Ixfold1 k s a
+ixfold1_ f = ixfoldVl1 $ \kab s -> traverse1_ (uncurry kab) (f s)
+{-# INLINE ixfold1_ #-}
+
 -- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
 --
 -- See 'Data.Profunctor.Optic.Property'.
@@ -309,6 +348,27 @@ folding1 :: Traversable1 f => (s -> a) -> Fold1 (f s) a
 folding1 f = foldVl1 traverse1 . coercedR . lmap f
 {-# INLINE folding1 #-}
 
+-- | TODO: Document
+--
+-- @since 0.0.3
+afold1 :: ((a -> r) -> s -> r) -> ATraversal1 (Const r) s t a b
+afold1 f = atraversal $ (Const #.) #. f .# (getConst #.)
+{-# INLINE afold1 #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+aixfold1 :: ((k -> a -> r) -> s -> r) -> AIxtraversal1 (Const r) k s t a b
+aixfold1 f = afold1 $ \iar -> f (curry iar) . snd
+{-# INLINE aixfold1 #-}
+
+-- | Obtain an 'Ixfold1' from a 'Traversable1' functor with an indexed getter.
+--
+-- @since 0.0.3
+ixfolding1 :: Traversable1 f => (s -> (k , a)) -> Ixfold1 k (f s) a
+ixfolding1 f = ixfoldVl1 $ \kab -> traverse1 (uncurry kab . f)
+{-# INLINE ixfolding1 #-}
+
 ---------------------------------------------------------------------
 -- Dual Constructors
 ---------------------------------------------------------------------
@@ -333,6 +393,13 @@ cofolding :: Distributive g => (b -> t) -> Cofold (g t) b
 cofolding f = cofoldVl cotraverse . coercedL . rmap f
 {-# INLINE cofolding #-}
 
+-- | Obtain a 'Cxfold' from a coindexed Van Laarhoven 'Cofold'.
+--
+-- @since 0.0.3
+cxfoldVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> Cxfold k t b
+cxfoldVl f = coercedL . cxtraversalVl f . coercedL
+{-# INLINE cxfoldVl #-}
+
 ---------------------------------------------------------------------
 -- Dual Fold1 Constructors
 ---------------------------------------------------------------------
@@ -350,6 +417,20 @@ cofoldVl1 f = coercedL . cotraversalVl1 f . coercedL
 cofolding1 :: Distributive1 g => (b -> t) -> Cofold1 (g t) b
 cofolding1 f = cofoldVl1 cotraverse1 . coercedL . rmap f
 {-# INLINE cofolding1 #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+acofold1 :: ((r -> b) -> r -> t) -> ACofold1 r t b
+acofold1 f = acotraversal $ (.# getConst) #. f .# (.# Const)
+{-# INLINE acofold1 #-}
+
+-- | Obtain a 'Cxfold1' from a coindexed Van Laarhoven 'Cofold1'.
+--
+-- @since 0.0.3
+cxfoldVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> t) -> Cxfold1 k t b
+cxfoldVl1 f = coercedL . cxtraversalVl1 f . coercedL
+{-# INLINE cxfoldVl1 #-}
 
 ---------------------------------------------------------------------
 -- Optics
@@ -462,6 +543,13 @@ cofolded = cofolding id
 acolist1 :: ACofold a (NonEmpty b) (b, Maybe a)
 acolist1 = acofold NNL.unfoldr
 {-# INLINE acolist1 #-}
+
+-- | Obtain a 'Cofold1' from a 'Distributive1' functor.
+--
+-- @since 0.0.3
+cofolded1 :: Distributive1 g => Cofold1 (g b) b
+cofolded1 = cofolding1 id
+{-# INLINE cofolded1 #-}
 
 ---------------------------------------------------------------------
 -- Operators
