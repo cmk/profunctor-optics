@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Combinator (
     -- * Constructors
     -- ** Main
@@ -19,6 +16,11 @@ module Data.Profunctor.Optic.Combinator (
   , cxmap
   , corepresenting
   , cxrepresenting
+    -- ** Cx algebra
+  , cxjoin
+  , cxreturn
+  , cxunit
+  , cxstrength
     -- * Transforms
     -- ** Main
   , (%)
@@ -68,10 +70,7 @@ module Data.Profunctor.Optic.Combinator (
 ) where
 
 
-import Control.Monad.State hiding (join)
-import Data.Function
 import Data.Profunctor.Strong
-import Data.Profunctor.Closed
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
@@ -165,27 +164,31 @@ cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> t)
 cxrepresenting f = corepresenting $ \ab -> const . f (flip ab)
 {-# INLINE cxrepresenting #-}
 
-{-
-
+-- | Collapse a coindexed profunctor where the coindex matches the focus.
+--
+-- @'cxjoin' ≡ 'dimap' 'fork' 'apply' '.' 'first''@
+--
 cxjoin :: Strong p => Cx p a a b -> p a b
-cxjoin = peval
+cxjoin = dimap fork apply . first'
 
+-- | Lift a profunctor into a coindexed profunctor by ignoring the coindex.
+--
 cxreturn :: Profunctor p => p a b -> Cx p k a b
 cxreturn = rmap const
 
-cxunit :: Strong p => Cx' p :-> p
+-- | Extract a profunctor from a self-coindexed profunctor.
+--
+-- @'cxjoin' '.' 'cxunit' ≡ 'id'@
+--
+cxunit :: Strong p => Cx' p a b -> p a b
 cxunit p = dimap fork apply (first' p)
 
--- | 'Cx'' is freely strong.
+-- | 'Cx'' is freely 'Strong'.
 --
 -- See <https://r6research.livejournal.com/27858.html>.
 --
-cxfirst :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
-cxfirst = dimap fst (B.first @(,))
-
-cxpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
-cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
--}
+cxstrength :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
+cxstrength = dimap fst (B.first @(,))
 
 ---------------------------------------------------------------------
 -- Transforms
@@ -508,17 +511,3 @@ coreps o = cosieve . o . cotabulate
 cxreps :: Corepresentable p => Monoid i => Cxoptic p i s t a b -> (i -> Corep p a -> b) -> Corep p s -> t
 cxreps o f = flip (coreps o $ flip f) mempty
 {-# INLINE cxreps #-}
-
-{-
--- | TODO: Document
---
-push :: Closed p => Traversing1 p => p a c -> p b c -> p a (b -> c)
-push p q = curry' $ divideWith id p q
-{-# INLINE push #-}
-
--- | TODO: Document
---
-pull :: Closed p => Traversing1 p => p (a , b) c -> p a b -> p a c
-pull = (<<*>>) . curry'
-{-# INLINE pull #-}
--}

@@ -32,21 +32,29 @@ module Data.Profunctor.Optic.Carrier (
   , ATraversal0'
   , AIxtraversal0
   , AIxtraversal0'
+    -- ** Traversal1, Ixtraversal1
+  , ATraversal1
+  , ATraversal1'
+  , AIxtraversal1
+  , AIxtraversal1'
     -- ** Fold, Ixfold
   , AFold
   , AIxfold
     -- ** Fold0, Ixfold0
   , AFold0
   , AIxfold0
+    -- ** Fold1, Ixfold1
+  , AFold1
+  , AIxfold1
     -- * Dual Carriers
-    -- ** Lens
+    -- ** Colens, Cxlens
   , AColens
   , AColens'
   , ARelens
   , ARelens'
   , ACxlens
   , ACxlens'
-    -- ** Prism
+    -- ** Reprism
   , AReprism
   , AReprism'
     -- ** Cotraversal, Cxtraversal
@@ -54,57 +62,79 @@ module Data.Profunctor.Optic.Carrier (
   , ACotraversal'
   , ACxtraversal
   , ACxtraversal'
-    -- ** Cotraversal0, Cotxtraversal0
+    -- ** Cotraversal0
   , ACotraversal0
   , ACotraversal0'
+    -- ** Cotraversal1, Cxtraversal1
+  , ACotraversal1
+  , ACotraversal1'
+  , ACxtraversal1
+  , ACxtraversal1'
     -- ** Cofold, Cxfold
   , ACofold
   , ACxfold
+    -- ** Cofold1, Cxfold1
+  , ACofold1
+  , ACxfold1
     -- ** Setter, Ixsetter
   , ASetter
   , ASetter'
   , AIxsetter
   , AIxsetter'
+    -- ** Setter1, Ixsetter1
+  , ASetter1
+  , ASetter1'
+  , AIxsetter1
+  , AIxsetter1'
     -- ** Cosetter, Cxsetter
   , ACosetter
-  , ACxsetter
   , ACosetter'
+  , ACxsetter
   , ACxsetter'
+    -- ** Cosetter1, Cxsetter1
+  , ACosetter1
+  , ACosetter1'
+  , ACxsetter1
+  , ACxsetter1'
     -- ** View
   , AView
   , AReview
   , AIxview
   , ARxview
     -- * Carrier operators
+    -- ** Main
   , withIso
-  , withPrism
-  , withReprism
   , withLens
-  , withRelens
   , withIxlens
+  , withPrism
+  , withPrism'
+  , withTraversal0
+  , withTraversal0'
+    -- ** Dual
   , withColens
   , withCxlens
-  , withPrism'
-  , withAffine
-  , withAffine'
-  , withCoaffine
-  , withCoaffine'
+  , withRelens
+  , withReprism
+  , withCotraversal0
+  , withCotraversal0'
   , withCotraversal
   , withCxtraversal
     -- * Carrier profunctors
+    -- ** Main
   , IsoRep(..)
-  , PrismRep(..)
-  , ReprismRep(..)
   , LensRep(..)
-  , RelensRep(..)
   , IxlensRep(..)
+  , PrismRep(..)
+  , Traversal0Rep(..)
+  , Star(..)
+    -- ** Dual
   , ColensRep(..)
   , CxlensRep(..)
-  , AffineRep(..)
-  , CoaffineRep(..)
+  , RelensRep(..)
+  , ReprismRep(..)
+  , Cotraversal0Rep(..)
   , CotraversalRep(..)
   , CxtraversalRep(..)
-  , Star(..)
   , Costar(..)
   , Tagged(..)
     -- * Paired
@@ -141,12 +171,11 @@ module Data.Profunctor.Optic.Carrier (
   , zipsSorting
 ) where
 
-import Control.Category (Category)
 import Control.Monad.Fix (MonadFix(..))
 import Data.Profunctor.Types as Export (Star(..), Costar(..))
 import Data.Bifunctor as B
 import Data.Function
-import Data.Monoid(Alt(..))
+import Data.Monoid (Alt(..))
 import Data.Profunctor.Choice
 import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Types
@@ -154,7 +183,6 @@ import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
-import qualified Control.Category as C
 import qualified Control.Category as C
 
 -- $setup
@@ -209,13 +237,21 @@ type AIxtraversal f k s t a b = Ixoptic (Star f) k s t a b
 
 type AIxtraversal' f k s a = AIxtraversal f k s s a a
 
-type ATraversal0 s t a b = Optic (AffineRep a b) s t a b
+type ATraversal0 s t a b = Optic (Traversal0Rep a b) s t a b
 
 type ATraversal0' s a = ATraversal0 s s a a
 
-type AIxtraversal0 k s t a b = Ixoptic (AffineRep a b) k s t a b
+type AIxtraversal0 k s t a b = Ixoptic (Traversal0Rep a b) k s t a b
 
 type AIxtraversal0' k s a = AIxtraversal0 k s s a a
+
+type ATraversal1 f s t a b = Optic (Star f) s t a b
+
+type ATraversal1' f s a = ATraversal1 f s s a a
+
+type AIxtraversal1 f k s t a b = Ixoptic (Star f) k s t a b
+
+type AIxtraversal1' f k s a = AIxtraversal1 f k s s a a
 
 ---------------------------------------------------------------------
 -- Fold carriers
@@ -225,9 +261,13 @@ type AFold r s a = ATraversal' (Const r) s a
 
 type AIxfold r k s a = AIxtraversal' (Const r) k s a
 
-type AFold0 r s a = AFold ((Alt Maybe r)) s a
+type AFold0 r s a = AFold (Alt Maybe r) s a
 
 type AIxfold0 r k s a = AIxfold (Alt Maybe r) k s a
+
+type AFold1 r s a = ATraversal1' (Const r) s a
+
+type AIxfold1 r k s a = AIxtraversal1' (Const r) k s a
 
 type AColens s t a b = Optic (ColensRep a b) s t a b
 
@@ -253,13 +293,25 @@ type ACxtraversal f k s t a b = Cxoptic (Costar f) k s t a b
 
 type ACxtraversal' f k t b = ACxtraversal f k t t b b
 
-type ACotraversal0 s t a b = Optic (CoaffineRep a b) s t a b
+type ACotraversal0 s t a b = Optic (Cotraversal0Rep a b) s t a b
 
 type ACotraversal0' s a = ACotraversal0 s s a a
+
+type ACotraversal1 f s t a b = Optic (Costar f) s t a b
+
+type ACotraversal1' f s a = ACotraversal1 f s s a a
+
+type ACxtraversal1 f k s t a b = Cxoptic (Costar f) k s t a b
+
+type ACxtraversal1' f k t b = ACxtraversal1 f k t t b b
 
 type ACofold r t b = ACotraversal' (Const r) t b
 
 type ACxfold r k t b = ACxtraversal' (Const r) k t b
+
+type ACofold1 r t b = ACotraversal1' (Const r) t b
+
+type ACxfold1 r k t b = ACxtraversal1' (Const r) k t b
 
 ---------------------------------------------------------------------
 -- Setter carriers
@@ -273,13 +325,29 @@ type AIxsetter k s t a b = AIxtraversal Identity k s t a b
 
 type AIxsetter' k s a = AIxsetter k s s a a
 
-type ACosetter s t a b = ACotraversal Identity s t a b
+type ASetter1 s t a b = ATraversal1 Identity s t a b
 
-type ACxsetter k s t a b = ACxtraversal Identity k s t a b
+type ASetter1' s a = ASetter1 s s a a
+
+type AIxsetter1 k s t a b = AIxtraversal1 Identity k s t a b
+
+type AIxsetter1' k s a = AIxsetter1 k s s a a
+
+type ACosetter s t a b = ACotraversal Identity s t a b
 
 type ACosetter' s a = ACosetter s s a a
 
+type ACxsetter k s t a b = ACxtraversal Identity k s t a b
+
 type ACxsetter' k t b = ACxsetter k t t b b
+
+type ACosetter1 s t a b = ACotraversal1 Identity s t a b
+
+type ACosetter1' s a = ACosetter1 s s a a
+
+type ACxsetter1 k s t a b = ACxtraversal1 Identity k s t a b
+
+type ACxsetter1' k t b = ACxsetter1 k t t b b
 
 ---------------------------------------------------------------------
 -- View carriers
@@ -303,36 +371,50 @@ withIso :: AIso s t a b -> ((s -> a) -> (b -> t) -> r) -> r
 withIso x k = case x (IsoRep id id) of IsoRep sa bt -> k sa bt
 {-# INLINE withIso #-}
 
--- | Extract the two functions that characterize a 'Prism'.
---
-withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
-withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
-{-# INLINE withPrism #-}
-
--- | Extract the two functions that characterize a 'Reprism'.
---
-withReprism :: AReprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
-withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
-{-# INLINE withReprism #-}
-
 -- | Extract the two functions that characterize a 'Lens'.
 --
 withLens :: ALens s t a b -> ((s -> a) -> (s -> b -> t) -> r) -> r
 withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 {-# INLINE withLens #-}
 
--- | Extract the two functions that characterize a 'Relens'.
---
-withRelens :: ARelens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
-withRelens o f = case o (RelensRep (flip const) id) of RelensRep x y -> f x y
-{-# INLINE withRelens #-}
-
--- | Extract the two functions that characterize a 'Ixlens'.
+-- | Extract the two functions that characterize an 'Ixlens'.
 --
 -- @since 0.0.3
 withIxlens :: Monoid k => AIxlens k s t a b -> ((s -> (k , a)) -> (s -> b -> t) -> r) -> r
 withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
 {-# INLINE withIxlens #-}
+
+-- | Extract the two functions that characterize a 'Prism'.
+--
+withPrism :: APrism s t a b -> ((s -> t + a) -> (b -> t) -> r) -> r
+withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
+{-# INLINE withPrism #-}
+
+-- | Extract the two functions that characterize a simple 'Prism',
+-- with the matcher converted to @'Maybe'@.
+--
+-- @since 0.0.3
+withPrism' :: APrism s s a b -> ((s -> Maybe a) -> (b -> s) -> r) -> r
+withPrism' o f = withPrism o $ \sta bt -> f (either (const Nothing) Just . sta) bt
+{-# INLINE withPrism' #-}
+
+-- | Extract the two functions that characterize a 'Traversal0'.
+--
+withTraversal0 :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
+withTraversal0 o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k x y
+{-# INLINE withTraversal0 #-}
+
+-- | Extract the two functions that characterize a simple 'Traversal0',
+-- with the matcher converted to @'Maybe'@.
+--
+-- @since 0.0.3
+withTraversal0' :: ATraversal0 s s a b -> ((s -> Maybe a) -> (s -> b -> s) -> r) -> r
+withTraversal0' o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k (either (const Nothing) Just . x) y
+{-# INLINE withTraversal0' #-}
+
+---------------------------------------------------------------------
+-- Dual carrier operators
+---------------------------------------------------------------------
 
 -- | Extract the function that characterizes a 'Colens'.
 --
@@ -340,49 +422,41 @@ withColens :: AColens s t a b -> ((((s -> a) -> b) -> t) -> r) -> r
 withColens o f = case o (ColensRep $ \k -> k id) of ColensRep sabt -> f sabt
 {-# INLINE withColens #-}
 
--- | TODO: Document
+-- | Extract the function that characterizes a 'Cxlens'.
 --
 -- @since 0.0.3
 withCxlens :: Monoid k => ACxlens k s t a b -> ((((s -> a) -> k -> b) -> t) -> r) -> r
 withCxlens o f = case o (CxlensRep ($ id)) of CxlensRep saibt -> f $ flip saibt mempty
 {-# INLINE withCxlens #-}
 
--- | Extract the two functions that characterize a simple 'Prism'.
+-- | Extract the two functions that characterize a 'Relens'.
 --
--- @since 0.0.3
-withPrism' :: APrism s s a b -> ((s -> Maybe a) -> (b -> s) -> r) -> r
-withPrism' o f = withPrism o $ \sta bt -> f (either (const Nothing) Just . sta) bt
-{-# INLINE withPrism' #-}
+withRelens :: ARelens s t a b -> ((b -> s -> a) -> (b -> t) -> r) -> r
+withRelens o f = case o (RelensRep (flip const) id) of RelensRep x y -> f x y
+{-# INLINE withRelens #-}
 
--- | TODO: Document
+-- | Extract the two functions that characterize a 'Reprism'.
 --
-withAffine :: ATraversal0 s t a b -> ((s -> t + a) -> (s -> b -> t) -> r) -> r
-withAffine o k = case o (AffineRep Right $ const id) of AffineRep x y -> k x y
-{-# INLINE withAffine #-}
+withReprism :: AReprism s t a b -> ((s -> a) -> (b -> a + t) -> r) -> r
+withReprism o f = case o (ReprismRep id Right) of ReprismRep g h -> f g h
+{-# INLINE withReprism #-}
 
--- | TODO: Document
+-- | Extract the function that characterizes a 'Cotraversal0'.
 --
--- @since 0.0.3
-withAffine' :: ATraversal0 s s a b -> ((s -> Maybe a) -> (s -> b -> s) -> r) -> r
-withAffine' o k = case o (AffineRep Right $ const id) of AffineRep x y -> k (either (const Nothing) Just . x) y
-{-# INLINE withAffine' #-}
-
--- | TODO: Document
---
-withCoaffine :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
-withCoaffine o k = case o (CoaffineRep $ \f -> f Right) of CoaffineRep g -> k g
-{-# INLINE withCoaffine #-}
+withCotraversal0 :: ACotraversal0 s t a b -> ((((s -> t + a) -> b) -> t) -> r) -> r
+withCotraversal0 o k = case o (Cotraversal0Rep $ \f -> f Right) of Cotraversal0Rep g -> k g
+{-# INLINE withCotraversal0 #-}
 
 -- | Extract the function that characterizes a simple 'Cotraversal0',
 -- with the matcher converted to @'Maybe'@.
 --
 -- @since 0.0.3
-withCoaffine' :: ACotraversal0 s s a b -> ((((s -> Maybe a) -> b) -> s) -> r) -> r
-withCoaffine' o k = withCoaffine o $ \stabt ->
+withCotraversal0' :: ACotraversal0 s s a b -> ((((s -> Maybe a) -> b) -> s) -> r) -> r
+withCotraversal0' o k = withCotraversal0 o $ \stabt ->
   k (\f -> stabt (\sta -> f (either (const Nothing) Just . sta)))
-{-# INLINE withCoaffine' #-}
+{-# INLINE withCotraversal0' #-}
 
--- | Extract the function that characterizes a 'Cotraversal'.
+-- | Extract the Van Laarhoven function that characterizes a 'Cotraversal'.
 --
 -- @since 0.0.3
 withCotraversal :: Optic (CotraversalRep a b) s t a b -> ((forall f. Coapplicative f => (f a -> b) -> f s -> t) -> r) -> r
@@ -390,7 +464,7 @@ withCotraversal o k = case o (CotraversalRep $ \fab fa -> fab fa) of
   CotraversalRep h -> k h
 {-# INLINE withCotraversal #-}
 
--- | Extract the function that characterizes a 'Cxtraversal'.
+-- | Extract the Van Laarhoven function that characterizes a 'Cxtraversal'.
 --
 -- @since 0.0.3
 withCxtraversal :: Monoid k => Cxoptic (CxtraversalRep k a b) k s t a b -> ((forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> r) -> r
@@ -420,53 +494,6 @@ instance Cosieve (IsoRep a b) (Coindex b a) where
   cosieve (IsoRep sa bt) (Coindex sab) = bt (sab sa)
 
 ---------------------------------------------------------------------
--- PrismRep
----------------------------------------------------------------------
-
--- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
---
-data PrismRep a b s t = PrismRep (s -> t + a) (b -> t)
-
-instance Profunctor (PrismRep a b) where
-  dimap f g (PrismRep sta bt) = PrismRep (first g . sta . f) (g . bt)
-  {-# INLINE dimap #-}
-
-  lmap f (PrismRep sta bt) = PrismRep (sta . f) bt
-  {-# INLINE lmap #-}
-
-  rmap f (PrismRep sta bt) = PrismRep (first f . sta) (f . bt)
-  {-# INLINE rmap #-}
-
-instance Choice (PrismRep a b) where
-  left' (PrismRep sta bt) = PrismRep (either (first Left . sta) (Left . Right)) (Left . bt)
-  {-# INLINE left' #-}
-
-  right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
-  {-# INLINE right' #-}
-
----------------------------------------------------------------------
--- ReprismRep
----------------------------------------------------------------------
-
--- | The 'ReprismRep' profunctor precisely characterizes a 'Reprism'.
---
-data ReprismRep a b s t = ReprismRep (s -> a) (b -> a + t)
-
-instance Functor (ReprismRep a b s) where
-  fmap f (ReprismRep sa bat) = ReprismRep sa (B.second f . bat)
-  {-# INLINE fmap #-}
-
-instance Profunctor (ReprismRep a b) where
-  lmap f (ReprismRep sa bat) = ReprismRep (sa . f) bat
-  {-# INLINE lmap #-}
-  rmap = fmap
-  {-# INLINE rmap #-}
-
-instance Cochoice (ReprismRep a b) where
-  unleft (ReprismRep sca batc) = ReprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
-  {-# INLINE unleft #-}
-
----------------------------------------------------------------------
 -- LensRep
 ---------------------------------------------------------------------
 
@@ -494,22 +521,6 @@ instance Representable (LensRep a b) where
 
 
 ---------------------------------------------------------------------
--- RelensRep
----------------------------------------------------------------------
-
--- | The 'RelensRep' profunctor precisely characterizes a 'Relens'.
---
-data RelensRep a b s t = RelensRep (b -> s -> a) (b -> t)
-
-instance Profunctor (RelensRep a b) where
-  dimap f g (RelensRep bsa bt) = RelensRep (\b s -> bsa b (f s)) (g . bt)
-
-instance Costrong (RelensRep a b) where
-  unfirst (RelensRep bsca btc) = RelensRep bsa bt
-    where bsa b s = bsca b (s, snd (btc b))
-          bt b    = fst (btc b)
-
----------------------------------------------------------------------
 -- IxlensRep
 ---------------------------------------------------------------------
 
@@ -524,6 +535,80 @@ instance Strong (IxlensRep k a b) where
 
   second' (IxlensRep sia sbt) =
     IxlensRep (\(_, a) -> sia a) (\(c, s) b -> (c, sbt s b))
+
+---------------------------------------------------------------------
+-- PrismRep
+---------------------------------------------------------------------
+
+-- | The 'PrismRep' profunctor precisely characterizes a 'Prism'.
+--
+data PrismRep a b s t = PrismRep (s -> t + a) (b -> t)
+
+instance Profunctor (PrismRep a b) where
+  dimap f g (PrismRep sta bt) = PrismRep (first g . sta . f) (g . bt)
+  {-# INLINE dimap #-}
+
+  lmap f (PrismRep sta bt) = PrismRep (sta . f) bt
+  {-# INLINE lmap #-}
+
+  rmap f (PrismRep sta bt) = PrismRep (first f . sta) (f . bt)
+  {-# INLINE rmap #-}
+
+instance Choice (PrismRep a b) where
+  left' (PrismRep sta bt) = PrismRep (either (first Left . sta) (Left . Right)) (Left . bt)
+  {-# INLINE left' #-}
+
+  right' (PrismRep sta bt) = PrismRep (either (Left . Left) (first Right . sta)) (Right . bt)
+  {-# INLINE right' #-}
+
+---------------------------------------------------------------------
+-- Traversal0Rep
+---------------------------------------------------------------------
+
+-- | The `Traversal0Rep` profunctor precisely characterizes an 'Traversal0'.
+data Traversal0Rep a b s t = Traversal0Rep (s -> t + a) (s -> b -> t)
+
+instance Profunctor (Traversal0Rep a b) where
+  dimap f g (Traversal0Rep sta sbt) = Traversal0Rep
+      (\a -> first g $ sta (f a))
+      (\a v -> g (sbt (f a) v))
+
+instance Strong (Traversal0Rep a b) where
+  first' (Traversal0Rep sta sbt) = Traversal0Rep
+      (\(a, c) -> first (,c) $ sta a)
+      (\(a, c) v -> (sbt a v, c))
+
+instance Choice (Traversal0Rep a b) where
+  right' (Traversal0Rep sta sbt) = Traversal0Rep
+      (\eca -> eassocl (second sta eca))
+      (\eca v -> second (`sbt` v) eca)
+
+instance Sieve (Traversal0Rep a b) (Index0 a b) where
+  sieve (Traversal0Rep sta sbt) s = Index0 (sta s) (sbt s)
+
+instance Representable (Traversal0Rep a b) where
+  type Rep (Traversal0Rep a b) = Index0 a b
+
+  tabulate f = Traversal0Rep (info0 . f) (values0 . f)
+
+data Index0 a b r = Index0 (r + a) (b -> r)
+
+values0 :: Index0 a b r -> b -> r
+values0 (Index0 _ br) = br
+
+info0 :: Index0 a b r -> r + a
+info0 (Index0 a _) = a
+
+instance Functor (Index0 a b) where
+  fmap f (Index0 ra br) = Index0 (first f ra) (f . br)
+
+instance Applicative (Index0 a b) where
+  pure r = Index0 (Left r) (const r)
+  liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
+
+---------------------------------------------------------------------
+-- Dual carrier profunctors
+---------------------------------------------------------------------
 
 ---------------------------------------------------------------------
 -- ColensRep
@@ -564,109 +649,69 @@ instance Closed (CxlensRep k a b) where
   closed (CxlensRep sabt) = CxlensRep $ \xsab x -> sabt $ \sa -> xsab $ \xs -> sa (xs x)
 
 ---------------------------------------------------------------------
--- AffineRep
+-- RelensRep
 ---------------------------------------------------------------------
 
--- | The `AffineRep` profunctor precisely characterizes an 'Traversal0'.
-data AffineRep a b s t = AffineRep (s -> t + a) (s -> b -> t)
-
-instance Profunctor (AffineRep a b) where
-  dimap f g (AffineRep sta sbt) = AffineRep
-      (\a -> first g $ sta (f a))
-      (\a v -> g (sbt (f a) v))
-
-instance Strong (AffineRep a b) where
-  first' (AffineRep sta sbt) = AffineRep
-      (\(a, c) -> first (,c) $ sta a)
-      (\(a, c) v -> (sbt a v, c))
-
-instance Choice (AffineRep a b) where
-  right' (AffineRep sta sbt) = AffineRep
-      (\eca -> eassocl (second sta eca))
-      (\eca v -> second (`sbt` v) eca)
-
-instance Sieve (AffineRep a b) (Index0 a b) where
-  sieve (AffineRep sta sbt) s = Index0 (sta s) (sbt s)
-
-instance Representable (AffineRep a b) where
-  type Rep (AffineRep a b) = Index0 a b
-
-  tabulate f = AffineRep (info0 . f) (values0 . f)
-
-data Index0 a b r = Index0 (r + a) (b -> r)
-
-values0 :: Index0 a b r -> b -> r
-values0 (Index0 _ br) = br
-
-info0 :: Index0 a b r -> r + a
-info0 (Index0 a _) = a
-
-instance Functor (Index0 a b) where
-  fmap f (Index0 ra br) = Index0 (first f ra) (f . br)
-
-instance Applicative (Index0 a b) where
-  pure r = Index0 (Left r) (const r)
-  liftA2 f (Index0 ra1 br1) (Index0 ra2 br2) = Index0 (eswap $ liftA2 f (eswap ra1) (eswap ra2)) (liftA2 f br1 br2)
-
----------------------------------------------------------------------
--- CoaffineRep
----------------------------------------------------------------------
-
---TODO: Corepresentable, Coapplicative (Corep)
-
-{-
-  CoaffineRep's Choice instance is lawful. See the property tests for evidence of this, but it's also worth reasoning through. The always-Left return is not a bug — it's an inherent consequence of the CPS encoding.
-
-  Key reasoning:
-
-  1. CoaffineRep a b s t = ((s -> t + a) -> b) -> t — this is a CPS type where t is produced by running the continuation. There is no "stored" s value — values of s only appear inside the
-  callback.
-  2. left' :: CoaffineRep a b s t -> CoaffineRep a b (s+c) (t+c) — we need to produce t + c. Since the CPS can produce t but has no access to any c value, Left t is the only possibility.
-  3. The left-unit law holds: I verified that lmap Left . left' ≡ rmap Left by tracing through the chain eassocl . fmap eswap . eassocr . first sta . Left and showing it reduces to first
-  Left . sta.
-  4. The adapted callback is correct: The chain eassocl . fmap eswap . eassocr . first sta :: (s+c) -> (t+c)+a correctly extends sta :: s -> t+a by threading the c through — if the input is
-   Right c, the result is Left (Right c) (i.e., pass-through); if the input is Left s, it applies sta and reshuffles.
-  5. Intuition: CoaffineRep is the dual of AffineRep. Just as AffineRep's Strong instance wraps extra context alongside the stored data, CoaffineRep's Choice instance threads extra
-  alternatives through the continuation. The continuation never produces a Right c because the CPS structure only knows how to produce t — the c path is only reachable when the adapted
-  callback is invoked with a Right c input, and in that case the callback itself handles it internally (returning Left (Right c) to the outer adapter, which becomes Left (Right c) in the
-  final result... but wait, we always return Left (stabt ...)).
-
-  The c values do flow through the adapted callback, but the outer CPS always wraps in Left:
-
-  \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
-
-  When the original stabt calls sta :: s -> t + a and gets Left t, it uses that t somehow to produce its own t result. The adapted version calls f (adapted_sta) which may internally handle
-  Right c inputs. But stabt's result is always a t, which gets wrapped in Left.
-
-  This is correct because CoaffineRep represents a cotraversal0 — a "setter-like" optic for the dual (sum) side. It doesn't need to produce Right c because it only transforms the s part,
-  leaving the c untouched at the level of the optic's semantics. The Left wrapper is the CPS way of saying "I modified the s/t component". And so the always-Left pattern in left' is the natural consequence of CPS: the continuation produces a t, and wrapping it in Left is the only way to embed it into t + c.
-
-  Finally, the Closed instance is also correct. The first const trick:
-
-  closed (CoaffineRep stabt) =
-    CoaffineRep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
-
-  Here sta :: s -> t + a and xs :: x -> s, so sta (xs x) :: t + a. Then first const :: t + a -> (x -> t) + a lifts t into a constant function x -> t. This correctly adapts the callback for
-  closed :: p s t -> p (x -> s) (x -> t).
-
-
--}
-
--- | The 'CoaffineRep' profunctor precisely characterizes 'Cotraversal0'.
+-- | The 'RelensRep' profunctor precisely characterizes a 'Relens'.
 --
-newtype CoaffineRep a b s t = CoaffineRep { unCoaffineRep :: ((s -> t + a) -> b) -> t }
+data RelensRep a b s t = RelensRep (b -> s -> a) (b -> t)
 
-instance Profunctor (CoaffineRep a b) where
-  dimap us tv (CoaffineRep stabt) =
-    CoaffineRep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
+instance Profunctor (RelensRep a b) where
+  dimap f g (RelensRep bsa bt) = RelensRep (\b s -> bsa b (f s)) (g . bt)
 
-instance Closed (CoaffineRep a b) where
-  closed (CoaffineRep stabt) =
-    CoaffineRep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+instance Costrong (RelensRep a b) where
+  unfirst (RelensRep bsca btc) = RelensRep bsa bt
+    where bsa b s = bsca b (s, snd (btc b))
+          bt b    = fst (btc b)
 
-instance Choice (CoaffineRep a b) where
-  left' (CoaffineRep stabt) =
-    CoaffineRep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
+---------------------------------------------------------------------
+-- ReprismRep
+---------------------------------------------------------------------
+
+-- | The 'ReprismRep' profunctor precisely characterizes a 'Reprism'.
+--
+data ReprismRep a b s t = ReprismRep (s -> a) (b -> a + t)
+
+instance Functor (ReprismRep a b s) where
+  fmap f (ReprismRep sa bat) = ReprismRep sa (B.second f . bat)
+  {-# INLINE fmap #-}
+
+instance Profunctor (ReprismRep a b) where
+  lmap f (ReprismRep sa bat) = ReprismRep (sa . f) bat
+  {-# INLINE lmap #-}
+  rmap = fmap
+  {-# INLINE rmap #-}
+
+instance Cochoice (ReprismRep a b) where
+  unleft (ReprismRep sca batc) = ReprismRep (sca . Left) (forgetr $ either (eassocl . batc) Right)
+  {-# INLINE unleft #-}
+
+---------------------------------------------------------------------
+-- Cotraversal0Rep
+---------------------------------------------------------------------
+
+-- TODO: Corepresentable, Coapplicative (Corep)
+
+-- | The 'Cotraversal0Rep' profunctor precisely characterizes 'Cotraversal0'.
+--
+-- The 'Choice' instance always wraps in @Left@. This is correct: the CPS
+-- encoding can only produce @t@, never @c@, so @Left t@ is the only way
+-- to embed into @t + c@. See the property tests in @Test.Carrier@ for
+-- verification of the left-unit law.
+--
+newtype Cotraversal0Rep a b s t = Cotraversal0Rep { unCotraversal0Rep :: ((s -> t + a) -> b) -> t }
+
+instance Profunctor (Cotraversal0Rep a b) where
+  dimap us tv (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> tv (stabt $ \sta -> f (first tv . sta . us))
+
+instance Closed (Cotraversal0Rep a b) where
+  closed (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f x -> stabt $ \sta -> f $ \xs -> first const $ sta (xs x)
+
+instance Choice (Cotraversal0Rep a b) where
+  left' (Cotraversal0Rep stabt) =
+    Cotraversal0Rep $ \f -> Left $ stabt $ \sta -> f $ eassocl . fmap eswap . eassocr . first sta
 
 
 ---------------------------------------------------------------------

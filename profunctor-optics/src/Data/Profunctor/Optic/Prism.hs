@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Prism (
     -- * Constructors
     Prism, Prism'
@@ -40,10 +37,9 @@ module Data.Profunctor.Optic.Prism (
   , Cochoice(..)
 ) where
 
-import Control.Monad (guard)
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
-import Data.List (stripPrefix,(++))
+import Data.List (stripPrefix)
 import Data.Profunctor.Choice hiding (tambaraSum, pastroSum)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
@@ -90,7 +86,7 @@ prism sta bt pab = dimap sta (either id bt) (right' pab)
 -- | Obtain a 'Prism'' from a reviewer and a matcher function that produces a 'Maybe'.
 --
 -- /Note/: The arguments are reversed from the equivalent in the /lens/ package.
--- This is unfortunate but done to maintain cosistency with 'traversal0' etc.
+-- This is unfortunate but done to maintain consistency with 'traversal0' etc.
 --
 prism' :: (s -> Maybe a) -> (b -> s) -> Prism s s a b
 prism' sa as = prism (\s -> maybe (Left s) Right (sa s)) as

@@ -1,11 +1,10 @@
-{-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
 -- | Infix operators for profunctor optics.
 --
--- This module collectOf all infix operators in one place. Every operator
+-- This module collects all infix operators in one place. Every operator
 -- is defined in terms of a named function elsewhere in the library, so
 -- users who prefer prefix style can avoid importing this module entirely.
 --

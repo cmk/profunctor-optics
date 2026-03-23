@@ -1,11 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
-{-# OPTIONS_GHC -fno-warn-name-shadowing #-}
 module Data.Profunctor.Optic.Fold (
     -- * Constructors
     -- ** Fold, Ixfold
@@ -16,13 +12,13 @@ module Data.Profunctor.Optic.Fold (
   , foldVl
   , ixfoldVl
   , folding
-  , failing
     -- ** Fold0, Ixfold0
   , Fold0, Ixfold0
   , afold0
   , fold0
   , fold0'
   , ixfold0
+  , failing
     -- ** Fold1, Ixfold1
   , Fold1, Ixfold1
   , fold1_
@@ -121,15 +117,12 @@ module Data.Profunctor.Optic.Fold (
   , Corepresentable(..)
 ) where
 
-import Control.Applicative as A
 import Prelude (Num)
 import Control.Monad (void)
 import Control.Monad.Reader as Reader hiding (lift)
 import Control.Monad.State as State hiding (lift)
-import Data.Foldable (Foldable, traverse_)
+import Data.Foldable (traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe
-import Data.Monoid
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
@@ -220,14 +213,6 @@ folding :: Traversable f => (s -> a) -> Fold (f s) a
 folding f = foldVl traverse . coercedR . lmap f
 {-# INLINE folding #-}
 
-infix 3 `failing`
-
--- | If the first 'Fold0' has no focus then try the second one.
---
-failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
-failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
-{-# INLINE failing #-}
-
 ---------------------------------------------------------------------
 -- Fold0 Constructors
 ---------------------------------------------------------------------
@@ -263,20 +248,20 @@ fold0' :: View s (Maybe a) -> Fold0 s a
 fold0' o pab = o (just pab)
 {-# INLINE fold0' #-}
 
--- | Obtain a 'View' from a 'Fold0'
---
--- > 'viewing' = 'to' . 'preview'
---
-viewing ::  AFold0 a s a -> View s (Maybe a)
-viewing o = coercedR . lmap (preview o)
-{-# INLINE viewing #-}
-
 -- | Obtain an 'Ixfold0' directly.
 --
 -- @since 0.0.3
 ixfold0 :: (s -> Maybe (k, a)) -> Ixfold0 k s a
 ixfold0 g = ixtraversalVl0 (\point f s -> maybe (point s) (uncurry f) $ g s) . coercedR
 {-# INLINE ixfold0 #-}
+
+infix 3 `failing`
+
+-- | If the first 'Fold0' has no focus then try the second one.
+--
+failing :: AFold0 a s a -> AFold0 a s a -> Fold0 s a
+failing a b = fold0 $ \s -> maybe (preview b s) Just (preview a s)
+{-# INLINE failing #-}
 
 ---------------------------------------------------------------------
 -- Fold1 Constructors
@@ -403,38 +388,6 @@ ixfoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
 ixfoldedRep = ixfoldVl F.itraverseRep
 {-# INLINE ixfoldedRep #-}
 
-{-
-import qualified Data.Functor.Foldable as F
-
-aapo :: Corecursive t => ACofold b t (Base t (t + b))
-aapo = acofold F.apo
-{-# INLINE aapo #-}
-
--- | TODO: Document
---
--- >>> import Data.Functor.Foldable (ListF(..))
--- >>> :{
---  let
---    fromListF :: Num a => ListF a (Sum a) -> Sum a
---    fromListF Nil = mempty
---    fromListF (Cons a r) = Sum a <> r
---  in foldMapOf acata fromListF $ [1..5]
--- :}
--- Sum {getSum = 15}
---
-acata :: Recursive s => AFold a s (Base s a)
-acata = afold F.cata
-{-# INLINE acata #-}
-
-apara :: Recursive s => AFold a s (Base s (s , a))
-apara = afold F.para
-{-# INLINE apara #-}
-
-acataA :: Recursive s => AFold (f a) s (Base s (f a))
-acataA = afold F.cataA
-{-# INLINE acataA #-}
--}
-
 ---------------------------------------------------------------------
 -- Fold0 Optics
 ---------------------------------------------------------------------
@@ -558,7 +511,7 @@ foldOfA = flip foldMapOf pure
 -- >>> [[1,2], [3 :: Int64]] ^.. traversed . traversed
 -- [1,2,3]
 --
--- | Collect the fock of an optic into a list.
+-- | Collect the foci of an optic into a list.
 --
 -- @
 -- 'toListOf' 'folded_' = 'Data.Foldable.toList'
@@ -573,7 +526,7 @@ toListOf :: AFold (Endo [a]) s a -> s -> [a]
 toListOf o = foldrOf o (:) []
 {-# INLINE toListOf #-}
 
--- | Collect the fock of an indexed optic into a list of index-value pairs.
+-- | Collect the foci of an indexed optic into a list of index-value pairs.
 --
 -- @
 -- 'toListOf' l ≡ 'map' 'snd' '.' 'ixtoListOf' l
@@ -587,7 +540,7 @@ ixtoListOf :: Monoid k => AIxfold (Endo [(k, a)]) k s a -> s -> [(k, a)]
 ixtoListOf o = ixfoldrOf o (\k a -> ((k,a):)) []
 {-# INLINE ixtoListOf #-}
 
--- | Extract a 'NonEmpty' of the fock of an optic.
+-- | Extract a 'NonEmpty' of the foci of an optic.
 -- | Right fold over an optic.
 --
 -- >>> foldrOf folded (+) 0 [1..5::Int64]
@@ -667,25 +620,6 @@ ixfoldlOf' :: Monoid k => AIxfold (Endo (Endo r)) k s a -> (k -> r -> a -> r) ->
 ixfoldlOf' o f r s = ixfoldrOf o f' (Endo id) s `appEndo` r where f' k x (Endo acc) = Endo $ \z -> acc $! f k z x
 {-# INLINE ixfoldlOf' #-}
 
-{-
-safeHead [] = print "Ouch!" >> return 'x'
-safeHead (x:_) = print x >> return x
-
-foo a r = safeHead a >>= (\x -> return $ x : r)
-
-λ> foldrMOf folded_ foo "" ["alpha","beta","gamma"]
-'g'
-'b'
-'a'
-"abg"
-
-λ> foldlMOf folded_ foo "" ["alpha","beta","gamma"]
-"Ouch!"
-'x'
-'x'
-"xgamma"
--}
-
 -- | Monadic right fold over an optic.
 --
 -- >>> foldrMOf folded_ (\x y -> Identity (x++y)) "" ["foo","bar","baz"]
@@ -748,7 +682,7 @@ ixtraverseOf_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k 
 ixtraverseOf_ p f = ixfoldrOf p (\k a fu -> void (f k a) *> fu) (pure ())
 {-# INLINE ixtraverseOf_ #-}
 
--- | Check whether an optic matchOf any focus.
+-- | Check whether an optic matches any focus.
 --
 -- >>> has just (Just 1)
 -- True
@@ -866,7 +800,7 @@ ixfoldOf0 :: Monoid k => AIxfold0 r k s a -> (k -> a -> Maybe r) -> s -> Maybe r
 ixfoldOf0 o f = curry ((getAlt #.) #. foldMapOf o .# (Alt #.) $ uncurry f) mempty
 {-# INLINE ixfoldOf0 #-}
 
--- | An infk alias for 'preview''.
+-- | An infix alias for 'preview''.
 --
 -- @
 -- ('^?') ≡ 'flip' 'preview''

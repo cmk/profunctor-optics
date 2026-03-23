@@ -228,21 +228,21 @@ compose_grate o f g = liftA2 (==) lhs rhs
 -- * @sta (sbt s a) ≡ either Left (const (Right a)) (sta s)@
 --
 tofrom_traversal0 :: Eq a => Eq s => Traversal0' s a -> s -> a -> Bool
-tofrom_traversal0 o s a = withAffine o $ \sta sbt -> sta (sbt s a) == either Left (const (Right a)) (sta s)
+tofrom_traversal0 o s a = withTraversal0 o $ \sta sbt -> sta (sbt s a) == either Left (const (Right a)) (sta s)
 
 -- | Putting back what you got doesn't change anything.
 --
 -- * @either id (sbt s) (sta s) ≡ s@
 --
 fromto_traversal0 :: Eq s => Traversal0' s a -> s -> Bool
-fromto_traversal0 o s = withAffine o $ \sta sbt -> either id (sbt s) (sta s) == s
+fromto_traversal0 o s = withTraversal0 o $ \sta sbt -> either id (sbt s) (sta s) == s
 
 -- | Setting twice is the same as setting once.
 --
 -- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
 idempotent_traversal0 :: Eq s => Traversal0' s a -> s -> a -> a -> Bool
-idempotent_traversal0 o s a1 a2 = withAffine o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
+idempotent_traversal0 o s a1 a2 = withTraversal0 o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
 
 ---------------------------------------------------------------------
 -- 'Traversal'

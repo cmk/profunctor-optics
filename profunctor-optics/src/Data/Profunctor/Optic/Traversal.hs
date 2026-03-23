@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Traversal (
     -- * Constructors
     -- ** Traversal, Ixtraversal
@@ -115,7 +112,6 @@ module Data.Profunctor.Optic.Traversal (
 
 import Control.Monad.State
 import Control.Applicative.Backwards
-import Data.Function
 import Data.Bitraversable
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Prism
@@ -172,7 +168,7 @@ atraversal f = Star #. f .# runStar
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
--- The resulting optic can detect copies of the lens stucture inside
+-- The resulting optic can detect copies of the lens structure inside
 -- any 'Traversable' container. For example:
 --
 -- >>> toListOf (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
@@ -377,7 +373,7 @@ ixtraversalVl0 f = traversalVl0 $ \cc kab -> f cc (curry kab) . snd
 --
 -- See 'Data.Profunctor.Optic.Property'.
 --
--- The resulting optic can detect copies of the lens stucture inside
+-- The resulting optic can detect copies of the lens structure inside
 -- any 'Traversable' container. For example:
 --
 -- >>> toListOf (traversing snd $ \(s,_) b -> (s,b)) [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
@@ -851,10 +847,9 @@ scanr1Of o f = snd . mapAccumROf o step Nothing where
 -- Left Nothing
 --
 matchOf :: ATraversal0 s t a b -> s -> t + a
-matchOf o = withAffine o $ \sta _ -> sta
+matchOf o = withTraversal0 o $ \sta _ -> sta
 {-# INLINE matchOf #-}
 
--- | Cotraverse over a co-representable optic.
 -- | Cotraverse over a 'Cotraversal'.
 --
 cotraverseOf :: ACotraversal f s t a b -> (f a -> b) -> (f s -> t)

@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
 {-# OPTIONS_GHC -fno-warn-duplicate-exports #-}
 module Data.Profunctor.Optic.Lens (
     -- * Constructors
@@ -47,18 +44,17 @@ module Data.Profunctor.Optic.Lens (
   , ixfirst, ixsecond
   , united
   , voided
-    -- ** Dual Optics
+    -- ** Colens, Cxlens
   , cofirst, cosecond
+  , cxfirst, cxsecond
+  , closed
+  , cxclosed
   , represented
   , distributed
   , endomorphed
   , continued
   , continuedT
   , calledCC
-    -- * Dual Optics
-    -- ** Colens, Cxlens
-  , cxfirst, cxsecond
-  , cxclosed
     -- ** Relens, Rxlens
   , refirst, resecond
     -- * Operators
@@ -88,9 +84,7 @@ module Data.Profunctor.Optic.Lens (
 ) where
 
 import Control.Monad.Cont
-import Data.Distributive
-import Data.Monoid (Endo(..))
-import Data.Profunctor.Closed
+import Data.Profunctor.Closed (Closure(..), Environment(..), curry')
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
@@ -314,7 +308,7 @@ cxlensVl f = grateVl $ \aib -> const . f aib
 -- A 'Colens' lets you lift a profunctor through any representable
 -- functor (aka Naperian container). In the special case where the
 -- indexing type is finitary (e.g. 'Bool') then the tabulated type is
--- isomorphic to a fied length vector (e.g. 'V2 a').
+-- isomorphic to a fixed length vector (e.g. 'V2 a').
 --
 -- The identity container is representable, and representable functors
 -- are closed under composition.
@@ -440,7 +434,6 @@ relens bsa bt = unsecond . dimap (uncurry bsa) (fanout id bt)
 --
 relensVl :: (forall f. Functor f => (t -> f s) -> b -> f a) -> Relens s t a b
 relensVl o = unfirst . dimap (uncurry id . swap) ((fanout info vals) . o (flip Index id))
-  where swap (a, b) = (b, a)
 {-# INLINE relensVl #-}
 
 -- | Obtain a 'Relens' from its free tensor representation.
@@ -536,6 +529,30 @@ cosecond :: Colens a b (c, a) (c, b)
 cosecond = cloneColens unsecondCorep
 {-# INLINE cosecond #-}
 
+-- | TODO: Document
+--
+-- @since 0.0.3
+cxfirst :: Cxlens k a b (a , c) (b , c)
+cxfirst = rmap (unfirst . uncurry . flip) . curry'
+{-# INLINE cxfirst #-}
+
+-- | TODO: Document
+--
+-- @since 0.0.3
+cxsecond :: Cxlens k a b (c , a) (c , b)
+cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
+{-# INLINE cxsecond #-}
+
+-- | TODO: Document
+--
+-- >>> cxover cxclosed (,) (*2) 5
+-- ((),10)
+--
+-- @since 0.0.3
+cxclosed :: Cxlens k (c -> a) (c -> b) a b
+cxclosed = rmap flip . closed
+{-# INLINE cxclosed #-}
+
 -- | Obtain a 'Colens' from a 'F.Representable' functor.
 --
 represented :: F.Representable f => Colens (f a) (f b) a b
@@ -586,34 +603,6 @@ continuedT = grate ContT
 calledCC :: MonadCont m => Colens a (m a) (m b) (m a)
 calledCC = grate callCC
 {-# INLINE calledCC #-}
-
----------------------------------------------------------------------
--- Coindexed Optics
----------------------------------------------------------------------
-
--- | TODO: Document
---
--- @since 0.0.3
-cxfirst :: Cxlens k a b (a , c) (b , c)
-cxfirst = rmap (unfirst . uncurry . flip) . curry'
-{-# INLINE cxfirst #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-cxsecond :: Cxlens k a b (c , a) (c , b)
-cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
-{-# INLINE cxsecond #-}
-
--- | TODO: Document
---
--- >>> cxover cxclosed (,) (*2) 5
--- ((),10)
---
--- @since 0.0.3
-cxclosed :: Cxlens k (c -> a) (c -> b) a b
-cxclosed = rmap flip . closed
-{-# INLINE cxclosed #-}
 
 ---------------------------------------------------------------------
 -- Reversed Optics

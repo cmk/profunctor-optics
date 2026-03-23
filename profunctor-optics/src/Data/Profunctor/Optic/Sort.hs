@@ -1,5 +1,3 @@
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE BangPatterns #-}
 -- | Sort carriers and generic representable sort functions.
 --
 -- The 'Sort' type and combinators live in

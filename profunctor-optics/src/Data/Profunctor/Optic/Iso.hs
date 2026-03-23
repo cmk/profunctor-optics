@@ -1,10 +1,6 @@
-{-# LANGUAGE DeriveGeneric         #-}
 {-# LANGUAGE FlexibleContexts      #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE TupleSections         #-}
-{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.Iso (
     -- * Constructors
@@ -46,7 +42,7 @@ module Data.Profunctor.Optic.Iso (
   , reover
   , withIso
   , re
-    -- * Auxilliary Types
+    -- * Auxiliary Types
   , Re(..)
     -- * Classes
   , Profunctor(..)

@@ -1,10 +1,7 @@
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators    #-}
 {-# LANGUAGE TypeFamilies     #-}
-{-# LANGUAGE TupleSections    #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE PolyKinds #-}
-{-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ConstraintKinds #-}
 
 module Data.Profunctor.Optic.Import (

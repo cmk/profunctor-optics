@@ -220,58 +220,58 @@ prop_setter_idempotent = withTests 100 . property $ do
   assert $ Prop.idempotent_setter traversed xs a b
 
 ---------------------------------------------------------------------
--- CoaffineRep carrier: Profunctor law
+-- Cotraversal0Rep carrier: Profunctor law
 ---------------------------------------------------------------------
 
 -- | Profunctor law: dimap id id ≡ id
 prop_coaffinerep_profunctor_id :: Property
 prop_coaffinerep_profunctor_id = withTests 100 . property $ do
   x <- forAll int
-  let cr :: CoaffineRep Int Int Int Int
-      cr = CoaffineRep $ \f -> f Right
+  let cr :: Cotraversal0Rep Int Int Int Int
+      cr = Cotraversal0Rep $ \f -> f Right
       dimapped = dimap id id cr
-  unCoaffineRep cr (const x) === unCoaffineRep dimapped (const x)
+  unCotraversal0Rep cr (const x) === unCotraversal0Rep dimapped (const x)
 
 ---------------------------------------------------------------------
--- CoaffineRep carrier: Choice instance (left-unit law)
+-- Cotraversal0Rep carrier: Choice instance (left-unit law)
 ---------------------------------------------------------------------
 
 -- | left-unit law: lmap Left . left' ≡ rmap Left
--- Both sides: CoaffineRep Int Int Int (Either Int c)
+-- Both sides: Cotraversal0Rep Int Int Int (Either Int c)
 -- We test by running with the same callback and comparing results.
 prop_coaffinerep_left_unit :: Property
 prop_coaffinerep_left_unit = withTests 100 . property $ do
   x <- forAll int
-  let cr :: CoaffineRep Int Int Int Int
-      cr = CoaffineRep $ \f -> f Right
+  let cr :: Cotraversal0Rep Int Int Int Int
+      cr = Cotraversal0Rep $ \f -> f Right
       -- lhs: lmap Left . left'
-      -- left' cr :: CoaffineRep Int Int (Either Int c) (Either Int c)
-      -- lmap Left :: ... -> CoaffineRep Int Int Int (Either Int c)
+      -- left' cr :: Cotraversal0Rep Int Int (Either Int c) (Either Int c)
+      -- lmap Left :: ... -> Cotraversal0Rep Int Int Int (Either Int c)
       lhs :: Int
-      lhs = case unCoaffineRep (lmap Left (left' cr)) (\g -> case g x of { Left (Left n) -> n; Left (Right _) -> -999; Right n -> n + 1000 }) of
+      lhs = case unCotraversal0Rep (lmap Left (left' cr)) (\g -> case g x of { Left (Left n) -> n; Left (Right _) -> -999; Right n -> n + 1000 }) of
               Left n -> n
               Right _ -> -888
       -- rhs: rmap Left
-      -- rmap Left cr :: CoaffineRep Int Int Int (Either Int c)
+      -- rmap Left cr :: Cotraversal0Rep Int Int Int (Either Int c)
       rhs :: Int
-      rhs = case unCoaffineRep (rmap (Left @Int @Char) cr) (\g -> case g x of { Left (Left n) -> n; Left (Right _) -> -999; Right n -> n + 1000 }) of
+      rhs = case unCotraversal0Rep (rmap (Left @Int @Char) cr) (\g -> case g x of { Left (Left n) -> n; Left (Right _) -> -999; Right n -> n + 1000 }) of
               Left n -> n
               Right _ -> -888
   lhs === rhs
 
 ---------------------------------------------------------------------
--- CoaffineRep carrier: left' always produces Left
+-- Cotraversal0Rep carrier: left' always produces Left
 ---------------------------------------------------------------------
 
 prop_coaffinerep_left_always :: Property
 prop_coaffinerep_left_always = withTests 100 . property $ do
   x <- forAll int
-  let cr :: CoaffineRep Int Int Int Int
-      cr = CoaffineRep $ \f -> f Right
-      left_cr :: CoaffineRep Int Int (Either Int Char) (Either Int Char)
+  let cr :: Cotraversal0Rep Int Int Int Int
+      cr = Cotraversal0Rep $ \f -> f Right
+      left_cr :: Cotraversal0Rep Int Int (Either Int Char) (Either Int Char)
       left_cr = left' cr
       result :: Either Int Char
-      result = unCoaffineRep left_cr $ \sta -> case sta (Left x) of
+      result = unCotraversal0Rep left_cr $ \sta -> case sta (Left x) of
         Left (Left t) -> t
         Left (Right _) -> -888
         Right a -> a + 1000
@@ -280,24 +280,24 @@ prop_coaffinerep_left_always = withTests 100 . property $ do
     Right _ -> failure
 
 ---------------------------------------------------------------------
--- CoaffineRep carrier: Closed instance
+-- Cotraversal0Rep carrier: Closed instance
 ---------------------------------------------------------------------
 
--- | closed instance: closed cr = CoaffineRep $ \f x -> f (\xs -> Right (xs x))
--- The identity CoaffineRep through closed should give back the value via const.
--- unCoaffineRep closed_cr f y = f (\xs -> Right (xs y))
+-- | closed instance: closed cr = Cotraversal0Rep $ \f x -> f (\xs -> Right (xs x))
+-- The identity Cotraversal0Rep through closed should give back the value via const.
+-- unCotraversal0Rep closed_cr f y = f (\xs -> Right (xs y))
 -- With f = \sta -> case sta (const x) of Right a -> a:
 --   sta (const x) = Right (const x y) = Right x  =>  result = x
 prop_coaffinerep_closed :: Property
 prop_coaffinerep_closed = withTests 100 . property $ do
   x <- forAll int
   y <- forAll int
-  let cr :: CoaffineRep Int Int Int Int
-      cr = CoaffineRep $ \f -> f Right
-      closed_cr :: CoaffineRep Int Int (Int -> Int) (Int -> Int)
+  let cr :: Cotraversal0Rep Int Int Int Int
+      cr = Cotraversal0Rep $ \f -> f Right
+      closed_cr :: Cotraversal0Rep Int Int (Int -> Int) (Int -> Int)
       closed_cr = closed cr
       result :: Int -> Int
-      result = unCoaffineRep closed_cr $ \sta ->
+      result = unCotraversal0Rep closed_cr $ \sta ->
         case sta (const x) of
           Left _  -> -999
           Right a -> a
@@ -343,7 +343,7 @@ prop_colensrep_closed = withTests 100 . property $ do
   result y === y
 
 ---------------------------------------------------------------------
--- withCoaffine: round-trip through carrier extraction
+-- withCotraversal0: round-trip through carrier extraction
 ---------------------------------------------------------------------
 
 -- | withPrism' round-trip: matching then rebuilding recovers s
@@ -355,21 +355,21 @@ prop_withPrism_simple = withTests 100 . property $ do
       Nothing -> success
       Just a  -> bt a === s
 
--- | withCoaffine' round-trip
-prop_withCoaffine_simple :: Property
-prop_withCoaffine_simple = withTests 100 . property $ do
+-- | withCotraversal0' round-trip
+prop_withCotraversal0_simple :: Property
+prop_withCotraversal0_simple = withTests 100 . property $ do
   x <- forAll int
   let o :: ACotraversal0 Int Int Int Int
       o = id
-  withCoaffine' o $ \stabt ->
+  withCotraversal0' o $ \stabt ->
     stabt (const x) === x
 
-prop_withCoaffine_identity :: Property
-prop_withCoaffine_identity = withTests 100 . property $ do
+prop_withCotraversal0_identity :: Property
+prop_withCotraversal0_identity = withTests 100 . property $ do
   x <- forAll int
   let o :: ACotraversal0 Int Int Int Int
       o = id
-  withCoaffine o $ \stabt ->
+  withCotraversal0 o $ \stabt ->
     stabt (const x) === x
 
 -- | withColens round-trip
@@ -448,7 +448,7 @@ prop_cotraversalrep_closed = withTests 100 . property $ do
 -- CotraversalRep carrier: Choice instance
 ---------------------------------------------------------------------
 
--- | left' produces Left for the identity rep (same pattern as CoaffineRep)
+-- | left' produces Left for the identity rep (same pattern as Cotraversal0Rep)
 prop_cotraversalrep_left_always :: Property
 prop_cotraversalrep_left_always = withTests 100 . property $ do
   x <- forAll int

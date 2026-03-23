@@ -1,10 +1,7 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TypeFamilies          #-}
 module Data.Profunctor.Optic.Setter (
     -- * Constructors
     -- ** Setter, Ixsetter
@@ -260,7 +257,7 @@ domain = setter lmap
 -- The most common profunctor to use this with is @(->)@.
 --
 -- @
--- (domain ..~ f) g x ≡ f (g x)
+-- (codomain ..~ f) g x ≡ f (g x)
 -- codomain @(->) ≡ 'Data.Profunctor.Optic.Lens.withColens' 'Data.Profunctor.Closed.closed' 'Data.Profunctor.Optic.Setter.closing'
 -- @
 --

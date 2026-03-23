@@ -1,7 +1,6 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
-{-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE FlexibleContexts      #-}
 module Data.Profunctor.Optic.View (
     -- * Constructors
@@ -134,12 +133,15 @@ cloneView o = to (view o)
 
 ---------------------------------------------------------------------
 -- ** Dual Constructors
+-- Note: 'Review' here is the co-dual of 'View' (@Closed + CoercingL@),
+-- which should properly be called @Coview@. The true Re-dual @Review@
+-- (@Costrong + CoercingL@) will be added in a future release (S17.28).
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Review' from an arbitrary function.
 --
 -- @
--- 'from' ≡ 're' . 'to'
+-- 'from' f ≡ 'iso' f 'id' -- restricted to 'Review'
 -- @
 --
 -- >>> review (from Prelude.length) [1,2,3]
@@ -213,14 +215,6 @@ summing l r = from (either (review l) (review r))
 -- * Operators
 ---------------------------------------------------------------------
 
--- | An infix alias for 'view'.
---
--- Fiity and semantics are such that subsequent field accesses can be
--- performed with ('Prelude..').
---
--- >>> ("hello","world") ^. second'
--- "world"
---
 -- | View the focus of an optic.
 --
 -- @
@@ -285,12 +279,14 @@ viewing o = coercedR . lmap (preview o)
 
 ---------------------------------------------------------------------
 -- ** Dual Operators
+-- Note: these use @Closed + CoercingL@ ('Review', to be renamed
+-- @Coview@). They do NOT go through 're' — that would require
+-- @Costrong@, not @Closed@.
 ---------------------------------------------------------------------
 
 -- | Review the focus of an optic.
 --
 -- @
--- 'review' ≡ 'view' '.' 're'
 -- 'review' . 'from' ≡ 'id'
 -- @
 --
@@ -311,7 +307,6 @@ rxview o = rxviews o id
 -- | Turn an optic around and look through the other end, applying a function.
 --
 -- @
--- 'reviews' ≡ 'views' '.' 're'
 -- 'reviews' ('from' f) g ≡ g '.' f
 -- @
 --
@@ -357,7 +352,6 @@ uses l f = gets (views l f)
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --
 -- @
--- 'reuse' ≡ 'use' '.' 're'
 -- 'reuse' '.' 'from' ≡ 'gets'
 -- @
 --
@@ -373,7 +367,6 @@ reuse o = gets (unTagged #. o .# Tagged)
 -- | Turn an optic around and 'use' the current state through it the other way, applying a function.
 --
 -- @
--- 'reuses' ≡ 'uses' '.' 're'
 -- 'reuses' ('from' f) g ≡ 'gets' (g '.' f)
 -- @
 --
