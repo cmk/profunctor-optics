@@ -47,5 +47,5 @@ prop_values_count = property $ do
 prop_toIntMapOfL_keys :: Property
 prop_toIntMapOfL_keys = property $ do
     let xs = [(1, "a"), (2, "b"), (1, "c")] :: [(Int, String)]
-        result = toIntMapOfL fstL xs
+        result = toIntMapOf fstL xs
     IM.keys result === [1, 2]
