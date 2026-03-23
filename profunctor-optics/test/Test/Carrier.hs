@@ -541,15 +541,15 @@ prop_cotraversalrep_roundtrip = withTests 100 . property $ do
   runCotraversalRep cr runIdentity (Identity x) === runCotraversalRep roundtripped runIdentity (Identity x)
 
 ---------------------------------------------------------------------
--- CotraversalRep: withCotraversal round-trip
+-- CotraversalRep: withCotraversalVl round-trip
 ---------------------------------------------------------------------
 
-prop_withCotraversal_identity :: Property
-prop_withCotraversal_identity = withTests 100 . property $ do
+prop_withCotraversalVl_identity :: Property
+prop_withCotraversalVl_identity = withTests 100 . property $ do
   x <- forAll int
   let o :: Optic (CotraversalRep Int Int) Int Int Int Int
       o = id
-  withCotraversal o $ \h ->
+  withCotraversalVl o $ \h ->
     h runIdentity (Identity x) === x
 
 ---------------------------------------------------------------------

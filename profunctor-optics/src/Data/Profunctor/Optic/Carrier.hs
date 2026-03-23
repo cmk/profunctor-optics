@@ -117,8 +117,8 @@ module Data.Profunctor.Optic.Carrier (
   , withReprism
   , withCotraversal0
   , withCotraversal0'
-  , withCotraversal
-  , withCxtraversal
+  , withCotraversalVl
+  , withCxtraversalVl
     -- * Carrier profunctors
     -- ** Main
   , IsoRep(..)
@@ -459,18 +459,18 @@ withCotraversal0' o k = withCotraversal0 o $ \stabt ->
 -- | Extract the Van Laarhoven function that characterizes a 'Cotraversal'.
 --
 -- @since 0.0.3
-withCotraversal :: Optic (CotraversalRep a b) s t a b -> ((forall f. Coapplicative f => (f a -> b) -> f s -> t) -> r) -> r
-withCotraversal o k = case o (CotraversalRep $ \fab fa -> fab fa) of
+withCotraversalVl :: Optic (CotraversalRep a b) s t a b -> ((forall f. Coapplicative f => (f a -> b) -> f s -> t) -> r) -> r
+withCotraversalVl o k = case o (CotraversalRep $ \fab fa -> fab fa) of
   CotraversalRep h -> k h
-{-# INLINE withCotraversal #-}
+{-# INLINE withCotraversalVl #-}
 
 -- | Extract the Van Laarhoven function that characterizes a 'Cxtraversal'.
 --
 -- @since 0.0.3
-withCxtraversal :: Monoid k => Cxoptic (CxtraversalRep k a b) k s t a b -> ((forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> r) -> r
-withCxtraversal o k = case o (CxtraversalRep $ \fakb fa -> fakb fa) of
+withCxtraversalVl :: Monoid k => Cxoptic (CxtraversalRep k a b) k s t a b -> ((forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> r) -> r
+withCxtraversalVl o k = case o (CxtraversalRep $ \fakb fa -> fakb fa) of
   CxtraversalRep h -> k $ \fakb fs -> h fakb fs mempty
-{-# INLINE withCxtraversal #-}
+{-# INLINE withCxtraversalVl #-}
 
 ---------------------------------------------------------------------
 -- IsoRep
