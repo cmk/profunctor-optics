@@ -15,6 +15,7 @@ module Data.Profunctor.Optic.Traversal (
   , beside
   , reversing
   , ix, noix
+  , cloneTraversalVl
     -- ** Traversal0, Ixtraversal0
   , Traversal0, Traversal0'
   , Ixtraversal0, Ixtraversal0'
@@ -24,6 +25,7 @@ module Data.Profunctor.Optic.Traversal (
   , ixtraversal0'
   , traversalVl0
   , ixtraversalVl0
+  , cloneTraversal0
     -- ** Traversal1, Ixtraversal1
   , Traversal1, Traversal1'
   , Ixtraversal1, Ixtraversal1'
@@ -41,6 +43,7 @@ module Data.Profunctor.Optic.Traversal (
   , retraversing
   , cotraversalVl
   , cxtraversalVl
+  , cloneCotraversalVl
     -- ** Cotraversal0, Cxtraversal0
   , Cotraversal0
   , Cotraversal0'
@@ -51,6 +54,7 @@ module Data.Profunctor.Optic.Traversal (
   , retraversing1
   , cotraversalVl1
   , cxtraversalVl1
+  , cloneCotraversal1Vl
     -- * Optics
     -- ** Traversal, Ixtraversal
   , traversed
@@ -284,6 +288,13 @@ ix k o = ixrepresenting $ \f s ->
 noix :: Monoid k => Traversal s t a b -> Ixtraversal k s t a b
 noix o = ixrepresenting $ \iab s -> flip runStar s . o . Star $ iab mempty
 
+-- | Extract the Van Laarhoven function that characterizes a 'Traversal'.
+--
+-- @since 0.0.3
+cloneTraversalVl :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
+cloneTraversalVl = traverseOf
+{-# INLINE cloneTraversalVl #-}
+
 ---------------------------------------------------------------------
 -- Traversal0 Constructors
 ---------------------------------------------------------------------
@@ -351,6 +362,13 @@ traversalVl0 f = dimap (\s -> (s,) <$> eswap (f Right Left s)) (either id (uncur
 ixtraversalVl0 :: (forall f. Functor f => (forall c. c -> f c) -> (k -> a -> f b) -> s -> f t) -> Ixtraversal0 k s t a b
 ixtraversalVl0 f = traversalVl0 $ \cc kab -> f cc (curry kab) . snd
 {-# INLINE ixtraversalVl0 #-}
+
+-- | Clone a 'Traversal0'.
+--
+-- @since 0.0.3
+cloneTraversal0 :: ATraversal0 s t a b -> Traversal0 s t a b
+cloneTraversal0 o = withTraversal0 o traversal0
+{-# INLINE cloneTraversal0 #-}
 
 ---------------------------------------------------------------------
 -- Traversal1 Constructors
@@ -522,6 +540,13 @@ cxtraversalVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> C
 cxtraversalVl f = cotraversalVl $ \akb -> const . f akb
 {-# INLINE cxtraversalVl #-}
 
+-- | Extract the Van Laarhoven function that characterizes a 'Cotraversal'.
+--
+-- @since 0.0.3
+cloneCotraversalVl :: Coapplicative f => ACotraversal f s t a b -> (f a -> b) -> f s -> t
+cloneCotraversalVl = cotraverseOf
+{-# INLINE cloneCotraversalVl #-}
+
 ---------------------------------------------------------------------
 -- Dual Traversal1 Constructors
 ---------------------------------------------------------------------
@@ -591,6 +616,13 @@ cotraversalVl1 abst = cotabulate . abst . cosieve
 cxtraversalVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> t) -> Cxtraversal1 k s t a b
 cxtraversalVl1 f = cotraversalVl1 $ \aib -> const . f aib
 {-# INLINE cxtraversalVl1 #-}
+
+-- | Extract the Van Laarhoven function that characterizes a 'Cotraversal1'.
+--
+-- @since 0.0.3
+cloneCotraversal1Vl :: Coapply f => ACotraversal1 f s t a b -> (f a -> b) -> f s -> t
+cloneCotraversal1Vl = cotraverseOf
+{-# INLINE cloneCotraversal1Vl #-}
 
 ---------------------------------------------------------------------
 -- Optics

@@ -15,6 +15,8 @@ module Data.Profunctor.Optic.Lens (
   , matching
   , cloneLens
   , cloneLensVl
+  , cloneIxlens
+  , cloneIxlensVl
     -- * Dual Constructors
     -- ** Colens, Cxlens
   , Colens, Colens'
@@ -30,6 +32,8 @@ module Data.Profunctor.Optic.Lens (
   , inside
   , cloneColens
   , cloneColensVl
+  , cloneCxlens
+  , cloneCxlensVl
     -- ** Relens, Rxlens
   , Relens, Relens'
   , Rxlens, Rxlens'
@@ -38,6 +42,7 @@ module Data.Profunctor.Optic.Lens (
   , rematching
   , rematching'
   , cloneRelens
+  , cloneRelensVl
     -- * Optics
     -- ** Lens, Ixlens
   , first, second
@@ -236,6 +241,20 @@ cloneLensVl :: ALens s t a b -> (forall f . Functor f => (a -> f b) -> s -> f t)
 cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 {-# INLINE cloneLensVl #-}
 
+-- | Clone an 'Ixlens'.
+--
+-- @since 0.0.3
+cloneIxlens :: Monoid k => AIxlens k s t a b -> Ixlens k s t a b
+cloneIxlens o = withIxlens o $ \ska sbt -> ixlens ska sbt
+{-# INLINE cloneIxlens #-}
+
+-- | Extract the indexed Van Laarhoven form of an 'Ixlens'.
+--
+-- @since 0.0.3
+cloneIxlensVl :: Monoid k => AIxlens k s t a b -> (forall f. Functor f => (k -> a -> f b) -> s -> f t)
+cloneIxlensVl o kab s = withIxlens o $ \ska sbt -> sbt s <$> uncurry kab (ska s)
+{-# INLINE cloneIxlensVl #-}
+
 ---------------------------------------------------------------------
 -- Dual Constructors
 ---------------------------------------------------------------------
@@ -412,6 +431,20 @@ cloneColensVl :: AColens s t a b -> (forall f . Functor f => (f a -> b) -> f s -
 cloneColensVl o ab s = withColens o $ \sabt -> sabt $ \sa -> ab (fmap sa s)
 {-# INLINE cloneColensVl #-}
 
+-- | Clone a 'Cxlens'.
+--
+-- @since 0.0.3
+cloneCxlens :: Monoid k => ACxlens k s t a b -> Cxlens k s t a b
+cloneCxlens o = withCxlens o cxlens
+{-# INLINE cloneCxlens #-}
+
+-- | Extract the coindexed Van Laarhoven form of a 'Cxlens'.
+--
+-- @since 0.0.3
+cloneCxlensVl :: Monoid k => ACxlens k s t a b -> (forall f. Functor f => (f a -> k -> b) -> f s -> t)
+cloneCxlensVl o fab fs = withCxlens o $ \sabt -> sabt $ \sa k -> fab (fmap sa fs) k
+{-# INLINE cloneCxlensVl #-}
+
 ---------------------------------------------------------------------
 -- Reversed Constructors
 ---------------------------------------------------------------------
@@ -457,6 +490,13 @@ rematching' f = unsecond . dimap (uncurry f) (\a -> (a, a))
 cloneRelens :: ARelens s t a b -> Relens s t a b
 cloneRelens o = withRelens o relens
 {-# INLINE cloneRelens #-}
+
+-- | Extract the Van Laarhoven form of a 'Relens'.
+--
+-- @since 0.0.3
+cloneRelensVl :: ARelens s t a b -> (forall f. Functor f => (t -> f s) -> b -> f a)
+cloneRelensVl o tf b = withRelens o $ \bsa bt -> bsa b <$> tf (bt b)
+{-# INLINE cloneRelensVl #-}
 
 ---------------------------------------------------------------------
 -- Optics
