@@ -31,6 +31,11 @@ module Data.Profunctor.Optic.Property (
   , const_relens
   , tofrom_relens
   , idempotent_relens
+    -- * Ixlens
+  , Ixlens
+  , tofrom_ixlens
+  , fromto_ixlens
+  , idempotent_ixlens
     -- * Colens
   , Colens
   , id_grate
@@ -48,6 +53,9 @@ module Data.Profunctor.Optic.Property (
   , pure_traversal
   , compose_traversal
   , compose_traversal1
+    -- * Ixtraversal
+  , Ixtraversal
+  , id_ixtraversal
     -- * Cotraversal
   , Cotraversal
   , compose_cotraversal
@@ -208,6 +216,31 @@ idempotent_relens :: Eq a => Relens' s a -> a -> s -> s -> Bool
 idempotent_relens o a s1 s2 = withRelens o $ \bsa _ -> bsa (bsa a s1) s2 == bsa a s2
 
 ---------------------------------------------------------------------
+-- 'Ixlens'
+---------------------------------------------------------------------
+
+-- | You get back what you put in (indexed).
+--
+-- * @sbt s (snd $ ska s) ≡ s@
+--
+tofrom_ixlens :: (Eq s, Monoid k) => Ixlens' k s a -> s -> Bool
+tofrom_ixlens o s = withIxlens o $ \ska sbt -> sbt s (snd $ ska s) == s
+
+-- | Putting back what you got doesn't change anything (indexed).
+--
+-- * @snd (ska (sbt s a)) ≡ a@
+--
+fromto_ixlens :: (Eq a, Monoid k) => Ixlens' k s a -> s -> a -> Bool
+fromto_ixlens o s a = withIxlens o $ \ska sbt -> snd (ska (sbt s a)) == a
+
+-- | Setting twice is the same as setting once (indexed).
+--
+-- * @sbt (sbt s a1) a2 ≡ sbt s a2@
+--
+idempotent_ixlens :: (Eq s, Monoid k) => Ixlens' k s a -> s -> a -> a -> Bool
+idempotent_ixlens o s a1 a2 = withIxlens o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
+
+---------------------------------------------------------------------
 -- 'Colens'
 ---------------------------------------------------------------------
 
@@ -277,6 +310,17 @@ compose_traversal1 :: Eq (f (g s)) => Apply f => Apply g => Traversal1' s a -> (
 compose_traversal1 o f g s = lhs s == rhs s
   where lhs = fmap (traverseOf o f) . traverseOf o g
         rhs = getCompose . traverseOf o (Compose . fmap f . g)
+
+---------------------------------------------------------------------
+-- 'Ixtraversal'
+---------------------------------------------------------------------
+
+-- | Identity law for indexed traversals.
+--
+-- @'runIdentity' . 'ixtraverseOf' o ('const' 'Identity') ≡ 'id'@
+--
+id_ixtraversal :: (Eq s, Monoid k) => Ixtraversal' k s a -> s -> Bool
+id_ixtraversal o = M.join invertible $ runIdentity . ixtraverseOf o (const Identity)
 
 ---------------------------------------------------------------------
 -- 'Cotraversal'

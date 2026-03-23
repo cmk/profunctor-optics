@@ -10,9 +10,10 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
-import Data.Profunctor.Optic.Lens (grate, lensVl, relens, refirst)
+import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft)
-import Data.Profunctor.Optic.Traversal (traversed, cotraverseOf)
+import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf)
+import Data.Monoid (Sum(..))
 import Data.Profunctor.Optic.Setter (set)
 import Data.Profunctor.Optic.Fold (acofold, cofoldMapOf)
 import Data.Functor.Identity
@@ -83,6 +84,28 @@ prop_lens_idempotent = withTests 100 . property $ do
   a1 <- forAll int
   a2 <- forAll int
   assert $ Prop.idempotent_lens fst_ s a1 a2
+
+---------------------------------------------------------------------
+-- Ixlens
+---------------------------------------------------------------------
+
+prop_ixlens_tofrom :: Property
+prop_ixlens_tofrom = withTests 100 . property $ do
+  s <- forAll $ gen_pair int char
+  assert $ Prop.tofrom_ixlens (ixlens (\(a,b) -> ((), a)) (\(_,b) a -> (a,b))) s
+
+prop_ixlens_fromto :: Property
+prop_ixlens_fromto = withTests 100 . property $ do
+  s <- forAll $ gen_pair int char
+  a <- forAll int
+  assert $ Prop.fromto_ixlens (ixlens (\(a,b) -> ((), a)) (\(_,b) a -> (a,b))) s a
+
+prop_ixlens_idempotent :: Property
+prop_ixlens_idempotent = withTests 100 . property $ do
+  s <- forAll $ gen_pair int char
+  a1 <- forAll int
+  a2 <- forAll int
+  assert $ Prop.idempotent_ixlens (ixlens (\(a,b) -> ((), a)) (\(_,b) a -> (a,b))) s a1 a2
 
 ---------------------------------------------------------------------
 -- Prism
@@ -233,6 +256,15 @@ prop_traversal_compose :: Property
 prop_traversal_compose = withTests 100 . property $ do
   xs <- forAll $ gen_list int
   assert $ Prop.compose_traversal traversed (Identity . (+1)) (Identity . (*2)) xs
+
+---------------------------------------------------------------------
+-- Ixtraversal
+---------------------------------------------------------------------
+
+prop_ixtraversal_id :: Property
+prop_ixtraversal_id = withTests 100 . property $ do
+  xs <- forAll $ gen_list int
+  assert $ Prop.id_ixtraversal (ix (Sum 1) traversed) xs
 
 ---------------------------------------------------------------------
 -- Cosetter
