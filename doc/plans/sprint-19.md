@@ -20,10 +20,14 @@ across containers and with the core library.
 | S19.9 | Tree.Optic | Add depth-indexed traversal |
 | S19.10 | List.Optic | Export non-indexed `traversed`, `folded`, `mapped` wrappers |
 | S19.11 | Map/IntMap.Optic | Unify sort operator naming with sprint 18 renames |
-| S19.12 | Map.Optic | Add dual optics: `zipsMap` Colens, coindexed operators |
-| S19.13 | Sequence.Optic | Add dual optics: `grateSeq` Colens, `cxtraversedSeq` |
-| S19.14 | Tree.Optic | Add dual optics: `cotraversedTree`, `zipsTree` |
-| S19.15 | List.Optic | Re-export `zipListed` Cosetter for discoverability |
+| S19.12 | Map.Optic | Add dual optics: `zipsMap` Colens, `cxzipsMap` Cxlens |
+| S19.13 | IntMap.Optic | Add dual optics: `zipsIntMap` Colens (parity with Map) |
+| S19.14 | Set.Optic | Add dual optics: `zipsSet` Colens (set = predicate grate) |
+| S19.15 | IntSet.Optic | Add dual optics: `zipsIntSet` Colens |
+| S19.16 | Sequence.Optic | Add dual optics: `grateSeq` Colens, `cxtraversedSeq` |
+| S19.17 | Tree.Optic | Add dual optics: `cotraversedTree`, `zipsTree` |
+| S19.18 | List.Optic | Re-export `zipListed` Cosetter, add `zipsListWith` |
+| S19.19 | All | Property tests for container optics |
 | S19.16 | All | Property tests for container optics |
 
 ## S19.1–S19.3 — IntMap parity with Map
@@ -122,7 +126,32 @@ Any container isomorphic to a function from a finite index type
 `Distributive`/`Representable`. See `Data.Word.Optic` in
 profunctor-optics-strings for the pattern (bits8, ibits8, grate8).
 
-### S19.12 — Map dual optics
+### S19.12–S19.15 — Map/IntMap/Set/IntSet dual optics
+
+All finite key-value containers are `Representable` when you fix the
+key set. A set IS a function to `Bool`:
+
+```haskell
+-- Map: grate viewing Map as k → a
+zipsMap :: Ord k => Set k -> Colens (Map k a) (Map k b) (k -> a) (k -> b)
+cxzipsMap :: Ord k => Set k -> Cxlens k (Map k a) (Map k b) a b
+
+-- IntMap: same pattern, Int-keyed
+zipsIntMap :: IntSet -> Colens (IntMap a) (IntMap b) (Int -> a) (Int -> b)
+cxzipsIntMap :: IntSet -> Cxlens Int (IntMap a) (IntMap b) a b
+
+-- Set: grate viewing Set as a → Bool (predicate)
+zipsSet :: Ord a => Set a -> Colens (Set a) (Set a) (a -> Bool) (a -> Bool)
+
+-- IntSet: grate viewing IntSet as Int → Bool
+zipsIntSet :: IntSet -> Colens IntSet IntSet (Int -> Bool) (Int -> Bool)
+```
+
+The Set/IntSet case is particularly nice — `zipsWith zipsSet (||) s1 s2`
+is set union, `zipsWith zipsSet (&&) s1 s2` is intersection, all
+expressed through the grate.
+
+### S19.12 — Map dual optics (detail)
 
 ```haskell
 -- Grate viewing Map as a function from keys (requires fixed key set)
@@ -187,16 +216,19 @@ Phase 2 — Sequence/Tree:
 
 Phase 3 — Dual optics:
   8. S19.12 (Map dual optics)
-  9. S19.13 (Sequence dual optics)
-  10. S19.14 (Tree dual optics)
-  11. S19.15 (List dual re-export)
+  9. S19.13 (IntMap dual optics)
+  10. S19.14 (Set dual optics)
+  11. S19.15 (IntSet dual optics)
+  12. S19.16 (Sequence dual optics)
+  13. S19.17 (Tree dual optics)
+  14. S19.18 (List dual re-export)
 
 Phase 4 — Consistency:
-  12. S19.10 (List non-indexed wrappers)
-  13. S19.11 (naming unification with sprint 18)
+  15. S19.10 (List non-indexed wrappers)
+  16. S19.11 (naming unification with sprint 18)
 
 Phase 5 — Tests:
-  14. S19.16 (property tests)
+  17. S19.19 (property tests)
 
 ## Key files
 
