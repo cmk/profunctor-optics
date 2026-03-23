@@ -10,6 +10,7 @@ module Data.Profunctor.Optic.View (
   , like
   , ixlike
   , cloneView
+  , cloneIxview
     -- * Dual Constructors
   , Review, Rxview
   , from
@@ -33,9 +34,13 @@ module Data.Profunctor.Optic.View (
   , rxviews
     -- * MonadState
   , use
+  , ixuse
   , uses
+  , ixuses
   , reuse
+  , rxuse
   , reuses
+  , rxuses
 ) where
 
 import Control.Monad.Reader as Reader
@@ -131,6 +136,13 @@ cloneView :: AView a s a -> View s a
 cloneView o = to (view o)
 {-# INLINE cloneView #-}
 
+-- | Clone an indexed 'View'.
+--
+-- @since 0.0.3
+cloneIxview :: Monoid k => AIxview k s a -> View s (Maybe k, a)
+cloneIxview o = to (ixview o)
+{-# INLINE cloneIxview #-}
+
 ---------------------------------------------------------------------
 -- ** Dual Constructors
 -- Note: 'Review' here is the co-dual of 'View' (@Closed + CoercingL@),
@@ -182,6 +194,8 @@ unlike t = from (const t)
 cloneReview :: AReview t b -> Review t b
 cloneReview o = from (review o)
 {-# INLINE cloneReview #-}
+
+-- TODO: cloneRxview — needs investigation into Cxoptic' Tagged path
 
 ---------------------------------------------------------------------
 -- * Optics
@@ -340,6 +354,13 @@ use :: MonadState s m => AView a s a -> m a
 use o = gets (view o)
 {-# INLINE use #-}
 
+-- | Indexed 'use': view the focus of an indexed optic in the current state.
+--
+-- @since 0.0.3
+ixuse :: MonadState s m => Monoid k => AIxview k s a -> m (Maybe k, a)
+ixuse o = gets (ixview o)
+{-# INLINE ixuse #-}
+
 -- | Use the target of an optic in the current state.
 --
 -- >>> evalState (uses first length) ("hello","world!")
@@ -348,6 +369,13 @@ use o = gets (view o)
 uses :: MonadState s m => AFold r s a -> (a -> r) -> m r
 uses l f = gets (views l f)
 {-# INLINE uses #-}
+
+-- | Indexed 'uses': apply an indexed function to the focus in the current state.
+--
+-- @since 0.0.3
+ixuses :: MonadState s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
+ixuses o f = gets (ixviews o f)
+{-# INLINE ixuses #-}
 
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --
@@ -376,3 +404,17 @@ reuse o = gets (unTagged #. o .# Tagged)
 reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
 reuses o tr = gets (tr . unTagged #. o .# Tagged)
 {-# INLINE reuses #-}
+
+-- | Coindexed 'reuse': build a coindexed value from the current state.
+--
+-- @since 0.0.3
+rxuse :: MonadState b m => ARxview k t b -> m (k -> t)
+rxuse o = gets (rxview o)
+{-# INLINE rxuse #-}
+
+-- | Coindexed 'reuses': apply a coindexed function from the current state.
+--
+-- @since 0.0.3
+rxuses :: MonadState b m => ARxview k t b -> ((k -> t) -> r) -> m r
+rxuses o f = gets (rxviews o f)
+{-# INLINE rxuses #-}
