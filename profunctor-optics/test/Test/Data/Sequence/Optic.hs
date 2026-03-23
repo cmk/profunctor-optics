@@ -47,11 +47,11 @@ prop_viewedl_roundtrip :: Property
 prop_viewedl_roundtrip = property $ do
     xs <- forAll $ Gen.list (Range.linear 0 20) (Gen.int (Range.linear 0 100))
     let s = Seq.fromList xs
-    review viewedl (view viewedl s) === s
+    coview viewedl (view viewedl s) === s
 
 -- viewedr: iso roundtrip
 prop_viewedr_roundtrip :: Property
 prop_viewedr_roundtrip = property $ do
     xs <- forAll $ Gen.list (Range.linear 0 20) (Gen.int (Range.linear 0 100))
     let s = Seq.fromList xs
-    review viewedr (view viewedr s) === s
+    coview viewedr (view viewedr s) === s

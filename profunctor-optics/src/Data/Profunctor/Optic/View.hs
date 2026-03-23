@@ -12,11 +12,13 @@ module Data.Profunctor.Optic.View (
   , cloneView
   , cloneIxview
     -- * Dual Constructors
-  , Review, Rxview
+    -- ** Coview, Cxview
+  , Coview, Cxview
   , from
-  , rxfrom
+  , cxfrom
   , unlike
-  , cloneReview
+  , cloneCoview
+    -- ** Review, Rxview
     -- * Optics
   , tupling
     -- * Dual Optics
@@ -28,19 +30,19 @@ module Data.Profunctor.Optic.View (
   , ixviews
   , viewing
     -- * Dual Operators
-  , review
-  , rxview
-  , reviews
-  , rxviews
+  , coview
+  , cxview
+  , coviews
+  , cxviews
     -- * MonadState
   , use
   , ixuse
   , uses
   , ixuses
-  , reuse
-  , rxuse
-  , reuses
-  , rxuses
+  , couse
+  , cxuse
+  , couses
+  , cxuses
 ) where
 
 import Control.Monad.Reader as Reader
@@ -150,34 +152,34 @@ cloneIxview o = to (ixview o)
 -- (@Costrong + CoercingL@) will be added in a future release (S17.28).
 ---------------------------------------------------------------------
 
--- | Obtain a 'Review' from an arbitrary function.
+-- | Obtain a 'Coview' from an arbitrary function.
 --
 -- @
--- 'from' f ≡ 'iso' f 'id' -- restricted to 'Review'
+-- 'from' f ≡ 'iso' f 'id' -- restricted to 'Coview'
 -- @
 --
--- >>> review (from Prelude.length) [1,2,3]
+-- >>> coview (from Prelude.length) [1,2,3]
 -- 3
 --
 -- @
--- 'from' :: (b -> t) -> 'Review' t b
+-- 'from' :: (b -> t) -> 'Coview' t b
 -- @
 --
-from :: (b -> t) -> Review t b
+from :: (b -> t) -> Coview t b
 from f = coercedL . rmap f
 {-# INLINE from #-}
 
 -- | TODO: Document
 --
--- >>> cxfoldMapOf (rxfrom Map.mapWithKey # rxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfoldMapOf (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
-rxfrom :: ((k -> b) -> t) -> Rxview k t b
-rxfrom f = coercedL . rmap (\ib _ -> f ib)
-{-# INLINE rxfrom #-}
+cxfrom :: ((k -> b) -> t) -> Cxview k t b
+cxfrom f = coercedL . rmap (\ib _ -> f ib)
+{-# INLINE cxfrom #-}
 
--- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
+-- | Obtain a constant-valued (index-preserving) 'Coview' from an arbitrary value.
 --
 -- @
 -- 'unlike' a '.' 'unlike' b ≡ 'unlike' a
@@ -185,17 +187,17 @@ rxfrom f = coercedL . rmap (\ib _ -> f ib)
 -- 'unlike' a '.^' b ≡ 'from' ('const' a) '#' b
 -- @
 --
-unlike :: t -> Review t b
+unlike :: t -> Coview t b
 unlike t = from (const t)
 {-# INLINE unlike #-}
 
 -- | TODO: Document
 --
-cloneReview :: AReview t b -> Review t b
-cloneReview o = from (review o)
-{-# INLINE cloneReview #-}
+cloneCoview :: ACoview t b -> Coview t b
+cloneCoview o = from (coview o)
+{-# INLINE cloneCoview #-}
 
--- TODO: cloneRxview — needs investigation into Cxoptic' Tagged path
+-- TODO: cloneCxview — needs investigation into Cxoptic' Tagged path
 
 ---------------------------------------------------------------------
 -- * Optics
@@ -215,14 +217,14 @@ tupling l r = to (fanout (view l) (view r))
 -- ** Dual Optics
 ---------------------------------------------------------------------
 
--- | Combine two 'Review's into a 'Review' from a sum.
+-- | Combine two 'Coview's into a 'Coview' from a sum.
 --
 -- @
--- 'summing' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
+-- 'summing' :: 'Coview' t b1 -> 'Coview' t b2 -> 'Coview' t (b1 + b2)
 -- @
 --
-summing :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
-summing l r = from (either (review l) (review r))
+summing :: ACoview t b1 -> ACoview t b2 -> Coview t (b1 + b2)
+summing l r = from (either (coview l) (coview r))
 {-# INLINE summing #-}
 
 ---------------------------------------------------------------------
@@ -293,56 +295,53 @@ viewing o = coercedR . lmap (preview o)
 
 ---------------------------------------------------------------------
 -- ** Dual Operators
--- Note: these use @Closed + CoercingL@ ('Review', to be renamed
--- @Coview@). They do NOT go through 're' — that would require
--- @Costrong@, not @Closed@.
 ---------------------------------------------------------------------
 
--- | Review the focus of an optic.
+-- | Coview the focus of an optic.
 --
 -- @
--- 'review' . 'from' ≡ 'id'
+-- 'coview' . 'from' ≡ 'id'
 -- @
 --
--- >>> review left' 4
+-- >>> coview left' 4
 -- Left 4
 --
-review :: AReview t b -> b -> t
-review o = reviews o id
-{-# INLINE review #-}
+coview :: ACoview t b -> b -> t
+coview o = coviews o id
+{-# INLINE coview #-}
 
 -- | Bring a function of the index of a co-indexed optic into the current environment.
 --
 -- @since 0.0.3
-rxview :: ARxview k t b -> b -> (k -> t)
-rxview o = rxviews o id
-{-# INLINE rxview #-}
+cxview :: ACxview k t b -> b -> (k -> t)
+cxview o = cxviews o id
+{-# INLINE cxview #-}
 
 -- | Turn an optic around and look through the other end, applying a function.
 --
 -- @
--- 'reviews' ('from' f) g ≡ g '.' f
+-- 'coviews' ('from' f) g ≡ g '.' f
 -- @
 --
--- >>> reviews left isRight "mustard"
+-- >>> coviews left isRight "mustard"
 -- False
--- >>> reviews (from succ) (*2) 3
+-- >>> coviews (from succ) (*2) 3
 -- 8
 --
-reviews :: AReview t b -> (t -> r) -> b -> r
-reviews o f = f . unTagged #. o .# Tagged
-{-# INLINE reviews #-}
+coviews :: ACoview t b -> (t -> r) -> b -> r
+coviews o f = f . unTagged #. o .# Tagged
+{-# INLINE coviews #-}
 
 -- | Bring a continuation of the index of a co-indexed optic into the current environment.
 --
 -- @
--- rxviews :: ARxview k t b -> ((k -> t) -> r) -> b -> r
+-- cxviews :: ACxview k t b -> ((k -> t) -> r) -> b -> r
 -- @
 --
 -- @since 0.0.3
-rxviews :: ARxview k t b -> ((k -> t) -> r) -> b -> r
-rxviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
-{-# INLINE rxviews #-}
+cxviews :: ACxview k t b -> ((k -> t) -> r) -> b -> r
+cxviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
+{-# INLINE cxviews #-}
 
 ---------------------------------------------------------------------
 -- * MonadState
@@ -380,41 +379,41 @@ ixuses o f = gets (ixviews o f)
 -- | Turn an optic around and 'use' a value (or the current environment) through it the other way.
 --
 -- @
--- 'reuse' '.' 'from' ≡ 'gets'
+-- 'couse' '.' 'from' ≡ 'gets'
 -- @
 --
--- >>> evalState (reuse left) 5
+-- >>> evalState (couse left) 5
 -- Left 5
--- >>> evalState (reuse (from succ)) 5
+-- >>> evalState (couse (from succ)) 5
 -- 6
 --
-reuse :: MonadState b m => AReview t b -> m t
-reuse o = gets (unTagged #. o .# Tagged)
-{-# INLINE reuse #-}
+couse :: MonadState b m => ACoview t b -> m t
+couse o = gets (unTagged #. o .# Tagged)
+{-# INLINE couse #-}
 
 -- | Turn an optic around and 'use' the current state through it the other way, applying a function.
 --
 -- @
--- 'reuses' ('from' f) g ≡ 'gets' (g '.' f)
+-- 'couses' ('from' f) g ≡ 'gets' (g '.' f)
 -- @
 --
--- >>> evalState (reuses left isLeft) (5 :: Int)
+-- >>> evalState (couses left isLeft) (5 :: Int)
 -- True
 --
-reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
-reuses o tr = gets (tr . unTagged #. o .# Tagged)
-{-# INLINE reuses #-}
+couses :: MonadState b m => ACoview t b -> (t -> r) -> m r
+couses o tr = gets (tr . unTagged #. o .# Tagged)
+{-# INLINE couses #-}
 
--- | Coindexed 'reuse': build a coindexed value from the current state.
+-- | Coindexed 'couse': build a coindexed value from the current state.
 --
 -- @since 0.0.3
-rxuse :: MonadState b m => ARxview k t b -> m (k -> t)
-rxuse o = gets (rxview o)
-{-# INLINE rxuse #-}
+cxuse :: MonadState b m => ACxview k t b -> m (k -> t)
+cxuse o = gets (cxview o)
+{-# INLINE cxuse #-}
 
--- | Coindexed 'reuses': apply a coindexed function from the current state.
+-- | Coindexed 'couses': apply a coindexed function from the current state.
 --
 -- @since 0.0.3
-rxuses :: MonadState b m => ARxview k t b -> ((k -> t) -> r) -> m r
-rxuses o f = gets (rxviews o f)
-{-# INLINE rxuses #-}
+cxuses :: MonadState b m => ACxview k t b -> ((k -> t) -> r) -> m r
+cxuses o f = gets (cxviews o f)
+{-# INLINE cxuses #-}

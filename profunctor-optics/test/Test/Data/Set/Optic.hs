@@ -33,4 +33,4 @@ prop_folded_ascending = property $ do
 prop_listed_roundtrip :: Property
 prop_listed_roundtrip = property $ do
     s <- forAll genSet
-    review listed (view listed s) === s
+    coview listed (view listed s) === s

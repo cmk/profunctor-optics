@@ -28,6 +28,12 @@ across containers and with the core library.
 | S19.17 | Tree.Optic | Add dual optics: `cotraversedTree`, `zipsTree` |
 | S19.18 | List.Optic | Re-export `zipListed` Cosetter, add `zipsListWith` |
 | S19.19 | All | Property tests for container optics |
+| S19.20 | View.hs | Review/Rxview API: constructors, operators, MonadState |
+| S19.21 | Prism.hs, Carrier.hs | Ixprism/Rxprism: ixleft/ixright/ixjust optics, Rxprism constructors |
+| S19.22 | Setter.hs | cxsetter/cxsetter1 constructors (Cxoptic threading) |
+| S19.23 | View.hs | cloneRxview (Cxoptic' Tagged path) |
+| S19.24 | Property.hs, Test/ | Ixprism/Rxprism property predicates and hedgehog tests |
+| S19.25 | Bench.hs, bench/ | Benchmark validation for Sprint 17 changes |
 | S19.16 | All | Property tests for container optics |
 
 ## S19.1–S19.3 — IntMap parity with Map
@@ -227,8 +233,98 @@ Phase 4 — Consistency:
   15. S19.10 (List non-indexed wrappers)
   16. S19.11 (naming unification with sprint 18)
 
-Phase 5 — Tests:
-  17. S19.19 (property tests)
+Phase 5 — Carry-forward from Sprint 17:
+  17. S19.20 (Review/Rxview API in View.hs)
+  18. S19.21 (Ixprism/Rxprism: remaining optics, Rxprism constructors, property tests)
+  19. S19.22 (cxsetter/cxsetter1 constructors)
+  20. S19.23 (cloneRxview)
+  21. S19.24 (Ixprism/Rxprism property predicates and hedgehog tests)
+  22. S19.25 (Benchmark validation for Sprint 17 changes)
+
+Phase 6 — Tests:
+  23. S19.19 (property tests for container optics)
+
+## S19.20 — Review/Rxview API
+
+`Review = Costrong + CoercingL` is the true Re-dual of `View`. Needs:
+
+```haskell
+-- Constructors (View.hs)
+reinto :: (b -> t) -> Review t b       -- dual of 'to', via re
+cloneReview :: AReview t b -> Review t b
+
+-- Operators (View.hs)
+review :: AReview t b -> b -> t        -- distinct from coview
+reviews :: AReview t b -> (t -> r) -> b -> r
+
+-- Rxview (indexed Review)
+type Rxview k t b = forall p. (Costrong p, CoercingL p) => Ixoptic' p k t b
+rxinto :: ((k -> b) -> t) -> Rxview k t b
+```
+
+Note: `AReview = Optic' Tagged t b` is the same carrier as `ACoview`
+since `Tagged` is both `Closed` and `Costrong`. The distinction is
+in the polymorphic constraint, not the carrier.
+
+## S19.21 — Ixprism/Rxprism remaining
+
+Carry-forward from S17.25. Types and basic constructors done. Remaining:
+
+```haskell
+-- Optics (Prism.hs)
+ixleft  :: Ixprism k (a + c) (b + c) a b
+ixright :: Ixprism k (c + a) (c + b) a b
+ixjust  :: Ixprism k (Maybe a) (Maybe b) a b
+
+-- Rxprism constructors (Prism.hs)
+rxprism  :: (s -> (k, a)) -> (b -> (k, a) + t) -> Rxprism k s t a b
+rxprism' :: (s -> (k, a)) -> ((k, a) -> Maybe s) -> Rxprism' k s a
+cloneRxprism :: ARxprism k s t a b -> Rxprism k s t a b
+
+-- Operators
+ixaside :: AIxprism k s t a b -> Ixprism k (e, s) (e, t) (e, a) (e, b)
+```
+
+## S19.22 — cxsetter/cxsetter1
+
+Deferred from S17.27. The Cxoptic threading pattern (`p a (k -> b)`)
+makes the standard `cosetter`-style construction non-trivial. Needs
+investigation into how `coindexing` composes with `corepresenting`
+for the coindexed case.
+
+## S19.23 — cloneRxview
+
+Deferred from S17.26. Cloning through the `Cxoptic' Tagged` path
+requires understanding how `Tagged` interacts with the coindex
+function space `k -> b`.
+
+## S19.24 — Ixprism/Rxprism property tests
+
+```haskell
+-- Property.hs
+tofrom_ixprism    :: (Eq s, Monoid k) => Ixprism' k s a -> s -> Bool
+fromto_ixprism    :: (Eq s, Eq a, Eq k, Monoid k) => Ixprism' k s a -> a -> Bool
+idempotent_ixprism :: (Eq s, Eq a, Eq k, Monoid k) => Ixprism' k s a -> s -> Bool
+
+-- Test/Carrier.hs
+prop_ixprism_tofrom :: Property
+prop_ixprism_fromto :: Property
+prop_ixprism_idempotent :: Property
+```
+
+## S19.25 — Benchmark validation
+
+Verify Sprint 17 changes don't regress performance:
+
+- cotraversal0 constructor (new): benchmark vs direct CPS
+- Cofold constraint fix (Coaffine): verify cofoldMapOf still zero-cost
+- coview/coviews rename: verify no regression vs old review
+- Ixprism constructors: benchmark withIxprism extraction
+- New clone functions: verify cloneTraversal0, cloneCotraversal0
+- New fold constructors: benchmark ixfoldVl, cxfoldVl paths
+
+Run the existing benchmark suite and compare against the baseline
+from Sprint 16.
 
 ## Key files
 

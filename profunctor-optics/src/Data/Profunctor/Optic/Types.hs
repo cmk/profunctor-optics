@@ -94,9 +94,11 @@ module Data.Profunctor.Optic.Types (
     -- ** Cofold1, Cxfold1
     -- $cofold1
   , Cofold1, Cxfold1
-    -- ** Review, Rxview
+    -- ** Coview, Cxview
     -- $review
-  , Review, Rxview
+  , Coview, Cxview
+    -- ** Review
+  , Review
     -- ** Cosetter, Cxsetter
     -- $cosetter
   , Cosetter, Cosetter'
@@ -347,7 +349,7 @@ type Cxlens' k t b = Cxlens k t t b b
 --
 -- \( \mathsf{Rxlens}\;K\;S\;A = \exists C, A \cong C \times (K \times S) \) (Re-reversed)
 --
--- The 'Re'-dual of 'Lens'. A 'Relens' is simultaneously a 'View' and a 'Review'.
+-- The 'Re'-dual of 'Lens'. A 'Relens' is simultaneously a 'View' and a 'Coview'.
 --
 -- @
 -- 're' :: 'Lens' s t a b -> 'Relens' b a t s
@@ -366,7 +368,7 @@ type Rxlens' k s a = Rxlens k s s a a
 --
 -- \( \mathsf{Rxprism}\;K\;S\;A = \exists C, A \cong C + (K \times S) \) (Re-reversed)
 --
--- The 'Re'-dual of 'Prism'. A 'Reprism' is simultaneously a 'View' and a 'Review'.
+-- The 'Re'-dual of 'Prism'. A 'Reprism' is simultaneously a 'View' and a 'Coview'.
 --
 -- @
 -- 're' :: 'Prism' s t a b -> 'Reprism' b a t s
@@ -447,19 +449,27 @@ type Cofold1 t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Optic' 
 type Cxfold1 k t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Cxoptic' p k t b
 
 -- $review
--- \( \mathsf{Review}\;T\;B = B \to T \)
+-- \( \mathsf{Coview}\;T\;B = B \to T \)
 --
--- \( \mathsf{Rxview}\;K\;T\;B = (K \to B) \to T \)
+-- \( \mathsf{Cxview}\;K\;T\;B = (K \to B) \to T \)
+
+type Coview t b = forall p. (Closed p, CoercingL p) => Optic' p t b
+
+type Cxview k t b = forall p. (Closed p, CoercingL p) => Cxoptic' p k t b
+
+---------------------------------------------------------------------
+-- Review
+---------------------------------------------------------------------
+
+-- | \( \mathsf{Review}\;T\;B = B \to T \)
 --
--- /Note/: 'Review' currently uses @('Closed' p, 'CoercingL' p)@. By the
--- library's naming conventions this should be called @Coview@ (co-dual of
--- 'View', like 'Colens' is co-dual of 'Lens'). The true @Review@
--- (Re-dual, @'Costrong' p, 'CoercingL' p@) will be added in a future
--- release. See S17.28 in the sprint plan.
-
-type Review t b = forall p. (Closed p, CoercingL p) => Optic' p t b
-
-type Rxview k t b = forall p. (Closed p, CoercingL p) => Cxoptic' p k t b
+-- The 'Re'-dual of 'View'. @'re' :: 'View' s a -> 'Review' a s@.
+--
+-- Note: 'Review' (@'Costrong' + 'CoercingL'@) is distinct from 'Coview'
+-- (@'Closed' + 'CoercingL'@). 'Coview' is the co-dual of 'View' (like
+-- 'Colens' is to 'Lens'), while 'Review' is the 'Re'-dual (like 'Relens').
+--
+type Review t b = forall p. (Costrong p, CoercingL p) => Optic' p t b
 
 -- $cosetter
 -- \( \quad \mathsf{Cosetter}\;S\;A = \exists n : \mathbb{N}, S \cong \mathsf{Fin}\,n \to A \)
@@ -579,6 +589,8 @@ instance Bifunctor p => Contravariant (Re p s t a) where
 -- 're' :: 'Iso' s t a b    -> 'Iso' b a t s
 -- 're' :: 'Lens' s t a b   -> 'Relens' b a t s
 -- 're' :: 'Prism' s t a b  -> 'Reprism' b a t s
+-- 're' :: 'View' s a       -> 'Review' a s
+-- 're' :: 'Review' t b     -> 'View' b t
 -- @
 --
 -- Note: this is not the same as the categorical co-dual ('Colens', 'Cotraversal', etc.),

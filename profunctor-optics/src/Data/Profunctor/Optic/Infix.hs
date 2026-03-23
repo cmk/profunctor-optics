@@ -141,8 +141,8 @@ infix  4  .=, ..=
 --            view             toList           preview
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
 --   Ix      (^%)  'V.ixview'  (^%%)  'F.ixtoListOf'
---   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
---   Cx      (^#)  'V.rxview'  (^##)  'F.cxfoldMapOf'
+--   Co      (^/)  'V.coview'  (^//)  'F.cofoldOfA'
+--   Cx      (^#)  'V.cxview'  (^##)  'F.cxfoldMapOf'
 -- @
 
 -- | View through an optic.
@@ -260,12 +260,12 @@ infix  4  .=, ..=
 -- View (co-dual)
 ---------------------------------------------------------------------
 
--- | Review (co-dual view): build a structure from a value.
+-- | Coview (co-dual view): build a structure from a value.
 --
--- @o '^/' b ≡ 'V.review' o b@
+-- @o '^/' b ≡ 'V.coview' o b@
 --
-(^/) :: AReview t b -> b -> t
-(^/) = V.review
+(^/) :: ACoview t b -> b -> t
+(^/) = V.coview
 {-# INLINE (^/) #-}
 
 -- | Co-dual fold to a list.
@@ -276,12 +276,12 @@ infix  4  .=, ..=
 (^//) = F.cofoldOfA
 {-# INLINE (^//) #-}
 
--- | Indexed co-dual view (indexed review).
+-- | Coindexed co-dual view (coindexed coview).
 --
--- @o '^#' b ≡ 'V.rxview' o b@
+-- @o '^#' b ≡ 'V.cxview' o b@
 --
-(^#) :: ARxview k t b -> b -> (k -> t)
-(^#) = V.rxview
+(^#) :: ACxview k t b -> b -> (k -> t)
+(^#) = V.cxview
 {-# INLINE (^#) #-}
 
 -- | Coindexed cofold: apply a coindexed observation to build a result.

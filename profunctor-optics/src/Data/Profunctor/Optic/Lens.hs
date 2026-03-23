@@ -72,7 +72,7 @@ module Data.Profunctor.Optic.Lens (
   , withIxlens
     -- * Dual Operators
     -- ** Colens, Cxlens
-  , coview
+  , coview_
   , cxzips
   , zipsWith
   , zipsWith3
@@ -704,11 +704,11 @@ tambara o p = withLens o $ \sa sbt -> Tambara (first' . lens sa sbt $ p)
 
 -- | Set all fields to the given value.
 --
--- Compare 'Data.Profunctor.Optic.View.review'.
+-- Compare 'Data.Profunctor.Optic.View.coview'.
 --
-coview :: AColens s t a b -> b -> t
-coview o b = withColens o $ \sabt -> sabt (const b)
-{-# INLINE coview #-}
+coview_ :: AColens s t a b -> b -> t
+coview_ o b = withColens o $ \sabt -> sabt (const b)
+{-# INLINE coview_ #-}
 
 -- | TODO: Document
 --
