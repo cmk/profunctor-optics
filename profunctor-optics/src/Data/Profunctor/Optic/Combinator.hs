@@ -190,6 +190,14 @@ cxunit p = dimap fork apply (first' p)
 cxstrength :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
 cxstrength = dimap fst (B.first @(,))
 
+-- | An optic on the representation types rather than on the data
+--
+-- The type denotes an 'Iso' (over an outer profunctor q) between 'Cx'' p a b and 'Pastro' p a b.
+-- The p is fixed, the 'Iso' is polymorphic in the outer profunctor.
+--
+-- cxpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
+-- cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
+
 ---------------------------------------------------------------------
 -- Transforms
 ---------------------------------------------------------------------

@@ -22,6 +22,8 @@ module Data.Profunctor.Optic.Carrier (
     -- ** Prism
   , APrism
   , APrism'
+  , AIxprism
+  , AIxprism'
     -- ** Traversal, Ixtraversal
   , ATraversal
   , ATraversal'
@@ -54,9 +56,11 @@ module Data.Profunctor.Optic.Carrier (
   , ARelens'
   , ACxlens
   , ACxlens'
-    -- ** Reprism
+    -- ** Reprism, Rxprism
   , AReprism
   , AReprism'
+  , ARxprism
+  , ARxprism'
     -- ** Cotraversal, Cxtraversal
   , ACotraversal
   , ACotraversal'
@@ -108,6 +112,7 @@ module Data.Profunctor.Optic.Carrier (
   , withIxlens
   , withPrism
   , withPrism'
+  , withIxprism
   , withTraversal0
   , withTraversal0'
     -- ** Dual
@@ -225,6 +230,10 @@ type APrism s t a b = Optic (PrismRep a b) s t a b
 
 type APrism' s a = APrism s s a a
 
+type AIxprism k s t a b = Ixoptic (PrismRep a b) k s t a b
+
+type AIxprism' k s a = AIxprism k s s a a
+
 ---------------------------------------------------------------------
 -- Traversal carriers
 ---------------------------------------------------------------------
@@ -284,6 +293,10 @@ type ACxlens' k s a = ACxlens k s s a a
 type AReprism s t a b = Optic (ReprismRep a b) s t a b
 
 type AReprism' s a = AReprism s s a a
+
+type ARxprism k s t a b = Ixoptic (ReprismRep a b) k s t a b
+
+type ARxprism' k s a = ARxprism k s s a a
 
 type ACotraversal f s t a b = Optic (Costar f) s t a b
 
@@ -397,6 +410,14 @@ withPrism o f = case o (PrismRep Right id) of PrismRep g h -> f g h
 withPrism' :: APrism s s a b -> ((s -> Maybe a) -> (b -> s) -> r) -> r
 withPrism' o f = withPrism o $ \sta bt -> f (either (const Nothing) Just . sta) bt
 {-# INLINE withPrism' #-}
+
+-- | Extract the two functions that characterize an 'Ixprism'.
+--
+-- @since 0.0.3
+withIxprism :: Monoid k => AIxprism k s t a b -> ((s -> t + (k , a)) -> (b -> t) -> r) -> r
+withIxprism o f = case o (PrismRep (Right . snd) id) of
+  PrismRep g h -> f (\s -> fmap (mempty,) (g (mempty, s))) h
+{-# INLINE withIxprism #-}
 
 -- | Extract the two functions that characterize a 'Traversal0'.
 --

@@ -4,30 +4,37 @@
 {-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.Prism (
     -- * Constructors
+    -- ** Prism, Ixprism
     Prism, Prism'
+  , Ixprism, Ixprism'
   , prism, prism'
+  , ixprism, ixprism'
   , handling
   , clonePrism
-    -- * Dual Constructors
+  , cloneIxprism
+    -- ** Reprism, Rxprism
   , Reprism, Reprism'
+  , Rxprism, Rxprism'
   , reprism, reprism'
   , rehandling
   , rehandling'
   , cloneReprism
     -- * Optics
+    -- ** Prism, Ixprism
   , left, right
   , just, nothing
   , prefixed
   , only
   , nearly
   , nthbit
-    -- * Dual Optics
+    -- ** Reprism, Rxprism
   , releft, reright
     -- * Operators
   , aside
   , without
   , below
   , withPrism
+  , withIxprism
   , pastroSum
   , tambaraSum
     -- * Dual Operators
@@ -102,6 +109,27 @@ handling sca cbt pab = dimap sca cbt (right' pab)
 --
 clonePrism :: APrism s t a b -> Prism s t a b
 clonePrism o = withPrism o $ \sta bt -> prism sta bt
+
+-- | Obtain an 'Ixprism' from an indexed matcher and a constructor.
+--
+-- @since 0.0.3
+ixprism :: (s -> t + (k , a)) -> (b -> t) -> Ixprism k s t a b
+ixprism stka bt = prism (\(_, s) -> stka s) bt
+{-# INLINE ixprism #-}
+
+-- | Obtain an 'Ixprism'' from an indexed matcher and a constructor.
+--
+-- @since 0.0.3
+ixprism' :: (s -> Maybe (k , a)) -> (b -> s) -> Ixprism k s s a b
+ixprism' ska bs = ixprism (\s -> maybe (Left s) Right (ska s)) bs
+{-# INLINE ixprism' #-}
+
+-- | Clone an 'Ixprism'.
+--
+-- @since 0.0.3
+cloneIxprism :: Monoid k => AIxprism k s t a b -> Ixprism k s t a b
+cloneIxprism o = withIxprism o ixprism
+{-# INLINE cloneIxprism #-}
 
 ---------------------------------------------------------------------
 -- ** Reversed Constructors
