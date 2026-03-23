@@ -20,7 +20,11 @@ across containers and with the core library.
 | S19.9 | Tree.Optic | Add depth-indexed traversal |
 | S19.10 | List.Optic | Export non-indexed `traversed`, `folded`, `mapped` wrappers |
 | S19.11 | Map/IntMap.Optic | Unify sort operator naming with sprint 18 renames |
-| S19.12 | All | Property tests for container optics |
+| S19.12 | Map.Optic | Add dual optics: `zipsMap` Colens, coindexed operators |
+| S19.13 | Sequence.Optic | Add dual optics: `grateSeq` Colens, `cxtraversedSeq` |
+| S19.14 | Tree.Optic | Add dual optics: `cotraversedTree`, `zipsTree` |
+| S19.15 | List.Optic | Re-export `zipListed` Cosetter for discoverability |
+| S19.16 | All | Property tests for container optics |
 
 ## S19.1–S19.3 — IntMap parity with Map
 
@@ -111,6 +115,63 @@ Add hedgehog property tests for:
 - Tree: root lens laws
 - List: ixtraversed identity, at round-trip
 
+## S19.12–S19.15 — Dual optics for containers
+
+Any container isomorphic to a function from a finite index type
+(`container ≅ index → element`) admits dual optics via
+`Distributive`/`Representable`. See `Data.Word.Optic` in
+profunctor-optics-strings for the pattern (bits8, ibits8, grate8).
+
+### S19.12 — Map dual optics
+
+```haskell
+-- Grate viewing Map as a function from keys (requires fixed key set)
+zipsMap :: Ord k => Set k -> Colens (Map k a) (Map k b) (k -> a) (k -> b)
+zipsMap ks = grate $ \f -> Map.fromSet (\k -> f (\m -> Map.findWithDefault err k m)) ks
+
+-- Coindexed zipsWith for Map
+cxzipsMap :: Ord k => Set k -> Cxlens k (Map k a) (Map k b) a b
+```
+
+Note: requires a key set to be `Representable`. The `rxmapped'` already
+provides a coindexed review; these add the full grate/colens structure.
+
+### S19.13 — Sequence dual optics
+
+```haskell
+-- Grate via Seq.index / Seq.fromFunction (requires known length)
+grateSeq :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
+grateSeq n = grate $ \f -> Seq.fromFunction n (\i -> f (\s -> Seq.index s i))
+
+-- Coindexed traversal via index
+cxtraversedSeq :: Int -> Cxtraversal Int (Seq a) (Seq b) a b
+```
+
+### S19.14 — Tree dual optics
+
+```haskell
+-- Tree is a cofree comonad, so it's Cotraversable1
+cotraversedTree :: Cotraversal1 (Tree a) (Tree b) a b
+
+-- Pointwise zipping of trees (root with root, children with children)
+zipsTree :: Colens (Tree a) (Tree b) a b
+zipsTree = grate $ \f -> Node (f rootLabel) (zipWith (\l r -> ...) ...)
+```
+
+Note: `zipsTree` zips structurally — mismatched shapes truncate to the
+shorter tree, like `ZipList`.
+
+### S19.15 — List dual re-export
+
+Re-export `zipListed` from Setter.hs into List.Optic for
+discoverability. Also consider:
+
+```haskell
+-- Grate via ZipList (requires known length for safe indexing)
+zipsListWith :: Colens [a] [b] a b
+zipsListWith = dimap ZipList getZipList . distributed
+```
+
 ## Work order
 
 Phase 1 — IntMap parity:
@@ -124,12 +185,18 @@ Phase 2 — Sequence/Tree:
   6. S19.6 (Seq folded)
   7. S19.7–S19.9 (Tree recursive optics)
 
-Phase 3 — Consistency:
-  8. S19.10 (List non-indexed wrappers)
-  9. S19.11 (naming unification with sprint 18)
+Phase 3 — Dual optics:
+  8. S19.12 (Map dual optics)
+  9. S19.13 (Sequence dual optics)
+  10. S19.14 (Tree dual optics)
+  11. S19.15 (List dual re-export)
 
-Phase 4 — Tests:
-  10. S19.12 (property tests)
+Phase 4 — Consistency:
+  12. S19.10 (List non-indexed wrappers)
+  13. S19.11 (naming unification with sprint 18)
+
+Phase 5 — Tests:
+  14. S19.16 (property tests)
 
 ## Key files
 
