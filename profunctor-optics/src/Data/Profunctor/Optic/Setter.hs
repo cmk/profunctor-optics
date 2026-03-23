@@ -14,6 +14,7 @@ module Data.Profunctor.Optic.Setter (
   , Setter1, Setter1'
   , Ixsetter1, Ixsetter1'
   , setter1
+  , ixsetter1
     -- * Dual Constructors
     -- ** Cosetter, Cxsetter
   , Cosetter, Cosetter'
@@ -63,7 +64,9 @@ module Data.Profunctor.Optic.Setter (
     -- ** Cosetter1, Cxsetter1
     -- * MTL
   , assigns
+  , ixassigns
   , modifies
+  , ixmodifies
   , localizes
   , tells
     -- * Re-exports
@@ -172,6 +175,13 @@ setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
 setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
 {-# INLINE setter1 #-}
 
+-- | Build an 'Ixsetter1' from an indexed function.
+--
+-- @since 0.0.3
+ixsetter1 :: ((i -> a -> b) -> a -> t) -> Ixsetter1 i a t a b
+ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
+{-# INLINE ixsetter1 #-}
+
 ---------------------------------------------------------------------
 -- Dual Constructors
 ---------------------------------------------------------------------
@@ -201,7 +211,8 @@ cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
 cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
 {-# INLINE cosetter1 #-}
 
--- TODO: cxsetter, ixsetter1, cxsetter1 constructors
+-- TODO: cxsetter, cxsetter1 — coindexed setter constructors need
+-- more investigation into the Cxoptic threading pattern.
 
 ---------------------------------------------------------------------
 -- Optics
@@ -446,6 +457,22 @@ assigns o b = State.modify (o (const b))
 modifies :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
 modifies o f = State.modify (o f)
 {-# INLINE modifies #-}
+
+-- | Indexed 'assigns': replace the target(s) of an indexed settable
+-- in a monadic state.
+--
+-- @since 0.0.3
+ixassigns :: MonadState s m => Monoid i => Ixoptic (->) i s s a b -> (i -> b) -> m ()
+ixassigns o f = State.modify (ixover o (const . f))
+{-# INLINE ixassigns #-}
+
+-- | Indexed 'modifies': map over the target(s) of an indexed settable
+-- in a monadic state.
+--
+-- @since 0.0.3
+ixmodifies :: MonadState s m => Monoid i => Ixoptic (->) i s s a b -> (i -> a -> b) -> m ()
+ixmodifies o f = State.modify (ixover o f)
+{-# INLINE ixmodifies #-}
 
 -- | Modify the value of a 'Reader' environment.
 --
