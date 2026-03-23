@@ -102,9 +102,10 @@ module Data.Profunctor.Optic.Carrier (
   , ACxsetter1'
     -- ** View
   , AView
+  , ACoview
   , AReview
   , AIxview
-  , ARxview
+  , ACxview
     -- * Carrier operators
     -- ** Main
   , withIso
@@ -368,11 +369,24 @@ type ACxsetter1' k t b = ACxsetter1 k t t b b
 
 type AView r s a = AFold r s a
 
+-- | A monomorphized 'Coview'. Same carrier as 'AReview' — both use
+-- 'Tagged', which satisfies 'Closed', 'Costrong', and 'CoercingL'.
+-- Use 'review' to extract @b -> t@ from either.
+type ACoview t b = Optic' Tagged t b
+
+-- | A monomorphized 'Review'. Same carrier as 'ACoview' ('Tagged'),
+-- since 'Tagged' is both 'Closed' and 'Costrong'. The 'review'
+-- operator accepts both.
 type AReview t b = Optic' Tagged t b
 
 type AIxview k s a = AIxfold (Maybe k, a) k s a
 
-type ARxview k t b = Cxoptic' Tagged k t b
+-- | A monomorphized 'Cxview'. The coindex @k@ threads via @k -> b@ on
+-- the right of 'Tagged', producing @b -> (k -> t)@ through 'cxview'.
+--
+-- There is no @ARxview@ — the hypothetical @Rxview@ threads @(k, b)@
+-- on the left, which 'Tagged' discards, collapsing to 'AReview'.
+type ACxview k t b = Cxoptic' Tagged k t b
 
 ---------------------------------------------------------------------
 -- Carrier operators
@@ -924,7 +938,7 @@ instance Choice p => Choice (Split p c d) where
 -- ^ @
 -- split :: Iso s t a b -> Iso s' t' a' b' -> Iso (s + s') (t + t') (a + a') (b + b')
 -- split :: Prism s t a b -> Prism s' t' a' b' -> Lens (s + s') (t + t') (a + a') (b + b')
--- split :: View s t a b -> View s' t' a' b' -> Review (s + s') (t + t') (a + a') (b + b')
+-- split :: View s t a b -> View s' t' a' b' -> Coview (s + s') (t + t') (a + a') (b + b')
 -- @
 split
   :: Profunctor p

@@ -141,8 +141,8 @@ infix  4  .=, ..=
 --            view             toList           preview
 --   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
 --   Ix      (^%)  'V.ixview'  (^%%)  'F.ixtoListOf'
---   Co      (^/)  'V.review'  (^//)  'F.cofoldOfA'
---   Cx      (^#)  'V.rxview'  (^##)  'F.cxfoldMapOf'
+--   Re      (^/)  'V.review'  (^//)  'F.cofoldOfA'
+--   Cx      (^#)  'V.cxview'  (^##)  'F.cxfoldMapOf'
 -- @
 
 -- | View through an optic.
@@ -257,10 +257,13 @@ infix  4  .=, ..=
 {-# INLINE (**~) #-}
 
 ---------------------------------------------------------------------
--- View (co-dual)
+-- View (Re-dual)
 ---------------------------------------------------------------------
 
--- | Review (co-dual view): build a structure from a value.
+-- | Review (Re-dual of view): build a structure from a value.
+--
+-- Accepts any optic with a 'Tagged' carrier ('AReview'), including
+-- 'Coview', 'Review', 'Prism', 'Iso', and 'Grate' optics.
 --
 -- @o '^/' b ≡ 'V.review' o b@
 --
@@ -276,12 +279,16 @@ infix  4  .=, ..=
 (^//) = F.cofoldOfA
 {-# INLINE (^//) #-}
 
--- | Indexed co-dual view (indexed review).
+-- | Coindexed review: build a coindexed value.
 --
--- @o '^#' b ≡ 'V.rxview' o b@
+-- This is the only coindexed Re-dual view infix. There is no
+-- @rxview@ infix because the @Rx@ coindex threads via @(k, -)@ on
+-- the left of the profunctor, which 'Tagged' discards. See 'V.cxview'.
 --
-(^#) :: ARxview k t b -> b -> (k -> t)
-(^#) = V.rxview
+-- @o '^#' b ≡ 'V.cxview' o b@
+--
+(^#) :: ACxview k t b -> b -> (k -> t)
+(^#) = V.cxview
 {-# INLINE (^#) #-}
 
 -- | Coindexed cofold: apply a coindexed observation to build a result.

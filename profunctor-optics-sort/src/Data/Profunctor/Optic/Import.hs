@@ -1,16 +1,11 @@
--- | Re-exports from profunctor-optics plus indexed dual optic types.
+-- | Re-exports from profunctor-optics plus indexed dual constructors.
 --
--- Most Relens/Reprism functionality is now in profunctor-optics core.
--- This module re-exports the core and adds indexed variants that
--- have not yet been promoted.
+-- Most Relens/Reprism types are now in profunctor-optics core.
+-- This module re-exports the core and adds indexed constructors
+-- that have not yet been promoted.
 module Data.Profunctor.Optic.Import
   ( -- * Re-exports from profunctor-optics
     module Data.Profunctor.Optic
-
-    -- * Indexed dual optic types (not yet in core)
-  , Rxlens, Rxlens'
-  , Ixprism, Ixprism'
-  , Rxprism, Rxprism'
 
     -- * Indexed dual constructors
   , rlens, rlensVl
@@ -21,34 +16,9 @@ module Data.Profunctor.Optic.Import
   , rfirst, rsecond
   ) where
 
-import Data.Bifunctor as B (Bifunctor(..), second)
+import Data.Bifunctor as B (Bifunctor(..), first)
 
-import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Iso
-import Data.Profunctor.Optic.Lens
-import Data.Profunctor.Optic.Prism
-import Data.Profunctor.Optic.Setter
-import Data.Profunctor.Optic.View
-import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Traversal
-import Data.Profunctor.Optic.Combinator
-import Data.Profunctor.Optic.Types
-
--- ---------------------------------------------------------------------------
--- Indexed dual optic types
-
--- | Indexed relens: coindexed by @r@.
-type Rxlens r s t a b = forall p. Costrong p => Ixoptic p r s t a b
-type Rxlens' r s a = Rxlens r s s a a
-
--- | Indexed prism.
-type Ixprism i s t a b = forall p. Choice p => Ixoptic p i s t a b
-type Ixprism' i s a = Ixprism i s s a a
-
--- | Indexed reprism: coindexed by @r@.
-type Rxprism r s t a b = forall p. Cochoice p => Ixoptic p r s t a b
-type Rxprism' r s a = Rxprism r s s a a
+import Data.Profunctor.Optic
 
 -- ---------------------------------------------------------------------------
 -- Indexed dual constructors
@@ -81,7 +51,7 @@ jprism' isa as = prism (\(i,s) -> maybe (Left s) (Right . (i,)) (isa i s)) as
 
 -- | Indexed 'Reprism'.
 rprism :: Monoid r => (r -> s -> a) -> (b -> Either a t) -> Rxprism r s t a b
-rprism rsa bat = reprism (fanout (const mempty) (uncurry rsa)) (B.first (mempty,) . bat)
+rprism rsa bat = reprism (\(r,s) -> (mempty, rsa r s)) (B.first (mempty,) . bat)
 
 -- | Indexed 'Reprism'' from a 'Maybe' matcher.
 rprism' :: Monoid r => (r -> s -> a) -> (a -> Maybe s) -> Rxprism' r s a
@@ -99,7 +69,7 @@ rsecond :: Rxlens r a b (c, a) (c, b)
 rsecond = unsecond . lmap (\(c, (r, a)) -> (r, (c, a)))
 
 -- ---------------------------------------------------------------------------
--- Helpers (re-exported from core Import)
+-- Helpers
 
 assocr :: ((a, b), c) -> (a, (b, c))
 assocr ((a, b), c) = (a, (b, c))

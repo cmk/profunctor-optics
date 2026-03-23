@@ -39,7 +39,7 @@ module Data.IntMap.Optic (
   , ixaltered
   --, ixaltered'
     -- * Dual Optics
-  , rxmapped
+  , cxmapped
     -- * Operators
   , toIntMapOf
   , countingIntMapOf
@@ -161,12 +161,12 @@ ixaltered k = ixsetter $ \kab -> IM.alter (kab k) k
 -- key-dependent logic. Dual of 'ixmapped'.
 --
 -- @
--- 'cofoldsWithKey' (rxmapped '#' rxmapped) f r nestedIntMap
+-- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedIntMap
 -- @
 --
-rxmapped :: Rxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
-rxmapped = rxfrom IM.mapWithKey
-{-# INLINE rxmapped #-}
+cxmapped :: Cxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
+cxmapped = cxfrom IM.mapWithKey
+{-# INLINE cxmapped #-}
 
 ---------------------------------------------------------------------
 -- Sort-based

@@ -44,7 +44,7 @@ module Data.Map.Optic (
   , ixaltered
   , ixaltered'
     -- * Dual Optics
-  , rxmapped'
+  , cxmapped'
     -- * Operators
   , fromIxfold
     -- ** Sort-based
@@ -217,18 +217,18 @@ ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 -- | /O(n)/. Coindexed review for 'Map.Map': reconstruct a map
 -- with key-dependent logic.
 --
--- Built via 'rxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
+-- Built via 'cxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
 -- map key — available on the reconstruction side. Dual of 'ixmapped'.
 --
 -- Compose with '(#)' for multi-level coindexed operations:
 --
 -- @
--- 'cxfoldMapOf' (rxmapped '#' rxmapped) f r nestedMap
+-- 'cxfoldMapOf' (cxmapped '#' cxmapped) f r nestedMap
 -- @
 --
-rxmapped' :: Rxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
-rxmapped' = rxfrom Map.mapWithKey
-{-# INLINE rxmapped' #-}
+cxmapped' :: Cxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
+cxmapped' = cxfrom Map.mapWithKey
+{-# INLINE cxmapped' #-}
 
 ---------------------------------------------------------------------
 -- Operators

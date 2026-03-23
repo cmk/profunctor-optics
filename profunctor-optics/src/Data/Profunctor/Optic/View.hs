@@ -12,11 +12,13 @@ module Data.Profunctor.Optic.View (
   , cloneView
   , cloneIxview
     -- * Dual Constructors
-  , Review, Rxview
+    -- ** Coview, Cxview
+  , Coview, Cxview
   , from
-  , rxfrom
+  , cxfrom
   , unlike
-  , cloneReview
+  , cloneCoview
+    -- ** Review, Rxview
     -- * Optics
   , tupling
     -- * Dual Optics
@@ -29,18 +31,18 @@ module Data.Profunctor.Optic.View (
   , viewing
     -- * Dual Operators
   , review
-  , rxview
+  , cxview
   , reviews
-  , rxviews
+  , cxviews
     -- * MonadState
   , use
   , ixuse
   , uses
   , ixuses
   , reuse
-  , rxuse
+  , cxuse
   , reuses
-  , rxuses
+  , cxuses
 ) where
 
 import Control.Monad.Reader as Reader
@@ -145,39 +147,56 @@ cloneIxview o = to (ixview o)
 
 ---------------------------------------------------------------------
 -- ** Dual Constructors
--- Note: 'Review' here is the co-dual of 'View' (@Closed + CoercingL@),
--- which should properly be called @Coview@. The true Re-dual @Review@
--- (@Costrong + CoercingL@) will be added in a future release (S17.28).
+--
+-- 'View' has two duals:
+--
+-- * 'Coview' (@Closed + CoercingL@) — the Star\/Costar dual,
+--   composing with the Closed chain (Colens, Cotraversal, Cofold).
+-- * 'Review' (@Costrong + CoercingL@) — the Strong\/Costrong
+--   (Re-)dual, composing with the Costrong chain (Relens, Grate).
+--
+-- At the operator level only 'review' is provided. Both 'Coview'
+-- and 'Review' monomorphize to the same carrier ('Tagged'), so
+-- 'review' accepts either after monomorphization. Passing a
+-- polymorphic @'Coview' t b@ to 'review' directly will not
+-- typecheck — 'Closed' does not imply 'Costrong'.
+--
+-- For the coindexed case, only 'cxview' is provided (not @rxview@).
+-- 'Cxview' threads the coindex via @k -> b@ on the right of the
+-- profunctor ('Cxoptic''), which survives through 'Tagged' and
+-- produces an observable @b -> (k -> t)@. The hypothetical @Rxview@
+-- threads via @(k, b)@ on the left ('Ixoptic''), which 'Tagged'
+-- discards — collapsing to plain 'review'.
 ---------------------------------------------------------------------
 
--- | Obtain a 'Review' from an arbitrary function.
+-- | Obtain a 'Coview' from an arbitrary function.
 --
 -- @
--- 'from' f ≡ 'iso' f 'id' -- restricted to 'Review'
+-- 'from' f ≡ 'iso' f 'id' -- restricted to 'Coview'
 -- @
 --
 -- >>> review (from Prelude.length) [1,2,3]
 -- 3
 --
 -- @
--- 'from' :: (b -> t) -> 'Review' t b
+-- 'from' :: (b -> t) -> 'Coview' t b
 -- @
 --
-from :: (b -> t) -> Review t b
+from :: (b -> t) -> Coview t b
 from f = coercedL . rmap f
 {-# INLINE from #-}
 
 -- | TODO: Document
 --
--- >>> cxfoldMapOf (rxfrom Map.mapWithKey # rxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
+-- >>> cxfoldMapOf (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
 -- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
 --
 -- @since 0.0.3
-rxfrom :: ((k -> b) -> t) -> Rxview k t b
-rxfrom f = coercedL . rmap (\ib _ -> f ib)
-{-# INLINE rxfrom #-}
+cxfrom :: ((k -> b) -> t) -> Cxview k t b
+cxfrom f = coercedL . rmap (\ib _ -> f ib)
+{-# INLINE cxfrom #-}
 
--- | Obtain a constant-valued (index-preserving) 'Review' from an arbitrary value.
+-- | Obtain a constant-valued (index-preserving) 'Coview' from an arbitrary value.
 --
 -- @
 -- 'unlike' a '.' 'unlike' b ≡ 'unlike' a
@@ -185,17 +204,17 @@ rxfrom f = coercedL . rmap (\ib _ -> f ib)
 -- 'unlike' a '.^' b ≡ 'from' ('const' a) '#' b
 -- @
 --
-unlike :: t -> Review t b
+unlike :: t -> Coview t b
 unlike t = from (const t)
 {-# INLINE unlike #-}
 
 -- | TODO: Document
 --
-cloneReview :: AReview t b -> Review t b
-cloneReview o = from (review o)
-{-# INLINE cloneReview #-}
+cloneCoview :: ACoview t b -> Coview t b
+cloneCoview o = from (review o)
+{-# INLINE cloneCoview #-}
 
--- TODO: cloneRxview — needs investigation into Cxoptic' Tagged path
+-- TODO: cloneCxview — needs investigation into Cxoptic' Tagged path
 
 ---------------------------------------------------------------------
 -- * Optics
@@ -215,13 +234,13 @@ tupling l r = to (fanout (view l) (view r))
 -- ** Dual Optics
 ---------------------------------------------------------------------
 
--- | Combine two 'Review's into a 'Review' from a sum.
+-- | Combine two 'Coview's into a 'Coview' from a sum.
 --
 -- @
--- 'summing' :: 'Review' t b1 -> 'Review' t b2 -> 'Review' t (b1 + b2)
+-- 'summing' :: 'Coview' t b1 -> 'Coview' t b2 -> 'Coview' t (b1 + b2)
 -- @
 --
-summing :: AReview t b1 -> AReview t b2 -> Review t (b1 + b2)
+summing :: ACoview t b1 -> ACoview t b2 -> Coview t (b1 + b2)
 summing l r = from (either (review l) (review r))
 {-# INLINE summing #-}
 
@@ -293,12 +312,21 @@ viewing o = coercedR . lmap (preview o)
 
 ---------------------------------------------------------------------
 -- ** Dual Operators
--- Note: these use @Closed + CoercingL@ ('Review', to be renamed
--- @Coview@). They do NOT go through 're' — that would require
--- @Costrong@, not @Closed@.
+--
+-- 'review' is the Re-dual of 'view' (Strong/Costrong duality).
+-- Its type is @'AReview' t b -> b -> t@, where @'AReview' = 'Optic''
+-- 'Tagged' t b@. Since 'Tagged' is both 'Closed' and 'Costrong',
+-- 'review' also accepts 'Coview' optics (the Star/Costar dual of
+-- 'View'). A polymorphic 'Coview' will require a type annotation or
+-- monomorphization to pass to 'review', since 'Closed' does not
+-- imply 'Costrong'.
+--
+-- 'cxview' is the coindexed variant. There is no @rxview@ because
+-- the @Rx@ coindex threads via @(k, -)@ on the left of the
+-- profunctor, which 'Tagged' discards — see "Dual Constructors".
 ---------------------------------------------------------------------
 
--- | Review the focus of an optic.
+-- | The Re-dual of 'view': build a structure from a value.
 --
 -- @
 -- 'review' . 'from' ≡ 'id'
@@ -307,16 +335,28 @@ viewing o = coercedR . lmap (preview o)
 -- >>> review left' 4
 -- Left 4
 --
+-- 'review' is typed at 'AReview' (@Costrong + CoercingL@ monomorphized
+-- to 'Tagged'). Since 'Tagged' also satisfies 'Closed', 'review'
+-- accepts 'Coview' optics as well — but only after monomorphization.
+-- Passing a polymorphic @'Coview' t b@ directly will not typecheck,
+-- because 'Closed' does not imply 'Costrong'.
+--
 review :: AReview t b -> b -> t
 review o = reviews o id
 {-# INLINE review #-}
 
--- | Bring a function of the index of a co-indexed optic into the current environment.
+-- | Coindexed review: build a coindexed value from a value.
+--
+-- The coindex @k@ threads via @k -> b@ on the right of the profunctor
+-- ('Cxoptic''), producing an observable @b -> (k -> t)@. This is the
+-- only coindexed Re-dual view operator — the hypothetical @rxview@
+-- would thread the coindex via @(k, b)@ on the left ('Ixoptic''),
+-- but 'Tagged' discards the left component, collapsing to 'review'.
 --
 -- @since 0.0.3
-rxview :: ARxview k t b -> b -> (k -> t)
-rxview o = rxviews o id
-{-# INLINE rxview #-}
+cxview :: ACxview k t b -> b -> (k -> t)
+cxview o = cxviews o id
+{-# INLINE cxview #-}
 
 -- | Turn an optic around and look through the other end, applying a function.
 --
@@ -333,16 +373,16 @@ reviews :: AReview t b -> (t -> r) -> b -> r
 reviews o f = f . unTagged #. o .# Tagged
 {-# INLINE reviews #-}
 
--- | Bring a continuation of the index of a co-indexed optic into the current environment.
+-- | Coindexed 'reviews': apply a function to the coindexed result.
 --
--- @
--- rxviews :: ARxview k t b -> ((k -> t) -> r) -> b -> r
--- @
+-- There is no @rxviews@ for the same reason there is no @rxview@:
+-- the @Rx@ coindex threads via @(k, -)@ on the left of the profunctor
+-- ('Ixoptic''), which 'Tagged' discards, collapsing to 'reviews'.
 --
 -- @since 0.0.3
-rxviews :: ARxview k t b -> ((k -> t) -> r) -> b -> r
-rxviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
-{-# INLINE rxviews #-}
+cxviews :: ACxview k t b -> ((k -> t) -> r) -> b -> r
+cxviews o f = unwrap o f . const where unwrap o1 f1 = f1 . unTagged #. o1 .# Tagged
+{-# INLINE cxviews #-}
 
 ---------------------------------------------------------------------
 -- * MonadState
@@ -405,16 +445,16 @@ reuses :: MonadState b m => AReview t b -> (t -> r) -> m r
 reuses o tr = gets (tr . unTagged #. o .# Tagged)
 {-# INLINE reuses #-}
 
--- | Coindexed 'reuse': build a coindexed value from the current state.
+-- | Coindexed 'couse': build a coindexed value from the current state.
 --
 -- @since 0.0.3
-rxuse :: MonadState b m => ARxview k t b -> m (k -> t)
-rxuse o = gets (rxview o)
-{-# INLINE rxuse #-}
+cxuse :: MonadState b m => ACxview k t b -> m (k -> t)
+cxuse o = gets (cxview o)
+{-# INLINE cxuse #-}
 
--- | Coindexed 'reuses': apply a coindexed function from the current state.
+-- | Coindexed 'couses': apply a coindexed function from the current state.
 --
 -- @since 0.0.3
-rxuses :: MonadState b m => ARxview k t b -> ((k -> t) -> r) -> m r
-rxuses o f = gets (rxviews o f)
-{-# INLINE rxuses #-}
+cxuses :: MonadState b m => ACxview k t b -> ((k -> t) -> r) -> m r
+cxuses o f = gets (cxviews o f)
+{-# INLINE cxuses #-}
