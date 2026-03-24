@@ -41,6 +41,7 @@ library
   exposed-modules:
       Data.Profunctor.Optic
       Data.Profunctor.Optic.Types
+      Data.Profunctor.Optic.Dual
       Data.Profunctor.Optic.Carrier
       Data.Profunctor.Optic.Combinator
       Data.Profunctor.Optic.Infix

@@ -372,6 +372,7 @@ type AView r s a = AFold r s a
 -- | A monomorphized 'Coview'. Same carrier as 'AReview' — both use
 -- 'Tagged', which satisfies 'Closed', 'Costrong', and 'CoercingL'.
 -- Use 'review' to extract @b -> t@ from either.
+-- See "Data.Profunctor.Optic.Dual" for why these share a carrier.
 type ACoview t b = Optic' Tagged t b
 
 -- | A monomorphized 'Review'. Same carrier as 'ACoview' ('Tagged'),
@@ -952,11 +953,26 @@ split x y =
 -- Index
 ---------------------------------------------------------------------
 
--- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'
+-- | An indexed store that characterizes a 'Data.Profunctor.Optic.Lens.Lens'.
 --
--- @'Index' a b s ≡ forall f. 'Functor' f => (a -> f b) -> f s@,
+-- @'Index' a b s ≡ forall f. 'Functor' f => (a -> f b) -> f s@
 --
--- See also 'Data.Profunctor.Optic.Lens.cloneLensVl'.
+-- 'Index' is the 'Rep' (representation functor) of 'LensRep':
+-- @'Sieve' ('LensRep' a b) ('Index' a b)@. It lives on the
+-- Strong\/Star side of the duality.
+--
+-- 'Index' and 'Coindex' are dual representation functors witnessing
+-- the Star\/Costar duality at the functor level:
+--
+--   * @'Index' a a@ is 'Coapplicative' — suitable for 'Costar' \/ 'Closed'
+--   * @'Coindex' a a@ is 'Applicative' — suitable for 'Star' \/ 'Strong'
+--
+-- Note the parameter swap: 'LensRep' @a b@ sieves to @'Index' a b@,
+-- but 'ColensRep' @a b@ cosieves to @'Coindex' b a@. This swap
+-- mirrors the parameter flip performed by 'Re'.
+--
+-- See also 'Data.Profunctor.Optic.Lens.cloneLensVl' and
+-- "Data.Profunctor.Optic.Dual" for the broader duality picture.
 --
 data Index a b s = Index a (b -> s) deriving Generic
 
@@ -993,11 +1009,22 @@ instance a ~ b => Coapplicative (Index a b) where
 -- Coindex
 ---------------------------------------------------------------------
 
--- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Lens.Colens'
+-- | An indexed continuation that characterizes a 'Data.Profunctor.Optic.Lens.Colens'.
 --
--- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@,
+-- @'Coindex' a b s ≡ forall f. 'Functor' f => (f a -> b) -> f s@
 --
--- See also 'Data.Profunctor.Optic.Lens.cloneColensVl'.
+-- 'Coindex' is the 'Corep' (corepresentation functor) of 'ColensRep':
+-- @'Cosieve' ('ColensRep' a b) ('Coindex' b a)@. It lives on the
+-- Closed\/Costar side of the duality.
+--
+-- 'Coindex' is the Star\/Costar dual of 'Index':
+--
+--   * @'Index' a a@ is 'Coapplicative' — suitable for 'Costar' \/ 'Closed'
+--   * @'Coindex' a a@ is 'Applicative' — suitable for 'Star' \/ 'Strong'
+--
+-- Note the parameter swap: 'ColensRep' @a b@ cosieves to
+-- @'Coindex' b a@ (not @'Coindex' a b@). This mirrors the parameter
+-- flip performed by 'Re'. See "Data.Profunctor.Optic.Dual".
 --
 -- 'Coindex' can also be used to compose indexed maps, foldMapOf, or traversals directly.
 --
@@ -1008,6 +1035,8 @@ instance a ~ b => Coapplicative (Index a b) where
 --  Coindex foldMapWithKey :: Monoid m => Coindex (a -> m) (Map k a -> m) k
 --  Coindex traverseWithKey :: Applicative t => Coindex (a -> t b) (Map k a -> t (Map k b)) k
 -- @
+--
+-- See also 'Data.Profunctor.Optic.Lens.cloneColensVl'.
 --
 newtype Coindex a b s = Coindex { runCoindex :: (s -> b) -> a } deriving Generic
 

@@ -78,6 +78,12 @@ module Data.Profunctor.Optic.Property (
   , compose_sort
   , id_category_sort
   , assoc_category_sort
+    -- * Re\/Co duality
+  , involutive_re
+  , cxreturn_cxjoin
+  , cxreturn_cxunit
+  , roundtrip_ixcx
+  , roundtrip_cxix
 ) where
 
 import Control.Monad as M (join)
@@ -87,10 +93,12 @@ import Data.Profunctor.Optic.Import
 import Prelude (Bool(..), Eq(..), Monoid, (&&))
 import qualified Control.Category as C
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Dual (cxIx, ixCx)
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Combinator (cxjoin, cxreturn, cxunit, cxstrength)
 -- invertible is provided by Import (inlined from lawz/Test.Function.Invertible)
 
 ---------------------------------------------------------------------
@@ -423,3 +431,57 @@ id_category_sort s inp =
 assoc_category_sort :: (Monoid i, Eq d) => Sort i k a b -> Sort i k b c -> Sort i k c d -> (i -> (k, a)) -> Bool
 assoc_category_sort f g h inp =
   runSort ((h C.. g) C.. f) inp == runSort (h C.. (g C.. f)) inp
+
+---------------------------------------------------------------------
+-- Re\/Co duality
+---------------------------------------------------------------------
+
+-- | 're' is involutive: @'re' . 're' ≡ id@.
+--
+-- Test on an 'Iso'', since re . re on an Iso gives back an Iso.
+-- The predicate checks that @view (re (re o)) s ≡ view o s@
+-- and @review (re (re o)) b ≡ review o b@.
+--
+involutive_re :: (Eq s, Eq a) => Iso' s a -> s -> a -> Bool
+involutive_re o s a = withIso o $ \sa as ->
+  withIso (re (re o)) $ \sa' as' ->
+    sa' s == sa s && as' a == as a
+
+-- | @'cxjoin' . 'cxreturn' ≡ id@
+--
+-- Lifting a profunctor into Cx and immediately collapsing should
+-- be the identity.
+--
+cxreturn_cxjoin :: Eq b => (a -> b) -> a -> Bool
+cxreturn_cxjoin f a = cxjoin (cxreturn f) a == f a
+
+-- | @'cxunit' . 'cxreturn' ≡ id@
+--
+-- Same law via 'cxunit'.
+--
+cxreturn_cxunit :: Eq b => (a -> b) -> a -> Bool
+cxreturn_cxunit f a = cxunit (cxreturn f) a == f a
+
+-- | @'ixCx' . 'cxIx' ≡ id@ on an Iso.
+--
+-- Round-tripping a 'Cxoptic' through Ix and back should be the identity
+-- (at @(->)@, where both 'Strong' and 'Closed' hold).
+--
+-- @Cx (->) k a b = a -> (k -> b)@, so the optic is
+-- @(a -> (k -> b)) -> (s -> (k -> t))@.
+--
+roundtrip_ixcx :: (Eq t) => Cxoptic (->) k s t a b -> (a -> k -> b) -> s -> k -> Bool
+roundtrip_ixcx o akb s k =
+  ixCx (cxIx o) akb s k == o akb s k
+
+-- | @'cxIx' . 'ixCx' ≡ id@ on an Iso.
+--
+-- Round-tripping an 'Ixoptic' through Cx and back should be the identity
+-- (at @(->)@, where both 'Strong' and 'Closed' hold).
+--
+-- @Ix (->) k a b = (k, a) -> b@, so the optic is
+-- @((k, a) -> b) -> ((k, s) -> t)@.
+--
+roundtrip_cxix :: (Eq t) => Ixoptic (->) k s t a b -> ((k, a) -> b) -> (k, s) -> Bool
+roundtrip_cxix o kab ks =
+  cxIx (ixCx o) kab ks == o kab ks

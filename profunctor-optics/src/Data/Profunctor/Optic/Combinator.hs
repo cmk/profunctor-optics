@@ -21,6 +21,7 @@ module Data.Profunctor.Optic.Combinator (
   , cxreturn
   , cxunit
   , cxstrength
+  , cxpastro
     -- * Transforms
     -- ** Main
   , (%)
@@ -190,13 +191,25 @@ cxunit p = dimap fork apply (first' p)
 cxstrength :: Profunctor p => Cx' p a b -> Cx' p (a, c) (b, c)
 cxstrength = dimap fst (B.first @(,))
 
--- | An optic on the representation types rather than on the data
+-- | Witness that self-coindexing is isomorphic to freely adjoining 'Strong'.
 --
--- The type denotes an 'Iso' (over an outer profunctor q) between 'Cx'' p a b and 'Pastro' p a b.
--- The p is fixed, the 'Iso' is polymorphic in the outer profunctor.
+-- @
+-- 'Cx'' p a b = p a (a -> b)     — self-coindexed profunctor
+-- 'Pastro' p a b                 — free 'Strong' on p
+-- @
 --
--- cxpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
--- cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
+-- The forward direction packs @p a (a -> b)@ into @Pastro apply p fork@.
+-- The backward direction unpacks @Pastro l m r@ by composing with the
+-- projections.
+--
+-- This iso witnesses a deep connection between the index\/coindex
+-- layer and the Strong\/Closed duality: 'Cx'' is the function-space
+-- presentation of the same structure that 'Pastro' presents via
+-- products. See also "Data.Profunctor.Optic.Dual" for the 'Co' type,
+-- which is the analogous free 'Closed' construction.
+--
+cxpastro :: Profunctor p => Iso (Cx' p a b) (Cx' p c d) (Pastro p a b) (Pastro p c d)
+cxpastro = dimap (\p -> Pastro apply p fork) (\(Pastro l m r) -> dimap (fst . r) (\y a -> l (y, (snd (r a)))) m)
 
 ---------------------------------------------------------------------
 -- Transforms

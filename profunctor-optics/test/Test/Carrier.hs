@@ -10,6 +10,7 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
+import Data.Profunctor.Optic.Dual (cxIx, ixCx)
 import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft)
 import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
@@ -610,6 +611,51 @@ prop_cofold_compose = withTests 100 . property $ do
   let o :: ACofold Int Int Int
       o = acofold id
   Prop.compose_cofold o (+1) (*2) x === True
+
+---------------------------------------------------------------------
+-- Re/Co duality
+---------------------------------------------------------------------
+
+-- | re . re ≡ id on an Iso
+prop_re_involutive :: Property
+prop_re_involutive = withTests 100 . property $ do
+  s <- forAll int
+  a <- forAll int
+  let o :: Iso' Int Int
+      o = iso (+1) (subtract 1)
+  assert $ Prop.involutive_re o s a
+
+-- | cxjoin . cxreturn ≡ id
+prop_cxreturn_cxjoin :: Property
+prop_cxreturn_cxjoin = withTests 100 . property $ do
+  a <- forAll int
+  assert $ Prop.cxreturn_cxjoin (+1) a
+
+-- | cxunit . cxreturn ≡ id
+prop_cxreturn_cxunit :: Property
+prop_cxreturn_cxunit = withTests 100 . property $ do
+  a <- forAll int
+  assert $ Prop.cxreturn_cxunit (+1) a
+
+-- | ixCx . cxIx ≡ id on an Iso-like Cxoptic at (->)
+prop_roundtrip_ixcx :: Property
+prop_roundtrip_ixcx = withTests 100 . property $ do
+  s <- forAll int
+  k <- forAll char
+  -- A simple Cxoptic at (->): maps over values, ignoring coindex
+  let o :: Cxoptic (->) Char Int Int Int Int
+      o akb s k1 = akb (s + 1) k1 - 1
+  assert $ Prop.roundtrip_ixcx o (\a _k -> a * 2) s k
+
+-- | cxIx . ixCx ≡ id on an Iso-like Ixoptic at (->)
+prop_roundtrip_cxix :: Property
+prop_roundtrip_cxix = withTests 100 . property $ do
+  s <- forAll int
+  k <- forAll char
+  -- A simple Ixoptic at (->): maps over values, ignoring index
+  let o :: Ixoptic (->) Char Int Int Int Int
+      o kab (k1, s) = kab (k1, s + 1) - 1
+  assert $ Prop.roundtrip_cxix o (\(_k, a) -> a * 2) (k, s)
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

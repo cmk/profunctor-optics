@@ -95,7 +95,7 @@ module Data.Profunctor.Optic.Types (
     -- $cofold1
   , Cofold1, Cxfold1
     -- ** Coview, Cxview
-    -- $review
+    -- $coview
   , Coview, Cxview
     -- ** Review
   , Review
@@ -117,6 +117,8 @@ module Data.Profunctor.Optic.Types (
   , Foldable', Foldable1'
     -- * 'Re'
   , Re(..), re
+    -- * 'Co'
+  , Co(..), co
   , between
   , module Export
 ) where
@@ -124,6 +126,7 @@ module Data.Profunctor.Optic.Types (
 
 import Data.Bifunctor (Bifunctor(..))
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Dual as Export (Re(..), re, Co(..), co, liftCo, lowerCo, cxIx, ixCx, between)
 import Data.Profunctor.Types as Export
 
 -- $setup
@@ -461,7 +464,9 @@ type Cxfold1 k t b = forall p. (Closed p, Cotraversing1 p, CoercingL p) => Cxopt
 -- to the same carrier ('Tagged'), so 'review' accepts either after
 -- monomorphization. Passing a polymorphic @'Coview' t b@ directly to
 -- 'review' will not typecheck — 'Closed' does not imply 'Costrong'.
--- See "Data.Profunctor.Optic.View".
+--
+-- For the relationship between the Star\/Costar and Strong\/Costrong
+-- duality axes, see "Data.Profunctor.Optic.Dual".
 --
 type Coview t b = forall p. (Closed p, CoercingL p) => Optic' p t b
 
@@ -490,6 +495,10 @@ type Cxview k t b = forall p. (Closed p, CoercingL p) => Cxoptic' p k t b
 -- the Closed chain (Colens, Cotraversal), while 'Review' composes with
 -- the Costrong chain (Relens, Grate). At the carrier level both
 -- monomorphize to 'Tagged', so 'review' accepts either.
+--
+-- See "Data.Profunctor.Optic.Dual" for how 're' relates 'View' to
+-- 'Review', and why 'co' cannot relate 'View' to 'Coview' in the
+-- same way.
 --
 type Review t b = forall p. (Costrong p, CoercingL p) => Optic' p t b
 
@@ -553,89 +562,8 @@ type Foldable' f = (Functor f, Foldable f)
 
 type Foldable1' f = (Functor f, Foldable1 f)
 
----------------------------------------------------------------------
--- 'Re'
----------------------------------------------------------------------
-
--- | The 'Re' type and its instances witness the symmetry between the parameters of a 'Profunctor'.
---
--- 'Re' can reverse optics built from classes that have a mirror image:
---
---   * 'Strong' \(\leftrightarrow\) 'Costrong'
---   * 'Choice' \(\leftrightarrow\) 'Cochoice'
---   * 'Bifunctor' \(\leftrightarrow\) 'Contravariant'
---
--- 'Re' cannot reverse 'Closed', 'Representable', or 'Corepresentable' because
--- these classes have no standard dual. A hypothetical @Coclosed@ with
--- @unclosed :: p (x -> a) (x -> b) -> p a b@ would enable @Closed p => Coclosed (Re p)@,
--- but no such class exists in the profunctor hierarchy. Consequently, 'Colens',
--- 'Cotraversal', and other 'Closed'-based optics cannot be reversed with 're'.
---
-newtype Re p s t a b = Re { runRe :: p b a -> p t s }
-
-instance Profunctor p => Profunctor (Re p s t) where
-  dimap f g (Re p) = Re (p . dimap g f)
-
-instance Strong p => Costrong (Re p s t) where
-  unfirst (Re p) = Re (p . first')
-
-instance Costrong p => Strong (Re p s t) where
-  first' (Re p) = Re (p . unfirst)
-
-instance Choice p => Cochoice (Re p s t) where
-  unright (Re p) = Re (p . right')
-
-instance Cochoice p => Choice (Re p s t) where
-  right' (Re p) = Re (p . unright)
-
-instance Profunctor p => Functor (Re p s t a) where
-  fmap f (Re p) = Re (p . lmap f)
-
-instance (Profunctor p, forall x. Contravariant (p x)) => Bifunctor (Re p s t) where
-  first f (Re p) = Re (p . contramap f)
-
-  second f (Re p) = Re (p . lmap f)
-
-instance Bifunctor p => Contravariant (Re p s t a) where
-  contramap f (Re p) = Re (p . first f)
-
--- | Reverse an optic to obtain its 'Re'-dual.
---
--- @
--- 're' . 're'  ≡ id
--- @
---
--- 're' swaps 'Strong' \(\leftrightarrow\) 'Costrong' and 'Choice' \(\leftrightarrow\) 'Cochoice':
---
--- @
--- 're' :: 'Iso' s t a b    -> 'Iso' b a t s
--- 're' :: 'Lens' s t a b   -> 'Relens' b a t s
--- 're' :: 'Prism' s t a b  -> 'Reprism' b a t s
--- 're' :: 'View' s a       -> 'Review' a s
--- 're' :: 'Review' t b     -> 'View' b t
--- @
---
--- Note: this is not the same as the categorical co-dual ('Colens', 'Cotraversal', etc.),
--- which replaces 'Strong' with 'Closed'.
---
--- >>> 5 ^. re left'
--- Left 5
---
-re :: Optic (Re p a b) s t a b -> Optic p b a t s
-re o = (between runRe Re) o id
-{-# INLINE re #-}
-
--- | Can be used to rewrite
---
--- > \g -> f . g . h
---
--- to
---
--- > between f h
---
-between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
-between f g = (f .) . (. g)
-{-# INLINE between #-}
+-- Re, Co, re, co, and between are defined in Data.Profunctor.Optic.Dual
+-- and re-exported from this module.
 
 ---------------------------------------------------------------------
 -- Orphan instances

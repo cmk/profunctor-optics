@@ -167,6 +167,9 @@ cloneIxview o = to (ixview o)
 -- produces an observable @b -> (k -> t)@. The hypothetical @Rxview@
 -- threads via @(k, b)@ on the left ('Ixoptic''), which 'Tagged'
 -- discards — collapsing to plain 'review'.
+--
+-- For the relationship between these two duality axes, see
+-- "Data.Profunctor.Optic.Dual".
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Coview' from an arbitrary function.

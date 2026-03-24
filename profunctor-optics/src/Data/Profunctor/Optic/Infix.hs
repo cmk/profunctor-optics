@@ -261,6 +261,7 @@ infix  4  .=, ..=
 ---------------------------------------------------------------------
 
 -- | Review (Re-dual of view): build a structure from a value.
+-- See "Data.Profunctor.Optic.Dual" for the Re\/Co duality.
 --
 -- Accepts any optic with a 'Tagged' carrier ('AReview'), including
 -- 'Coview', 'Review', 'Prism', 'Iso', and 'Grate' optics.
