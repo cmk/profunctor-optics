@@ -39,8 +39,6 @@ module Data.Profunctor.Optic.Setter (
     -- ** Cosetter1, Cxsetter1
   , Cosetter1, Cosetter1'
   , Cxsetter1, Cxsetter1'
-  , cosetter1
-  , cxsetter1
     -- * Optics
     -- ** Setter, Ixsetter
   , fmapped
@@ -75,7 +73,6 @@ module Data.Profunctor.Optic.Setter (
     -- ** Cosetter, Cxsetter
     -- ** Cosetter1, Cxsetter1
   , coliftedA
-  , coliftedF
   , zipListed
     -- * Operators
     -- ** Setter, Ixsetter
@@ -115,7 +112,7 @@ import Data.Profunctor.Optic.Sort (Sort(..), Cosort(..))
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Iso (indexing,coindexing)
+import Data.Profunctor.Optic.Iso (indexing)
 import Data.Profunctor.Optic.Traversal
 import qualified Control.Exception as Ex
 import qualified Data.Functor.Rep as F
@@ -344,25 +341,6 @@ cxsetter f = cosetter $ \aib s -> const $ f (\i a -> aib a i) s
 cloneCxsetter :: Monoid i => ACxsetter i s t a b -> Cxsetter i s t a b
 cloneCxsetter o = cxsetter (cxsets o)
 {-# INLINE cloneCxsetter #-}
-
----------------------------------------------------------------------
--- Cosetter1
----------------------------------------------------------------------
-
--- | TODO: Document
---
--- @since 0.0.3
-cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
-cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
-{-# INLINE cosetter1 #-}
-
--- | Obtain a 'Cxsetter1' from a coindexed SEC.
---
--- Non-empty variant of 'cxsetter'.
---
-cxsetter1 :: ((i -> a -> t) -> s -> t) -> Cxsetter1 i s t a t
-cxsetter1 f = cosetter1 $ \ait s -> const $ f (\i a -> ait a i) s
-{-# INLINE cxsetter1 #-}
 
 ---------------------------------------------------------------------
 -- Optics
@@ -746,13 +724,6 @@ sortCosort (Sort f) = Cosort $ \a k -> ((), f (const (k, a)))
 coliftedA :: Applicative f => Cosetter (f a) (f b) a b
 coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
 {-# INLINE coliftedA #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-coliftedF :: Apply f => Cosetter1 (f a) (f b) a b
-coliftedF p = cotabulate $ fmap (cosieve p) . sequence1
-{-# INLINE coliftedF #-}
 
 -- | Variant of 'coliftedA' specialized to zip-toListOf.
 --
