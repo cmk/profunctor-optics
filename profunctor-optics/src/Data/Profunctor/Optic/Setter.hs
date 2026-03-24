@@ -59,6 +59,12 @@ module Data.Profunctor.Optic.Setter (
     -- * Adjoint Operators
   , lifts
   , lowers
+  , alower
+  , aupper
+    -- * Sort-Conjoin bridge
+  , absorbSort
+  , embedSort
+  , sortCosort
     -- * Dual Optics
     -- ** Cosetter, Cxsetter
     -- ** Cosetter1, Cxsetter1
@@ -99,6 +105,7 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Data.Functor.Adjunction
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Sort (Sort(..), Cosort(..))
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
@@ -497,6 +504,100 @@ lifts o f = leftAdjunct $ cotraverseOf o f
 lowers :: Adjunction l u => ATraversal u s t a b -> (a -> u b) -> l s -> t
 lowers o f = rightAdjunct $ traverseOf o f
 {-# INLINE lowers #-}
+
+-- | Convert a Star-side traversal to the Costar side through an
+-- adjunction, applied to an SEC.
+--
+-- @
+-- 'alower' abst = over 'Data.Profunctor.Optic.Iso.adjuncted' ('aupper' abst)
+-- @
+--
+alower :: Adjunction l u => ((a -> b) -> s -> t) -> (l a -> b) -> l s -> t
+alower abst f = rightAdjunct $ aupper abst (leftAdjunct f)
+{-# INLINE alower #-}
+
+-- | Convert an SEC to a Star-side (Van Laarhoven) form.
+--
+-- For each index @i@ of the representable functor @u@, the SEC
+-- @abst@ is applied to the @i@-th component extracted from
+-- @a -> u b@.
+--
+aupper :: F.Representable u => ((a -> b) -> s -> t) -> (a -> u b) -> s -> u t
+aupper abst afb s = F.tabulate $ \i -> abst (flip F.index i . afb) s
+{-# INLINE aupper #-}
+
+---------------------------------------------------------------------
+-- Sort-Conjoin-Adjoint bridge
+---------------------------------------------------------------------
+
+-- | Absorb a 'Sort' to 'Conjoin' by evaluating at 'mempty'.
+--
+-- 'Conjoin' is the 'Adjoining' profunctor at the currying adjunction
+-- @(,) k ⊣ (->) k@. This collapses Sort's multi-index structure
+-- into a single key-value function.
+--
+-- @
+-- 'absorbSort' '.' 'embedSort' ≡ 'id'
+-- @
+--
+absorbSort :: Monoid i => Sort i k a b -> Conjoin k a b
+absorbSort (Sort f) = Conjoin $ \k a -> f (const (k, a))
+{-# INLINE absorbSort #-}
+
+-- | Embed 'Conjoin' into 'Sort' at a trivial index.
+--
+-- This is a section of 'absorbSort':
+--
+-- @
+-- 'absorbSort' '.' 'embedSort' ≡ 'id'
+-- @
+--
+-- but NOT a retraction:
+--
+-- @
+-- 'embedSort' '.' 'absorbSort' ≢ 'id'    (loses multi-index structure)
+-- @
+--
+embedSort :: Conjoin k a b -> Sort () k a b
+embedSort (Conjoin f) = Sort $ \inp -> uncurry f (inp ())
+{-# INLINE embedSort #-}
+
+-- | Cross from the Costar side ('Sort') to the Star side ('Cosort')
+-- by absorbing through 'Conjoin' and using the currying adjunction.
+--
+-- This is the composition:
+--
+-- @
+-- Sort i k ──(absorbSort)──> Conjoin k ──(adjunction)──> Cosort () k
+-- @
+--
+-- The adjunction step uses @(,) k ⊣ (->) k@ to flip
+-- @(k, a) -> b@ to @a -> k -> b@, then wraps with a trivial
+-- index @()@.
+--
+sortCosort :: Monoid i => Sort i k a b -> Cosort () k a b
+sortCosort (Sort f) = Cosort $ \a k -> ((), f (const (k, a)))
+{-# INLINE sortCosort #-}
+
+-- | Lift a 'Sort'-based operation across the currying adjunction.
+--
+-- Given a Costar-side operation using @(,) k@ (e.g. one built
+-- from 'Conjoin'), 'lifts' converts it to the Star side via
+-- the adjunction @(,) k ⊣ (->) k@:
+--
+-- @
+-- 'lifts' o :: ((k, a) -> b) -> s -> (k -> t)
+-- @
+--
+-- This is how Sort-based sorting can feed into Star-side (e.g.
+-- 'Cosort'-shaped) operations.
+--
+-- Example:
+--
+-- @
+-- 'lifts' myColens :: Adjunction ((,) k) ((->) k) => ((k, a) -> b) -> s -> (k -> t)
+-- @
+--
 
 ---------------------------------------------------------------------
 -- Dual Optics
