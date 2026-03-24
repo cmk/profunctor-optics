@@ -299,6 +299,11 @@ adjointr f = representing $ f . rightAdjunct
 
 -- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
+-- The construction uses 'copure' to extract the focal element and
+-- @'fmap' ('const' a)@ to build a constant container, avoiding the
+-- @'Applicative' ('Coindex' t b)@ constraint that would force
+-- @b = t@.
+--
 -- /Caution/: In order for the generated optic to be well-defined,
 -- you must ensure that the input function satisfies the following
 -- properties:
@@ -307,13 +312,14 @@ adjointr f = representing $ f . rightAdjunct
 --
 -- * @abst f . abst g ≡ abst (f . g)@
 --
-cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
-cosetter abst = coindexing abst . corepresenting (\f -> fmap f . sequenceA)
+cosetter :: ((a -> b) -> s -> t) -> Cosetter s t a b
+cosetter abst = corepresenting $ \fab fs ->
+  abst (\a -> fab (fmap (const a) fs)) (copure fs)
 {-# INLINE cosetter #-}
 
 -- | Clone a 'Cosetter'.
 --
-cloneCosetter :: ACosetter s t a t -> Cosetter s t a t
+cloneCosetter :: ACosetter s t a b -> Cosetter s t a b
 cloneCosetter o = cosetter (cosets o)
 {-# INLINE cloneCosetter #-}
 
@@ -329,13 +335,13 @@ cloneCosetter o = cosetter (cosets o)
 -- 'cxsetter' '.' 'cxsets' ≡ 'id'
 -- @
 --
-cxsetter :: ((i -> a -> t) -> s -> t) -> Cxsetter i s t a t
-cxsetter f = cosetter $ \ait s -> const $ f (\i a -> ait a i) s
+cxsetter :: ((i -> a -> b) -> s -> t) -> Cxsetter i s t a b
+cxsetter f = cosetter $ \aib s -> const $ f (\i a -> aib a i) s
 {-# INLINE cxsetter #-}
 
 -- | Clone a 'Cxsetter'.
 --
-cloneCxsetter :: Monoid i => ACxsetter i s t a t -> Cxsetter i s t a t
+cloneCxsetter :: Monoid i => ACxsetter i s t a b -> Cxsetter i s t a b
 cloneCxsetter o = cxsetter (cxsets o)
 {-# INLINE cloneCxsetter #-}
 
