@@ -304,9 +304,11 @@ adjointlVl f = corepresenting $ f . leftAdjunct
 -- This is the 'Adjoint' analogue of
 -- 'Data.Profunctor.Optic.Prism.handling'. The matching function
 -- decomposes @s@ into either @t@ (failure) or @a@ (success); the
--- review rebuilds @t@ from @b@. The adjunction distributes the
--- 'Either' out of the left adjoint via 'cozipL', then uses
--- 'rightAdjunct' to cross from the right adjoint to the left.
+-- review rebuilds @t@ from @b@. On success, 'leftAdjunct' lifts
+-- the left-adjoint map @l a -> b@ into the right adjoint @a -> u b@,
+-- then 'fmap' applies the review. On failure, @'leftAdjunct'
+-- 'extractL'@ embeds @t@ into @u t@ (the \"pure\" of the
+-- adjunction-induced monad).
 --
 -- At @(->)@ this reduces to the standard prism SEC:
 --
@@ -324,7 +326,8 @@ adjointlVl f = corepresenting $ f . leftAdjunct
 -- * @left' sta (sta s) ≡ left' Left (sta s)@ (Idempotence)
 --
 adjointr :: (s -> t + a) -> (b -> t) -> Adjoint s t a b
-adjointr sta bt = adjointlVl $ \ab s -> either extractL (bt . rightAdjunct ab) . cozipL $ fmap sta s
+adjointr sta bt = adjointrVl $ \lab s ->
+  either (leftAdjunct extractL) (fmap bt . leftAdjunct lab) (sta s)
 {-# INLINE adjointr #-}
 
 -- | Construct an 'Adjoint' from a Star-side Van Laarhoven function.
