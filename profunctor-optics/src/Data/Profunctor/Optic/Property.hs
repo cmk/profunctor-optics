@@ -78,6 +78,17 @@ module Data.Profunctor.Optic.Property (
   , compose_sort
   , id_category_sort
   , assoc_category_sort
+    -- * Adjoint
+  , Adjoint
+  , id_adjoint
+  , compose_adjoint
+  , idempotent_adjoint
+  , id_adjoined
+    -- * Adjoint Ix\/Cx duality
+  , roundtrip_ixadjoining
+  , roundtrip_cxadjoining
+    -- * Sort-Conjoin bridge
+  , retract_embedSort
     -- * Re\/Co duality
   , involutive_re
   , cxreturn_cxjoin
@@ -106,6 +117,7 @@ import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Sort
 import Data.Profunctor.Optic.Index (cxjoin, cxreturn, cxunit, cxstrength)
+import Data.Profunctor.Optic.Setter (adjoined, absorbSort, embedSort, ixadjoining, cxadjoining)
 
 -- | Inlined from lawz/Test.Function.Invertible.
 invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)
@@ -413,6 +425,79 @@ id_cosetter o s = cosets o id s == s
 --
 compose_cosetter :: Eq s => ACosetter s s a a -> (a -> a) -> (a -> a) -> s -> Bool
 compose_cosetter o f g s = (cosets o f . cosets o g) s == cosets o (f . g) s
+
+---------------------------------------------------------------------
+-- 'Adjoint'
+---------------------------------------------------------------------
+
+-- | An 'Adjoint' is a 'Setter', so the Setter laws hold.
+--
+-- * @over o id ≡ id@
+--
+id_adjoint :: Eq s => Adjoint' s a -> s -> Bool
+id_adjoint o s = over o id s == s
+
+-- |
+--
+-- * @over o f . over o g ≡ over o (f . g)@
+--
+compose_adjoint :: Eq s => Adjoint' s a -> (a -> a) -> (a -> a) -> s -> Bool
+compose_adjoint o f g s = (over o f . over o g) s == over o (f . g) s
+
+-- |
+--
+-- * @over o (const y) (over o (const x) a) ≡ over o (const y) a@
+--
+idempotent_adjoint :: Eq s => Adjoint' s a -> s -> a -> a -> Bool
+idempotent_adjoint o s a b = over o (const b) (over o (const a) s) == over o (const b) s
+
+-- | 'adjoined' is the identity for 'Adjoint' optics:
+--
+-- * @over adjoined f ≡ f@
+--
+id_adjoined :: Eq b => (a -> b) -> a -> Bool
+id_adjoined f a = over adjoined f a == f a
+
+---------------------------------------------------------------------
+-- Adjoint Ix\/Cx duality
+---------------------------------------------------------------------
+
+-- | @'ixadjoining' . 'cxadjoining' ≡ id@ on a 'Cxoptic' at 'Conjoin'.
+--
+-- Round-tripping a coindexed optic through Ix and back via the
+-- adjunction should be the identity.
+--
+-- Tested at @'Conjoin' j@ (the canonical 'Adjoining' profunctor).
+-- @Cx (Conjoin j) k a b = j -> a -> k -> b@.
+--
+roundtrip_ixadjoining :: (Eq t) => Cxoptic (Conjoin ()) k s t a b -> (a -> k -> b) -> s -> k -> Bool
+roundtrip_ixadjoining o akb s k =
+  unConjoin (ixadjoining (cxadjoining o) (Conjoin $ \() -> akb) ) () s k
+    == unConjoin (o (Conjoin $ \() -> akb)) () s k
+
+-- | @'cxadjoining' . 'ixadjoining' ≡ id@ on an 'Ixoptic' at 'Conjoin'.
+--
+-- Round-tripping an indexed optic through Cx and back via the
+-- adjunction should be the identity.
+--
+-- @Ix (Conjoin j) k a b = j -> (k, a) -> b@.
+--
+roundtrip_cxadjoining :: (Eq t) => Ixoptic (Conjoin ()) k s t a b -> ((k, a) -> b) -> (k, s) -> Bool
+roundtrip_cxadjoining o kab ks =
+  unConjoin (cxadjoining (ixadjoining o) (Conjoin $ \() -> kab)) () ks
+    == unConjoin (o (Conjoin $ \() -> kab)) () ks
+
+---------------------------------------------------------------------
+-- Sort-Conjoin bridge
+---------------------------------------------------------------------
+
+-- | @'absorbSort' . 'embedSort' ≡ id@
+--
+-- Embedding 'Conjoin' into 'Sort' and absorbing back is the identity.
+--
+retract_embedSort :: Eq b => Conjoin k a b -> k -> a -> Bool
+retract_embedSort c k a =
+  unConjoin (absorbSort (embedSort c)) k a == unConjoin c k a
 
 ---------------------------------------------------------------------
 -- 'Sort'

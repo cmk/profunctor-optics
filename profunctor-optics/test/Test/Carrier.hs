@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -15,7 +16,7 @@ import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft, ixjust)
 import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
 import Data.Monoid (Sum(..))
-import Data.Profunctor.Optic.Setter (set)
+import Data.Profunctor.Optic.Setter (set, adjoint, ixadjoint)
 import Data.Profunctor.Optic.Fold (acofold, cofoldMapOf)
 import Data.Functor.Identity
 import Data.Profunctor.Types (Profunctor(..))
@@ -675,6 +676,72 @@ prop_ixprism_idempotent :: Property
 prop_ixprism_idempotent = withTests 100 . property $ do
   s <- forAll (gen_maybe int)
   assert $ Prop.idempotent_ixprism (ixjust @(Sum Int)) s
+
+---------------------------------------------------------------------
+-- Adjoint properties
+---------------------------------------------------------------------
+
+-- A simple Adjoint: fmapped, which is an Adjoint for any Functor
+-- (satisfies Adjoining at Conjoin and (->)).
+-- We use it on pairs since (,) c is a Functor.
+adj_snd :: Adjoint' (Int, Int) Int
+adj_snd = adjoint fmap
+
+prop_adjoint_id :: Property
+prop_adjoint_id = withTests 100 . property $ do
+  s <- forAll $ gen_pair int int
+  assert $ Prop.id_adjoint adj_snd s
+
+prop_adjoint_compose :: Property
+prop_adjoint_compose = withTests 100 . property $ do
+  s <- forAll $ gen_pair int int
+  assert $ Prop.compose_adjoint adj_snd (+1) (*2) s
+
+prop_adjoint_idempotent :: Property
+prop_adjoint_idempotent = withTests 100 . property $ do
+  s <- forAll $ gen_pair int int
+  a <- forAll int
+  b <- forAll int
+  assert $ Prop.idempotent_adjoint adj_snd s a b
+
+prop_adjoined_id :: Property
+prop_adjoined_id = withTests 100 . property $ do
+  a <- forAll int
+  assert $ Prop.id_adjoined (+1) a
+
+---------------------------------------------------------------------
+-- Adjoint Ix/Cx duality
+---------------------------------------------------------------------
+
+prop_roundtrip_ixadjoining :: Property
+prop_roundtrip_ixadjoining = withTests 100 . property $ do
+  s <- forAll int
+  k <- forAll char
+  -- A Cxoptic at Conjoin (): \akb s k -> akb (s+1) k - 1
+  let o :: Cxoptic (Conjoin ()) Char Int Int Int Int
+      o (Conjoin f) = Conjoin $ \() s k -> f () (s + 1) k - 1
+  assert $ Prop.roundtrip_ixadjoining o (\a _k -> a * 2) s k
+
+prop_roundtrip_cxadjoining :: Property
+prop_roundtrip_cxadjoining = withTests 100 . property $ do
+  s <- forAll int
+  k <- forAll char
+  -- An Ixoptic at Conjoin (): \kab (k,s) -> kab (k, s+1) - 1
+  let o :: Ixoptic (Conjoin ()) Char Int Int Int Int
+      o (Conjoin f) = Conjoin $ \() (k1, s) -> f () (k1, s + 1) - 1
+  assert $ Prop.roundtrip_cxadjoining o (\(_k, a) -> a * 2) (k, s)
+
+---------------------------------------------------------------------
+-- Sort-Conjoin bridge
+---------------------------------------------------------------------
+
+prop_retract_embedSort :: Property
+prop_retract_embedSort = withTests 100 . property $ do
+  k <- forAll char
+  a <- forAll int
+  let c :: Conjoin Char Int Int
+      c = Conjoin $ \k1 n -> n + fromEnum k1
+  assert $ Prop.retract_embedSort c k a
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
