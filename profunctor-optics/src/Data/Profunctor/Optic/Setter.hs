@@ -19,7 +19,6 @@ module Data.Profunctor.Optic.Setter (
   , Ixsetter1, Ixsetter1'
   , setter1
   , ixsetter1
-    -- * Adjoint Constructors
     -- ** Adjoint, Ixadjoint, Cxadjoint
   , Adjoint, Adjoint'
   , Ixadjoint, Ixadjoint'
@@ -28,6 +27,8 @@ module Data.Profunctor.Optic.Setter (
   , ixadjoint
   , adjointl
   , adjointr
+  , ixadjoining
+  , cxadjoining
     -- * Dual Constructors
     -- ** Cosetter, Cxsetter
   , Cosetter, Cosetter'
@@ -54,21 +55,9 @@ module Data.Profunctor.Optic.Setter (
   , modded
   , conditioned
     -- ** Setter1, Ixsetter1
-    -- * Adjoint Optics
+    -- ** Adjoint, Ixadjoint
   , adjoined
   , mappedException
-    -- * Adjoint Operators
-  , lifts
-  , lowers
-  , alower
-  , aupper
-    -- * Ix\/Cx adjunction transforms
-  , ixadjoining
-  , cxadjoining
-    -- * Sort-Conjoin bridge
-  , absorbSort
-  , embedSort
-  , sortCosort
     -- * Dual Optics
     -- ** Cosetter, Cxsetter
     -- ** Cosetter1, Cxsetter1
@@ -83,6 +72,11 @@ module Data.Profunctor.Optic.Setter (
   , over
   , ixover
     -- ** Setter1, Ixsetter1
+    -- ** Adjoint
+  , lifts
+  , lowers
+  , alower
+  , aupper
     -- * Dual Operators
     -- ** Cosetter, Cxsetter
   , coset
@@ -108,7 +102,6 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Data.Functor.Adjunction
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Sort (Sort(..), Cosort(..))
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
@@ -289,6 +282,86 @@ adjointl f = corepresenting $ f . leftAdjunct
 adjointr :: (forall l u. Adjunction l u => (l a -> b) -> s -> u t) -> Adjoint s t a b
 adjointr f = representing $ f . rightAdjunct
 {-# INLINE adjointr #-}
+
+-- | Convert an indexed 'Adjoint' optic to a coindexed one via the
+-- adjunction on the profunctor's representation functors.
+--
+-- 'Ix' @p k a b = p (k, a) b@ threads the index as a product on the
+-- left — the 'Corep' (left adjoint) side. 'Cx' @p k a b = p a (k -> b)@
+-- threads the index as a function on the right — the 'Rep' (right
+-- adjoint) side. For an 'Adjoining' profunctor, these are isomorphic
+-- because the adjunction @'Corep' p ⊣ 'Rep' p@ relates products and
+-- functions.
+--
+-- The conversion factors into three steps:
+--
+-- @
+-- p (k, a) b
+--   ─── 'cosieve' ──────> Corep p (k, a) -> b       (enter Corep)
+--   ─── 'leftAdjunct' ──> (k, a) -> Rep p b          (cross via adjunction)
+--   ─── curry/distribute > a -> Rep p (k -> b)        (rearrange k)
+--   ─── 'tabulate' ─────> p a (k -> b)               (exit Rep)
+-- @
+--
+-- Compare 'Data.Profunctor.Optic.Index.ixcx', which achieves the
+-- same isomorphism using 'Strong' + 'Closed' via a mechanical
+-- shuffle through 'first'' and 'closed'. Here, the adjunction
+-- makes the structure explicit: Ix threads through the left adjoint,
+-- Cx through the right, and 'leftAdjunct'\/'rightAdjunct' is the
+-- bridge.
+--
+-- @
+-- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
+-- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
+-- @
+--
+ixadjoining :: Adjoining p => Ixoptic p k s t a b -> Cxoptic p k s t a b
+ixadjoining o p_a_kb = p_s_kt
+  where
+    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
+    p_ka_b = cotabulate $ rightAdjunct $ \(k, a) ->
+      fmap ($ k) (sieve p_a_kb a)
+
+    -- Apply the indexed optic
+    p_ks_t = o p_ka_b
+
+    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
+    p_s_kt = tabulate $ \s -> distribute $ \k ->
+      leftAdjunct (cosieve p_ks_t) (k, s)
+{-# INLINE ixadjoining #-}
+
+-- | Convert a coindexed 'Adjoint' optic to an indexed one via the
+-- adjunction. The inverse of 'ixadjoining'.
+--
+-- The conversion factors into the reverse three steps:
+--
+-- @
+-- p a (k -> b)
+--   ─── 'sieve' ────────> a -> Rep p (k -> b)        (enter Rep)
+--   ─── undistribute/fmap > (k, a) -> Rep p b          (rearrange k)
+--   ─── 'rightAdjunct' ──> Corep p (k, a) -> b        (cross via adjunction)
+--   ─── 'cotabulate' ───> p (k, a) b                  (exit Corep)
+-- @
+--
+-- @
+-- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
+-- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
+-- @
+--
+cxadjoining :: Adjoining p => Cxoptic p k s t a b -> Ixoptic p k s t a b
+cxadjoining o p_ka_b = p_ks_t
+  where
+    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
+    p_a_kb = tabulate $ \a -> distribute $ \k ->
+      leftAdjunct (cosieve p_ka_b) (k, a)
+
+    -- Apply the coindexed optic
+    p_s_kt = o p_a_kb
+
+    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
+    p_ks_t = cotabulate $ rightAdjunct $ \(k, s) ->
+      fmap ($ k) (sieve p_s_kt s)
+{-# INLINE cxadjoining #-}
 
 ---------------------------------------------------------------------
 -- Dual Constructors
@@ -495,227 +568,6 @@ mappedException = adjoint Ex.mapException
 {-# INLINE mappedException #-}
 
 ---------------------------------------------------------------------
--- Adjoint Operators
----------------------------------------------------------------------
-
--- | Lift a Costar-side (co-Van Laarhoven) traversal through an
--- adjunction to obtain a Star-side result.
---
--- @
--- 'lifts' o f = 'leftAdjunct' ('cotraverseOf' o f)
--- @
---
-lifts :: Adjunction l u => ACotraversal l s t a b -> (l a -> b) -> s -> u t
-lifts o f = leftAdjunct $ cotraverseOf o f
-{-# INLINE lifts #-}
-
--- | Lower a Star-side (Van Laarhoven) traversal through an
--- adjunction to obtain a Costar-side result.
---
--- @
--- 'lowers' o f = 'rightAdjunct' ('traverseOf' o f)
--- @
---
-lowers :: Adjunction l u => ATraversal u s t a b -> (a -> u b) -> l s -> t
-lowers o f = rightAdjunct $ traverseOf o f
-{-# INLINE lowers #-}
-
--- | Convert a Star-side traversal to the Costar side through an
--- adjunction, applied to an SEC.
---
--- @
--- 'alower' abst = over 'Data.Profunctor.Optic.Iso.adjuncted' ('aupper' abst)
--- @
---
-alower :: Adjunction l u => ((a -> b) -> s -> t) -> (l a -> b) -> l s -> t
-alower abst f = rightAdjunct $ aupper abst (leftAdjunct f)
-{-# INLINE alower #-}
-
--- | Convert an SEC to a Star-side (Van Laarhoven) form.
---
--- For each index @i@ of the representable functor @u@, the SEC
--- @abst@ is applied to the @i@-th component extracted from
--- @a -> u b@.
---
-aupper :: F.Representable u => ((a -> b) -> s -> t) -> (a -> u b) -> s -> u t
-aupper abst afb s = F.tabulate $ \i -> abst (flip F.index i . afb) s
-{-# INLINE aupper #-}
-
----------------------------------------------------------------------
--- Ix/Cx adjunction transforms
----------------------------------------------------------------------
-
--- | Convert an indexed 'Adjoint' optic to a coindexed one via the
--- adjunction on the profunctor's representation functors.
---
--- 'Ix' @p k a b = p (k, a) b@ threads the index as a product on the
--- left — the 'Corep' (left adjoint) side. 'Cx' @p k a b = p a (k -> b)@
--- threads the index as a function on the right — the 'Rep' (right
--- adjoint) side. For an 'Adjoining' profunctor, these are isomorphic
--- because the adjunction @'Corep' p ⊣ 'Rep' p@ relates products and
--- functions.
---
--- The conversion factors into three steps:
---
--- @
--- p (k, a) b
---   ─── 'cosieve' ──────> Corep p (k, a) -> b       (enter Corep)
---   ─── 'leftAdjunct' ──> (k, a) -> Rep p b          (cross via adjunction)
---   ─── curry/distribute > a -> Rep p (k -> b)        (rearrange k)
---   ─── 'tabulate' ─────> p a (k -> b)               (exit Rep)
--- @
---
--- Compare 'Data.Profunctor.Optic.Index.ixcx', which achieves the
--- same isomorphism using 'Strong' + 'Closed' via a mechanical
--- shuffle through 'first'' and 'closed'. Here, the adjunction
--- makes the structure explicit: Ix threads through the left adjoint,
--- Cx through the right, and 'leftAdjunct'\/'rightAdjunct' is the
--- bridge.
---
--- @
--- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
--- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
--- @
---
-ixadjoining :: Adjoining p => Ixoptic p k s t a b -> Cxoptic p k s t a b
-ixadjoining o p_a_kb = p_s_kt
-  where
-    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
-    p_ka_b = cotabulate $ rightAdjunct $ \(k, a) ->
-      fmap ($ k) (sieve p_a_kb a)
-
-    -- Apply the indexed optic
-    p_ks_t = o p_ka_b
-
-    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
-    p_s_kt = tabulate $ \s -> distribute $ \k ->
-      leftAdjunct (cosieve p_ks_t) (k, s)
-{-# INLINE ixadjoining #-}
-
--- | Convert a coindexed 'Adjoint' optic to an indexed one via the
--- adjunction. The inverse of 'ixadjoining'.
---
--- The conversion factors into the reverse three steps:
---
--- @
--- p a (k -> b)
---   ─── 'sieve' ────────> a -> Rep p (k -> b)        (enter Rep)
---   ─── undistribute/fmap > (k, a) -> Rep p b          (rearrange k)
---   ─── 'rightAdjunct' ──> Corep p (k, a) -> b        (cross via adjunction)
---   ─── 'cotabulate' ───> p (k, a) b                  (exit Corep)
--- @
---
--- @
--- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
--- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
--- @
---
-cxadjoining :: Adjoining p => Cxoptic p k s t a b -> Ixoptic p k s t a b
-cxadjoining o p_ka_b = p_ks_t
-  where
-    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
-    p_a_kb = tabulate $ \a -> distribute $ \k ->
-      leftAdjunct (cosieve p_ka_b) (k, a)
-
-    -- Apply the coindexed optic
-    p_s_kt = o p_a_kb
-
-    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
-    p_ks_t = cotabulate $ rightAdjunct $ \(k, s) ->
-      fmap ($ k) (sieve p_s_kt s)
-{-# INLINE cxadjoining #-}
-
----------------------------------------------------------------------
--- Sort-Conjoin-Adjoint bridge
----------------------------------------------------------------------
-
--- | Absorb a 'Sort' to 'Conjoin' by evaluating at 'mempty'.
---
--- 'Conjoin' is the 'Adjoining' profunctor at the currying adjunction
--- @(,) k ⊣ (->) k@. This collapses Sort's multi-index structure
--- into a single key-value function.
---
--- @
--- 'absorbSort' '.' 'embedSort' ≡ 'id'
--- @
---
-absorbSort :: Monoid i => Sort i k a b -> Conjoin k a b
-absorbSort (Sort f) = Conjoin $ \k a -> f (const (k, a))
-{-# INLINE absorbSort #-}
-
--- | Embed 'Conjoin' into 'Sort' at a trivial index.
---
--- This is a section of 'absorbSort':
---
--- @
--- 'absorbSort' '.' 'embedSort' ≡ 'id'
--- @
---
--- but NOT a retraction:
---
--- @
--- 'embedSort' '.' 'absorbSort' ≢ 'id'    (loses multi-index structure)
--- @
---
-embedSort :: Conjoin k a b -> Sort () k a b
-embedSort (Conjoin f) = Sort $ \inp -> uncurry f (inp ())
-{-# INLINE embedSort #-}
-
--- | Cross from the Costar side ('Sort') to the Star side ('Cosort')
--- by absorbing through 'Conjoin' and using the currying adjunction.
---
--- 'Sort' is Costar-only (no 'Rep'). 'Cosort' is Star-only (no
--- 'Corep'). There is no direct adjunction between them — Sort\'s
--- Corep mixes a right adjoint @(->) i@ with a left adjoint @(,) k@,
--- blocking the composed adjunction theorem.
---
--- However, 'Conjoin' @k@ sits at the currying adjunction
--- @(,) k ⊣ (->) k@ and is simultaneously 'Representable' and
--- 'Corepresentable' — the unique 'Adjoining' profunctor connecting
--- the two sides. The bridge is:
---
--- @
--- Sort i k ──('absorbSort')──> Conjoin k ──(currying adjunction)──> Cosort () k
--- @
---
--- The first step ('absorbSort') collapses Sort\'s multi-index
--- structure by evaluating at @const@, which is lossy — the
--- function @i -> k@ that assigns different keys to different
--- indices is frozen. The second step uses @(,) k ⊣ (->) k@ to
--- flip @(k, a) -> b@ into @a -> k -> b@, crossing from Costar
--- to Star.
---
--- This pattern generalises: any Costar-only profunctor can reach
--- the Star side by retracting to an 'Adjoining' mediator and
--- then applying 'Data.Profunctor.Optic.Iso.adjuncted'. The cost
--- is always the retraction — the structure that exceeds the
--- mediator is lost.
---
-sortCosort :: Monoid i => Sort i k a b -> Cosort () k a b
-sortCosort (Sort f) = Cosort $ \a k -> ((), f (const (k, a)))
-{-# INLINE sortCosort #-}
-
--- | Lift a 'Sort'-based operation across the currying adjunction.
---
--- Given a Costar-side operation using @(,) k@ (e.g. one built
--- from 'Conjoin'), 'lifts' converts it to the Star side via
--- the adjunction @(,) k ⊣ (->) k@:
---
--- @
--- 'lifts' o :: ((k, a) -> b) -> s -> (k -> t)
--- @
---
--- This is how Sort-based sorting can feed into Star-side (e.g.
--- 'Cosort'-shaped) operations.
---
--- Example:
---
--- @
--- 'lifts' myColens :: Adjunction ((,) k) ((->) k) => ((k, a) -> b) -> s -> (k -> t)
--- @
---
-
----------------------------------------------------------------------
 -- Dual Optics
 ---------------------------------------------------------------------
 
@@ -774,6 +626,53 @@ sets o = (runIdentity #.) #. traverseOf o .# (Identity #.)
 ixsets :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 ixsets o f = curry (sets o $ uncurry f) mempty
 {-# INLINE ixsets #-}
+
+---------------------------------------------------------------------
+-- Adjoint Operators
+---------------------------------------------------------------------
+
+-- | Lift a Costar-side (co-Van Laarhoven) traversal through an
+-- adjunction to obtain a Star-side result.
+--
+-- @
+-- 'lifts' o f = 'leftAdjunct' ('cotraverseOf' o f)
+-- @
+--
+lifts :: Adjunction l u => ACotraversal l s t a b -> (l a -> b) -> s -> u t
+lifts o f = leftAdjunct $ cotraverseOf o f
+{-# INLINE lifts #-}
+
+-- | Lower a Star-side (Van Laarhoven) traversal through an
+-- adjunction to obtain a Costar-side result.
+--
+-- @
+-- 'lowers' o f = 'rightAdjunct' ('traverseOf' o f)
+-- @
+--
+lowers :: Adjunction l u => ATraversal u s t a b -> (a -> u b) -> l s -> t
+lowers o f = rightAdjunct $ traverseOf o f
+{-# INLINE lowers #-}
+
+-- | Convert a Star-side traversal to the Costar side through an
+-- adjunction, applied to an SEC.
+--
+-- @
+-- 'alower' abst = over 'Data.Profunctor.Optic.Iso.adjuncted' ('aupper' abst)
+-- @
+--
+alower :: Adjunction l u => ((a -> b) -> s -> t) -> (l a -> b) -> l s -> t
+alower abst f = rightAdjunct $ aupper abst (leftAdjunct f)
+{-# INLINE alower #-}
+
+-- | Convert an SEC to a Star-side (Van Laarhoven) form.
+--
+-- For each index @i@ of the representable functor @u@, the SEC
+-- @abst@ is applied to the @i@-th component extracted from
+-- @a -> u b@.
+--
+aupper :: F.Representable u => ((a -> b) -> s -> t) -> (a -> u b) -> s -> u t
+aupper abst afb s = F.tabulate $ \i -> abst (flip F.index i . afb) s
+{-# INLINE aupper #-}
 
 ---------------------------------------------------------------------
 -- Dual Operators

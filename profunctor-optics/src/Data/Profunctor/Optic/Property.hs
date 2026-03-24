@@ -117,7 +117,8 @@ import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Fold
 import Data.Profunctor.Optic.Sort
 import Data.Profunctor.Optic.Index (cxjoin, cxreturn, cxunit, cxstrength)
-import Data.Profunctor.Optic.Setter (adjoined, absorbSort, embedSort, ixadjoining, cxadjoining)
+import Data.Profunctor.Optic.Setter (adjoined, ixadjoining, cxadjoining)
+import Data.Profunctor.Optic.Sort (absorbSort, embedSort)
 
 -- | Inlined from lawz/Test.Function.Invertible.
 invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)

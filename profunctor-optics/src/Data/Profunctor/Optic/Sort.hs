@@ -60,9 +60,15 @@ module Data.Profunctor.Optic.Sort (
     -- * Sort merge tactics
   , sortedMatched
   , sortedMissing
+
+    -- * Sort-Conjoin bridge
+  , absorbSort
+  , embedSort
+  , sortCosort
 ) where
 
 import Data.Ord (Down(..))
+import Data.Profunctor.Optic.Carrier (Conjoin(..))
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types (Lens')
 import Prelude ((+), (-))
@@ -418,3 +424,72 @@ sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
 sortedMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
 sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))
+
+---------------------------------------------------------------------
+-- Sort-Conjoin bridge
+---------------------------------------------------------------------
+
+-- | Absorb a 'Sort' to 'Conjoin' by evaluating at 'mempty'.
+--
+-- 'Conjoin' is the 'Adjoining' profunctor at the currying adjunction
+-- @(,) k ⊣ (->) k@. This collapses Sort's multi-index structure
+-- into a single key-value function.
+--
+-- @
+-- 'absorbSort' '.' 'embedSort' ≡ 'id'
+-- @
+--
+absorbSort :: Monoid i => Sort i k a b -> Conjoin k a b
+absorbSort (Sort f) = Conjoin $ \k a -> f (const (k, a))
+{-# INLINE absorbSort #-}
+
+-- | Embed 'Conjoin' into 'Sort' at a trivial index.
+--
+-- This is a section of 'absorbSort':
+--
+-- @
+-- 'absorbSort' '.' 'embedSort' ≡ 'id'
+-- @
+--
+-- but NOT a retraction:
+--
+-- @
+-- 'embedSort' '.' 'absorbSort' ≢ 'id'    (loses multi-index structure)
+-- @
+--
+embedSort :: Conjoin k a b -> Sort () k a b
+embedSort (Conjoin f) = Sort $ \inp -> uncurry f (inp ())
+{-# INLINE embedSort #-}
+
+-- | Cross from the Costar side ('Sort') to the Star side ('Cosort')
+-- by absorbing through 'Conjoin' and using the currying adjunction.
+--
+-- 'Sort' is Costar-only (no 'Rep'). 'Cosort' is Star-only (no
+-- 'Corep'). There is no direct adjunction between them — Sort\'s
+-- Corep mixes a right adjoint @(->) i@ with a left adjoint @(,) k@,
+-- blocking the composed adjunction theorem.
+--
+-- However, 'Conjoin' @k@ sits at the currying adjunction
+-- @(,) k ⊣ (->) k@ and is simultaneously 'Representable' and
+-- 'Corepresentable' — the unique 'Adjoining' profunctor connecting
+-- the two sides. The bridge is:
+--
+-- @
+-- Sort i k ──('absorbSort')──> Conjoin k ──(currying adjunction)──> Cosort () k
+-- @
+--
+-- The first step ('absorbSort') collapses Sort\'s multi-index
+-- structure by evaluating at @const@, which is lossy — the
+-- function @i -> k@ that assigns different keys to different
+-- indices is frozen. The second step uses @(,) k ⊣ (->) k@ to
+-- flip @(k, a) -> b@ into @a -> k -> b@, crossing from Costar
+-- to Star.
+--
+-- This pattern generalises: any Costar-only profunctor can reach
+-- the Star side by retracting to an 'Adjoining' mediator and
+-- then applying 'Data.Profunctor.Optic.Iso.adjuncted'. The cost
+-- is always the retraction — the structure that exceeds the
+-- mediator is lost.
+--
+sortCosort :: Monoid i => Sort i k a b -> Cosort () k a b
+sortCosort (Sort f) = Cosort $ \a k -> ((), f (const (k, a)))
