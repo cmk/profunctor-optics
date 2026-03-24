@@ -113,46 +113,46 @@ forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
 </span><span id="line-80"></span><span class="hs-comment">-- &quot;a,b,c&quot;</span><span>
 </span><span id="line-81"></span><span class="annot"><a href="Data.ByteString.Optic.html#splitOn"><span class="hs-identifier hs-type">splitOn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Iso%27"><span class="hs-identifier hs-type">Iso'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span class="hs-special">]</span><span>
 </span><span id="line-82"></span><span id="splitOn"><span class="annot"><span class="annottext">splitOn :: ByteString -&gt; Iso' ByteString [ByteString]
-</span><a href="Data.ByteString.Optic.html#splitOn"><span class="hs-identifier hs-var hs-var">splitOn</span></a></span></span><span> </span><span id="local-6989586621679058796"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058796"><span class="hs-identifier hs-var">delim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; [ByteString])
+</span><a href="Data.ByteString.Optic.html#splitOn"><span class="hs-identifier hs-var hs-var">splitOn</span></a></span></span><span> </span><span id="local-6989586621679058798"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">delim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(ByteString -&gt; [ByteString])
 -&gt; ([ByteString] -&gt; ByteString) -&gt; Iso' ByteString [ByteString]
 forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
 </span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; [ByteString]
-</span><a href="#local-6989586621679058797"><span class="hs-identifier hs-var">split</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058796"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; [ByteString] -&gt; ByteString
+</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var">split</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; [ByteString] -&gt; ByteString
 </span><span class="hs-identifier hs-var">BS.intercalate</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058796"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-83"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-84"></span><span>    </span><span id="local-6989586621679058797"><span class="annot"><span class="annottext">split :: ByteString -&gt; ByteString -&gt; [ByteString]
-</span><a href="#local-6989586621679058797"><span class="hs-identifier hs-var hs-var">split</span></a></span></span><span> </span><span id="local-6989586621679058798"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679058799"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var">s</span></a></span></span><span>
+</span><span id="line-84"></span><span>    </span><span id="local-6989586621679058799"><span class="annot"><span class="annottext">split :: ByteString -&gt; ByteString -&gt; [ByteString]
+</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var hs-var">split</span></a></span></span><span> </span><span id="local-6989586621679058800"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058800"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679058801"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058801"><span class="hs-identifier hs-var">s</span></a></span></span><span>
 </span><span id="line-85"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Bool
 </span><span class="hs-identifier hs-var">BS.null</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><a href="#local-6989586621679058801"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
 </span><span id="line-86"></span><span>        </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; (ByteString, ByteString)
 </span><span class="hs-identifier hs-var">BS.breakSubstring</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-87"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621679058802"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058802"><span class="hs-identifier hs-var">pre</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679058803"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058803"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679058800"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058801"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-87"></span><span>            </span><span class="hs-special">(</span><span id="local-6989586621679058804"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058804"><span class="hs-identifier hs-var">pre</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679058805"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058805"><span class="hs-identifier hs-var">rest</span></a></span></span><span class="hs-special">)</span><span>
 </span><span id="line-88"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; Bool
 </span><span class="hs-identifier hs-var">BS.null</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058803"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058802"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">]</span><span>
+</span><a href="#local-6989586621679058805"><span class="hs-identifier hs-var">rest</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058804"><span class="hs-identifier hs-var">pre</span></a></span><span class="hs-special">]</span><span>
 </span><span id="line-89"></span><span>                </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058802"><span class="hs-identifier hs-var">pre</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; [ByteString] -&gt; [ByteString]
+</span><a href="#local-6989586621679058804"><span class="hs-identifier hs-var">pre</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; [ByteString] -&gt; [ByteString]
 forall a. a -&gt; [a] -&gt; [a]
 </span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">ByteString -&gt; ByteString -&gt; [ByteString]
-</span><a href="#local-6989586621679058797"><span class="hs-identifier hs-var">split</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; ByteString -&gt; ByteString
+</span><a href="#local-6989586621679058799"><span class="hs-identifier hs-var">split</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058800"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Int -&gt; ByteString -&gt; ByteString
 </span><span class="hs-identifier hs-var">BS.drop</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ByteString -&gt; Int
 </span><span class="hs-identifier hs-var">BS.length</span></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058798"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679058803"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679058800"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679058805"><span class="hs-identifier hs-var">rest</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-90"></span><span>
 </span><span id="line-91"></span><span class="hs-comment">-- | Traversal over individual bytes.</span><span>
 </span><span id="line-92"></span><span class="hs-comment">--</span><span>
