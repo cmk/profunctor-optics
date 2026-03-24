@@ -44,6 +44,7 @@ library
       Data.Profunctor.Optic.Dual
       Data.Profunctor.Optic.Carrier
       Data.Profunctor.Optic.Combinator
+      Data.Profunctor.Optic.Index
       Data.Profunctor.Optic.Infix
 
       Data.Profunctor.Optic.Iso

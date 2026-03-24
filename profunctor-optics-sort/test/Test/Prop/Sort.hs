@@ -19,7 +19,7 @@ import Data.Functor.Coapply (Coapply(..))
 import Control.Coapplicative (Coapplicative(..))
 import Data.Profunctor.Sort
 import Data.Profunctor.Optic.Import (refirst, releft, re)
-import Data.Profunctor.Optic.Combinator (cxover, (#))
+import Data.Profunctor.Optic.Index (cxover, (#))
 import Data.Profunctor.Optic.Fold (cxfoldMapOf)
 import Data.Profunctor.Optic.View (cxfrom)
 import qualified Control.Category as C
@@ -690,36 +690,36 @@ prop_P74_countingHashOf_agrees = property $ do
 -- P90–P94: List variants
 ---------------------------------------------------------------------
 
--- P90: sortingOfL on empty = []
-prop_P90_sortingOfL_empty :: Property
-prop_P90_sortingOfL_empty = property $ do
-    let result = sortingOfL fstL ([] :: [(Int, String)])
+-- P90: sorts on empty = []
+prop_P90_sorts_empty :: Property
+prop_P90_sorts_empty = property $ do
+    let result = sorts fstL ([] :: [(Int, String)])
     result === []
 
--- P91: sortingOfL agrees with sortingOf for non-empty
-prop_P91_sortingOfL_agrees :: Property
-prop_P91_sortingOfL_agrees = property $ do
+-- P91: sorts agrees with sortingOf for non-empty
+prop_P91_sorts_agrees :: Property
+prop_P91_sorts_agrees = property $ do
     xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
     let ne = NE.fromList xs
-        viaL = sortingOfL fstL xs
+        viaL = sorts fstL xs
         viaNE = map NE.toList $ sortingOf fstL ne
     viaL === viaNE
 
--- P92: nubbingOfL returns one per key
-prop_P92_nubbingOfL :: Property
-prop_P92_nubbingOfL = property $ do
+-- P92: nubs returns one per key
+prop_P92_nubs :: Property
+prop_P92_nubs = property $ do
     xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
-    let result = nubbingOfL fstL xs
+    let result = nubs fstL xs
         keys = map (view fstL) result
     keys === L.nub keys
 
--- P93: toMapOfL keys = set of focused values
-prop_P93_toMapOfL :: Property
-prop_P93_toMapOfL = property $ do
-    xs <- forAll $ Gen.list (Range.linear 1 20) $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
-    let m = toMapOfL fstL xs
+-- P93: toMapOf keys = set of focused values
+prop_P93_toMapOf :: Property
+prop_P93_toMapOf = property $ do
+    xs <- forAll $ genNE $ (,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha
+    let m = toMapOf fstL xs
         mapKeys = Map.keysSet m
-        inputKeys = Map.keysSet $ Map.fromList [(fst s, ()) | s <- xs]
+        inputKeys = Map.keysSet $ Map.fromList [(fst s, ()) | s <- NE.toList xs]
     mapKeys === inputKeys
 
 -- P94: sortingString preserves all chars

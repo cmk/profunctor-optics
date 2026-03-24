@@ -64,7 +64,7 @@ module Data.Map.Optic (
   , sortedMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf', countingOf', sortingOf', sortingDescOf', groupingOf', nubbingOf', foldSortingL, foldSorting1L, mconcatSortingL, sortingString, mergingOf', innerMerge', outerMerge', leftMerge', rightMerge', sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf', countingOf', sortingOf', sortingDescOf', groupingOf', nubbingOf', foldSorts, foldSorts1, mconcatSorts, sortingString, mergingOf', innerMerge', outerMerge', leftMerge', rightMerge', sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
 import qualified Data.Map.Lazy as Map

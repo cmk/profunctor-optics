@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE LiberalTypeSynonyms   #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeOperators         #-}
@@ -135,7 +136,7 @@ import Control.Monad.State as State hiding (lift)
 import Data.Foldable (traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Types
@@ -610,7 +611,7 @@ foldOfA = flip foldMapOf pure
 -- /Note: ~8x vs foldr (:) [] on toListOf is misleading (foldr (:) []/
 -- /on [a] is id). See "Data.Profunctor.Optic.Bench"./
 --
-toListOf :: AFold (Endo [a]) s a -> s -> [a]
+toListOf :: AFold ((Endo-[]) a) s a -> s -> [a]
 toListOf o = foldrOf o (:) []
 {-# INLINE toListOf #-}
 
@@ -624,7 +625,7 @@ toListOf o = foldrOf o (:) []
 -- [(Sum {getSum = 0},"foo"),(Sum {getSum = 1},"bar")]
 --
 -- @since 0.0.3
-ixtoListOf :: Monoid k => AIxfold (Endo [(k, a)]) k s a -> s -> [(k, a)]
+ixtoListOf :: Monoid k => AIxfold ((Endo-[]) (k, a)) k s a -> s -> [(k, a)]
 ixtoListOf o = ixfoldrOf o (\k a -> ((k,a):)) []
 {-# INLINE ixtoListOf #-}
 
@@ -652,7 +653,7 @@ ixfoldrOf o f r = (`appEndo` r) . ixfoldMapOf o (\j -> Endo . f j)
 
 -- | Left fold over an optic.
 --
-foldlOf :: AFold ((Endo-Dual) r) s a -> (r -> a -> r) -> r -> s -> r
+foldlOf :: AFold ((Dual-Endo) r) s a -> (r -> a -> r) -> r -> s -> r
 foldlOf o f r = (`appEndo` r) . getDual . foldMapOf o (Dual . Endo . flip f)
 {-# INLINE foldlOf #-}
 
@@ -664,13 +665,13 @@ foldlOf o f r = (`appEndo` r) . getDual . foldMapOf o (Dual . Endo . flip f)
 -- @
 --
 -- @since 0.0.3
-ixfoldlOf :: Monoid k => AIxfold ((Endo-Dual) r) k s a -> (k -> r -> a -> r) -> r -> s -> r
+ixfoldlOf :: Monoid k => AIxfold ((Dual-Endo) r) k s a -> (k -> r -> a -> r) -> r -> s -> r
 ixfoldlOf o f r = (`appEndo` r) . getDual . ixfoldMapOf o (\k -> Dual . Endo . flip (f k))
 {-# INLINE ixfoldlOf #-}
 
 -- | Strict right fold over an optic.
 --
-foldrOf' :: AFold ((Endo-Dual) (Endo r)) s a -> (a -> r -> r) -> r -> s -> r
+foldrOf' :: AFold ((Dual-Endo-Endo) r) s a -> (a -> r -> r) -> r -> s -> r
 foldrOf' o f r xs = foldlOf o f' (Endo id) xs `appEndo` r where f' (Endo k) x = Endo $ \ z -> k $! f x z
 {-# INLINE foldrOf' #-}
 
@@ -682,7 +683,7 @@ foldrOf' o f r xs = foldlOf o f' (Endo id) xs `appEndo` r where f' (Endo k) x = 
 -- @
 --
 -- @since 0.0.3
-ixfoldrOf' :: Monoid k => AIxfold ((Endo-Dual) (Endo r)) k s a -> (k -> a -> r -> r) -> r -> s -> r
+ixfoldrOf' :: Monoid k => AIxfold ((Dual-Endo-Endo) r) k s a -> (k -> a -> r -> r) -> r -> s -> r
 ixfoldrOf' o f r s = ixfoldlOf o f' (Endo id) s `appEndo` r where f' k (Endo acc) x = Endo $ \ z -> acc $! f k x z
 {-# INLINE ixfoldrOf' #-}
 
@@ -692,7 +693,7 @@ ixfoldrOf' o f r s = ixfoldlOf o f' (Endo id) s `appEndo` r where f' k (Endo acc
 -- 'Data.Foldable.foldl'' ≡ 'foldlOf'' 'folding'
 -- @
 --
-foldlOf' :: AFold (Endo (Endo r)) s a -> (r -> a -> r) -> r -> s -> r
+foldlOf' :: AFold ((Endo-Endo) r) s a -> (r -> a -> r) -> r -> s -> r
 foldlOf' o f r s = foldrOf o f' (Endo id) s `appEndo` r where f' x (Endo k) = Endo $ \z -> k $! f z x
 {-# INLINE foldlOf' #-}
 
@@ -704,7 +705,7 @@ foldlOf' o f r s = foldrOf o f' (Endo id) s `appEndo` r where f' x (Endo k) = En
 -- @
 --
 -- @since 0.0.3
-ixfoldlOf' :: Monoid k => AIxfold (Endo (Endo r)) k s a -> (k -> r -> a -> r) -> r -> s -> r
+ixfoldlOf' :: Monoid k => AIxfold ((Endo-Endo) r) k s a -> (k -> r -> a -> r) -> r -> s -> r
 ixfoldlOf' o f r s = ixfoldrOf o f' (Endo id) s `appEndo` r where f' k x (Endo acc) = Endo $ \z -> acc $! f k z x
 {-# INLINE ixfoldlOf' #-}
 
@@ -713,7 +714,7 @@ ixfoldlOf' o f r s = ixfoldrOf o f' (Endo id) s `appEndo` r where f' k x (Endo a
 -- >>> foldrMOf folded_ (\x y -> Identity (x++y)) "" ["foo","bar","baz"]
 -- Identity "foobarbaz"
 --
-foldrMOf :: Monad m => AFold ((Endo-Dual) (EndoM m r)) s a -> (a -> r -> m r) -> r -> s -> m r
+foldrMOf :: Monad m => AFold ((Dual-Endo-EndoM m) r) s a -> (a -> r -> m r) -> r -> s -> m r
 foldrMOf o f r xs = foldlOf o f' mempty xs `appEndoM` r where f' e a = e <> EndoM (f a) -- f x z >>= k
 {-# INLINE foldrMOf #-}
 
@@ -724,13 +725,13 @@ foldrMOf o f r xs = foldlOf o f' mempty xs `appEndoM` r where f' e a = e <> Endo
 -- @
 --
 -- @since 0.0.3
-ixfoldrMOf :: Monoid k => Monad m => AIxfold ((Endo-Dual) (EndoM m r)) k s a -> (k -> a -> r -> m r) -> r -> s -> m r
+ixfoldrMOf :: Monoid k => Monad m => AIxfold ((Dual-Endo-EndoM m) r) k s a -> (k -> a -> r -> m r) -> r -> s -> m r
 ixfoldrMOf o f r xs = ixfoldlOf o f' mempty xs `appEndoM` r where f' k e a = e <> EndoM (f k a)
 {-# INLINE ixfoldrMOf #-}
 
 -- | Monadic left fold over an optic.
 --
-foldlMOf :: Monad m => AFold (Endo (EndoM m r)) s a -> (r -> a -> m r) -> r -> s -> m r
+foldlMOf :: Monad m => AFold ((Endo-EndoM m) r) s a -> (r -> a -> m r) -> r -> s -> m r
 foldlMOf o f r xs = foldrOf o f' mempty xs `appEndoM` r where f' a e = e <> EndoM (`f` a)
 {-# INLINE foldlMOf #-}
 
@@ -741,7 +742,7 @@ foldlMOf o f r xs = foldrOf o f' mempty xs `appEndoM` r where f' a e = e <> Endo
 -- @
 --
 -- @since 0.0.3
-ixfoldlMOf :: Monoid k => Monad m => AIxfold (Endo (EndoM m r)) k s a -> (k -> r -> a -> m r) -> r -> s -> m r
+ixfoldlMOf :: Monoid k => Monad m => AIxfold ((Endo-EndoM m) r) k s a -> (k -> r -> a -> m r) -> r -> s -> m r
 ixfoldlMOf o f r xs = ixfoldrOf o f' mempty xs `appEndoM` r where f' k a e = e <> EndoM (flip (f k) a)
 {-# INLINE ixfoldlMOf #-}
 
@@ -755,7 +756,7 @@ ixfoldlMOf o f r xs = ixfoldrOf o f' mempty xs `appEndoM` r where f' k a e = e <
 -- hello
 -- world
 --
-traverseOf_ :: Applicative f => AFold (Endo (f ())) s a -> (a -> f r) -> s -> f ()
+traverseOf_ :: Applicative f => AFold ((Endo-f) ()) s a -> (a -> f r) -> s -> f ()
 traverseOf_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
 {-# INLINE traverseOf_ #-}
 
@@ -766,7 +767,7 @@ traverseOf_ p f = foldrOf p (\a fu -> void (f a) *> fu) (pure ())
 -- @
 --
 -- @since 0.0.3
-ixtraverseOf_ :: Monoid k => Applicative f => AIxfold (Endo (f ())) k s a -> (k -> a -> f r) -> s -> f ()
+ixtraverseOf_ :: Monoid k => Applicative f => AIxfold ((Endo-f) ()) k s a -> (k -> a -> f r) -> s -> f ()
 ixtraverseOf_ p f = ixfoldrOf p (\k a fu -> void (f k a) *> fu) (pure ())
 {-# INLINE ixtraverseOf_ #-}
 
@@ -825,31 +826,31 @@ productOf o = getProduct . foldMapOf o Product
 
 -- | Find the maximum focus, if any.
 --
-maximumOf :: Ord a => AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+maximumOf :: Ord a => AFold ((Endo-Endo-Maybe) a) s a -> s -> Maybe a
 maximumOf o = foldlOf' o (\acc a -> Just $ maybe a (max a) acc) Nothing
 {-# INLINE maximumOf #-}
 
 -- | Find the minimum focus, if any.
 --
-minimumOf :: Ord a => AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+minimumOf :: Ord a => AFold ((Endo-Endo-Maybe) a) s a -> s -> Maybe a
 minimumOf o = foldlOf' o (\acc a -> Just $ maybe a (min a) acc) Nothing
 {-# INLINE minimumOf #-}
 
 -- | Find the maximum focus by a comparison function, if any.
 --
-maximumByOf :: AFold (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+maximumByOf :: AFold ((Endo-Endo-Maybe) a) s a -> (a -> a -> Ordering) -> s -> Maybe a
 maximumByOf o cmp = foldlOf' o (\acc a -> Just $ maybe a (\b -> if cmp a b == GT then a else b) acc) Nothing
 {-# INLINE maximumByOf #-}
 
 -- | Find the minimum focus by a comparison function, if any.
 --
-minimumByOf :: AFold (Endo (Endo (Maybe a))) s a -> (a -> a -> Ordering) -> s -> Maybe a
+minimumByOf :: AFold ((Endo-Endo-Maybe) a) s a -> (a -> a -> Ordering) -> s -> Maybe a
 minimumByOf o cmp = foldlOf' o (\acc a -> Just $ maybe a (\b -> if cmp a b == LT then a else b) acc) Nothing
 {-# INLINE minimumByOf #-}
 
 -- | Find the first focus matching a predicate, if any.
 --
-findOf :: AFold (Endo (Maybe a)) s a -> (a -> Bool) -> s -> Maybe a
+findOf :: AFold ((Endo-Maybe) a) s a -> (a -> Bool) -> s -> Maybe a
 findOf o f = foldrOf o (\a r -> if f a then Just a else r) Nothing
 {-# INLINE findOf #-}
 
@@ -861,13 +862,13 @@ elemOf o a = anyOf o (== a)
 
 -- | Retrieve the first focus, if any.
 --
-headOf :: AFold (Endo (Maybe a)) s a -> s -> Maybe a
+headOf :: AFold ((Endo-Maybe) a) s a -> s -> Maybe a
 headOf o = foldrOf o (\a _ -> Just a) Nothing
 {-# INLINE headOf #-}
 
 -- | Retrieve the last focus, if any.
 --
-lastOf :: AFold (Endo (Endo (Maybe a))) s a -> s -> Maybe a
+lastOf :: AFold ((Endo-Endo-Maybe) a) s a -> s -> Maybe a
 lastOf o = foldlOf' o (\_ a -> Just a) Nothing
 {-# INLINE lastOf #-}
 

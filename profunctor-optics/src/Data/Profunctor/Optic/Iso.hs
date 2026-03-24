@@ -52,7 +52,8 @@ import Data.Coerce
 import Data.Functor.Adjunction hiding (adjuncted)
 import Data.Maybe (fromMaybe)
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Optic.Dual (Re(..), re)
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Yoneda (Coyoneda(..), Yoneda(..))

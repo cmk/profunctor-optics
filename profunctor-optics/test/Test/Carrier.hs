@@ -10,7 +10,7 @@ import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
-import Data.Profunctor.Optic.Dual (cxIx, ixCx)
+import Data.Profunctor.Optic.Index (cxix, ixcx)
 import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft)
 import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
@@ -637,7 +637,7 @@ prop_cxreturn_cxunit = withTests 100 . property $ do
   a <- forAll int
   assert $ Prop.cxreturn_cxunit (+1) a
 
--- | ixCx . cxIx ≡ id on an Iso-like Cxoptic at (->)
+-- | ixcx . cxix ≡ id on an Iso-like Cxoptic at (->)
 prop_roundtrip_ixcx :: Property
 prop_roundtrip_ixcx = withTests 100 . property $ do
   s <- forAll int
@@ -647,7 +647,7 @@ prop_roundtrip_ixcx = withTests 100 . property $ do
       o akb s k1 = akb (s + 1) k1 - 1
   assert $ Prop.roundtrip_ixcx o (\a _k -> a * 2) s k
 
--- | cxIx . ixCx ≡ id on an Iso-like Ixoptic at (->)
+-- | cxix . ixcx ≡ id on an Iso-like Ixoptic at (->)
 prop_roundtrip_cxix :: Property
 prop_roundtrip_cxix = withTests 100 . property $ do
   s <- forAll int

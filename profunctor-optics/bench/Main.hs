@@ -11,7 +11,7 @@ import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Bench
 import Data.Profunctor.Optic.Fold (foldsWithKey)
 import Data.Profunctor.Optic.Setter (sets, setsWithKey)
-import Data.List.Optic (sortingOfL)
+import Data.List.Optic (sorts)
 import qualified Data.Map.Optic as MO
 import qualified Data.Map.Strict as Map
 
@@ -184,14 +184,14 @@ sortGroup = bgroup "sort-carrier"
 
 containerGroup :: Benchmark
 containerGroup = bgroup "containers"
-  [ bgroup "sortingOfL"
+  [ bgroup "sorts"
     [ let (optic, direct) = benchSortingOfL fstL pairs1K
       in bgroup "1K"
         [ bench "optic"  $ nf optic  pairs1K
         , bench "direct" $ nf direct pairs1K
         ]
     ]
-  , bgroup "toMapOfL"
+  , bgroup "toMapOf"
     [ let (optic, direct) = benchToMapOfL fstL
       in bgroup "1K"
         [ bench "optic"  $ nf optic  pairs1K

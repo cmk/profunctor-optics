@@ -130,7 +130,7 @@ module Data.Profunctor.Optic.Bench (
 ) where
 
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
-import Data.Profunctor.Optic.Combinator (over, ixover)
+import Data.Profunctor.Optic.Index (ixover)
 import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfoldMapOf, preview)
 import Data.Profunctor.Optic.Lens (lensVl)
 import Data.Profunctor.Optic.Sort (mkSortN, sortingRep)

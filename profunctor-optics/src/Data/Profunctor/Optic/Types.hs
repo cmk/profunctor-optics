@@ -115,18 +115,12 @@ module Data.Profunctor.Optic.Types (
   , Mapping1, Remapping1
   , CoercingL, CoercingR
   , Foldable', Foldable1'
-    -- * 'Re'
-  , Re(..), re
-    -- * 'Co'
-  , Co(..), co
-  , between
   , module Export
 ) where
 
 
 import Data.Bifunctor (Bifunctor(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Dual as Export (Re(..), re, Co(..), co, liftCo, lowerCo, cxIx, ixCx, between)
 import Data.Profunctor.Types as Export
 
 -- $setup

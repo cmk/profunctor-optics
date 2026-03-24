@@ -110,7 +110,7 @@ import Data.Profunctor.Optic.Import
 import qualified Data.Profunctor.Optic.View as V
 import qualified Data.Profunctor.Optic.Fold as F
 import qualified Data.Profunctor.Optic.Setter as S
-import qualified Data.Profunctor.Optic.Combinator as C
+import qualified Data.Profunctor.Optic.Index as C
 
 ---------------------------------------------------------------------
 -- Fixity declarations

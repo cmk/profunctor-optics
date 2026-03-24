@@ -93,13 +93,17 @@ import Data.Profunctor.Optic.Import
 import Prelude (Bool(..), Eq(..), Monoid, (&&))
 import qualified Control.Category as C
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Dual (cxIx, ixCx)
+import Data.Profunctor.Optic.Dual (re)
+import Data.Profunctor.Optic.Index (cxix, ixcx)
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Fold
-import Data.Profunctor.Optic.Combinator (cxjoin, cxreturn, cxunit, cxstrength)
--- invertible is provided by Import (inlined from lawz/Test.Function.Invertible)
+import Data.Profunctor.Optic.Index (cxjoin, cxreturn, cxunit, cxstrength)
+
+-- | Inlined from lawz/Test.Function.Invertible.
+invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)
+invertible f g a = g (f a) == a
 
 ---------------------------------------------------------------------
 -- 'Iso'
@@ -462,7 +466,7 @@ cxreturn_cxjoin f a = cxjoin (cxreturn f) a == f a
 cxreturn_cxunit :: Eq b => (a -> b) -> a -> Bool
 cxreturn_cxunit f a = cxunit (cxreturn f) a == f a
 
--- | @'ixCx' . 'cxIx' ≡ id@ on an Iso.
+-- | @'ixcx' . 'cxix' ≡ id@ on an Iso.
 --
 -- Round-tripping a 'Cxoptic' through Ix and back should be the identity
 -- (at @(->)@, where both 'Strong' and 'Closed' hold).
@@ -472,9 +476,9 @@ cxreturn_cxunit f a = cxunit (cxreturn f) a == f a
 --
 roundtrip_ixcx :: (Eq t) => Cxoptic (->) k s t a b -> (a -> k -> b) -> s -> k -> Bool
 roundtrip_ixcx o akb s k =
-  ixCx (cxIx o) akb s k == o akb s k
+  ixcx (cxix o) akb s k == o akb s k
 
--- | @'cxIx' . 'ixCx' ≡ id@ on an Iso.
+-- | @'cxix' . 'ixcx' ≡ id@ on an Iso.
 --
 -- Round-tripping an 'Ixoptic' through Cx and back should be the identity
 -- (at @(->)@, where both 'Strong' and 'Closed' hold).
@@ -484,4 +488,4 @@ roundtrip_ixcx o akb s k =
 --
 roundtrip_cxix :: (Eq t) => Ixoptic (->) k s t a b -> ((k, a) -> b) -> (k, s) -> Bool
 roundtrip_cxix o kab ks =
-  cxIx (ixCx o) kab ks == o kab ks
+  cxix (ixcx o) kab ks == o kab ks

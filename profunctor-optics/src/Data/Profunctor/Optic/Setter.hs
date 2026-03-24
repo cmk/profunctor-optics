@@ -81,7 +81,7 @@ import Control.Monad.State as State
 import Control.Monad.Writer as Writer
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
-import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (indexing,coindexing)
 import Data.Profunctor.Optic.Traversal

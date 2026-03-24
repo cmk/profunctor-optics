@@ -123,17 +123,12 @@ module Data.Profunctor.Optic.Dual (
     Re(..), re
     -- * Co
   , Co(..), co, liftCo, lowerCo
-    -- * Ix\/Cx duality
-  , cxIx, ixCx
-    -- * Utilities
-  , between
 ) where
 
 import Data.Bifunctor (Bifunctor(..))
+import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
 
--- Defined here to avoid circular dependency with Types.hs.
-type Optic p s t a b = p a b -> p s t
 
 ---------------------------------------------------------------------
 -- Re
@@ -319,79 +314,3 @@ co :: Closed p => Optic (Co p) s t a b -> Optic p s t a b
 co o pab = lowerCo (o (liftCo pab))
 {-# INLINE co #-}
 
----------------------------------------------------------------------
--- Ix\/Cx duality
----------------------------------------------------------------------
-
--- Duplicated from Types.hs to avoid circular imports.
-type Ix p k a b = p (k , a) b
-type Cx p k a b = p a (k -> b)
-type Ixoptic p k s t a b = Ix p k a b -> Ix p k s t
-type Cxoptic p k s t a b = Cx p k a b -> Cx p k s t
-
--- | Convert a coindexed optic to an indexed optic by uncurrying
--- the coindex.
---
--- @
--- 'Cx' p k a b  =  p a (k -> b)     — function coindex on the right
--- 'Ix' p k a b  =  p (k, a) b       — product index on the left
--- @
---
--- Requires both 'Closed' (to curry the input) and 'Strong' (to
--- uncurry the output). This means 'cxIx' and 'ixCx' are only
--- usable with optics that are both 'Strong' and 'Closed' (e.g.
--- 'Iso'), reflecting the fact that currying and uncurrying are
--- inverse operations that each require one half of the duality.
---
-cxIx :: (Closed p, Strong p) => Cxoptic p k s t a b -> Ixoptic p k s t a b
-cxIx o pka_b =
-  let pa_kb   = lmap (\a k -> (k, a)) (closed pka_b)   -- p (k,a) b  →  p a (k->b)
-      ps_kt   = o pa_kb                                  -- p a (k->b) →  p s (k->t)
-      psk_ktk = first' ps_kt                             -- p s (k->t) →  p (s,k) (k->t, k)
-  in  dimap swap (\(f, k) -> f k) psk_ktk                -- p (s,k) (k->t, k) →  p (k,s) t
-{-# INLINE cxIx #-}
-
--- | Convert an indexed optic to a coindexed optic by currying
--- the index.
---
--- @
--- 'ixCx' :: ('Closed' p, 'Strong' p) => 'Ixoptic' p k s t a b -> 'Cxoptic' p k s t a b
--- @
---
--- 'ixCx' requires 'Closed' on @p@ to introduce the function space
--- @(k -> b)@ from the product @(k, a)@, and 'Strong' for the
--- reverse direction on the input. These are the Ix\/Cx analogues
--- of 'co' and 're' at the index level — currying and uncurrying
--- move the index between a product on the left and a function on
--- the right.
---
--- Note: both 'cxIx' and 'ixCx' require /both/ 'Strong' and 'Closed',
--- because each must convert in both directions (once for the input,
--- once for the output of the optic). This means they are only usable
--- with optics that are both 'Strong' and 'Closed' — i.e., 'Iso'-like
--- optics. This is a genuine limitation: you cannot curry an 'Ixlens'
--- into a 'Cxlens' because 'Ixlens' requires 'Strong' but not 'Closed'.
---
-ixCx :: (Closed p, Strong p) => Ixoptic p k s t a b -> Cxoptic p k s t a b
-ixCx o pa_kb =
-  let pka_b   = dimap swap (\(f, k) -> f k) (first' pa_kb)  -- p a (k->b)  →  p (k,a) b
-      pks_t   = o pka_b                                       -- p (k,a) b   →  p (k,s) t
-      ps_kt   = lmap (\s k -> (k, s)) (closed pks_t)          -- p (k,s) t   →  p s (k->t)
-  in  ps_kt
-{-# INLINE ixCx #-}
-
----------------------------------------------------------------------
--- Utilities
----------------------------------------------------------------------
-
--- | Can be used to rewrite
---
--- > \g -> f . g . h
---
--- to
---
--- > between f h
---
-between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
-between f g = (f .) . (. g)
-{-# INLINE between #-}

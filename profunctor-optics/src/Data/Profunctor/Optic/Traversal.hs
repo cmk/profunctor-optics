@@ -104,16 +104,23 @@ module Data.Profunctor.Optic.Traversal (
     -- ** Cotraversal0, Cxtraversal0
     -- ** Cotraversal1, Cxtraversal1
     -- * Arrow-style combinators
+  , arr
+  , coarr
   , (***)
   , (&&&)
+  , (<<*>>)
+  , liftR2
   , (+++)
   , (|||)
-  , (<<*>>)
-  , pappend
   , divide
+  , divideWith
   , cochoose
-  , codivide
+  , cochooseWith
   , choose
+  , chooseWith
+  , codivide
+  , codivideWith
+  , pappend
     -- * Reexports
   , Strong(..)
   , Choice(..)
@@ -126,12 +133,14 @@ import Control.Monad.State
 import Control.Applicative.Backwards
 import Data.Bitraversable
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Dual
 import Data.Profunctor.Optic.Prism
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Combinator
+import Data.Profunctor.Optic.Index
 import Data.Semigroup.Bitraversable
+import qualified Data.Bifunctor as B
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -1005,3 +1014,117 @@ collectOf o = cotraverseOf o id
 cxcollectOf :: Monoid k => Coapply f => ACxtraversal f k s t a (f a) -> f s -> t
 cxcollectOf o = cxtraverseOf o (const id)
 {-# INLINE cxcollectOf #-}
+
+---------------------------------------------------------------------
+-- Arrow-style combinators
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+arr :: Traversing p => (a -> b) -> p a b
+arr = tabulate . (pure .)
+{-# INLINE arr #-}
+
+-- | TODO: Document
+--
+coarr :: Cotraversing p => (a -> b) -> p a b
+coarr = cotabulate . (. copure)
+{-# INLINE coarr #-}
+
+infixr 3 ***
+
+-- | Profunctor variant of 'Control.Arrow.***'.
+--
+(***) :: Traversing1 p => p a1 b1 -> p a2 b2 -> p (a1 , a2) (b1 , b2)
+p *** q = dimap fst (,) p <<*>> lmap snd q
+{-# INLINE (***) #-}
+
+infixr 3 &&&
+
+-- | Profunctor variant of 'Control.Arrow.&&&'.
+--
+(&&&) ::  Traversing1 p => p a b1 -> p a b2 -> p a (b1 , b2)
+p &&& q = liftR2 (,) p q
+{-# INLINE (&&&) #-}
+
+infixl 4 <<*>>
+
+-- | Profunctor variant of '<*>'.
+--
+(<<*>>) :: Traversing1 p => p a (b -> c) -> p a b -> p a c
+(<<*>>) = liftR2 ($)
+{-# INLINE (<<*>>) #-}
+
+liftR2 :: Traversing1 p => (b -> c -> d) -> p a b -> p a c -> p a d
+liftR2 f x y = tabulate $ \s -> liftF2 f (sieve x s) (sieve y s)
+{-# INLINE liftR2 #-}
+
+infixr 2 +++
+
+-- | Profunctor variant of 'Control.Arrow.+++'.
+--
+(+++) :: Cotraversing1 p => p a1 b1 -> p a2 b2 -> p (a1 + a2) (b1 + b2)
+p +++ q = cotabulate $ B.bimap (cosieve p) (cosieve q) . coapply
+{-# INLINE (+++) #-}
+
+infixr 2 |||
+
+-- | Profunctor variant of 'Control.Arrow.|||'.
+--
+(|||) :: Cotraversing1 p => p a1 b -> p a2 b -> p (a1 + a2) b
+p ||| q = cotabulate $ either (cosieve p) (cosieve q) . coapply
+{-# INLINE (|||) #-}
+
+-- | TODO: Document
+--
+pappend :: Traversing1 p => p a b -> p a b -> p a b
+pappend = divideWith fork
+{-# INLINE pappend #-}
+
+-- | TODO: Document
+--
+divide :: Traversing1 p => p a1 b -> p a2 b -> p (a1 , a2) b
+divide = divideWith id
+{-# INLINE divide #-}
+
+-- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:divideWith divideWith >.
+--
+divideWith :: Traversing1 p => (a -> (a1 , a2)) -> p a1 b -> p a2 b -> p a b
+divideWith f p q = dimap f fst $ p *** q
+{-# INLINE divideWith #-}
+
+-- | TODO: Document
+--
+cochoose :: Traversing1 p => p a b1 -> p a b2 -> p a (b1, b2)
+cochoose = cochooseWith id
+{-# INLINE cochoose #-}
+
+-- | TODO: Document
+--
+cochooseWith :: Traversing1 p => ((b1 , b2) -> b) -> p a b1 -> p a b2 -> p a b
+cochooseWith f p q = dimap fork f $ p *** q
+{-# INLINE cochooseWith #-}
+
+-- | TODO: Document
+--
+choose :: Cotraversing1 p => p a1 b -> p a2 b -> p (a1 + a2) b
+choose = chooseWith id
+{-# INLINE choose #-}
+
+-- | Profunctor variant of < hackage.haskell.org/package/contravariant/docs/Data-Functor-Contravariant-Divisible.html#v:chooseWith chooseWith >.
+--
+chooseWith :: Cotraversing1 p => (a -> (a1 + a2)) -> p a1 b -> p a2 b -> p a b
+chooseWith f p q = dimap f join $ p +++ q
+{-# INLINE chooseWith #-}
+
+-- | TODO: Document
+--
+codivide :: Cotraversing1 p => p a b1 -> p a b2 -> p a (b1 + b2)
+codivide = codivideWith id
+{-# INLINE codivide #-}
+
+-- | TODO: Document
+--
+codivideWith :: Cotraversing1 p => ((b1 + b2) -> b) -> p a b1 -> p a b2 -> p a b
+codivideWith f p q = dimap Left f $ p +++ q
+{-# INLINE codivideWith #-}

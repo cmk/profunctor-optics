@@ -24,7 +24,7 @@ module Data.Profunctor.Optic.Import (
   , branch'
   , assocl
   , assocr
-  , assocl' 
+  , assocl'
   , assocr'
   , eassocl
   , eassocr
@@ -32,7 +32,19 @@ module Data.Profunctor.Optic.Import (
   , forget2
   , forgetl
   , forgetr
-  , invertible
+  , between
+    -- * Profunctor utilities
+  , star
+  , unstar
+  , costar
+  , uncostar
+  , constL
+  , constR
+  , shiftedL
+  , shiftedR
+  , coercedL
+  , coercedR
+  , over
   , module Export
 ) where
 
@@ -63,17 +75,22 @@ import Data.Profunctor.Sieve as Export (Sieve(..), Cosieve(..))
 import Data.Profunctor.Rep as Export (Representable(..), Corepresentable(..))
 import Data.Tuple (swap)
 import Data.Tagged as Export
+import Data.Bifunctor (Bifunctor(..))
+import qualified Data.Bifunctor as B
 import Data.Void as Export
 import Prelude as Export hiding (Num(..),subtract,sum,product,(^),foldl,foldl1)
 
 -- Inlined from Test.Logic / Test.Function.Invertible (lawz)
 type (+) = Either
 
--- | \( \forall a: f (g a) \equiv a \)
+-- | Functor composition operator. Read left-to-right: apply @g@ then @f@.
 --
-invertible :: Eq r => (r -> s) -> (s -> r) -> (r -> Bool)
-invertible f g a = g (f a) == a
+-- Left-associative so @Dual - Endo - Endo@ parses as @(Dual - Endo) - Endo@,
+-- i.e. @Dual (Endo (Endo a))@.
+infixl 9 -
+type (f - g) a = f (g a)
 
+-- | \( \forall a: f (g a) \equiv a \)
 rgt :: (a -> b) -> a + b -> b
 rgt f = either f id
 {-# INLINE rgt #-}
@@ -114,9 +131,6 @@ eval = uncurry $ flip id
 apply :: (b -> a , b) -> a
 apply = uncurry id
 {-# INLINE apply #-}
-
--- | Hyphenation operator.
-type (g - f) a = f (g a)
 
 branch :: (a -> Bool) -> b -> c -> a -> b + c
 branch f y z x = if f x then Right z else Left y
@@ -169,3 +183,91 @@ forgetl f = go . Right where go = either (go . Left) id . f
 forgetr :: (a + c -> b + c) -> a -> b
 forgetr f = go . Left where go = either id (go . Right) . f
 {-# INLINE forgetr #-}
+
+-- | Can be used to rewrite
+--
+-- > \g -> f . g . h
+--
+-- to
+--
+-- > between f h
+--
+between :: (c -> d) -> (a -> b) -> (b -> c) -> a -> d
+between f g = (f .) . (. g)
+{-# INLINE between #-}
+
+---------------------------------------------------------------------
+-- Profunctor utilities
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+star :: Applicative f => Star f a a
+star = Star pure
+{-# INLINE star #-}
+
+-- | TODO: Document
+--
+unstar :: Coapplicative f => Star f a b -> a -> b
+unstar f = copure . runStar f
+{-# INLINE unstar #-}
+
+-- | TODO: Document
+--
+costar :: Coapplicative f => Costar f a a
+costar = Costar copure
+{-# INLINE costar #-}
+
+-- | TODO: Document
+--
+uncostar :: Applicative f => Costar f a b -> a -> b
+uncostar f = runCostar f . pure
+{-# INLINE uncostar #-}
+
+constL :: Profunctor p => b -> p b c -> p a c
+constL = lmap . const
+{-# INLINE constL #-}
+
+constR :: Profunctor p => c -> p a b -> p a c
+constR = rmap . const
+{-# INLINE constR #-}
+
+shiftedL :: Profunctor p => p (a + b) c -> p b (c + d)
+shiftedL = dimap Right Left
+{-# INLINE shiftedL #-}
+
+shiftedR :: Profunctor p => p b (c , d) -> p (a , b) c
+shiftedR = dimap snd fst
+{-# INLINE shiftedR #-}
+
+coercedL :: (Profunctor p, Bifunctor p) => p a b -> p c b
+coercedL = B.first absurd . lmap absurd
+{-# INLINE coercedL #-}
+
+coercedR :: (Profunctor p, forall x. Contravariant (p x)) => p a b -> p a c
+coercedR = rmap absurd . contramap absurd
+{-# INLINE coercedR #-}
+
+-- | Map over an 'Optic'.
+--
+-- @
+-- 'over' o 'id' ≡ 'id'
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- 'over' '.' 'resetter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+-- >>> over first (+1) (1,2)
+-- (2,2)
+-- >>> over first show (10,20)
+-- ("10",20)
+--
+-- /Benchmark: 1.00x vs direct (Lens), 0.89x vs fmap (Traversal). See "Data.Profunctor.Optic.Bench"./
+--
+over :: ((a -> b) -> s -> t) -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}

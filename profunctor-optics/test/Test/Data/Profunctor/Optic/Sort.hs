@@ -154,26 +154,26 @@ prop_sort_zips = property $ do
 -- Sort operators (from Optic.Sort)
 ---------------------------------------------------------------------
 
--- | sortingOfL groups by key
-prop_sortingOfL_groups :: Property
-prop_sortingOfL_groups = property $ do
+-- | sorts groups by key
+prop_sorts_groups :: Property
+prop_sorts_groups = property $ do
     xs <- forAll $ Gen.list (Range.linear 1 20)
         ((,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha)
-    let groups = sortingOfL fstL xs
+    let groups = sorts fstL xs
     -- All elements preserved
     sum (map length groups) === length xs
 
--- | sortingOfL empty = []
-prop_sortingOfL_empty :: Property
-prop_sortingOfL_empty = property $ do
-    sortingOfL fstL ([] :: [(Int, String)]) === []
+-- | sorts empty = []
+prop_sorts_empty :: Property
+prop_sorts_empty = property $ do
+    sorts fstL ([] :: [(Int, String)]) === []
 
--- | toMapOfL keys match input keys
-prop_toMapOfL_keys :: Property
-prop_toMapOfL_keys = property $ do
+-- | toMapOf keys match input keys
+prop_toMapOf_keys :: Property
+prop_toMapOf_keys = property $ do
     xs <- forAll $ Gen.list (Range.linear 1 20)
         ((,) <$> Gen.int (Range.linear 0 5) <*> Gen.string (Range.linear 1 3) Gen.alpha)
-    let m = toMapOfL fstL xs
+    let m = toMapOf fstL xs
     Map.keysSet m === Map.keysSet (Map.fromList [(fst s, ()) | s <- xs])
 
 -- | sortingRep agrees with sortingString
@@ -183,10 +183,10 @@ prop_sortingString = property $ do
     let result = sortingString id s
     sum (fmap length result) === length s
 
--- | mergingOfL inner merge keeps only matching keys
-prop_innerMergeL :: Property
-prop_innerMergeL = property $ do
+-- | merges inner merge keeps only matching keys
+prop_innerMerges :: Property
+prop_innerMerges = property $ do
     let xs = [(1, "a"), (2, "b"), (3, "c")] :: [(Int, String)]
         ys = [(2, "x"), (3, "y"), (4, "z")] :: [(Int, String)]
-        result = innerMergeL fstL fstL (\_ l r -> (l, r)) xs ys
+        result = innerMerges fstL fstL (\_ l r -> (l, r)) xs ys
     Map.keys result === [2, 3]

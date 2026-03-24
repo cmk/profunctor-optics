@@ -27,29 +27,29 @@ module Data.Profunctor.Optic.Sort (
   , groupTaggedRep
 
     -- * Lens-based operators (List)
-  , sortingOfL
-  , sortingDescOfL
-  , groupingOfL
-  , nubbingOfL
+  , sorts
+  , sortsDesc
+  , groups
+  , nubs
 
     -- * Container construction (List)
-  , toMapOfL
-  , countingOfL
+  , toMapOf
+  , countsOf
 
     -- * Post-sort foldMapOf (List)
-  , foldSortingL
-  , foldSorting1L
-  , mconcatSortingL
+  , foldSorts
+  , foldSorts1
+  , mconcatSorts
 
     -- * Sort as String sort
   , sortingString
 
     -- * Merge (Sort + containers merge)
-  , mergingOfL
-  , innerMergeL
-  , outerMergeL
-  , leftMergeL
-  , rightMergeL
+  , merges
+  , innerMerges
+  , outerMerges
+  , leftMerges
+  , rightMerges
 
     -- * Sort merge tactics
   , sortedMatched
@@ -139,55 +139,55 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
 ---------------------------------------------------------------------
 
 -- | Sort a list through a lens. Returns @[]@ on empty input.
-sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingOfL _ [] = []
-sortingOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+sorts :: Ord a => Lens' s a -> [s] -> [[s]]
+sorts _ [] = []
+sorts o xs = Map.elems $ Map.fromListWith (flip (++))
   [(view o s, [s]) | s <- xs]
 
 -- | Sort a list in descending order through a lens.
-sortingDescOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingDescOfL _ [] = []
-sortingDescOfL o xs = Map.elems $ Map.fromListWith (flip (++))
+sortsDesc :: Ord a => Lens' s a -> [s] -> [[s]]
+sortsDesc _ [] = []
+sortsDesc o xs = Map.elems $ Map.fromListWith (flip (++))
   [(Down (view o s), [s]) | s <- xs]
 
 -- | Group a list through a lens.
-groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-groupingOfL = sortingOfL
+groups :: Ord a => Lens' s a -> [s] -> [[s]]
+groups = sorts
 
 -- | Deduplicate a list through a lens, keeping first per group.
-nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
-nubbingOfL _ [] = []
-nubbingOfL o xs = map head $ sortingOfL o xs
+nubs :: Ord a => Lens' s a -> [s] -> [s]
+nubs _ [] = []
+nubs o xs = map head $ sorts o xs
 
 ---------------------------------------------------------------------
 -- Container construction (List)
 ---------------------------------------------------------------------
 
 -- | Build a 'Map.Map' keyed by lens focus from a list.
-toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
-toMapOfL _ [] = Map.empty
-toMapOfL o xs = Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
+toMapOf :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
+toMapOf _ [] = Map.empty
+toMapOf o xs = Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
 
 -- | Count occurrences per key from a list.
-countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
-countingOfL _ [] = Map.empty
-countingOfL o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
+countsOf :: Ord a => Lens' s a -> [s] -> Map.Map a Int
+countsOf _ [] = Map.empty
+countsOf o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
 
 ---------------------------------------------------------------------
 -- Post-sort foldMapOf (List)
 ---------------------------------------------------------------------
 
 -- | Sort through a lens, then right-fold each group.
-foldSortingL :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
-foldSortingL o g z xs = map (foldr g z) (sortingOfL o xs)
+foldSorts :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
+foldSorts o g z xs = map (foldr g z) (sorts o xs)
 
 -- | Sort through a lens, then reduce each non-empty group.
-foldSorting1L :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
-foldSorting1L o f xs = map (foldr1 f) (sortingOfL o xs)
+foldSorts1 :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
+foldSorts1 o f xs = map (foldr1 f) (sorts o xs)
 
 -- | Sort through a lens, then monoidal concat per group.
-mconcatSortingL :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
-mconcatSortingL o g xs = map (foldMap g) (sortingOfL o xs)
+mconcatSorts :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
+mconcatSorts o g xs = map (foldMap g) (sorts o xs)
 
 ---------------------------------------------------------------------
 -- String sort
@@ -202,46 +202,46 @@ sortingString = sortingRep length (\s i -> s !! i) id
 ---------------------------------------------------------------------
 
 -- | Merge two toListOf through lenses using containers merge tactics.
-mergingOfL :: Ord a
+merges :: Ord a
            => Lens' s a -> Lens' t a
            -> Merge.SimpleWhenMissing a [s] c
            -> Merge.SimpleWhenMissing a [t] c
            -> Merge.SimpleWhenMatched a [s] [t] c
            -> [s] -> [t] -> Map.Map a c
-mergingOfL lo ro wml wmr wm xs ys =
-  Merge.merge wml wmr wm (toMapOfL lo xs) (toMapOfL ro ys)
+merges lo ro wml wmr wm xs ys =
+  Merge.merge wml wmr wm (toMapOf lo xs) (toMapOf ro ys)
 
 -- | Inner merge: only keys present in both inputs.
-innerMergeL :: Ord a
+innerMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-innerMergeL lo ro f =
-  mergingOfL lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+innerMerges lo ro f =
+  merges lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
 
 -- | Full outer merge.
-outerMergeL :: Ord a
+outerMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [s] -> c) -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-outerMergeL lo ro fl fr fb =
-  mergingOfL lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+outerMerges lo ro fl fr fb =
+  merges lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
 
 -- | Left merge: all keys from left.
-leftMergeL :: Ord a
+leftMerges :: Ord a
            => Lens' s a -> Lens' t a
            -> (a -> [s] -> c) -> (a -> [s] -> [t] -> c)
            -> [s] -> [t] -> Map.Map a c
-leftMergeL lo ro fl fb =
-  mergingOfL lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+leftMerges lo ro fl fb =
+  merges lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
 
 -- | Right merge: all keys from right.
-rightMergeL :: Ord a
+rightMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-rightMergeL lo ro fr fb =
-  mergingOfL lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+rightMerges lo ro fr fb =
+  merges lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
 
 ---------------------------------------------------------------------
 -- Sort merge tactics

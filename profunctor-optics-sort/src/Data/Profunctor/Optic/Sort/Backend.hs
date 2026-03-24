@@ -28,11 +28,10 @@ module Data.Profunctor.Optic.Sort.Backend
   , countingOf
 
     -- * List variants
-  , sortingOfL
-  , groupingOfL
-  , nubbingOfL
-  , toMapOfL
-  , countingOfL
+  , sorts
+  , groups
+  , nubs
+  , countsOf
   , sortingString
 
     -- * Sort2 operators (+ Costrong + Cochoice)
@@ -206,28 +205,23 @@ countingOf o xs =
 -- ===================================================================
 
 -- | Sort a list through a lens. Returns @[]@ on empty input.
-sortingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingOfL _ [] = []
-sortingOfL o xs = map NE.toList $ sortingOf o (NE.fromList xs)
+sorts :: Ord a => Lens' s a -> [s] -> [[s]]
+sorts _ [] = []
+sorts o xs = map NE.toList $ sortingOf o (NE.fromList xs)
 
 -- | Group a list through a lens.
-groupingOfL :: Ord a => Lens' s a -> [s] -> [[s]]
-groupingOfL = sortingOfL
+groups :: Ord a => Lens' s a -> [s] -> [[s]]
+groups = sorts
 
 -- | Deduplicate a list through a lens, keeping first per group.
-nubbingOfL :: Ord a => Lens' s a -> [s] -> [s]
-nubbingOfL _ [] = []
-nubbingOfL o xs = nubbingOf o (NE.fromList xs)
-
--- | Build a 'Map.Map' keyed by lens focus from a list.
-toMapOfL :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
-toMapOfL _ [] = Map.empty
-toMapOfL o xs = fmap NE.toList $ toMapOf o (NE.fromList xs)
+nubs :: Ord a => Lens' s a -> [s] -> [s]
+nubs _ [] = []
+nubs o xs = nubbingOf o (NE.fromList xs)
 
 -- | Count occurrences per key from a list.
-countingOfL :: Ord a => Lens' s a -> [s] -> Map.Map a Int
-countingOfL _ [] = Map.empty
-countingOfL o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
+countsOf :: Ord a => Lens' s a -> [s] -> Map.Map a Int
+countsOf _ [] = Map.empty
+countsOf o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
 
 -- | Sort a 'String' by a key on each character.
 sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String

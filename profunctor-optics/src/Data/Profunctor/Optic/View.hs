@@ -50,7 +50,6 @@ import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
-import Data.Profunctor.Optic.Combinator
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Fold
 
