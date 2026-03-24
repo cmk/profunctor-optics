@@ -33,11 +33,14 @@ module Data.Profunctor.Optic.Setter (
   , Cosetter, Cosetter'
   , Cxsetter, Cxsetter'
   , cosetter
+  , cxsetter
   , cloneCosetter
+  , cloneCxsetter
     -- ** Cosetter1, Cxsetter1
   , Cosetter1, Cosetter1'
   , Cxsetter1, Cxsetter1'
   , cosetter1
+  , cxsetter1
     -- * Optics
     -- ** Setter, Ixsetter
   , fmapped
@@ -314,7 +317,27 @@ cloneCosetter :: ACosetter s t a t -> Cosetter s t a t
 cloneCosetter o = cosetter (cosets o)
 {-# INLINE cloneCosetter #-}
 
--- TODO: cloneCxsetter needs cxsetter constructor (S17.27)
+-- | Obtain a 'Cxsetter' from a coindexed SEC.
+--
+-- The coindex @i@ threads through the right side of the profunctor
+-- via @'Cxoptic' p i s t a b = p a (i -> b) -> p s (i -> t)@, which
+-- is equivalent to @'Cosetter' s (i -> t) a (i -> b)@. The
+-- constructor delegates to 'cosetter' on these function-wrapped types.
+--
+-- @
+-- 'cxsets' '.' 'cxsetter' ≡ 'id'
+-- 'cxsetter' '.' 'cxsets' ≡ 'id'
+-- @
+--
+cxsetter :: ((i -> a -> t) -> s -> t) -> Cxsetter i s t a t
+cxsetter f = cosetter $ \ait s -> const $ f (\i a -> ait a i) s
+{-# INLINE cxsetter #-}
+
+-- | Clone a 'Cxsetter'.
+--
+cloneCxsetter :: Monoid i => ACxsetter i s t a t -> Cxsetter i s t a t
+cloneCxsetter o = cxsetter (cxsets o)
+{-# INLINE cloneCxsetter #-}
 
 ---------------------------------------------------------------------
 -- Cosetter1
@@ -327,8 +350,13 @@ cosetter1 :: ((a -> t) -> s -> t) -> Cosetter1 s t a t
 cosetter1 abst = coindexing abst . corepresenting (\f -> fmap f . sequence1)
 {-# INLINE cosetter1 #-}
 
--- TODO: cxsetter, cxsetter1 — coindexed setter constructors need
--- more investigation into the Cxoptic threading pattern.
+-- | Obtain a 'Cxsetter1' from a coindexed SEC.
+--
+-- Non-empty variant of 'cxsetter'.
+--
+cxsetter1 :: ((i -> a -> t) -> s -> t) -> Cxsetter1 i s t a t
+cxsetter1 f = cosetter1 $ \ait s -> const $ f (\i a -> ait a i) s
+{-# INLINE cxsetter1 #-}
 
 ---------------------------------------------------------------------
 -- Optics
