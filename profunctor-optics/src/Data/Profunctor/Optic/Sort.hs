@@ -1,12 +1,16 @@
--- | Sort carriers and generic representable sort functions.
---
--- The 'Sort' type and combinators live in
--- "Data.Profunctor.Optic.Carrier". Lens-based sort operators
--- live in "Data.List.Optic" and "Data.Map.Optic".
+{-# LANGUAGE DerivingVia              #-}
+{-# LANGUAGE FlexibleInstances        #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses    #-}
+{-# LANGUAGE TypeFamilies             #-}
+{-# LANGUAGE TypeOperators            #-}
+-- | Sort and Cosort carriers, generic representable sort functions,
+-- lens-based sort operators, and merge combinators.
 module Data.Profunctor.Optic.Sort (
-    -- * Re-exports from Carrier
+    -- * Sort
     Sort(..)
   , runSort
+    -- * Sort combinators
   , (%.)
   , bindSort
   , catSort
@@ -15,6 +19,9 @@ module Data.Profunctor.Optic.Sort (
   , eitherSort
   , maybeSort
   , zipsSorting
+
+    -- * Cosort
+  , Cosort(..)
 
     -- * Sort carriers (Ord, Map)
   , mkSort
@@ -57,15 +64,172 @@ module Data.Profunctor.Optic.Sort (
 ) where
 
 import Data.Ord (Down(..))
-import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types (Lens')
-import Data.Profunctor.Optic.View (view)
-import Prelude (Int, Ord, Bounded, Enum, Eq, seq,
-                (+), (-), head, map, fst, snd, length, const, (.), ($), flip, fmap, foldMap, foldr, foldr1, (++))
+import Prelude ((+), (-))
 
+import qualified Control.Category as C
+import qualified Data.Bifunctor as B
 import qualified Data.Map.Strict as Map
 import qualified Data.Map.Merge.Strict as Merge
+
+-- | Local view helper to avoid circular import with View.hs.
+viewOf :: Lens' s a -> s -> a
+viewOf o s = getConst $ runStar (o (Star Const)) s
+{-# INLINE viewOf #-}
+
+---------------------------------------------------------------------
+-- Sort
+---------------------------------------------------------------------
+
+-- | An indexed continuation profunctor for discrimination.
+--
+-- @Sort i k a b = (i -> (k, a)) -> b@
+--
+-- The indexed generalization of @Fmt@ from @stringfmt@:
+-- @Fmt m a b = Sort m () a b@
+--
+-- @Sort@ is @Costar (Compose ((->) i) ((,) k))@. Most instances
+-- derive via this representation. @Choice@ is hand-rolled (needs
+-- @Coapplicative@ on the @Corep@ functor, requiring @Monoid i@).
+--
+-- @
+--                Profunctor  Closed  Costrong  Cochoice  Choice    Cosieve  Corepresentable  Category
+-- Sort i k          ✓          ✓       ✓         ✓      ✓(Mon i)    ✓           ✓          ✓(Mon i)
+-- @
+--
+newtype Sort i k a b = Sort { unSort :: (i -> (k, a)) -> b }
+  deriving (Functor, Applicative, Monad)
+    via Costar (Compose ((->) i) ((,) k)) a
+  deriving (Profunctor, Closed, Costrong, Cochoice)
+    via Costar (Compose ((->) i) ((,) k))
+
+-- | @Choice@ via @Coapplicative@ on @Compose ((->) i) ((,) k)@.
+-- Samples at @mempty@ to decide the @Either@ branch.
+instance Monoid i => Choice (Sort i k) where
+  left' (Sort f) = Sort $ \inp ->
+    case coapply (Compose inp) of
+      Left  (Compose ika) -> Left  (f ika)
+      Right (Compose ikb) -> Right (copure (Compose ikb))
+
+instance Cosieve (Sort i k) (Compose ((->) i) ((,) k)) where
+  cosieve (Sort f) = f . getCompose
+  {-# INLINE cosieve #-}
+
+instance Corepresentable (Sort i k) where
+  type Corep (Sort i k) = Compose ((->) i) ((,) k)
+  cotabulate f = Sort (f . Compose)
+  {-# INLINE cotabulate #-}
+
+-- | @Category@ with @(.)@ = pipeline composition (no constraint
+-- on @k@) and @id@ = extract value at @mempty@ (needs @Monoid i@).
+instance Monoid i => Category (Sort i k) where
+  id = Sort $ \inp -> snd (inp mempty)
+  Sort f . Sort g = Sort $ \inp -> f (\i -> (fst (inp i), g inp))
+  {-# INLINE id #-}
+  {-# INLINE (.) #-}
+
+-- | Run a 'Sort' carrier on an input function.
+{-# INLINE runSort #-}
+runSort :: Sort i k a b -> (i -> (k, a)) -> b
+runSort = unSort
+
+---------------------------------------------------------------------
+-- Sort combinators
+---------------------------------------------------------------------
+
+-- | Pipeline two 'Sort' passes.
+--
+-- @f %. g@ runs @g@ on the full input to produce a single @b@,
+-- then @f@ sees that @b@ at every position, paired with the
+-- original keys (unchanged).
+infixr 9 %.
+{-# INLINE (%.) #-}
+(%.) :: Sort i k b c -> Sort i k a b -> Sort i k a c
+Sort f %. Sort g = Sort $ \inp ->
+  f (\i -> (fst (inp i), g inp))
+
+-- | Indexed bind: inspect the key at each position and choose
+-- a continuation.
+{-# INLINE bindSort #-}
+bindSort :: Sort i k a b -> (k -> Sort i k a' a) -> Sort i k a' b
+bindSort (Sort m) f = Sort $ \inp ->
+  m (\i -> let (k, _) = inp i in (k, unSort (f k) inp))
+
+-- | Fold multiple 'Sort' passes.
+{-# INLINE catSort #-}
+catSort :: (Monoid i, Foldable f) => f (Sort i k a a) -> Sort i k a a
+catSort = foldr (%.) C.id
+
+-- | Constant: embed a key-value pair.
+{-# INLINE sortC #-}
+sortC :: (k, a) -> Sort i k a (k, a)
+sortC ka = Sort $ const ka
+
+-- | Remap keys.
+{-# INLINE remapSort #-}
+remapSort :: (k1 -> k2) -> Sort i k2 a b -> Sort i k1 a b
+remapSort f (Sort g) = Sort $ \inp -> g (B.first f . inp)
+
+-- | Sort an 'Either': apply left sort to 'Left's, right sort to 'Right's.
+-- Samples at 'mempty' to decide the branch.
+{-# INLINE eitherSort #-}
+eitherSort :: Monoid i => Sort i k a c -> Sort i k b c -> Sort i k (a + b) c
+eitherSort (Sort l) (Sort r) = Sort $ \inp ->
+  case snd (inp mempty) of
+    Left a0  -> l (\i -> B.second (either id (const a0)) (inp i))
+    Right b0 -> r (\i -> B.second (either (const b0) id) (inp i))
+
+-- | Sort a 'Maybe': apply sort to 'Just's, use default for 'Nothing's.
+{-# INLINE maybeSort #-}
+maybeSort :: Monoid i => c -> Sort i k a c -> Sort i k (Maybe a) c
+maybeSort def (Sort f) = Sort $ \inp ->
+  case snd (inp mempty) of
+    Nothing -> def
+    Just a0 -> f (\i -> B.second (maybe a0 id) (inp i))
+
+-- | Merge two 'Sort' results pointwise.
+{-# INLINE zipsSorting #-}
+zipsSorting :: (b -> b -> b) -> Sort i k a b -> Sort i k a b -> Sort i k a b
+zipsSorting f (Sort h1) (Sort h2) = Sort $ \inp -> f (h1 inp) (h2 inp)
+
+---------------------------------------------------------------------
+-- Cosort
+---------------------------------------------------------------------
+
+-- | The Star\/Costar adjoint of 'Sort'.
+--
+-- Where @Sort i k a b = (i -> (k, a)) -> b@ consumes a keyed stream
+-- (Costar-based), @Cosort i k a b = a -> k -> (i, b)@ constructs
+-- keyed results (Star-based).
+--
+-- @Sort@ and @Cosort@ are related by the adjunction
+-- @Compose ((->) i) ((,) k) ⊣ Compose ((->) k) ((,) i)@, i.e.
+-- the currying adjunction composed with itself.
+--
+-- See "Data.Profunctor.Optic.Dual" for the general Star\/Costar
+-- duality, and 'Data.Profunctor.Optic.Iso.adjuncted' for the
+-- concrete witness.
+newtype Cosort i k a b = Cosort { runCosort :: a -> k -> (i, b) }
+  deriving (Functor)
+    via Star (Compose ((->) k) ((,) i)) a
+  deriving (Profunctor, Strong)
+    via Star (Compose ((->) k) ((,) i))
+
+instance Sieve (Cosort i k) (Compose ((->) k) ((,) i)) where
+  sieve (Cosort f) a = Compose (f a)
+  {-# INLINE sieve #-}
+
+instance Representable (Cosort i k) where
+  type Rep (Cosort i k) = Compose ((->) k) ((,) i)
+  tabulate f = Cosort $ \a -> getCompose (f a)
+  {-# INLINE tabulate #-}
+
+instance Monoid i => Choice (Cosort i k) where
+  left' (Cosort f) = Cosort $ \ea k -> case ea of
+    Left  a -> B.second Left  (f a k)
+    Right b -> (mempty, Right b)
+  {-# INLINE left' #-}
 
 ---------------------------------------------------------------------
 -- Sort carriers (Ord, Map)
@@ -142,13 +306,13 @@ groupTaggedRep klen kidx vidx vbuild ks vs =
 sorts :: Ord a => Lens' s a -> [s] -> [[s]]
 sorts _ [] = []
 sorts o xs = Map.elems $ Map.fromListWith (flip (++))
-  [(view o s, [s]) | s <- xs]
+  [(viewOf o s, [s]) | s <- xs]
 
 -- | Sort a list in descending order through a lens.
 sortsDesc :: Ord a => Lens' s a -> [s] -> [[s]]
 sortsDesc _ [] = []
 sortsDesc o xs = Map.elems $ Map.fromListWith (flip (++))
-  [(Down (view o s), [s]) | s <- xs]
+  [(Down (viewOf o s), [s]) | s <- xs]
 
 -- | Group a list through a lens.
 groups :: Ord a => Lens' s a -> [s] -> [[s]]
@@ -166,12 +330,12 @@ nubs o xs = map head $ sorts o xs
 -- | Build a 'Map.Map' keyed by lens focus from a list.
 toMapOf :: Ord a => Lens' s a -> [s] -> Map.Map a [s]
 toMapOf _ [] = Map.empty
-toMapOf o xs = Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
+toMapOf o xs = Map.fromListWith (flip (++)) [(viewOf o s, [s]) | s <- xs]
 
 -- | Count occurrences per key from a list.
 countsOf :: Ord a => Lens' s a -> [s] -> Map.Map a Int
 countsOf _ [] = Map.empty
-countsOf o xs = Map.fromListWith (+) [(view o s, 1 :: Int) | s <- xs]
+countsOf o xs = Map.fromListWith (+) [(viewOf o s, 1 :: Int) | s <- xs]
 
 ---------------------------------------------------------------------
 -- Post-sort foldMapOf (List)
