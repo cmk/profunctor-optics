@@ -39,6 +39,9 @@ module Data.IntMap.Optic (
   , ixaltered
   --, ixaltered'
     -- * Dual Optics
+    -- ** Colens
+  , zipsIntMap
+    -- ** Cxview
   , cxmapped
     -- * Operators
   , toIntMapOf
@@ -47,6 +50,8 @@ module Data.IntMap.Optic (
 
 import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
+import Data.IntSet (IntSet)
+import qualified Data.IntSet as IntSet
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntMap.Lazy as IML
 import Prelude
@@ -152,6 +157,17 @@ altered' k = setter $ \ab -> IM.alter ab k
 ixaltered :: Int -> Ixsetter' Int (IM.IntMap a) (Maybe a)
 ixaltered k = ixsetter $ \kab -> IM.alter (kab k) k
 {-# INLINE ixaltered #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Grate viewing an IntMap as a function from Int keys.
+-- Requires a fixed key set to be representable.
+--
+zipsIntMap :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
+zipsIntMap ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (error "zipsIntMap: missing key") k' m) k) | k <- IntSet.toList ks]
+{-# INLINE zipsIntMap #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics

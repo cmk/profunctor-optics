@@ -129,7 +129,7 @@ module Data.Profunctor.Optic.Bench (
   , benchScaling
 ) where
 
-import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
+import Data.Profunctor.Optic.Sort (Sort(..), runSort)
 import Data.Profunctor.Optic.Index (ixover)
 import Data.Profunctor.Optic.Fold (toListOf, foldMapOf, ixfoldMapOf, preview)
 import Data.Profunctor.Optic.Lens (lensVl)

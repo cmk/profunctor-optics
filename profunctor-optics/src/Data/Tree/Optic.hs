@@ -6,13 +6,22 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Tree.Optic (
+    -- * Lens
     root
   , branches
+    -- * Dual Optics
+    -- $todo-zipsTree
+    -- * Traversal
+  , flattened
+  , ixflattened
+    -- * Fold
+  , folded
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (folded)
 import Data.Profunctor.Optic.Import
 import Data.Tree
+import Data.Foldable (traverse_)
 import Prelude
 
 -- $setup
@@ -38,3 +47,47 @@ root = lensVl $ \f (Node a as) -> (`Node` as) <$> f a
 branches :: Lens' (Tree a) [Tree a]
 branches = lensVl $ \f (Node a as) -> Node a <$> f as
 {-# INLINE branches #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- TODO: zipsTree :: Colens (Tree a) (Tree b) a b
+-- Pointwise zipping of trees. Zips structurally — root with root,
+-- children with children. Mismatched shapes truncate to the shorter tree.
+-- Requires careful handling of subforest zipping; deferred for now.
+
+---------------------------------------------------------------------
+-- Traversal
+---------------------------------------------------------------------
+
+-- | Pre-order traversal of all values in a 'Tree'.
+--
+-- >>> over flattened (+1) (Node 1 [Node 2 [], Node 3 [Node 4 []]])
+-- Node 2 [Node 3 [],Node 4 [Node 5 []]]
+--
+flattened :: Traversal (Tree a) (Tree b) a b
+flattened = traversalVl go
+  where go f (Node a cs) = Node <$> f a <*> traverse (go f) cs
+{-# INLINE flattened #-}
+
+-- | Depth-indexed traversal of all values in a 'Tree'.
+-- The index is the depth from the root (root = 0).
+--
+ixflattened :: Ixtraversal Int (Tree a) (Tree b) a b
+ixflattened = ixtraversalVl (go 0)
+  where go d f (Node a cs) = Node <$> f d a <*> traverse (go (d + 1) f) cs
+{-# INLINE ixflattened #-}
+
+---------------------------------------------------------------------
+-- Fold
+---------------------------------------------------------------------
+
+-- | Fold over all values in a 'Tree' (pre-order).
+--
+-- @'Data.Profunctor.Optic.Fold.toListOf' 'folded' ≡ 'flatten'@
+--
+folded :: Fold (Tree a) a
+folded = foldVl go
+  where go f (Node a cs) = f a *> traverse_ (go f) cs
+{-# INLINE folded #-}

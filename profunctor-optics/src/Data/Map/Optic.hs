@@ -44,6 +44,9 @@ module Data.Map.Optic (
   , ixaltered
   , ixaltered'
     -- * Dual Optics
+    -- ** Colens
+  , zipsMap
+    -- ** Cxview
   , cxmapped'
     -- * Operators
   , fromIxfold
@@ -65,8 +68,9 @@ module Data.Map.Optic (
 ) where
 
 import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
-import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
+import Data.Profunctor.Optic.Sort (Sort(..))
 import Data.Profunctor.Optic.Import
+import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Map.Strict as MapS
 import qualified Data.Map.Merge.Strict as Merge
@@ -209,6 +213,17 @@ ixaltered k = ixsetter $ \kab -> Map.alter (kab k) k
 ixaltered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
 ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ixaltered' #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Grate viewing a Map as a function from keys.
+-- Requires a fixed key set to be representable.
+--
+zipsMap :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
+zipsMap ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (error "zipsMap: missing key") k' m) k) ks
+{-# INLINE zipsMap #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics

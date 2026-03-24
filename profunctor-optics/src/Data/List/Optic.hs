@@ -11,12 +11,17 @@ module Data.List.Optic (
     at
   , ixat
     -- ** Traversal, Ixtraversal
+  , traversed
   , ixtraversed
     -- ** Fold, Ixfold
+  , folded
   , ixfolded
     -- ** Setter, Ixsetter
+  , fmapped
   , ixmapped
   , ixfiltered
+    -- * Dual Optics
+  , zipsListWith
     -- * Operators
     -- * Sort-based operators (Lens, Ord)
   , sortingOf
@@ -87,6 +92,17 @@ ixmapped = ixsetter $ \f -> zipWith f [0..]
 ixfiltered :: Ixsetter Int [a] [a] a Bool
 ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
 {-# INLINE ixfiltered #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Colens for lists of known length. Zips pointwise.
+-- Requires known length to be representable.
+--
+zipsListWith :: Int -> Colens [a] [b] a b
+zipsListWith n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
+{-# INLINE zipsListWith #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators

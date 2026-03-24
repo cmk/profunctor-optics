@@ -6,9 +6,23 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Sequence.Optic (
-    slicedTo
+    -- * Traversal0
+    at
+  , ixat
+    -- * Traversal
+  , traversed
+  , ixtraversed
+  , slicedTo
   , slicedFrom
   , sliced
+    -- * Fold
+  , folded
+  , ixfolded
+    -- * Setter
+  , ixmapped
+    -- * Dual Optics
+  , grateSeq
+    -- * Iso
   , viewedl
   , viewedr
 ) where
@@ -17,6 +31,7 @@ import Data.Profunctor.Optic
 import Data.Profunctor.Optic.Import
 import Data.Sequence (Seq, ViewL(..), ViewR(..), viewl, viewr)
 import qualified Data.Sequence as Seq
+import qualified Data.Foldable as Foldable
 import Prelude
 
 -- $setup
@@ -26,6 +41,77 @@ import Prelude
 -- >>> import Data.Sequence (fromList)
 -- >>> import Data.Profunctor.Optic
 -- >>> import qualified Data.Sequence as Seq
+
+---------------------------------------------------------------------
+-- Traversal0
+---------------------------------------------------------------------
+
+-- | /O(log(min(i, n-i)))/. Affine traversal into the element at an
+-- index of a 'Seq'.
+--
+at :: Int -> Traversal0' (Seq a) a
+at i = traversalVl0 $ \point f s ->
+  case Seq.lookup i s of
+    Nothing -> point s
+    Just a  -> (\b -> Seq.update i b s) <$> f a
+{-# INLINE at #-}
+
+-- | /O(log(min(i, n-i)))/. Indexed affine traversal into the element
+-- at an index of a 'Seq'.
+--
+ixat :: Int -> Ixtraversal0' Int (Seq a) a
+ixat i = ixtraversal0' f g
+  where
+    f s = fmap (i,) (Seq.lookup i s)
+    g s a = Seq.update i a s
+{-# INLINE ixat #-}
+
+---------------------------------------------------------------------
+-- Traversal
+---------------------------------------------------------------------
+
+-- | /O(n)/. Indexed traversal over the elements of a 'Seq'.
+--
+ixtraversed :: Ixtraversal Int (Seq a) (Seq b) a b
+ixtraversed = ixtraversalVl $ \f ->
+  fmap Seq.fromList . traverse (uncurry f) . zip [0..] . Foldable.toList
+{-# INLINE ixtraversed #-}
+
+---------------------------------------------------------------------
+-- Fold
+---------------------------------------------------------------------
+
+-- | /O(n)/. Indexed fold over the elements of a 'Seq'.
+--
+ixfolded :: Ixfold Int (Seq a) a
+ixfolded = ixfoldVl $ \f ->
+  traverse (uncurry f) . zip [0..] . Foldable.toList
+{-# INLINE ixfolded #-}
+
+---------------------------------------------------------------------
+-- Setter
+---------------------------------------------------------------------
+
+-- | /O(n)/. Indexed setter over the elements of a 'Seq'.
+--
+ixmapped :: Ixsetter Int (Seq a) (Seq b) a b
+ixmapped = ixsetter $ \f -> Seq.mapWithIndex f
+{-# INLINE ixmapped #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Grate viewing a Seq as a function from Int indices.
+-- Requires known length to be representable.
+--
+grateSeq :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
+grateSeq n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
+{-# INLINE grateSeq #-}
+
+---------------------------------------------------------------------
+-- Slicing
+---------------------------------------------------------------------
 
 -- | Traverse the first @n@ elements of a 'Seq'
 --

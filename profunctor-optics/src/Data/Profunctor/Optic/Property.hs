@@ -99,6 +99,7 @@ import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
 import Data.Profunctor.Optic.Fold
+import Data.Profunctor.Optic.Sort
 import Data.Profunctor.Optic.Index (cxjoin, cxreturn, cxunit, cxstrength)
 
 -- | Inlined from lawz/Test.Function.Invertible.

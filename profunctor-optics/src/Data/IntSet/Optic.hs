@@ -7,6 +7,8 @@ module Data.IntSet.Optic (
     member
     -- * Fold
   , folded
+    -- * Dual Optics
+  , zipsIntSet
     -- * Conversion
   , listed
 ) where
@@ -27,6 +29,12 @@ member a = filtered (IS.member a) . to (const a)
 folded :: Fold IS.IntSet Int
 folded = fold_ IS.toAscList
 {-# INLINE folded #-}
+
+-- | Grate viewing an IntSet as a predicate (function to Bool).
+--
+zipsIntSet :: IS.IntSet -> Colens IS.IntSet IS.IntSet (Int -> Bool) (Int -> Bool)
+zipsIntSet universe = grate $ \f -> IS.filter (\a -> f (\s -> flip IS.member s) a) universe
+{-# INLINE zipsIntSet #-}
 
 -- | 'Iso' between an 'IntSet' and a sorted list.
 --

@@ -65,7 +65,7 @@ import Data.Either (lefts, rights)
 import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
-import Data.Profunctor.Optic.Carrier (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort, zipsSorting)
+import Data.Profunctor.Optic.Sort (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort, zipsSorting)
 
 import Data.Functor.Coapply (Coapply(..))
 

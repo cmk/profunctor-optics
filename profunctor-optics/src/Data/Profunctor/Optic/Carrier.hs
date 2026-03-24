@@ -169,18 +169,6 @@ module Data.Profunctor.Optic.Carrier (
   , (<<<<)
     -- * Conjoin
   , Conjoin(..)
-    -- * Sort
-  , Sort(..)
-  , runSort
-    -- * Sort combinators
-  , (%.)
-  , bindSort
-  , catSort
-  , sortC
-  , remapSort
-  , eitherSort
-  , maybeSort
-  , zipsSorting
 ) where
 
 import Control.Monad.Fix (MonadFix(..))
@@ -192,7 +180,6 @@ import Data.Profunctor.Choice
 import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Sort (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort, zipsSorting)
 import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
 import qualified Control.Arrow as A
