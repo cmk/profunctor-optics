@@ -36,7 +36,7 @@
 </span><span id="line-36"></span><span class="hs-comment">-- &gt;&gt;&gt; view root $ Node 42 []</span><span>
 </span><span id="line-37"></span><span class="hs-comment">-- 42</span><span>
 </span><span id="line-38"></span><span class="hs-comment">--</span><span>
-</span><span id="line-39"></span><span id="local-6989586621679169620"><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier hs-type">root</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169620"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679169620"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-39"></span><span id="local-6989586621679173078"><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier hs-type">root</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173078"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173078"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-40"></span><span id="root"><span class="annot"><span class="annottext">root :: forall a (p :: * -&gt; * -&gt; *).
 Strong p =&gt;
 Optic p (Tree a) (Tree a) a a
@@ -56,24 +56,24 @@ forall a b s t.
     (a -&gt; f a) -&gt; Tree a -&gt; f (Tree a))
 -&gt; Lens (Tree a) (Tree a) a a
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679169726"><span class="annot"><span class="annottext">a -&gt; f a
-</span><a href="#local-6989586621679169726"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679169728"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679169728"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679169729"><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679169729"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679173184"><span class="annot"><span class="annottext">a -&gt; f a
+</span><a href="#local-6989586621679173184"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173186"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679173186"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173187"><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679173187"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-operator hs-var">`Node`</span></span><span> </span><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679169729"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Tree a) -&gt; f a -&gt; f (Tree a)
+</span><a href="#local-6989586621679173187"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Tree a) -&gt; f a -&gt; f (Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f a
-</span><a href="#local-6989586621679169726"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679169728"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><a href="#local-6989586621679173184"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679173186"><span class="hs-identifier hs-var">a</span></a></span><span>
 </span><span id="line-41"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-pragma hs-type">root</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
 </span><span id="line-42"></span><span>
 </span><span id="line-43"></span><span class="hs-comment">-- | A 'Lens' returning the direct descendants of the root of a 'Tree'</span><span>
 </span><span id="line-44"></span><span class="hs-comment">--</span><span>
 </span><span id="line-45"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.View.view' 'branches' &#8801; 'subForest'@</span><span>
 </span><span id="line-46"></span><span class="hs-comment">--</span><span>
-</span><span id="line-47"></span><span id="local-6989586621679169639"><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier hs-type">branches</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169639"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169639"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-47"></span><span id="local-6989586621679173097"><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier hs-type">branches</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173097"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173097"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
 </span><span id="line-48"></span><span id="branches"><span class="annot"><span class="annottext">branches :: forall a (p :: * -&gt; * -&gt; *).
 Strong p =&gt;
 Optic p (Tree a) (Tree a) [Tree a] [Tree a]
@@ -93,17 +93,17 @@ forall a b s t.
     ([Tree a] -&gt; f [Tree a]) -&gt; Tree a -&gt; f (Tree a))
 -&gt; Lens (Tree a) (Tree a) [Tree a] [Tree a]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679169736"><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
-</span><a href="#local-6989586621679169736"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679169737"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679169737"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679169738"><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679169738"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679173194"><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
+</span><a href="#local-6989586621679173194"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173195"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679173195"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173196"><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679173196"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679169737"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679173195"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
-</span><a href="#local-6989586621679169736"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679169738"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><a href="#local-6989586621679173194"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679173196"><span class="hs-keyword hs-var">as</span></a></span><span>
 </span><span id="line-49"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-pragma hs-type">branches</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
 </span><span id="line-50"></span><span>
 </span><span id="line-51"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
@@ -124,7 +124,7 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; over flattened (+1) (Node 1 [Node 2 [], Node 3 [Node 4 []]])</span><span>
 </span><span id="line-67"></span><span class="hs-comment">-- Node 2 [Node 3 [],Node 4 [Node 5 []]]</span><span>
 </span><span id="line-68"></span><span class="hs-comment">--</span><span>
-</span><span id="line-69"></span><span id="local-6989586621679169646"><span id="local-6989586621679169647"><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier hs-type">flattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Traversal"><span class="hs-identifier hs-type">Traversal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169646"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169647"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679169646"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169647"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-69"></span><span id="local-6989586621679173104"><span id="local-6989586621679173105"><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier hs-type">flattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Traversal"><span class="hs-identifier hs-type">Traversal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173104"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173105"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173104"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679173105"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
 </span><span id="line-70"></span><span id="flattened"><span class="annot"><span class="annottext">flattened :: forall a b (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p) =&gt;
 Optic p (Tree a) (Tree b) a b
@@ -142,18 +142,18 @@ Applicative' f =&gt;
 forall {f :: * -&gt; *} {t} {a}.
 Applicative f =&gt;
 (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169744"><span class="hs-identifier hs-var">go</span></a></span><span>
-</span><span id="line-71"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679169744"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169744"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679169757"><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169757"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679169758"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169758"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679169759"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169759"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><a href="#local-6989586621679173202"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173202"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
+</span><a href="#local-6989586621679173202"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173215"><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679173215"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173216"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173216"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173217"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173217"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; [Tree a] -&gt; Tree a) -&gt; f a -&gt; f ([Tree a] -&gt; Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169757"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169758"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679173215"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173216"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f (Tree a)) -&gt; [Tree t] -&gt; f [Tree a]
@@ -164,15 +164,15 @@ forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; [a] -&gt; f [b]
 </span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169744"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169757"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169759"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><a href="#local-6989586621679173202"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679173215"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173217"><span class="hs-identifier hs-var">cs</span></a></span><span>
 </span><span id="line-72"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-pragma hs-type">flattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
 </span><span id="line-73"></span><span>
 </span><span id="line-74"></span><span class="hs-comment">-- | Depth-indexed traversal of all values in a 'Tree'.</span><span>
 </span><span id="line-75"></span><span class="hs-comment">-- The index is the depth from the root (root = 0).</span><span>
 </span><span id="line-76"></span><span class="hs-comment">--</span><span>
-</span><span id="line-77"></span><span id="local-6989586621679169672"><span id="local-6989586621679169673"><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier hs-type">ixflattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169672"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169673"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679169672"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679169673"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-77"></span><span id="local-6989586621679173130"><span id="local-6989586621679173131"><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier hs-type">ixflattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173130"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173131"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173130"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679173131"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
 </span><span id="line-78"></span><span id="ixflattened"><span class="annot"><span class="annottext">ixflattened :: forall a b (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p) =&gt;
 Ixoptic p Int (Tree a) (Tree b) a b
@@ -189,21 +189,21 @@ forall k a b s t.
 forall {f :: * -&gt; *} {t} {t} {a}.
 (Applicative f, Num t) =&gt;
 t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169771"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679173229"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
-</span><span id="line-79"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679169771"><span class="annot"><span class="annottext">go :: t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169771"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679169782"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169782"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679169783"><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679169783"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679169784"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169784"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679169785"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169785"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span id="line-79"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173229"><span class="annot"><span class="annottext">go :: t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
+</span><a href="#local-6989586621679173229"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173240"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173240"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679173241"><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
+</span><a href="#local-6989586621679173241"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173242"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173242"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173243"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173243"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; [Tree a] -&gt; Tree a) -&gt; f a -&gt; f ([Tree a] -&gt; Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679169783"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169782"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169784"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679173241"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173240"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173242"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f (Tree a)) -&gt; [Tree t] -&gt; f [Tree a]
@@ -214,13 +214,13 @@ forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; [a] -&gt; f [b]
 </span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679169771"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169782"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; t
+</span><a href="#local-6989586621679173229"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173240"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; t
 forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">t
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679169783"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169785"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><a href="#local-6989586621679173241"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173243"><span class="hs-identifier hs-var">cs</span></a></span><span>
 </span><span id="line-80"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-pragma hs-type">ixflattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
 </span><span id="line-81"></span><span>
 </span><span id="line-82"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
@@ -231,7 +231,7 @@ forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span id="line-87"></span><span class="hs-comment">--</span><span>
 </span><span id="line-88"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.Fold.toListOf' 'folded' &#8801; 'flatten'@</span><span>
 </span><span id="line-89"></span><span class="hs-comment">--</span><span>
-</span><span id="line-90"></span><span id="local-6989586621679169693"><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier hs-type">folded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679169693"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679169693"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621679173151"><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier hs-type">folded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173151"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173151"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-91"></span><span id="folded"><span class="annot"><span class="annottext">folded :: forall a (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p, CoercingR p) =&gt;
 Optic' p (Tree a) a
@@ -249,14 +249,14 @@ Applicative f =&gt;
 forall {f :: * -&gt; *} {t} {a}.
 Applicative f =&gt;
 (t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679169795"><span class="hs-identifier hs-var">go</span></a></span><span>
-</span><span id="line-92"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679169795"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679169795"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679169805"><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169805"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679169806"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169806"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679169807"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169807"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169805"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679169806"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f () -&gt; f ()
+</span><a href="#local-6989586621679173253"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-92"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173253"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f ()
+</span><a href="#local-6989586621679173253"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173263"><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679173263"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173264"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173264"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173265"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173265"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679173263"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679173264"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f () -&gt; f ()
 forall a b. f a -&gt; f b -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f ()) -&gt; [Tree t] -&gt; f ()
@@ -264,8 +264,8 @@ forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
 (Foldable t, Applicative f) =&gt;
 (a -&gt; f b) -&gt; t a -&gt; f ()
 </span><span class="hs-identifier hs-var">traverse_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679169795"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679169805"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679169807"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><a href="#local-6989586621679173253"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679173263"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679173265"><span class="hs-identifier hs-var">cs</span></a></span><span>
 </span><span id="line-93"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-pragma hs-type">folded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
 </span><span id="line-94"></span></pre></body></html>
