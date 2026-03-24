@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeFamilies          #-}
 -- | Profunctor optics for 'Data.Map.Map'.
 --
--- Unprimed variants are lazy. Primed (@'@) variants are strict.
+-- Unprimed variants are lazy. Primed (@\'@) variants are strict.
 --
 -- For structural optics (depth, sizes, rebalanced) that require
 -- pattern functors, see @Data.Map.Fold.Optic@ in
@@ -48,23 +48,23 @@ module Data.Map.Optic (
     -- * Operators
   , fromIxfold
     -- ** Sort-based
-  , toMapOf'
-  , countingOf'
-  , foldSorting'
-  , foldSorting1'
-  , mconcatSorting'
+  , toMapOf
+  , countsOf
+  , foldSorts
+  , foldSorts1
+  , mconcatSorts
     -- ** Merge (Sort + containers merge)
-  , mergingOf'
-  , innerMerge'
-  , outerMerge'
-  , leftMerge'
-  , rightMerge'
+  , merges
+  , innerMerges
+  , outerMerges
+  , leftMerges
+  , rightMerges
     -- ** Sort merge tactics
   , sortedMatched
   , sortedMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf', countingOf', sortingOf', sortingDescOf', groupingOf', nubbingOf', foldSorts, foldSorts1, mconcatSorts, sortingString, mergingOf', innerMerge', outerMerge', leftMerge', rightMerge', sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Carrier (Sort(..), runSort)
 import Data.Profunctor.Optic.Import
 import qualified Data.Map.Lazy as Map
@@ -248,72 +248,72 @@ fromIxfold o = ixfoldMapOf o Map.singleton
 --
 -- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
-toMapOf' :: Ord a => Lens' s a -> [s] -> MapS.Map a [s]
-toMapOf' _ [] = MapS.empty
-toMapOf' o xs = MapS.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
+toMapOf :: Ord a => Lens' s a -> [s] -> MapS.Map a [s]
+toMapOf _ [] = MapS.empty
+toMapOf o xs = MapS.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
 
 -- | Count occurrences per key from a list.
-countingOf' :: Ord a => Lens' s a -> [s] -> MapS.Map a Int
-countingOf' _ [] = MapS.empty
-countingOf' o xs = MapS.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+countsOf :: Ord a => Lens' s a -> [s] -> MapS.Map a Int
+countsOf _ [] = MapS.empty
+countsOf o xs = MapS.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 
 -- | Sort through a lens, then right-fold each group.
-foldSorting' :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
-foldSorting' o g z xs = map (foldr g z) (MapS.elems $ toMapOf' o xs)
+foldSorts :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
+foldSorts o g z xs = map (foldr g z) (MapS.elems $ toMapOf o xs)
 
 -- | Sort through a lens, then reduce each non-empty group.
-foldSorting1' :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
-foldSorting1' o f xs = map (foldr1 f) (MapS.elems $ toMapOf' o xs)
+foldSorts1 :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
+foldSorts1 o f xs = map (foldr1 f) (MapS.elems $ toMapOf o xs)
 
 -- | Sort through a lens, then monoidal concat per group.
-mconcatSorting' :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
-mconcatSorting' o g xs = map (foldMap g) (MapS.elems $ toMapOf' o xs)
+mconcatSorts :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
+mconcatSorts o g xs = map (foldMap g) (MapS.elems $ toMapOf o xs)
 
 ---------------------------------------------------------------------
 -- Merge (Sort + containers merge)
 ---------------------------------------------------------------------
 
 -- | Merge two toListOf through lenses using containers merge tactics.
-mergingOf' :: Ord a
-           => Lens' s a -> Lens' t a
-           -> Merge.SimpleWhenMissing a [s] c
-           -> Merge.SimpleWhenMissing a [t] c
-           -> Merge.SimpleWhenMatched a [s] [t] c
-           -> [s] -> [t] -> Map.Map a c
-mergingOf' lo ro wml wmr wm xs ys =
-  Merge.merge wml wmr wm (toMapOf' lo xs) (toMapOf' ro ys)
+merges :: Ord a
+       => Lens' s a -> Lens' t a
+       -> Merge.SimpleWhenMissing a [s] c
+       -> Merge.SimpleWhenMissing a [t] c
+       -> Merge.SimpleWhenMatched a [s] [t] c
+       -> [s] -> [t] -> Map.Map a c
+merges lo ro wml wmr wm xs ys =
+  Merge.merge wml wmr wm (toMapOf lo xs) (toMapOf ro ys)
 
 -- | Inner merge: only keys present in both inputs.
-innerMerge' :: Ord a
+innerMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-innerMerge' lo ro f =
-  mergingOf' lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+innerMerges lo ro f =
+  merges lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
 
 -- | Full outer merge.
-outerMerge' :: Ord a
+outerMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [s] -> c) -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-outerMerge' lo ro fl fr fb =
-  mergingOf' lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+outerMerges lo ro fl fr fb =
+  merges lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
 
 -- | Left merge: all keys from left.
-leftMerge' :: Ord a
+leftMerges :: Ord a
            => Lens' s a -> Lens' t a
            -> (a -> [s] -> c) -> (a -> [s] -> [t] -> c)
            -> [s] -> [t] -> Map.Map a c
-leftMerge' lo ro fl fb =
-  mergingOf' lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+leftMerges lo ro fl fb =
+  merges lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
 
 -- | Right merge: all keys from right.
-rightMerge' :: Ord a
+rightMerges :: Ord a
             => Lens' s a -> Lens' t a
             -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
             -> [s] -> [t] -> Map.Map a c
-rightMerge' lo ro fr fb =
-  mergingOf' lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+rightMerges lo ro fr fb =
+  merges lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
 
 ---------------------------------------------------------------------
 -- Sort merge tactics

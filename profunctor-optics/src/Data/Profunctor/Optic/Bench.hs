@@ -104,7 +104,7 @@
 -- Composition traversed.first  2.2\/2.2 μs      0.97x
 -- Sort carrier mkSortN (1K)    3.0\/3.1 μs      0.98x
 -- sortingOf (1K)              334\/331 μs       1.01x
--- toMapOf' (1K)                346\/343 μs       1.01x
+-- toMapOf (1K)                346\/343 μs       1.01x
 -- @
 --
 module Data.Profunctor.Optic.Bench (
@@ -140,7 +140,7 @@ import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Optic.Import
 import Data.List.Optic (sortingOf)
-import Data.Map.Optic (toMapOf')
+import Data.Map.Optic (toMapOf)
 import qualified Data.Map.Strict as Map
 import Prelude
 
@@ -260,13 +260,13 @@ benchSortingOf o xs =
       [(view o s, [s]) | s <- ys]
   )
 
--- | Compare toMapOf' vs direct Map.fromListWith.
+-- | Compare toMapOf vs direct Map.fromListWith.
 --
 benchToMapOf :: Ord a
               => Lens' s a
               -> ([s] -> Map.Map a [s], [s] -> Map.Map a [s])
 benchToMapOf o =
-  ( toMapOf' o
+  ( toMapOf o
   , \xs -> Map.fromListWith (flip (++)) [(view o s, [s]) | s <- xs]
   )
 
