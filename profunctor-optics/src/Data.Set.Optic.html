@@ -1,0 +1,65 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><span id="line-4"></span><span class="annot"><span class="hs-comment">-- | Profunctor optics for 'Data.Set.Set'.</span></span><span>
+</span><span id="line-5"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Set.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-6"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Membership</span></span><span>
+</span><span id="line-7"></span><span>    </span><span class="annot"><a href="Data.Set.Optic.html#member"><span class="hs-identifier">member</span></a></span><span>
+</span><span id="line-8"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Fold</span></span><span>
+</span><span id="line-9"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Set.Optic.html#folded"><span class="hs-identifier">folded</span></a></span><span>
+</span><span id="line-10"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Conversion</span></span><span>
+</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Set.Optic.html#listed"><span class="hs-identifier">listed</span></a></span><span>
+</span><span id="line-12"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Fold.html#folded"><span class="hs-identifier">folded</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Import.html"><span class="hs-identifier">Data.Profunctor.Optic.Import</span></a></span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- | /O(log n)/. 'Fold0' testing membership.</span><span>
+</span><span id="line-20"></span><span class="hs-comment">--</span><span>
+</span><span id="line-21"></span><span id="local-6989586621679159979"><span class="annot"><a href="Data.Set.Optic.html#member"><span class="hs-identifier hs-type">member</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679159979"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679159979"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold0"><span class="hs-identifier hs-type">Fold0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="#local-6989586621679159979"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679159979"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-22"></span><span id="member"><span class="annot"><span class="annottext">member :: forall a. Ord a =&gt; a -&gt; Fold0 (Set a) a
+</span><a href="Data.Set.Optic.html#member"><span class="hs-identifier hs-var hs-var">member</span></a></span></span><span> </span><span id="local-6989586621679160035"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679160035"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; Bool) -&gt; Fold0 (Set a) (Set a)
+forall a. (a -&gt; Bool) -&gt; Fold0 a a
+</span><a href="Data.Profunctor.Optic.Fold.html#filtered"><span class="hs-identifier hs-var">filtered</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Set a -&gt; Bool
+forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
+</span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679160035"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Optic' p (Set a) (Set a)
+-&gt; (p a a -&gt; p (Set a) (Set a)) -&gt; p a a -&gt; p (Set a) (Set a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; a) -&gt; View (Set a) a
+forall s a. (s -&gt; a) -&gt; View s a
+</span><a href="Data.Profunctor.Optic.View.html#to"><span class="hs-identifier hs-var">to</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; Set a -&gt; a
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679160035"><span class="hs-identifier hs-var">a</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Set.Optic.html#member"><span class="hs-pragma hs-type">member</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- | /O(n)/. 'Fold' over all elements in ascending order.</span><span>
+</span><span id="line-26"></span><span class="hs-comment">--</span><span>
+</span><span id="line-27"></span><span id="local-6989586621679160002"><span class="annot"><a href="Data.Set.Optic.html#folded"><span class="hs-identifier hs-type">folded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="#local-6989586621679160002"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679160002"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-28"></span><span id="folded"><span class="annot"><span class="annottext">folded :: forall a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Optic' p (Set a) a
+</span><a href="Data.Set.Optic.html#folded"><span class="hs-identifier hs-var hs-var">folded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; [a]) -&gt; Fold (Set a) a
+forall (f :: * -&gt; *) s a. Foldable f =&gt; (s -&gt; f a) -&gt; Fold s a
+</span><a href="Data.Profunctor.Optic.Fold.html#fold_"><span class="hs-identifier hs-var">fold_</span></a></span><span> </span><span class="annot"><span class="annottext">Set a -&gt; [a]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toAscList</span></span><span>
+</span><span id="line-29"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Set.Optic.html#folded"><span class="hs-pragma hs-type">folded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- | 'Iso' between a 'Set' and a sorted list.</span><span>
+</span><span id="line-32"></span><span class="hs-comment">--</span><span>
+</span><span id="line-33"></span><span id="local-6989586621679160010"><span class="annot"><a href="Data.Set.Optic.html#listed"><span class="hs-identifier hs-type">listed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679160010"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Iso%27"><span class="hs-identifier hs-type">Iso'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Set.Set</span></span><span> </span><span class="annot"><a href="#local-6989586621679160010"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679160010"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-34"></span><span id="listed"><span class="annot"><span class="annottext">listed :: forall a. Ord a =&gt; Iso' (Set a) [a]
+</span><a href="Data.Set.Optic.html#listed"><span class="hs-identifier hs-var hs-var">listed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Set a -&gt; [a]) -&gt; ([a] -&gt; Set a) -&gt; Iso (Set a) (Set a) [a] [a]
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><a href="Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="annot"><span class="annottext">Set a -&gt; [a]
+forall a. Set a -&gt; [a]
+</span><span class="hs-identifier hs-var">Set.toAscList</span></span><span> </span><span class="annot"><span class="annottext">[a] -&gt; Set a
+forall a. Ord a =&gt; [a] -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.fromList</span></span><span>
+</span><span id="line-35"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Set.Optic.html#listed"><span class="hs-pragma hs-type">listed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-36"></span></pre></body></html>

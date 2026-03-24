@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes #-}</span><span>
+</span><span id="line-3"></span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- | Bit-level cotraversals and grates for 'Word' types.</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- Each 'Word' type is isomorphic to a function from a finite</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- index type: @Word8 &#8773; I8 -&gt; Bool@. Since @(-&gt;) I8@ is</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- 'Distributive', 'cotraversed' gives cotraversals for free.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- \-\- flip all bits</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- over bits8 not 0xFF  ==  0</span><span>
+</span><span id="line-13"></span><span class="hs-comment">--</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- \-\- identity</span><span>
+</span><span id="line-15"></span><span class="hs-comment">-- over bits8 id 42  ==  42</span><span>
+</span><span id="line-16"></span><span class="hs-comment">--</span><span>
+</span><span id="line-17"></span><span class="hs-comment">-- \-\- indexed: flip only even-positioned bits</span><span>
+</span><span id="line-18"></span><span class="hs-comment">-- cxover ibits8 (\\i b -&gt; if even (fromEnum i) then not b else b) 0xFF</span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Word.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Bit-level cotraversals</span></span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#bits8"><span class="hs-identifier">bits8</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#bits16"><span class="hs-identifier">bits16</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#bits32"><span class="hs-identifier">bits32</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#bits64"><span class="hs-identifier">bits64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Indexed bit-level cotraversals</span></span><span>
+</span><span id="line-28"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#ibits8"><span class="hs-identifier">ibits8</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-29"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#ibits16"><span class="hs-identifier">ibits16</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#ibits32"><span class="hs-identifier">ibits32</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#ibits64"><span class="hs-identifier">ibits64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-32"></span><span>
+</span><span id="line-33"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Byte-level grates</span></span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#grate8"><span class="hs-identifier">grate8</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-35"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#grate16"><span class="hs-identifier">grate16</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#grate32"><span class="hs-identifier">grate32</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><a href="Data.Word.Optic.html#grate64"><span class="hs-identifier">grate64</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Re-exports</span></span><span>
+</span><span id="line-40"></span><span>    </span><span class="hs-keyword">module</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html"><span class="hs-identifier">Data.Functor.Index</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-41"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-42"></span><span>
+</span><span id="line-43"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html"><span class="hs-identifier">Data.Functor.Index</span></a></span><span>
+</span><span id="line-44"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span>
+</span><span id="line-45"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Word</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Word8</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word16</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word32</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">Word64</span></span><span class="hs-special">)</span><span>
+</span><span id="line-46"></span><span>
+</span><span id="line-47"></span><span class="hs-comment">-- | Cotraversal over the 8 bits of a 'Word8'.</span><span>
+</span><span id="line-48"></span><span class="hs-comment">--</span><span>
+</span><span id="line-49"></span><span class="hs-comment">-- ~44 ns\/bit. Prefer 'ibits8' (~7 ns\/bit) when the index is available.</span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- See the Benchmarks section of the README for details.</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- @bits8 = iso toBits8 fromBits8 . cotraversed@</span><span>
+</span><span id="line-53"></span><span class="annot"><a href="Data.Word.Optic.html#bits8"><span class="hs-identifier hs-type">bits8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cotraversal"><span class="hs-identifier hs-type">Cotraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-54"></span><span id="bits8"><span class="annot"><span class="annottext">bits8 :: Cotraversal Word8 Word8 Bool Bool
+</span><a href="Data.Word.Optic.html#bits8"><span class="hs-identifier hs-var hs-var">bits8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; I8 -&gt; Bool)
+-&gt; ((I8 -&gt; Bool) -&gt; Word8)
+-&gt; Iso Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool)
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; I8 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits8"><span class="hs-identifier hs-var">toBits8</span></a></span><span> </span><span class="annot"><span class="annottext">(I8 -&gt; Bool) -&gt; Word8
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits8"><span class="hs-identifier hs-var">fromBits8</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool)
+-&gt; (p Bool Bool -&gt; p (I8 -&gt; Bool) (I8 -&gt; Bool))
+-&gt; p Bool Bool
+-&gt; p Word8 Word8
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p Bool Bool -&gt; p (I8 -&gt; Bool) (I8 -&gt; Bool)
+forall (f :: * -&gt; *) a b.
+Distributive f =&gt;
+Cotraversal (f a) (f b) a b
+Cotraversal (I8 -&gt; Bool) (I8 -&gt; Bool) Bool Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#cotraversed"><span class="hs-identifier hs-var">cotraversed</span></a></span><span>
+</span><span id="line-55"></span><span>
+</span><span id="line-56"></span><span class="hs-comment">-- | Cotraversal over the 16 bits of a 'Word16'.</span><span>
+</span><span id="line-57"></span><span class="hs-comment">--</span><span>
+</span><span id="line-58"></span><span class="hs-comment">-- ~44 ns\/bit. Prefer 'ibits16' (~7 ns\/bit). See README.</span><span>
+</span><span id="line-59"></span><span class="annot"><a href="Data.Word.Optic.html#bits16"><span class="hs-identifier hs-type">bits16</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cotraversal"><span class="hs-identifier hs-type">Cotraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-60"></span><span id="bits16"><span class="annot"><span class="annottext">bits16 :: Cotraversal Word16 Word16 Bool Bool
+</span><a href="Data.Word.Optic.html#bits16"><span class="hs-identifier hs-var hs-var">bits16</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word16 -&gt; I16 -&gt; Bool)
+-&gt; ((I16 -&gt; Bool) -&gt; Word16)
+-&gt; Iso Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool)
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="annot"><span class="annottext">Word16 -&gt; I16 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits16"><span class="hs-identifier hs-var">toBits16</span></a></span><span> </span><span class="annot"><span class="annottext">(I16 -&gt; Bool) -&gt; Word16
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits16"><span class="hs-identifier hs-var">fromBits16</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool)
+-&gt; (p Bool Bool -&gt; p (I16 -&gt; Bool) (I16 -&gt; Bool))
+-&gt; p Bool Bool
+-&gt; p Word16 Word16
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p Bool Bool -&gt; p (I16 -&gt; Bool) (I16 -&gt; Bool)
+forall (f :: * -&gt; *) a b.
+Distributive f =&gt;
+Cotraversal (f a) (f b) a b
+Cotraversal (I16 -&gt; Bool) (I16 -&gt; Bool) Bool Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#cotraversed"><span class="hs-identifier hs-var">cotraversed</span></a></span><span>
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Cotraversal over the 32 bits of a 'Word32'.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- ~44 ns\/bit. Prefer 'ibits32' (~7 ns\/bit). See README.</span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Data.Word.Optic.html#bits32"><span class="hs-identifier hs-type">bits32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cotraversal"><span class="hs-identifier hs-type">Cotraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-66"></span><span id="bits32"><span class="annot"><span class="annottext">bits32 :: Cotraversal Word32 Word32 Bool Bool
+</span><a href="Data.Word.Optic.html#bits32"><span class="hs-identifier hs-var hs-var">bits32</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; I32 -&gt; Bool)
+-&gt; ((I32 -&gt; Bool) -&gt; Word32)
+-&gt; Iso Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool)
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; I32 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits32"><span class="hs-identifier hs-var">toBits32</span></a></span><span> </span><span class="annot"><span class="annottext">(I32 -&gt; Bool) -&gt; Word32
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits32"><span class="hs-identifier hs-var">fromBits32</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool)
+-&gt; (p Bool Bool -&gt; p (I32 -&gt; Bool) (I32 -&gt; Bool))
+-&gt; p Bool Bool
+-&gt; p Word32 Word32
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p Bool Bool -&gt; p (I32 -&gt; Bool) (I32 -&gt; Bool)
+forall (f :: * -&gt; *) a b.
+Distributive f =&gt;
+Cotraversal (f a) (f b) a b
+Cotraversal (I32 -&gt; Bool) (I32 -&gt; Bool) Bool Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#cotraversed"><span class="hs-identifier hs-var">cotraversed</span></a></span><span>
+</span><span id="line-67"></span><span>
+</span><span id="line-68"></span><span class="hs-comment">-- | Cotraversal over the 64 bits of a 'Word64'.</span><span>
+</span><span id="line-69"></span><span class="hs-comment">--</span><span>
+</span><span id="line-70"></span><span class="hs-comment">-- ~44 ns\/bit. Prefer 'ibits64' (~7 ns\/bit). See README.</span><span>
+</span><span id="line-71"></span><span class="annot"><a href="Data.Word.Optic.html#bits64"><span class="hs-identifier hs-type">bits64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cotraversal"><span class="hs-identifier hs-type">Cotraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-72"></span><span id="bits64"><span class="annot"><span class="annottext">bits64 :: Cotraversal Word64 Word64 Bool Bool
+</span><a href="Data.Word.Optic.html#bits64"><span class="hs-identifier hs-var hs-var">bits64</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; I64 -&gt; Bool)
+-&gt; ((I64 -&gt; Bool) -&gt; Word64)
+-&gt; Iso Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool)
+forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; I64 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits64"><span class="hs-identifier hs-var">toBits64</span></a></span><span> </span><span class="annot"><span class="annottext">(I64 -&gt; Bool) -&gt; Word64
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits64"><span class="hs-identifier hs-var">fromBits64</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool)
+-&gt; (p Bool Bool -&gt; p (I64 -&gt; Bool) (I64 -&gt; Bool))
+-&gt; p Bool Bool
+-&gt; p Word64 Word64
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p Bool Bool -&gt; p (I64 -&gt; Bool) (I64 -&gt; Bool)
+forall (f :: * -&gt; *) a b.
+Distributive f =&gt;
+Cotraversal (f a) (f b) a b
+Cotraversal (I64 -&gt; Bool) (I64 -&gt; Bool) Bool Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Traversal.html#cotraversed"><span class="hs-identifier hs-var">cotraversed</span></a></span><span>
+</span><span id="line-73"></span><span>
+</span><span id="line-74"></span><span class="hs-comment">-- | Indexed cotraversal over the 8 bits of a 'Word8'.</span><span>
+</span><span id="line-75"></span><span class="hs-comment">--</span><span>
+</span><span id="line-76"></span><span class="hs-comment">-- The index is the bit position ('I8'). ~7 ns\/bit &#8212; 6-7x faster</span><span>
+</span><span id="line-77"></span><span class="hs-comment">-- than 'bits8'. Preferred for all use cases where the index is</span><span>
+</span><span id="line-78"></span><span class="hs-comment">-- available. See README.</span><span>
+</span><span id="line-79"></span><span class="annot"><a href="Data.Word.Optic.html#ibits8"><span class="hs-identifier hs-type">ibits8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cxlens"><span class="hs-identifier hs-type">Cxlens</span></a></span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I8"><span class="hs-identifier hs-type">I8</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-80"></span><span id="ibits8"><span class="annot"><span class="annottext">ibits8 :: Cxlens I8 Word8 Word8 Bool Bool
+</span><a href="Data.Word.Optic.html#ibits8"><span class="hs-identifier hs-var hs-var">ibits8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+-&gt; Cxlens I8 Word8 Word8 Bool Bool
+forall s a k b t. (((s -&gt; a) -&gt; k -&gt; b) -&gt; t) -&gt; Cxlens k s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#cxlens"><span class="hs-identifier hs-var">cxlens</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+ -&gt; Cxlens I8 Word8 Word8 Bool Bool)
+-&gt; (((Word8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+-&gt; Cxlens I8 Word8 Word8 Bool Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058840"><span class="annot"><span class="annottext">(Word8 -&gt; Bool) -&gt; I8 -&gt; Bool
+</span><a href="#local-6989586621679058840"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I8 -&gt; Bool) -&gt; Word8
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits8"><span class="hs-identifier hs-var">fromBits8</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058841"><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679058841"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Word8 -&gt; Bool) -&gt; I8 -&gt; Bool
+</span><a href="#local-6989586621679058840"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058842"><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679058842"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; I8 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits8"><span class="hs-identifier hs-var">toBits8</span></a></span><span> </span><span class="annot"><span class="annottext">Word8
+</span><a href="#local-6989586621679058842"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679058841"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">I8
+</span><a href="#local-6989586621679058841"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>
+</span><span id="line-82"></span><span class="annot"><span class="hs-comment">-- | Indexed cotraversal over the 16 bits of a 'Word16'. ~7 ns\/bit. See README.</span></span><span>
+</span><span id="line-83"></span><span class="annot"><a href="Data.Word.Optic.html#ibits16"><span class="hs-identifier hs-type">ibits16</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cxlens"><span class="hs-identifier hs-type">Cxlens</span></a></span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I16"><span class="hs-identifier hs-type">I16</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-84"></span><span id="ibits16"><span class="annot"><span class="annottext">ibits16 :: Cxlens I16 Word16 Word16 Bool Bool
+</span><a href="Data.Word.Optic.html#ibits16"><span class="hs-identifier hs-var hs-var">ibits16</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+-&gt; Cxlens I16 Word16 Word16 Bool Bool
+forall s a k b t. (((s -&gt; a) -&gt; k -&gt; b) -&gt; t) -&gt; Cxlens k s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#cxlens"><span class="hs-identifier hs-var">cxlens</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+ -&gt; Cxlens I16 Word16 Word16 Bool Bool)
+-&gt; (((Word16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+-&gt; Cxlens I16 Word16 Word16 Bool Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058845"><span class="annot"><span class="annottext">(Word16 -&gt; Bool) -&gt; I16 -&gt; Bool
+</span><a href="#local-6989586621679058845"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I16 -&gt; Bool) -&gt; Word16
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits16"><span class="hs-identifier hs-var">fromBits16</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058846"><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679058846"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Word16 -&gt; Bool) -&gt; I16 -&gt; Bool
+</span><a href="#local-6989586621679058845"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058847"><span class="annot"><span class="annottext">Word16
+</span><a href="#local-6989586621679058847"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word16 -&gt; I16 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits16"><span class="hs-identifier hs-var">toBits16</span></a></span><span> </span><span class="annot"><span class="annottext">Word16
+</span><a href="#local-6989586621679058847"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679058846"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">I16
+</span><a href="#local-6989586621679058846"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-85"></span><span>
+</span><span id="line-86"></span><span class="annot"><span class="hs-comment">-- | Indexed cotraversal over the 32 bits of a 'Word32'. ~7 ns\/bit. See README.</span></span><span>
+</span><span id="line-87"></span><span class="annot"><a href="Data.Word.Optic.html#ibits32"><span class="hs-identifier hs-type">ibits32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cxlens"><span class="hs-identifier hs-type">Cxlens</span></a></span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I32"><span class="hs-identifier hs-type">I32</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-88"></span><span id="ibits32"><span class="annot"><span class="annottext">ibits32 :: Cxlens I32 Word32 Word32 Bool Bool
+</span><a href="Data.Word.Optic.html#ibits32"><span class="hs-identifier hs-var hs-var">ibits32</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+-&gt; Cxlens I32 Word32 Word32 Bool Bool
+forall s a k b t. (((s -&gt; a) -&gt; k -&gt; b) -&gt; t) -&gt; Cxlens k s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#cxlens"><span class="hs-identifier hs-var">cxlens</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+ -&gt; Cxlens I32 Word32 Word32 Bool Bool)
+-&gt; (((Word32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+-&gt; Cxlens I32 Word32 Word32 Bool Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058850"><span class="annot"><span class="annottext">(Word32 -&gt; Bool) -&gt; I32 -&gt; Bool
+</span><a href="#local-6989586621679058850"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I32 -&gt; Bool) -&gt; Word32
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits32"><span class="hs-identifier hs-var">fromBits32</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058851"><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679058851"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Word32 -&gt; Bool) -&gt; I32 -&gt; Bool
+</span><a href="#local-6989586621679058850"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058852"><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621679058852"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; I32 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits32"><span class="hs-identifier hs-var">toBits32</span></a></span><span> </span><span class="annot"><span class="annottext">Word32
+</span><a href="#local-6989586621679058852"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679058851"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">I32
+</span><a href="#local-6989586621679058851"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-89"></span><span>
+</span><span id="line-90"></span><span class="annot"><span class="hs-comment">-- | Indexed cotraversal over the 64 bits of a 'Word64'. ~7 ns\/bit. See README.</span></span><span>
+</span><span id="line-91"></span><span class="annot"><a href="Data.Word.Optic.html#ibits64"><span class="hs-identifier hs-type">ibits64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Cxlens"><span class="hs-identifier hs-type">Cxlens</span></a></span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I64"><span class="hs-identifier hs-type">I64</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-92"></span><span id="ibits64"><span class="annot"><span class="annottext">ibits64 :: Cxlens I64 Word64 Word64 Bool Bool
+</span><a href="Data.Word.Optic.html#ibits64"><span class="hs-identifier hs-var hs-var">ibits64</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+-&gt; Cxlens I64 Word64 Word64 Bool Bool
+forall s a k b t. (((s -&gt; a) -&gt; k -&gt; b) -&gt; t) -&gt; Cxlens k s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#cxlens"><span class="hs-identifier hs-var">cxlens</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+ -&gt; Cxlens I64 Word64 Word64 Bool Bool)
+-&gt; (((Word64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+-&gt; Cxlens I64 Word64 Word64 Bool Bool
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058855"><span class="annot"><span class="annottext">(Word64 -&gt; Bool) -&gt; I64 -&gt; Bool
+</span><a href="#local-6989586621679058855"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I64 -&gt; Bool) -&gt; Word64
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits64"><span class="hs-identifier hs-var">fromBits64</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058856"><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679058856"><span class="hs-identifier hs-var">i</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Word64 -&gt; Bool) -&gt; I64 -&gt; Bool
+</span><a href="#local-6989586621679058855"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679058857"><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621679058857"><span class="hs-identifier hs-var">w</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; I64 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits64"><span class="hs-identifier hs-var">toBits64</span></a></span><span> </span><span class="annot"><span class="annottext">Word64
+</span><a href="#local-6989586621679058857"><span class="hs-identifier hs-var">w</span></a></span><span> </span><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679058856"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">I64
+</span><a href="#local-6989586621679058856"><span class="hs-identifier hs-var">i</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-93"></span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- | Grate viewing a 'Word8' through its bit representation.</span><span>
+</span><span id="line-95"></span><span class="hs-comment">--</span><span>
+</span><span id="line-96"></span><span class="hs-comment">-- ~21 ns\/bit. Faster than 'bits8' (~44 ns\/bit), slower than 'ibits8' (~7 ns\/bit).</span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- Use when you need 'Closed' but not the coindex. See README.</span><span>
+</span><span id="line-98"></span><span class="hs-comment">--</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- @grate8 = grate (\\f -&gt; fromBits8 (f . toBits8))@</span><span>
+</span><span id="line-100"></span><span class="annot"><a href="Data.Word.Optic.html#grate8"><span class="hs-identifier hs-type">grate8</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Colens"><span class="hs-identifier hs-type">Colens</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word8</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I8"><span class="hs-identifier hs-type">I8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I8"><span class="hs-identifier hs-type">I8</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-101"></span><span id="grate8"><span class="annot"><span class="annottext">grate8 :: Colens Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool)
+</span><a href="Data.Word.Optic.html#grate8"><span class="hs-identifier hs-var hs-var">grate8</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word8 -&gt; I8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+-&gt; Colens Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool)
+forall s a b t. (((s -&gt; a) -&gt; b) -&gt; t) -&gt; Colens s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#grate"><span class="hs-identifier hs-var">grate</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word8 -&gt; I8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+ -&gt; Colens Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool))
+-&gt; (((Word8 -&gt; I8 -&gt; Bool) -&gt; I8 -&gt; Bool) -&gt; Word8)
+-&gt; Colens Word8 Word8 (I8 -&gt; Bool) (I8 -&gt; Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058861"><span class="annot"><span class="annottext">(Word8 -&gt; I8 -&gt; Bool) -&gt; I8 -&gt; Bool
+</span><a href="#local-6989586621679058861"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I8 -&gt; Bool) -&gt; Word8
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits8"><span class="hs-identifier hs-var">fromBits8</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Word8 -&gt; I8 -&gt; Bool) -&gt; I8 -&gt; Bool
+</span><a href="#local-6989586621679058861"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Word8 -&gt; I8 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits8"><span class="hs-identifier hs-var">toBits8</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span>
+</span><span id="line-103"></span><span class="annot"><span class="hs-comment">-- | Grate viewing a 'Word16' through its bit representation.</span></span><span>
+</span><span id="line-104"></span><span class="annot"><a href="Data.Word.Optic.html#grate16"><span class="hs-identifier hs-type">grate16</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Colens"><span class="hs-identifier hs-type">Colens</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word16</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I16"><span class="hs-identifier hs-type">I16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I16"><span class="hs-identifier hs-type">I16</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-105"></span><span id="grate16"><span class="annot"><span class="annottext">grate16 :: Colens Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool)
+</span><a href="Data.Word.Optic.html#grate16"><span class="hs-identifier hs-var hs-var">grate16</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word16 -&gt; I16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+-&gt; Colens Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool)
+forall s a b t. (((s -&gt; a) -&gt; b) -&gt; t) -&gt; Colens s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#grate"><span class="hs-identifier hs-var">grate</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word16 -&gt; I16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+ -&gt; Colens Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool))
+-&gt; (((Word16 -&gt; I16 -&gt; Bool) -&gt; I16 -&gt; Bool) -&gt; Word16)
+-&gt; Colens Word16 Word16 (I16 -&gt; Bool) (I16 -&gt; Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058864"><span class="annot"><span class="annottext">(Word16 -&gt; I16 -&gt; Bool) -&gt; I16 -&gt; Bool
+</span><a href="#local-6989586621679058864"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I16 -&gt; Bool) -&gt; Word16
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits16"><span class="hs-identifier hs-var">fromBits16</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Word16 -&gt; I16 -&gt; Bool) -&gt; I16 -&gt; Bool
+</span><a href="#local-6989586621679058864"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Word16 -&gt; I16 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits16"><span class="hs-identifier hs-var">toBits16</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-106"></span><span>
+</span><span id="line-107"></span><span class="annot"><span class="hs-comment">-- | Grate viewing a 'Word32' through its bit representation.</span></span><span>
+</span><span id="line-108"></span><span class="annot"><a href="Data.Word.Optic.html#grate32"><span class="hs-identifier hs-type">grate32</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Colens"><span class="hs-identifier hs-type">Colens</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word32</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I32"><span class="hs-identifier hs-type">I32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I32"><span class="hs-identifier hs-type">I32</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-109"></span><span id="grate32"><span class="annot"><span class="annottext">grate32 :: Colens Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool)
+</span><a href="Data.Word.Optic.html#grate32"><span class="hs-identifier hs-var hs-var">grate32</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word32 -&gt; I32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+-&gt; Colens Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool)
+forall s a b t. (((s -&gt; a) -&gt; b) -&gt; t) -&gt; Colens s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#grate"><span class="hs-identifier hs-var">grate</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word32 -&gt; I32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+ -&gt; Colens Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool))
+-&gt; (((Word32 -&gt; I32 -&gt; Bool) -&gt; I32 -&gt; Bool) -&gt; Word32)
+-&gt; Colens Word32 Word32 (I32 -&gt; Bool) (I32 -&gt; Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058867"><span class="annot"><span class="annottext">(Word32 -&gt; I32 -&gt; Bool) -&gt; I32 -&gt; Bool
+</span><a href="#local-6989586621679058867"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I32 -&gt; Bool) -&gt; Word32
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits32"><span class="hs-identifier hs-var">fromBits32</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Word32 -&gt; I32 -&gt; Bool) -&gt; I32 -&gt; Bool
+</span><a href="#local-6989586621679058867"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Word32 -&gt; I32 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits32"><span class="hs-identifier hs-var">toBits32</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="annot"><span class="hs-comment">-- | Grate viewing a 'Word64' through its bit representation.</span></span><span>
+</span><span id="line-112"></span><span class="annot"><a href="Data.Word.Optic.html#grate64"><span class="hs-identifier hs-type">grate64</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Colens"><span class="hs-identifier hs-type">Colens</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Word64</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I64"><span class="hs-identifier hs-type">I64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#I64"><span class="hs-identifier hs-type">I64</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span class="hs-special">)</span><span>
+</span><span id="line-113"></span><span id="grate64"><span class="annot"><span class="annottext">grate64 :: Colens Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool)
+</span><a href="Data.Word.Optic.html#grate64"><span class="hs-identifier hs-var hs-var">grate64</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((Word64 -&gt; I64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+-&gt; Colens Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool)
+forall s a b t. (((s -&gt; a) -&gt; b) -&gt; t) -&gt; Colens s t a b
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Lens.html#grate"><span class="hs-identifier hs-var">grate</span></a></span><span> </span><span class="annot"><span class="annottext">((((Word64 -&gt; I64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+ -&gt; Colens Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool))
+-&gt; (((Word64 -&gt; I64 -&gt; Bool) -&gt; I64 -&gt; Bool) -&gt; Word64)
+-&gt; Colens Word64 Word64 (I64 -&gt; Bool) (I64 -&gt; Bool)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679058870"><span class="annot"><span class="annottext">(Word64 -&gt; I64 -&gt; Bool) -&gt; I64 -&gt; Bool
+</span><a href="#local-6989586621679058870"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(I64 -&gt; Bool) -&gt; Word64
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#fromBits64"><span class="hs-identifier hs-var">fromBits64</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Word64 -&gt; I64 -&gt; Bool) -&gt; I64 -&gt; Bool
+</span><a href="#local-6989586621679058870"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">Word64 -&gt; I64 -&gt; Bool
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/scheme-extensions-0.0.1/doc/html/scheme-extensions/src/Data.Functor.Index.html#toBits64"><span class="hs-identifier hs-var">toBits64</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-114"></span></pre></body></html>

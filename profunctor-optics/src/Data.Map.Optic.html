@@ -1,0 +1,1084 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-pragma">{-# LANGUAGE FlexibleContexts      #-}</span><span>
+</span><span id="line-2"></span><span class="hs-pragma">{-# LANGUAGE QuantifiedConstraints #-}</span><span>
+</span><span id="line-3"></span><span class="hs-pragma">{-# LANGUAGE RankNTypes            #-}</span><span>
+</span><span id="line-4"></span><span class="hs-pragma">{-# LANGUAGE MultiParamTypeClasses #-}</span><span>
+</span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TupleSections         #-}</span><span>
+</span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
+</span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- | Profunctor optics for 'Data.Map.Map'.</span><span>
+</span><span id="line-9"></span><span class="hs-comment">--</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- Unprimed variants are lazy. Primed (@'@) variants are strict.</span><span>
+</span><span id="line-11"></span><span class="hs-comment">--</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- For structural optics (depth, sizes, rebalanced) that require</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- pattern functors, see @Data.Map.Fold.Optic@ in</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- @profunctor-optics-containers@.</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Map.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Optics</span></span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Lens, Ixlens</span></span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier">alteredF</span></a></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixalteredF"><span class="hs-identifier">ixalteredF</span></a></span><span>
+</span><span id="line-20"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Traversal, Ixtraversal</span></span><span>
+</span><span id="line-21"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixtraversed"><span class="hs-identifier">ixtraversed</span></a></span><span>
+</span><span id="line-22"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Traversal0, Ixtraversal0</span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-identifier">at</span></a></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixat"><span class="hs-identifier">ixat</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-identifier">updated</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier">updateLooked</span></a></span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier">lookedLT</span></a></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier">lookedLE</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier">lookedGE</span></a></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier">lookedGT</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Fold, Ixfold</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-identifier">values</span></a></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixfolded"><span class="hs-identifier">ixfolded</span></a></span><span>
+</span><span id="line-34"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Fold0, Ixfold0</span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier">lookedMin</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier">lookedMax</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-identifier">validated</span></a></span><span>
+</span><span id="line-38"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Setter, Ixsetter</span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier">adjusted</span></a></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixmapped"><span class="hs-identifier">ixmapped</span></a></span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixfiltered"><span class="hs-identifier">ixfiltered</span></a></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-identifier">altered</span></a></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered%27"><span class="hs-identifier">altered'</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixaltered"><span class="hs-identifier">ixaltered</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixaltered%27"><span class="hs-identifier">ixaltered'</span></a></span><span>
+</span><span id="line-46"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Dual Optics</span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#cxmapped%27"><span class="hs-identifier">cxmapped'</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Operators</span></span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier">fromIxfold</span></a></span><span>
+</span><span id="line-50"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Sort-based</span></span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier">toMapOf'</span></a></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#countingOf%27"><span class="hs-identifier">countingOf'</span></a></span><span>
+</span><span id="line-53"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#foldSorting%27"><span class="hs-identifier">foldSorting'</span></a></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#foldSorting1%27"><span class="hs-identifier">foldSorting1'</span></a></span><span>
+</span><span id="line-55"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#mconcatSorting%27"><span class="hs-identifier">mconcatSorting'</span></a></span><span>
+</span><span id="line-56"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Merge (Sort + containers merge)</span></span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier">mergingOf'</span></a></span><span>
+</span><span id="line-58"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#innerMerge%27"><span class="hs-identifier">innerMerge'</span></a></span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#outerMerge%27"><span class="hs-identifier">outerMerge'</span></a></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#leftMerge%27"><span class="hs-identifier">leftMerge'</span></a></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#rightMerge%27"><span class="hs-identifier">rightMerge'</span></a></span><span>
+</span><span id="line-62"></span><span>    </span><span class="annot"><span class="hs-comment">-- ** Sort merge tactics</span></span><span>
+</span><span id="line-63"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#sortedMatched"><span class="hs-identifier">sortedMatched</span></a></span><span>
+</span><span id="line-64"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#sortedMissing"><span class="hs-identifier">sortedMissing</span></a></span><span>
+</span><span id="line-65"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-66"></span><span>
+</span><span id="line-67"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="hs-identifier">toMapOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">countingOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">sortingOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">sortingDescOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">groupingOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">nubbingOf'</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#foldSortingL"><span class="hs-identifier">foldSortingL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#foldSorting1L"><span class="hs-identifier">foldSorting1L</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#mconcatSortingL"><span class="hs-identifier">mconcatSortingL</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#sortingString"><span class="hs-identifier">sortingString</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-identifier">mergingOf'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">innerMerge'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">outerMerge'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">leftMerge'</span><span class="hs-special">,</span><span> </span><span class="hs-identifier">rightMerge'</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#sortedMatched"><span class="hs-identifier">sortedMatched</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Sort.html#sortedMissing"><span class="hs-identifier">sortedMissing</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-68"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html"><span class="hs-identifier">Data.Profunctor.Optic.Carrier</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#Sort"><span class="hs-identifier">Sort</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#runSort"><span class="hs-identifier">runSort</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-69"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Import.html"><span class="hs-identifier">Data.Profunctor.Optic.Import</span></a></span><span>
+</span><span id="line-70"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Lazy</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-71"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">MapS</span></span><span>
+</span><span id="line-72"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map.Merge.Strict</span></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Merge</span></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
+</span><span id="line-74"></span><span>
+</span><span id="line-75"></span><span class="hs-comment">-- | /O(log n)/. Lens into /Maybe/ of a value at a key.</span><span>
+</span><span id="line-76"></span><span class="hs-comment">--</span><span>
+</span><span id="line-77"></span><span id="local-6989586621679157773"><span id="local-6989586621679157774"><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier hs-type">alteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157773"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157773"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157773"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157774"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157774"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-78"></span><span id="alteredF"><span class="annot"><span class="annottext">alteredF :: forall k a. Ord k =&gt; k -&gt; Lens' (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#alteredF"><span class="hs-identifier hs-var hs-var">alteredF</span></a></span></span><span> </span><span id="local-6989586621679158221"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158221"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Lens s t a b
+</span><a href="Data.Profunctor.Optic.Lens.html#lensVl"><span class="hs-identifier hs-var">lensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+ -&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Lens (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a))
+-&gt; k -&gt; (Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+forall (f :: * -&gt; *) k a.
+(Functor f, Ord k) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+</span><span class="hs-identifier hs-var">Map.alterF</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158221"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-79"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#alteredF"><span class="hs-pragma hs-type">alteredF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-80"></span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- | /O(log n)/. Indexed lens into /Maybe/ of a value at a key.</span><span>
+</span><span id="line-82"></span><span class="hs-comment">--</span><span>
+</span><span id="line-83"></span><span id="local-6989586621679157798"><span id="local-6989586621679157799"><span class="annot"><a href="Data.Map.Optic.html#ixalteredF"><span class="hs-identifier hs-type">ixalteredF</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157798"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157798"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixlens%27"><span class="hs-identifier hs-type">Ixlens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157798"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157798"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157799"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157799"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-84"></span><span id="ixalteredF"><span class="annot"><span class="annottext">ixalteredF :: forall k a. Ord k =&gt; k -&gt; Ixlens' k (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#ixalteredF"><span class="hs-identifier hs-var hs-var">ixalteredF</span></a></span></span><span> </span><span id="local-6989586621679158231"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158231"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Functor f =&gt;
+ (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall k a b s t.
+(forall (f :: * -&gt; *). Functor f =&gt; (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixlens k s t a b
+</span><a href="Data.Profunctor.Optic.Lens.html#ixlensVl"><span class="hs-identifier hs-var">ixlensVl</span></a></span><span> </span><span class="annot"><span class="annottext">((forall (f :: * -&gt; *).
+  Functor f =&gt;
+  (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+ -&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; (forall (f :: * -&gt; *).
+    Functor f =&gt;
+    (k -&gt; Maybe a -&gt; f (Maybe a)) -&gt; Map k a -&gt; f (Map k a))
+-&gt; Ixlens k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158236"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679158236"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+forall (f :: * -&gt; *) k a.
+(Functor f, Ord k) =&gt;
+(Maybe a -&gt; f (Maybe a)) -&gt; k -&gt; Map k a -&gt; f (Map k a)
+</span><span class="hs-identifier hs-var">Map.alterF</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; f (Maybe a)
+</span><a href="#local-6989586621679158236"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158231"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158231"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-85"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixalteredF"><span class="hs-pragma hs-type">ixalteredF</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-86"></span><span>
+</span><span id="line-87"></span><span class="hs-comment">-- | /O(n)/. 'Ixtraversal' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-88"></span><span class="hs-comment">--</span><span>
+</span><span id="line-89"></span><span id="local-6989586621679157813"><span id="local-6989586621679157814"><span id="local-6989586621679157815"><span class="annot"><a href="Data.Map.Optic.html#ixtraversed"><span class="hs-identifier hs-type">ixtraversed</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157813"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157813"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157813"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157814"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157813"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157815"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157814"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157815"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-90"></span><span id="ixtraversed"><span class="annot"><span class="annottext">ixtraversed :: forall k a b. Ord k =&gt; Ixtraversal k (Map k a) (Map k b) a b
+</span><a href="Data.Map.Optic.html#ixtraversed"><span class="hs-identifier hs-var hs-var">ixtraversed</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b))
+-&gt; Ixtraversal k (Map k a) (Map k b) a b
+forall k a b s t.
+(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixtraversal k s t a b
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversalVl"><span class="hs-identifier hs-var">ixtraversalVl</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b)
+forall (f :: * -&gt; *).
+Applicative f =&gt;
+(k -&gt; a -&gt; f b) -&gt; Map k a -&gt; f (Map k b)
+forall (t :: * -&gt; *) k a b.
+Applicative t =&gt;
+(k -&gt; a -&gt; t b) -&gt; Map k a -&gt; t (Map k b)
+</span><span class="hs-identifier hs-var">Map.traverseWithKey</span></span><span>
+</span><span id="line-91"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixtraversed"><span class="hs-pragma hs-type">ixtraversed</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">-- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.</span><span>
+</span><span id="line-94"></span><span class="hs-comment">--</span><span>
+</span><span id="line-95"></span><span id="local-6989586621679157834"><span id="local-6989586621679157835"><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-identifier hs-type">at</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157834"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157834"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Traversal0%27"><span class="hs-identifier hs-type">Traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157834"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157835"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157835"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-96"></span><span id="at"><span class="annot"><span class="annottext">at :: forall k a. Ord k =&gt; k -&gt; Traversal0' (Map k a) a
+</span><a href="Data.Map.Optic.html#at"><span class="hs-identifier hs-var hs-var">at</span></a></span></span><span> </span><span id="local-6989586621679158251"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158251"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe a)
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Traversal0 (Map k a) (Map k a) a a
+forall s a b. (s -&gt; Maybe a) -&gt; (s -&gt; b -&gt; s) -&gt; Traversal0 s s a b
+</span><a href="Data.Profunctor.Optic.Traversal.html#traversal0%27"><span class="hs-identifier hs-var">traversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158251"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158251"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-97"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#at"><span class="hs-pragma hs-type">at</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at a key of a 'Map.Map'.</span><span>
+</span><span id="line-100"></span><span class="hs-comment">--</span><span>
+</span><span id="line-101"></span><span id="local-6989586621679157848"><span id="local-6989586621679157849"><span class="annot"><a href="Data.Map.Optic.html#ixat"><span class="hs-identifier hs-type">ixat</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157848"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157848"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157848"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157848"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157849"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157849"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-102"></span><span id="ixat"><span class="annot"><span class="annottext">ixat :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#ixat"><span class="hs-identifier hs-var hs-var">ixat</span></a></span></span><span> </span><span id="local-6989586621679158262"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158262"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679158264"><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679158264"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158262"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; (k, a)) -&gt; Maybe a -&gt; Maybe (k, a)
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe a
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158262"><span class="hs-identifier hs-var">k</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a
+</span><a href="#local-6989586621679158264"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158262"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixat"><span class="hs-pragma hs-type">ixat</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-104"></span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- | /O(log n)/. Update a value at a specific key.</span><span>
+</span><span id="line-106"></span><span class="hs-comment">--</span><span>
+</span><span id="line-107"></span><span id="local-6989586621679157860"><span id="local-6989586621679157861"><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-identifier hs-type">updated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157860"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157860"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157860"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157860"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157861"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157860"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157861"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157861"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157861"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-108"></span><span id="updated"><span class="annot"><span class="annottext">updated :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+</span><a href="Data.Map.Optic.html#updated"><span class="hs-identifier hs-var hs-var">updated</span></a></span></span><span> </span><span id="local-6989586621679158274"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158274"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158276"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679158276"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; (k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.updateWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679158276"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158274"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-109"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updated"><span class="hs-pragma hs-type">updated</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-110"></span><span>
+</span><span id="line-111"></span><span class="hs-comment">-- | /O(log n)/. Lookup and update a value at a specific key.</span><span>
+</span><span id="line-112"></span><span class="hs-comment">--</span><span>
+</span><span id="line-113"></span><span id="local-6989586621679157874"><span id="local-6989586621679157875"><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier hs-type">updateLooked</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157874"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157874"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157874"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157874"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157875"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157875"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157874"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157875"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157875"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157875"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-114"></span><span id="updateLooked"><span class="annot"><span class="annottext">updateLooked :: forall k a.
+Ord k =&gt;
+k -&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+</span><a href="Data.Map.Optic.html#updateLooked"><span class="hs-identifier hs-var hs-var">updateLooked</span></a></span></span><span> </span><span id="local-6989586621679158286"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158286"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+ -&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a))
+-&gt; ((k -&gt; a -&gt; Maybe a) -&gt; Map k a -&gt; (Maybe a, Map k a))
+-&gt; Ixsetter k (Map k a) (Maybe a, Map k a) a (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158287"><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679158287"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; (Maybe a, Map k a)
+forall k a.
+Ord k =&gt;
+(k -&gt; a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; (Maybe a, Map k a)
+</span><span class="hs-identifier hs-var">Map.updateLookupWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Maybe a
+</span><a href="#local-6989586621679158287"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158286"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-115"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#updateLooked"><span class="hs-pragma hs-type">updateLooked</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-116"></span><span>
+</span><span id="line-117"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.</span><span>
+</span><span id="line-118"></span><span class="hs-comment">--</span><span>
+</span><span id="line-119"></span><span id="local-6989586621679158289"><span id="local-6989586621679158290"><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier hs-type">lookedLT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158289"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158289"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158289"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158289"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158290"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158290"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-120"></span><span id="lookedLT"><span class="annot"><span class="annottext">lookedLT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedLT"><span class="hs-identifier hs-var hs-var">lookedLT</span></a></span></span><span> </span><span id="local-6989586621679158296"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158296"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupLT</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158296"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158296"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLT"><span class="hs-pragma hs-type">lookedLT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-122"></span><span>
+</span><span id="line-123"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the given one.</span><span>
+</span><span id="line-124"></span><span class="hs-comment">--</span><span>
+</span><span id="line-125"></span><span id="local-6989586621679158298"><span id="local-6989586621679158299"><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier hs-type">lookedLE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158298"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158298"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158298"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158298"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158299"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158299"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-126"></span><span id="lookedLE"><span class="annot"><span class="annottext">lookedLE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedLE"><span class="hs-identifier hs-var hs-var">lookedLE</span></a></span></span><span> </span><span id="local-6989586621679158305"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158305"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupLE</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158305"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158305"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-127"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedLE"><span class="hs-pragma hs-type">lookedLE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-128"></span><span>
+</span><span id="line-129"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than or equal to the given one.</span><span>
+</span><span id="line-130"></span><span class="hs-comment">--</span><span>
+</span><span id="line-131"></span><span id="local-6989586621679158307"><span id="local-6989586621679158308"><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier hs-type">lookedGE</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158307"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158308"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158308"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-132"></span><span id="lookedGE"><span class="annot"><span class="annottext">lookedGE :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedGE"><span class="hs-identifier hs-var hs-var">lookedGE</span></a></span></span><span> </span><span id="local-6989586621679158314"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158314"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupGE</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158314"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158314"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-133"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGE"><span class="hs-pragma hs-type">lookedGE</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-134"></span><span>
+</span><span id="line-135"></span><span class="hs-comment">-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than the given one.</span><span>
+</span><span id="line-136"></span><span class="hs-comment">--</span><span>
+</span><span id="line-137"></span><span id="local-6989586621679158316"><span id="local-6989586621679158317"><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier hs-type">lookedGT</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158316"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158316"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal0%27"><span class="hs-identifier hs-type">Ixtraversal0'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158316"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158316"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158317"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158317"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-138"></span><span id="lookedGT"><span class="annot"><span class="annottext">lookedGT :: forall k a. Ord k =&gt; k -&gt; Ixtraversal0' k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedGT"><span class="hs-identifier hs-var hs-var">lookedGT</span></a></span></span><span> </span><span id="local-6989586621679158323"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158323"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a))
+-&gt; (Map k a -&gt; a -&gt; Map k a) -&gt; Ixtraversal0' k (Map k a) a
+forall s k a.
+(s -&gt; Maybe (k, a)) -&gt; (s -&gt; a -&gt; s) -&gt; Ixtraversal0' k s a
+</span><a href="Data.Profunctor.Optic.Traversal.html#ixtraversal0%27"><span class="hs-identifier hs-var">ixtraversal0'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Map k a -&gt; Maybe (k, a)
+forall k v. Ord k =&gt; k -&gt; Map k v -&gt; Maybe (k, v)
+</span><span class="hs-identifier hs-var">Map.lookupGT</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158323"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">((a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a)
+-&gt; (a -&gt; Map k a -&gt; Map k a) -&gt; Map k a -&gt; a -&gt; Map k a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158323"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-139"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedGT"><span class="hs-pragma hs-type">lookedGT</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-140"></span><span>
+</span><span id="line-141"></span><span class="hs-comment">-- | /O(n)/. 'Fold' over the values of a 'Map.Map', in ascending key order.</span><span>
+</span><span id="line-142"></span><span class="hs-comment">--</span><span>
+</span><span id="line-143"></span><span id="local-6989586621679157897"><span id="local-6989586621679157898"><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-identifier hs-type">values</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157897"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157898"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157898"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-144"></span><span id="values"><span class="annot"><span class="annottext">values :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Optic' p (Map k a) a
+</span><a href="Data.Map.Optic.html#values"><span class="hs-identifier hs-var hs-var">values</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; [(k, a)]) -&gt; Fold (Map k a) (k, a)
+forall (f :: * -&gt; *) s a. Foldable f =&gt; (s -&gt; f a) -&gt; Fold s a
+</span><a href="Data.Profunctor.Optic.Fold.html#fold_"><span class="hs-identifier hs-var">fold_</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; [(k, a)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toAscList</span></span><span> </span><span class="annot"><span class="annottext">Optic' p (Map k a) (k, a)
+-&gt; (p a a -&gt; p (k, a) (k, a)) -&gt; p a a -&gt; p (Map k a) (Map k a)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">p a a -&gt; p (k, a) (k, a)
+forall a b c. p a b -&gt; p (c, a) (c, b)
+forall (p :: * -&gt; * -&gt; *) a b c.
+Strong p =&gt;
+p a b -&gt; p (c, a) (c, b)
+</span><a href="file:///home/runner/.cabal/store/ghc-9.6.7/profunctors-5.6.3-b173dbe8c11fe00a5e6ca16451d35c0e7473605e795de4f85a5c93787c525cd2/share/doc/html/src/Data.Profunctor.Strong.html#second%27"><span class="hs-identifier hs-var">second'</span></a></span><span>
+</span><span id="line-145"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#values"><span class="hs-pragma hs-type">values</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-146"></span><span>
+</span><span id="line-147"></span><span class="hs-comment">-- | /O(n)/. 'Ixfold' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-148"></span><span class="hs-comment">--</span><span>
+</span><span id="line-149"></span><span id="local-6989586621679157919"><span id="local-6989586621679157920"><span class="annot"><a href="Data.Map.Optic.html#ixfolded"><span class="hs-identifier hs-type">ixfolded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixfold"><span class="hs-identifier hs-type">Ixfold</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157919"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157919"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157920"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157920"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-150"></span><span id="ixfolded"><span class="annot"><span class="annottext">ixfolded :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#ixfolded"><span class="hs-identifier hs-var hs-var">ixfolded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any))
+-&gt; Ixfold k (Map k a) a
+forall k a b s t.
+(forall (f :: * -&gt; *).
+ Applicative f =&gt;
+ (k -&gt; a -&gt; f b) -&gt; s -&gt; f t)
+-&gt; Ixfold k s a
+</span><a href="Data.Profunctor.Optic.Fold.html#ixfoldVl"><span class="hs-identifier hs-var">ixfoldVl</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any)
+forall (f :: * -&gt; *).
+Applicative f =&gt;
+(k -&gt; a -&gt; f Any) -&gt; Map k a -&gt; f (Map k Any)
+forall (t :: * -&gt; *) k a b.
+Applicative t =&gt;
+(k -&gt; a -&gt; t b) -&gt; Map k a -&gt; t (Map k b)
+</span><span class="hs-identifier hs-var">Map.traverseWithKey</span></span><span>
+</span><span id="line-151"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixfolded"><span class="hs-pragma hs-type">ixfolded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-152"></span><span>
+</span><span id="line-153"></span><span class="hs-comment">-- | /O(log n)/. 'Ixfold0' into the value at the minimal key.</span><span>
+</span><span id="line-154"></span><span class="hs-comment">--</span><span>
+</span><span id="line-155"></span><span id="local-6989586621679157934"><span id="local-6989586621679157935"><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier hs-type">lookedMin</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixfold0"><span class="hs-identifier hs-type">Ixfold0</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157934"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157934"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157935"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157935"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-156"></span><span id="lookedMin"><span class="annot"><span class="annottext">lookedMin :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedMin"><span class="hs-identifier hs-var hs-var">lookedMin</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a)) -&gt; Ixfold0 k (Map k a) a
+forall s k a. (s -&gt; Maybe (k, a)) -&gt; Ixfold0 k s a
+</span><a href="Data.Profunctor.Optic.Fold.html#ixfold0"><span class="hs-identifier hs-var">ixfold0</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Maybe (k, a)
+forall k a. Map k a -&gt; Maybe (k, a)
+</span><span class="hs-identifier hs-var">Map.lookupMin</span></span><span>
+</span><span id="line-157"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMin"><span class="hs-pragma hs-type">lookedMin</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-158"></span><span>
+</span><span id="line-159"></span><span class="hs-comment">-- | /O(log n)/. 'Ixfold0' into the value at the maximal key.</span><span>
+</span><span id="line-160"></span><span class="hs-comment">--</span><span>
+</span><span id="line-161"></span><span id="local-6989586621679158354"><span id="local-6989586621679158355"><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier hs-type">lookedMax</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixfold0"><span class="hs-identifier hs-type">Ixfold0</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158354"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158354"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158355"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158355"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-162"></span><span id="lookedMax"><span class="annot"><span class="annottext">lookedMax :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, CoercingR p) =&gt;
+Ixoptic' p k (Map k a) a
+</span><a href="Data.Map.Optic.html#lookedMax"><span class="hs-identifier hs-var hs-var">lookedMax</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Maybe (k, a)) -&gt; Ixfold0 k (Map k a) a
+forall s k a. (s -&gt; Maybe (k, a)) -&gt; Ixfold0 k s a
+</span><a href="Data.Profunctor.Optic.Fold.html#ixfold0"><span class="hs-identifier hs-var">ixfold0</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Maybe (k, a)
+forall k a. Map k a -&gt; Maybe (k, a)
+</span><span class="hs-identifier hs-var">Map.lookupMax</span></span><span>
+</span><span id="line-163"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#lookedMax"><span class="hs-pragma hs-type">lookedMax</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-164"></span><span>
+</span><span id="line-165"></span><span class="hs-comment">-- | /O(n)/. Test if the internal map structure is valid.</span><span>
+</span><span id="line-166"></span><span class="hs-comment">--</span><span>
+</span><span id="line-167"></span><span id="local-6989586621679157948"><span id="local-6989586621679157949"><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-identifier hs-type">validated</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157948"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold0"><span class="hs-identifier hs-type">Fold0</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157948"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157949"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157948"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157949"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-168"></span><span id="validated"><span class="annot"><span class="annottext">validated :: forall k a. Ord k =&gt; Fold0 (Map k a) (Map k a)
+</span><a href="Data.Map.Optic.html#validated"><span class="hs-identifier hs-var hs-var">validated</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Map k a -&gt; Bool) -&gt; Fold0 (Map k a) (Map k a)
+forall a. (a -&gt; Bool) -&gt; Fold0 a a
+</span><a href="Data.Profunctor.Optic.Fold.html#filtered"><span class="hs-identifier hs-var">filtered</span></a></span><span> </span><span class="annot"><span class="annottext">Map k a -&gt; Bool
+forall k a. Ord k =&gt; Map k a -&gt; Bool
+</span><span class="hs-identifier hs-var">Map.valid</span></span><span>
+</span><span id="line-169"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#validated"><span class="hs-pragma hs-type">validated</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-170"></span><span>
+</span><span id="line-171"></span><span class="hs-comment">-- | /O(log n)/. Adjust a value at a specific key.</span><span>
+</span><span id="line-172"></span><span class="hs-comment">--</span><span>
+</span><span id="line-173"></span><span id="local-6989586621679157957"><span id="local-6989586621679157958"><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier hs-type">adjusted</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157957"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157957"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter%27"><span class="hs-identifier hs-type">Ixsetter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157957"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157957"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157958"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157958"><span class="hs-identifier hs-type">a</span></a></span></span></span><span>
+</span><span id="line-174"></span><span id="adjusted"><span class="annot"><span class="annottext">adjusted :: forall k a. Ord k =&gt; k -&gt; Ixsetter' k (Map k a) a
+</span><a href="Data.Map.Optic.html#adjusted"><span class="hs-identifier hs-var hs-var">adjusted</span></a></span></span><span> </span><span id="local-6989586621679158377"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158377"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a a
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) a a)
+-&gt; ((k -&gt; a -&gt; a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a a
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158378"><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679158378"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a. Ord k =&gt; (k -&gt; a -&gt; a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.adjustWithKey</span></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; a
+</span><a href="#local-6989586621679158378"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158377"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-175"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#adjusted"><span class="hs-pragma hs-type">adjusted</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-176"></span><span>
+</span><span id="line-177"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' over the values of a 'Map.Map'.</span><span>
+</span><span id="line-178"></span><span class="hs-comment">--</span><span>
+</span><span id="line-179"></span><span id="local-6989586621679157966"><span id="local-6989586621679157967"><span id="local-6989586621679157968"><span class="annot"><a href="Data.Map.Optic.html#ixmapped"><span class="hs-identifier hs-type">ixmapped</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157966"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157966"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157967"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157966"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157968"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157967"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157968"><span class="hs-identifier hs-type">b</span></a></span></span></span></span><span>
+</span><span id="line-180"></span><span id="ixmapped"><span class="annot"><span class="annottext">ixmapped :: forall k a b (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (Map k a) (Map k b) a b
+</span><a href="Data.Map.Optic.html#ixmapped"><span class="hs-identifier hs-var hs-var">ixmapped</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b)
+-&gt; Ixsetter k (Map k a) (Map k b) a b
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+forall k a b. (k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.mapWithKey</span></span><span>
+</span><span id="line-181"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixmapped"><span class="hs-pragma hs-type">ixmapped</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-182"></span><span>
+</span><span id="line-183"></span><span class="hs-comment">-- | /O(n)/. 'Ixsetter' filtering the values of a 'Map.Map'.</span><span>
+</span><span id="line-184"></span><span class="hs-comment">--</span><span>
+</span><span id="line-185"></span><span id="local-6989586621679157976"><span id="local-6989586621679157977"><span class="annot"><a href="Data.Map.Optic.html#ixfiltered"><span class="hs-identifier hs-type">ixfiltered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter"><span class="hs-identifier hs-type">Ixsetter</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157976"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157976"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157977"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157976"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157977"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679157977"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span></span></span><span>
+</span><span id="line-186"></span><span id="ixfiltered"><span class="annot"><span class="annottext">ixfiltered :: forall k a (p :: * -&gt; * -&gt; *).
+(Affine p, Traversing p, Mapping p) =&gt;
+Ixoptic p k (Map k a) (Map k a) a Bool
+</span><a href="Data.Map.Optic.html#ixfiltered"><span class="hs-identifier hs-var hs-var">ixfiltered</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) a Bool
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+forall k a. (k -&gt; a -&gt; Bool) -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.filterWithKey</span></span><span>
+</span><span id="line-187"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixfiltered"><span class="hs-pragma hs-type">ixfiltered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-188"></span><span>
+</span><span id="line-189"></span><span class="hs-comment">-- | /O(log n)/. Alter the value at a specific key (lazy).</span><span>
+</span><span id="line-190"></span><span class="hs-comment">--</span><span>
+</span><span id="line-191"></span><span id="local-6989586621679157983"><span id="local-6989586621679157984"><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-identifier hs-type">altered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157983"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157983"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157983"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157984"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679157984"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-192"></span><span id="altered"><span class="annot"><span class="annottext">altered :: forall k a. Ord k =&gt; k -&gt; Setter' (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#altered"><span class="hs-identifier hs-var hs-var">altered</span></a></span></span><span> </span><span id="local-6989586621679158402"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158402"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158404"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158404"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.alter</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158404"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158402"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-193"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered"><span class="hs-pragma hs-type">altered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-194"></span><span>
+</span><span id="line-195"></span><span class="hs-comment">-- | /O(log n)/. Strict alter (values forced on insert).</span><span>
+</span><span id="line-196"></span><span class="hs-comment">--</span><span>
+</span><span id="line-197"></span><span id="local-6989586621679158406"><span id="local-6989586621679158407"><span class="annot"><a href="Data.Map.Optic.html#altered%27"><span class="hs-identifier hs-type">altered'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158406"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158406"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Setter%27"><span class="hs-identifier hs-type">Setter'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158406"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158407"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679158407"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-198"></span><span id="altered%27"><span class="annot"><span class="annottext">altered' :: forall k a. Ord k =&gt; k -&gt; Setter' (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#altered%27"><span class="hs-identifier hs-var hs-var">altered'</span></a></span></span><span> </span><span id="local-6989586621679158416"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158416"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b s t. ((a -&gt; b) -&gt; s -&gt; t) -&gt; Setter s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#setter"><span class="hs-identifier hs-var">setter</span></a></span><span> </span><span class="annot"><span class="annottext">(((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Setter (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158417"><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158417"><span class="hs-identifier hs-var">ab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.alter</span></span><span> </span><span class="annot"><span class="annottext">Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158417"><span class="hs-identifier hs-var">ab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158416"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-199"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#altered%27"><span class="hs-pragma hs-type">altered'</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-200"></span><span>
+</span><span id="line-201"></span><span class="hs-comment">-- | /O(log n)/. Indexed alter (lazy).</span><span>
+</span><span id="line-202"></span><span class="hs-comment">--</span><span>
+</span><span id="line-203"></span><span id="local-6989586621679157999"><span id="local-6989586621679158000"><span class="annot"><a href="Data.Map.Optic.html#ixaltered"><span class="hs-identifier hs-type">ixaltered</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679157999"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679157999"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter%27"><span class="hs-identifier hs-type">Ixsetter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679157999"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679157999"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158000"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679158000"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-204"></span><span id="ixaltered"><span class="annot"><span class="annottext">ixaltered :: forall k a. Ord k =&gt; k -&gt; Ixsetter' k (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#ixaltered"><span class="hs-identifier hs-var hs-var">ixaltered</span></a></span></span><span> </span><span id="local-6989586621679158427"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158427"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158428"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158428"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.alter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158428"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158427"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158427"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-205"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixaltered"><span class="hs-pragma hs-type">ixaltered</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-206"></span><span>
+</span><span id="line-207"></span><span class="hs-comment">-- | /O(log n)/. Strict indexed alter.</span><span>
+</span><span id="line-208"></span><span class="hs-comment">--</span><span>
+</span><span id="line-209"></span><span id="local-6989586621679158429"><span id="local-6989586621679158430"><span class="annot"><a href="Data.Map.Optic.html#ixaltered%27"><span class="hs-identifier hs-type">ixaltered'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158429"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158429"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixsetter%27"><span class="hs-identifier hs-type">Ixsetter'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158429"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158429"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158430"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="#local-6989586621679158430"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span></span></span><span>
+</span><span id="line-210"></span><span id="ixaltered%27"><span class="annot"><span class="annottext">ixaltered' :: forall k a. Ord k =&gt; k -&gt; Ixsetter' k (Map k a) (Maybe a)
+</span><a href="Data.Map.Optic.html#ixaltered%27"><span class="hs-identifier hs-var hs-var">ixaltered'</span></a></span></span><span> </span><span id="local-6989586621679158439"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158439"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall i a b s t. ((i -&gt; a -&gt; b) -&gt; s -&gt; t) -&gt; Ixsetter i s t a b
+</span><a href="Data.Profunctor.Optic.Setter.html#ixsetter"><span class="hs-identifier hs-var">ixsetter</span></a></span><span> </span><span class="annot"><span class="annottext">(((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+ -&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a))
+-&gt; ((k -&gt; Maybe a -&gt; Maybe a) -&gt; Map k a -&gt; Map k a)
+-&gt; Ixsetter k (Map k a) (Map k a) (Maybe a) (Maybe a)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158440"><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158440"><span class="hs-identifier hs-var">kab</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+forall k a.
+Ord k =&gt;
+(Maybe a -&gt; Maybe a) -&gt; k -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.alter</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k -&gt; Maybe a -&gt; Maybe a
+</span><a href="#local-6989586621679158440"><span class="hs-identifier hs-var">kab</span></a></span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158439"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158439"><span class="hs-identifier hs-var">k</span></a></span><span>
+</span><span id="line-211"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#ixaltered%27"><span class="hs-pragma hs-type">ixaltered'</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-212"></span><span>
+</span><span id="line-213"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-214"></span><span class="hs-comment">-- Coindexed optics</span><span>
+</span><span id="line-215"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-216"></span><span>
+</span><span id="line-217"></span><span class="hs-comment">-- | /O(n)/. Coindexed review for 'Map.Map': reconstruct a map</span><span>
+</span><span id="line-218"></span><span class="hs-comment">-- with key-dependent logic.</span><span>
+</span><span id="line-219"></span><span class="hs-comment">--</span><span>
+</span><span id="line-220"></span><span class="hs-comment">-- Built via 'cxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the</span><span>
+</span><span id="line-221"></span><span class="hs-comment">-- map key &#8212; available on the reconstruction side. Dual of 'ixmapped'.</span><span>
+</span><span id="line-222"></span><span class="hs-comment">--</span><span>
+</span><span id="line-223"></span><span class="hs-comment">-- Compose with '(#)' for multi-level coindexed operations:</span><span>
+</span><span id="line-224"></span><span class="hs-comment">--</span><span>
+</span><span id="line-225"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-226"></span><span class="hs-comment">-- 'cxfoldMapOf' (cxmapped '#' cxmapped) f r nestedMap</span><span>
+</span><span id="line-227"></span><span class="hs-comment">-- @</span><span>
+</span><span id="line-228"></span><span class="hs-comment">--</span><span>
+</span><span id="line-229"></span><span id="local-6989586621679158010"><span id="local-6989586621679158011"><span id="local-6989586621679158012"><span class="annot"><a href="Data.Map.Optic.html#cxmapped%27"><span class="hs-identifier hs-type">cxmapped'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Cxview"><span class="hs-identifier hs-type">Cxview</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158010"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">MapS.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158010"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158011"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MapS.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158010"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158012"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158011"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158012"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span></span></span></span><span>
+</span><span id="line-230"></span><span id="cxmapped%27"><span class="annot"><span class="annottext">cxmapped' :: forall k a b (p :: * -&gt; * -&gt; *).
+(Closed p, CoercingL p) =&gt;
+Cxoptic' p k (Map k a -&gt; Map k b) (a -&gt; b)
+</span><a href="Data.Map.Optic.html#cxmapped%27"><span class="hs-identifier hs-var hs-var">cxmapped'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b)
+-&gt; Cxview k (Map k a -&gt; Map k b) (a -&gt; b)
+forall k b t. ((k -&gt; b) -&gt; t) -&gt; Cxview k t b
+</span><a href="Data.Profunctor.Optic.View.html#cxfrom"><span class="hs-identifier hs-var">cxfrom</span></a></span><span> </span><span class="annot"><span class="annottext">(k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+forall k a b. (k -&gt; a -&gt; b) -&gt; Map k a -&gt; Map k b
+</span><span class="hs-identifier hs-var">Map.mapWithKey</span></span><span>
+</span><span id="line-231"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#cxmapped%27"><span class="hs-pragma hs-type">cxmapped'</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-232"></span><span>
+</span><span id="line-233"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-234"></span><span class="hs-comment">-- Operators</span><span>
+</span><span id="line-235"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-236"></span><span>
+</span><span id="line-237"></span><span class="hs-comment">-- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.</span><span>
+</span><span id="line-238"></span><span class="hs-comment">--</span><span>
+</span><span id="line-239"></span><span id="local-6989586621679158022"><span id="local-6989586621679158023"><span id="local-6989586621679158024"><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier hs-type">fromIxfold</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679158022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#AIxfold"><span class="hs-identifier hs-type">AIxfold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158023"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158024"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158023"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158024"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158022"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158023"><span class="hs-identifier hs-type">a</span></a></span></span></span></span><span>
+</span><span id="line-240"></span><span id="fromIxfold"><span class="annot"><span class="annottext">fromIxfold :: forall k a s.
+(Ord k, Monoid k) =&gt;
+AIxfold (Map k a) k s a -&gt; s -&gt; Map k a
+</span><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-identifier hs-var hs-var">fromIxfold</span></a></span></span><span> </span><span id="local-6989586621679158451"><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679158451"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a -&gt; (k -&gt; a -&gt; Map k a) -&gt; s -&gt; Map k a
+forall k r s a.
+Monoid k =&gt;
+AIxfold r k s a -&gt; (k -&gt; a -&gt; r) -&gt; s -&gt; r
+</span><a href="Data.Profunctor.Optic.Fold.html#ixfoldMapOf"><span class="hs-identifier hs-var">ixfoldMapOf</span></a></span><span> </span><span class="annot"><span class="annottext">AIxfold (Map k a) k s a
+</span><a href="#local-6989586621679158451"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">k -&gt; a -&gt; Map k a
+forall k a. k -&gt; a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.singleton</span></span><span>
+</span><span id="line-241"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Map.Optic.html#fromIxfold"><span class="hs-pragma hs-type">fromIxfold</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-242"></span><span>
+</span><span id="line-243"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-244"></span><span class="hs-comment">-- Sort-based operators</span><span>
+</span><span id="line-245"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-246"></span><span>
+</span><span id="line-247"></span><span class="hs-comment">-- | Build a 'Map.Map' keyed by lens focus from a list.</span><span>
+</span><span id="line-248"></span><span class="hs-comment">--</span><span>
+</span><span id="line-249"></span><span class="hs-comment">-- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See &quot;Data.Profunctor.Optic.Bench&quot;./</span><span>
+</span><span id="line-250"></span><span class="hs-comment">--</span><span>
+</span><span id="line-251"></span><span id="local-6989586621679158035"><span id="local-6989586621679158036"><span class="annot"><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-type">toMapOf'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158036"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158036"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MapS.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158035"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158036"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-252"></span><span id="toMapOf%27"><span class="annot"><span class="annottext">toMapOf' :: forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var hs-var">toMapOf'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Lens' s a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a [s]
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">MapS.empty</span></span><span>
+</span><span id="line-253"></span><span class="annot"><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span id="local-6989586621679158461"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158461"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679158462"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158462"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([s] -&gt; [s] -&gt; [s]) -&gt; [(a, [s])] -&gt; Map a [s]
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.fromListWith</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([s] -&gt; [s] -&gt; [s]) -&gt; [s] -&gt; [s] -&gt; [s]
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">[s] -&gt; [s] -&gt; [s]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">(++)</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679158464"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">s -&gt; AView a s a -&gt; a
+forall s a. s -&gt; AView a s a -&gt; a
+</span><a href="Data.Profunctor.Optic.Infix.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">AView a s a
+Lens' s a
+</span><a href="#local-6989586621679158461"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679158464"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679158464"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679158464"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158462"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-254"></span><span>
+</span><span id="line-255"></span><span class="annot"><span class="hs-comment">-- | Count occurrences per key from a list.</span></span><span>
+</span><span id="line-256"></span><span id="local-6989586621679158051"><span id="local-6989586621679158052"><span class="annot"><a href="Data.Map.Optic.html#countingOf%27"><span class="hs-identifier hs-type">countingOf'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158051"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158052"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158051"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158052"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">MapS.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158051"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span></span></span><span>
+</span><span id="line-257"></span><span id="countingOf%27"><span class="annot"><span class="annottext">countingOf' :: forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a Int
+</span><a href="Data.Map.Optic.html#countingOf%27"><span class="hs-identifier hs-var hs-var">countingOf'</span></a></span></span><span> </span><span class="annot"><span class="annottext">Lens' s a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Map a Int
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">MapS.empty</span></span><span>
+</span><span id="line-258"></span><span class="annot"><a href="Data.Map.Optic.html#countingOf%27"><span class="hs-identifier hs-var">countingOf'</span></a></span><span> </span><span id="local-6989586621679158472"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158472"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679158473"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158473"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Int -&gt; Int -&gt; Int) -&gt; [(a, Int)] -&gt; Map a Int
+forall k a. Ord k =&gt; (a -&gt; a -&gt; a) -&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">MapS.fromListWith</span></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">(+)</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679158475"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="annot"><span class="annottext">s -&gt; AView a s a -&gt; a
+forall s a. s -&gt; AView a s a -&gt; a
+</span><a href="Data.Profunctor.Optic.Infix.html#%5E."><span class="hs-operator hs-var">^.</span></a></span><span> </span><span class="annot"><span class="annottext">AView a s a
+Lens' s a
+</span><a href="#local-6989586621679158472"><span class="hs-identifier hs-var">o</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span id="local-6989586621679158475"><span class="annot"><span class="annottext">s
+</span><a href="#local-6989586621679158475"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158473"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-259"></span><span>
+</span><span id="line-260"></span><span class="annot"><span class="hs-comment">-- | Sort through a lens, then right-fold each group.</span></span><span>
+</span><span id="line-261"></span><span id="local-6989586621679158056"><span id="local-6989586621679158057"><span id="local-6989586621679158058"><span class="annot"><a href="Data.Map.Optic.html#foldSorting%27"><span class="hs-identifier hs-type">foldSorting'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158056"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158057"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158056"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158057"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158058"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158058"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158058"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158057"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158058"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">]</span></span></span></span><span>
+</span><span id="line-262"></span><span id="foldSorting%27"><span class="annot"><span class="annottext">foldSorting' :: forall a s r.
+Ord a =&gt;
+Lens' s a -&gt; (s -&gt; r -&gt; r) -&gt; r -&gt; [s] -&gt; [r]
+</span><a href="Data.Map.Optic.html#foldSorting%27"><span class="hs-identifier hs-var hs-var">foldSorting'</span></a></span></span><span> </span><span id="local-6989586621679158479"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158479"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679158480"><span class="annot"><span class="annottext">s -&gt; r -&gt; r
+</span><a href="#local-6989586621679158480"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679158481"><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621679158481"><span class="hs-identifier hs-var">z</span></a></span></span><span> </span><span id="local-6989586621679158482"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158482"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([s] -&gt; r) -&gt; [[s]] -&gt; [r]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(s -&gt; r -&gt; r) -&gt; r -&gt; [s] -&gt; r
+forall a b. (a -&gt; b -&gt; b) -&gt; b -&gt; [a] -&gt; b
+forall (t :: * -&gt; *) a b.
+Foldable t =&gt;
+(a -&gt; b -&gt; b) -&gt; b -&gt; t a -&gt; b
+</span><span class="hs-identifier hs-var">foldr</span></span><span> </span><span class="annot"><span class="annottext">s -&gt; r -&gt; r
+</span><a href="#local-6989586621679158480"><span class="hs-identifier hs-var">g</span></a></span><span> </span><span class="annot"><span class="annottext">r
+</span><a href="#local-6989586621679158481"><span class="hs-identifier hs-var">z</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map a [s] -&gt; [[s]]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">MapS.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a [s] -&gt; [[s]]) -&gt; Map a [s] -&gt; [[s]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' s a -&gt; [s] -&gt; Map a [s]
+forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158479"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158482"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-263"></span><span>
+</span><span id="line-264"></span><span class="annot"><span class="hs-comment">-- | Sort through a lens, then reduce each non-empty group.</span></span><span>
+</span><span id="line-265"></span><span id="local-6989586621679158070"><span id="local-6989586621679158071"><span class="annot"><a href="Data.Map.Optic.html#foldSorting1%27"><span class="hs-identifier hs-type">foldSorting1'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158070"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158070"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158071"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span></span></span><span>
+</span><span id="line-266"></span><span id="foldSorting1%27"><span class="annot"><span class="annottext">foldSorting1' :: forall a s. Ord a =&gt; Lens' s a -&gt; (s -&gt; s -&gt; s) -&gt; [s] -&gt; [s]
+</span><a href="Data.Map.Optic.html#foldSorting1%27"><span class="hs-identifier hs-var hs-var">foldSorting1'</span></a></span></span><span> </span><span id="local-6989586621679158490"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158490"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679158491"><span class="annot"><span class="annottext">s -&gt; s -&gt; s
+</span><a href="#local-6989586621679158491"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span id="local-6989586621679158492"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158492"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([s] -&gt; s) -&gt; [[s]] -&gt; [s]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(s -&gt; s -&gt; s) -&gt; [s] -&gt; s
+forall a. (a -&gt; a -&gt; a) -&gt; [a] -&gt; a
+forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; a -&gt; a) -&gt; t a -&gt; a
+</span><span class="hs-identifier hs-var">foldr1</span></span><span> </span><span class="annot"><span class="annottext">s -&gt; s -&gt; s
+</span><a href="#local-6989586621679158491"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map a [s] -&gt; [[s]]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">MapS.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a [s] -&gt; [[s]]) -&gt; Map a [s] -&gt; [[s]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' s a -&gt; [s] -&gt; Map a [s]
+forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158490"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158492"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-267"></span><span>
+</span><span id="line-268"></span><span class="annot"><span class="hs-comment">-- | Sort through a lens, then monoidal concat per group.</span></span><span>
+</span><span id="line-269"></span><span id="local-6989586621679158076"><span id="local-6989586621679158077"><span id="local-6989586621679158078"><span class="annot"><a href="Data.Map.Optic.html#mconcatSorting%27"><span class="hs-identifier hs-type">mconcatSorting'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158076"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Monoid</span></span><span> </span><span class="annot"><a href="#local-6989586621679158077"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158078"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158076"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158078"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158077"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158078"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158077"><span class="hs-identifier hs-type">m</span></a></span><span class="hs-special">]</span></span></span></span><span>
+</span><span id="line-270"></span><span id="mconcatSorting%27"><span class="annot"><span class="annottext">mconcatSorting' :: forall a m s.
+(Ord a, Monoid m) =&gt;
+Lens' s a -&gt; (s -&gt; m) -&gt; [s] -&gt; [m]
+</span><a href="Data.Map.Optic.html#mconcatSorting%27"><span class="hs-identifier hs-var hs-var">mconcatSorting'</span></a></span></span><span> </span><span id="local-6989586621679158501"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158501"><span class="hs-identifier hs-var">o</span></a></span></span><span> </span><span id="local-6989586621679158502"><span class="annot"><span class="annottext">s -&gt; m
+</span><a href="#local-6989586621679158502"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span id="local-6989586621679158503"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158503"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">([s] -&gt; m) -&gt; [[s]] -&gt; [m]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+</span><span class="hs-identifier hs-var">map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(s -&gt; m) -&gt; [s] -&gt; m
+forall m a. Monoid m =&gt; (a -&gt; m) -&gt; [a] -&gt; m
+forall (t :: * -&gt; *) m a.
+(Foldable t, Monoid m) =&gt;
+(a -&gt; m) -&gt; t a -&gt; m
+</span><span class="hs-identifier hs-var">foldMap</span></span><span> </span><span class="annot"><span class="annottext">s -&gt; m
+</span><a href="#local-6989586621679158502"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map a [s] -&gt; [[s]]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">MapS.elems</span></span><span> </span><span class="annot"><span class="annottext">(Map a [s] -&gt; [[s]]) -&gt; Map a [s] -&gt; [[s]]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Lens' s a -&gt; [s] -&gt; Map a [s]
+forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158501"><span class="hs-identifier hs-var">o</span></a></span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158503"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-271"></span><span>
+</span><span id="line-272"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-273"></span><span class="hs-comment">-- Merge (Sort + containers merge)</span><span>
+</span><span id="line-274"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-275"></span><span>
+</span><span id="line-276"></span><span class="annot"><span class="hs-comment">-- | Merge two toListOf through lenses using containers merge tactics.</span></span><span>
+</span><span id="line-277"></span><span id="local-6989586621679158085"><span id="local-6989586621679158086"><span id="local-6989586621679158087"><span id="local-6989586621679158088"><span class="annot"><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-type">mergingOf'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-278"></span><span>           </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158086"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158087"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-279"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Merge.SimpleWhenMissing</span></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158086"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621679158088"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-280"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Merge.SimpleWhenMissing</span></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158087"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621679158088"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-281"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Merge.SimpleWhenMatched</span></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158086"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158087"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="#local-6989586621679158088"><span class="hs-identifier hs-type">c</span></a></span><span>
+</span><span id="line-282"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158086"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158087"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158085"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158088"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-283"></span><span id="mergingOf%27"><span class="annot"><span class="annottext">mergingOf' :: forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-var hs-var">mergingOf'</span></a></span></span><span> </span><span id="local-6989586621679158511"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158511"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621679158512"><span class="annot"><span class="annottext">Lens' t a
+</span><a href="#local-6989586621679158512"><span class="hs-identifier hs-var">ro</span></a></span></span><span> </span><span id="local-6989586621679158513"><span class="annot"><span class="annottext">SimpleWhenMissing a [s] c
+</span><a href="#local-6989586621679158513"><span class="hs-identifier hs-var">wml</span></a></span></span><span> </span><span id="local-6989586621679158514"><span class="annot"><span class="annottext">SimpleWhenMissing a [t] c
+</span><a href="#local-6989586621679158514"><span class="hs-identifier hs-var">wmr</span></a></span></span><span> </span><span id="local-6989586621679158515"><span class="annot"><span class="annottext">SimpleWhenMatched a [s] [t] c
+</span><a href="#local-6989586621679158515"><span class="hs-identifier hs-var">wm</span></a></span></span><span> </span><span id="local-6989586621679158516"><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158516"><span class="hs-identifier hs-var">xs</span></a></span></span><span> </span><span id="local-6989586621679158517"><span class="annot"><span class="annottext">[t]
+</span><a href="#local-6989586621679158517"><span class="hs-identifier hs-var">ys</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-284"></span><span>  </span><span class="annot"><span class="annottext">SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; Map a [s]
+-&gt; Map a [t]
+-&gt; Map a c
+forall k a c b.
+Ord k =&gt;
+SimpleWhenMissing k a c
+-&gt; SimpleWhenMissing k b c
+-&gt; SimpleWhenMatched k a b c
+-&gt; Map k a
+-&gt; Map k b
+-&gt; Map k c
+</span><span class="hs-identifier hs-var">Merge.merge</span></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [s] c
+</span><a href="#local-6989586621679158513"><span class="hs-identifier hs-var">wml</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [t] c
+</span><a href="#local-6989586621679158514"><span class="hs-identifier hs-var">wmr</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMatched a [s] [t] c
+</span><a href="#local-6989586621679158515"><span class="hs-identifier hs-var">wm</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Lens' s a -&gt; [s] -&gt; Map a [s]
+forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158511"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">[s]
+</span><a href="#local-6989586621679158516"><span class="hs-identifier hs-var">xs</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Lens' t a -&gt; [t] -&gt; Map a [t]
+forall a s. Ord a =&gt; Lens' s a -&gt; [s] -&gt; Map a [s]
+</span><a href="Data.Map.Optic.html#toMapOf%27"><span class="hs-identifier hs-var">toMapOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p t t a a
+Lens' t a
+</span><a href="#local-6989586621679158512"><span class="hs-identifier hs-var">ro</span></a></span><span> </span><span class="annot"><span class="annottext">[t]
+</span><a href="#local-6989586621679158517"><span class="hs-identifier hs-var">ys</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-285"></span><span>
+</span><span id="line-286"></span><span class="annot"><span class="hs-comment">-- | Inner merge: only keys present in both inputs.</span></span><span>
+</span><span id="line-287"></span><span id="local-6989586621679158101"><span id="local-6989586621679158102"><span id="local-6989586621679158103"><span id="local-6989586621679158104"><span class="annot"><a href="Data.Map.Optic.html#innerMerge%27"><span class="hs-identifier hs-type">innerMerge'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158101"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-288"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158102"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158101"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158103"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158101"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-289"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158101"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158102"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158103"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158104"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-290"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158102"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158103"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158101"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158104"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-291"></span><span id="innerMerge%27"><span class="annot"><span class="annottext">innerMerge' :: forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a -&gt; (a -&gt; [s] -&gt; [t] -&gt; c) -&gt; [s] -&gt; [t] -&gt; Map a c
+</span><a href="Data.Map.Optic.html#innerMerge%27"><span class="hs-identifier hs-var hs-var">innerMerge'</span></a></span></span><span> </span><span id="local-6989586621679158529"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158529"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621679158530"><span class="annot"><span class="annottext">Lens' t a
+</span><a href="#local-6989586621679158530"><span class="hs-identifier hs-var">ro</span></a></span></span><span> </span><span id="local-6989586621679158531"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158531"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-292"></span><span>  </span><span class="annot"><span class="annottext">Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-var">mergingOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158529"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p t t a a
+Lens' t a
+</span><a href="#local-6989586621679158530"><span class="hs-identifier hs-var">ro</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [s] c
+forall (f :: * -&gt; *) k x y. Applicative f =&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.dropMissing</span></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [t] c
+forall (f :: * -&gt; *) k x y. Applicative f =&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.dropMissing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; [t] -&gt; c) -&gt; SimpleWhenMatched a [s] [t] c
+forall (f :: * -&gt; *) k x y z.
+Applicative f =&gt;
+(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched f k x y z
+</span><span class="hs-identifier hs-var">Merge.zipWithMatched</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158531"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-293"></span><span>
+</span><span id="line-294"></span><span class="annot"><span class="hs-comment">-- | Full outer merge.</span></span><span>
+</span><span id="line-295"></span><span id="local-6989586621679158123"><span id="local-6989586621679158124"><span id="local-6989586621679158125"><span id="local-6989586621679158126"><span class="annot"><a href="Data.Map.Optic.html#outerMerge%27"><span class="hs-identifier hs-type">outerMerge'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-296"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158124"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158125"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-297"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158124"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158126"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158125"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158126"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158124"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158125"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158126"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-298"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158124"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158125"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158123"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158126"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-299"></span><span id="outerMerge%27"><span class="annot"><span class="annottext">outerMerge' :: forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; (a -&gt; [s] -&gt; c)
+-&gt; (a -&gt; [t] -&gt; c)
+-&gt; (a -&gt; [s] -&gt; [t] -&gt; c)
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#outerMerge%27"><span class="hs-identifier hs-var hs-var">outerMerge'</span></a></span></span><span> </span><span id="local-6989586621679158543"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158543"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621679158544"><span class="annot"><span class="annottext">Lens' t a
+</span><a href="#local-6989586621679158544"><span class="hs-identifier hs-var">ro</span></a></span></span><span> </span><span id="local-6989586621679158545"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; c
+</span><a href="#local-6989586621679158545"><span class="hs-identifier hs-var">fl</span></a></span></span><span> </span><span id="local-6989586621679158546"><span class="annot"><span class="annottext">a -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158546"><span class="hs-identifier hs-var">fr</span></a></span></span><span> </span><span id="local-6989586621679158547"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158547"><span class="hs-identifier hs-var">fb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-300"></span><span>  </span><span class="annot"><span class="annottext">Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-var">mergingOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158543"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p t t a a
+Lens' t a
+</span><a href="#local-6989586621679158544"><span class="hs-identifier hs-var">ro</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; c) -&gt; SimpleWhenMissing a [s] c
+forall (f :: * -&gt; *) k x y.
+Applicative f =&gt;
+(k -&gt; x -&gt; y) -&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.mapMissing</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; c
+</span><a href="#local-6989586621679158545"><span class="hs-identifier hs-var">fl</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [t] -&gt; c) -&gt; SimpleWhenMissing a [t] c
+forall (f :: * -&gt; *) k x y.
+Applicative f =&gt;
+(k -&gt; x -&gt; y) -&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.mapMissing</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158546"><span class="hs-identifier hs-var">fr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; [t] -&gt; c) -&gt; SimpleWhenMatched a [s] [t] c
+forall (f :: * -&gt; *) k x y z.
+Applicative f =&gt;
+(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched f k x y z
+</span><span class="hs-identifier hs-var">Merge.zipWithMatched</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158547"><span class="hs-identifier hs-var">fb</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-301"></span><span>
+</span><span id="line-302"></span><span class="annot"><span class="hs-comment">-- | Left merge: all keys from left.</span></span><span>
+</span><span id="line-303"></span><span id="local-6989586621679158137"><span id="local-6989586621679158138"><span id="local-6989586621679158139"><span id="local-6989586621679158140"><span class="annot"><a href="Data.Map.Optic.html#leftMerge%27"><span class="hs-identifier hs-type">leftMerge'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-304"></span><span>           </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158138"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158139"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-305"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158138"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158140"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158138"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158139"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158140"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-306"></span><span>           </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158138"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158139"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158137"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158140"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-307"></span><span id="leftMerge%27"><span class="annot"><span class="annottext">leftMerge' :: forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; (a -&gt; [s] -&gt; c)
+-&gt; (a -&gt; [s] -&gt; [t] -&gt; c)
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#leftMerge%27"><span class="hs-identifier hs-var hs-var">leftMerge'</span></a></span></span><span> </span><span id="local-6989586621679158558"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158558"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621679158559"><span class="annot"><span class="annottext">Lens' t a
+</span><a href="#local-6989586621679158559"><span class="hs-identifier hs-var">ro</span></a></span></span><span> </span><span id="local-6989586621679158560"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; c
+</span><a href="#local-6989586621679158560"><span class="hs-identifier hs-var">fl</span></a></span></span><span> </span><span id="local-6989586621679158561"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158561"><span class="hs-identifier hs-var">fb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-308"></span><span>  </span><span class="annot"><span class="annottext">Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-var">mergingOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158558"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p t t a a
+Lens' t a
+</span><a href="#local-6989586621679158559"><span class="hs-identifier hs-var">ro</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; c) -&gt; SimpleWhenMissing a [s] c
+forall (f :: * -&gt; *) k x y.
+Applicative f =&gt;
+(k -&gt; x -&gt; y) -&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.mapMissing</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; c
+</span><a href="#local-6989586621679158560"><span class="hs-identifier hs-var">fl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [t] c
+forall (f :: * -&gt; *) k x y. Applicative f =&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.dropMissing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; [t] -&gt; c) -&gt; SimpleWhenMatched a [s] [t] c
+forall (f :: * -&gt; *) k x y z.
+Applicative f =&gt;
+(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched f k x y z
+</span><span class="hs-identifier hs-var">Merge.zipWithMatched</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158561"><span class="hs-identifier hs-var">fb</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-309"></span><span>
+</span><span id="line-310"></span><span class="annot"><span class="hs-comment">-- | Right merge: all keys from right.</span></span><span>
+</span><span id="line-311"></span><span id="local-6989586621679158147"><span id="local-6989586621679158148"><span id="local-6989586621679158149"><span id="local-6989586621679158150"><span class="annot"><a href="Data.Map.Optic.html#rightMerge%27"><span class="hs-identifier hs-type">rightMerge'</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Ord</span></span><span> </span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-312"></span><span>            </span><span class="hs-glyph">=&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158148"><span class="hs-identifier hs-type">s</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158149"><span class="hs-identifier hs-type">t</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-313"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158149"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158150"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158148"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158149"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679158150"><span class="hs-identifier hs-type">c</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-314"></span><span>            </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158148"><span class="hs-identifier hs-type">s</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="#local-6989586621679158149"><span class="hs-identifier hs-type">t</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map.Map</span></span><span> </span><span class="annot"><a href="#local-6989586621679158147"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158150"><span class="hs-identifier hs-type">c</span></a></span></span></span></span></span><span>
+</span><span id="line-315"></span><span id="rightMerge%27"><span class="annot"><span class="annottext">rightMerge' :: forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; (a -&gt; [t] -&gt; c)
+-&gt; (a -&gt; [s] -&gt; [t] -&gt; c)
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#rightMerge%27"><span class="hs-identifier hs-var hs-var">rightMerge'</span></a></span></span><span> </span><span id="local-6989586621679158571"><span class="annot"><span class="annottext">Lens' s a
+</span><a href="#local-6989586621679158571"><span class="hs-identifier hs-var">lo</span></a></span></span><span> </span><span id="local-6989586621679158572"><span class="annot"><span class="annottext">Lens' t a
+</span><a href="#local-6989586621679158572"><span class="hs-identifier hs-var">ro</span></a></span></span><span> </span><span id="local-6989586621679158573"><span class="annot"><span class="annottext">a -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158573"><span class="hs-identifier hs-var">fr</span></a></span></span><span> </span><span id="local-6989586621679158574"><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158574"><span class="hs-identifier hs-var">fb</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-316"></span><span>  </span><span class="annot"><span class="annottext">Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+forall a s t c.
+Ord a =&gt;
+Lens' s a
+-&gt; Lens' t a
+-&gt; SimpleWhenMissing a [s] c
+-&gt; SimpleWhenMissing a [t] c
+-&gt; SimpleWhenMatched a [s] [t] c
+-&gt; [s]
+-&gt; [t]
+-&gt; Map a c
+</span><a href="Data.Map.Optic.html#mergingOf%27"><span class="hs-identifier hs-var">mergingOf'</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p s s a a
+Lens' s a
+</span><a href="#local-6989586621679158571"><span class="hs-identifier hs-var">lo</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p t t a a
+Lens' t a
+</span><a href="#local-6989586621679158572"><span class="hs-identifier hs-var">ro</span></a></span><span> </span><span class="annot"><span class="annottext">SimpleWhenMissing a [s] c
+forall (f :: * -&gt; *) k x y. Applicative f =&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.dropMissing</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [t] -&gt; c) -&gt; SimpleWhenMissing a [t] c
+forall (f :: * -&gt; *) k x y.
+Applicative f =&gt;
+(k -&gt; x -&gt; y) -&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.mapMissing</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158573"><span class="hs-identifier hs-var">fr</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(a -&gt; [s] -&gt; [t] -&gt; c) -&gt; SimpleWhenMatched a [s] [t] c
+forall (f :: * -&gt; *) k x y z.
+Applicative f =&gt;
+(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched f k x y z
+</span><span class="hs-identifier hs-var">Merge.zipWithMatched</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; [s] -&gt; [t] -&gt; c
+</span><a href="#local-6989586621679158574"><span class="hs-identifier hs-var">fb</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-317"></span><span>
+</span><span id="line-318"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-319"></span><span class="hs-comment">-- Sort merge tactics</span><span>
+</span><span id="line-320"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-321"></span><span>
+</span><span id="line-322"></span><span class="hs-comment">-- | Construct a 'WhenMatched' merge tactic from a 'Sort'.</span><span>
+</span><span id="line-323"></span><span class="hs-comment">-- Uses @i = ()@ (one position per key).</span><span>
+</span><span id="line-324"></span><span id="local-6989586621679158157"><span id="local-6989586621679158158"><span id="local-6989586621679158159"><span id="local-6989586621679158160"><span class="annot"><a href="Data.Map.Optic.html#sortedMatched"><span class="hs-identifier hs-type">sortedMatched</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158157"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="#local-6989586621679158158"><span class="hs-identifier hs-type">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="#local-6989586621679158159"><span class="hs-identifier hs-type">y</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158160"><span class="hs-identifier hs-type">z</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Merge.SimpleWhenMatched</span></span><span> </span><span class="annot"><a href="#local-6989586621679158157"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158158"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158159"><span class="hs-identifier hs-type">y</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158160"><span class="hs-identifier hs-type">z</span></a></span></span></span></span></span><span>
+</span><span id="line-325"></span><span id="sortedMatched"><span class="annot"><span class="annottext">sortedMatched :: forall k x y z. Sort () k (x, y) z -&gt; SimpleWhenMatched k x y z
+</span><a href="Data.Map.Optic.html#sortedMatched"><span class="hs-identifier hs-var hs-var">sortedMatched</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621679158581"><span class="annot"><span class="annottext">(() -&gt; (k, (x, y))) -&gt; z
+</span><a href="#local-6989586621679158581"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched Identity k x y z
+forall (f :: * -&gt; *) k x y z.
+Applicative f =&gt;
+(k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched f k x y z
+</span><span class="hs-identifier hs-var">Merge.zipWithMatched</span></span><span> </span><span class="annot"><span class="annottext">((k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched Identity k x y z)
+-&gt; (k -&gt; x -&gt; y -&gt; z) -&gt; WhenMatched Identity k x y z
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158582"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158582"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679158583"><span class="annot"><span class="annottext">x
+</span><a href="#local-6989586621679158583"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span id="local-6989586621679158584"><span class="annot"><span class="annottext">y
+</span><a href="#local-6989586621679158584"><span class="hs-identifier hs-var">y</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-326"></span><span>  </span><span class="annot"><span class="annottext">(() -&gt; (k, (x, y))) -&gt; z
+</span><a href="#local-6989586621679158581"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(k, (x, y)) -&gt; () -&gt; (k, (x, y))
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158582"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">x
+</span><a href="#local-6989586621679158583"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">y
+</span><a href="#local-6989586621679158584"><span class="hs-identifier hs-var">y</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-327"></span><span>
+</span><span id="line-328"></span><span class="hs-comment">-- | Construct a 'WhenMissing' merge tactic from a 'Sort'.</span><span>
+</span><span id="line-329"></span><span class="hs-comment">-- Uses @i = ()@ (one position per key).</span><span>
+</span><span id="line-330"></span><span id="local-6989586621679158168"><span id="local-6989586621679158169"><span id="local-6989586621679158170"><span class="annot"><a href="Data.Map.Optic.html#sortedMissing"><span class="hs-identifier hs-type">sortedMissing</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679158168"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158169"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158170"><span class="hs-identifier hs-type">y</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Merge.SimpleWhenMissing</span></span><span> </span><span class="annot"><a href="#local-6989586621679158168"><span class="hs-identifier hs-type">k</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158169"><span class="hs-identifier hs-type">x</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679158170"><span class="hs-identifier hs-type">y</span></a></span></span></span></span><span>
+</span><span id="line-331"></span><span id="sortedMissing"><span class="annot"><span class="annottext">sortedMissing :: forall k x y. Sort () k x y -&gt; SimpleWhenMissing k x y
+</span><a href="Data.Map.Optic.html#sortedMissing"><span class="hs-identifier hs-var hs-var">sortedMissing</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Carrier.html#Sort"><span class="hs-identifier hs-type">Sort</span></a></span><span> </span><span id="local-6989586621679158587"><span class="annot"><span class="annottext">(() -&gt; (k, x)) -&gt; y
+</span><a href="#local-6989586621679158587"><span class="hs-identifier hs-var">h</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(k -&gt; x -&gt; y) -&gt; WhenMissing Identity k x y
+forall (f :: * -&gt; *) k x y.
+Applicative f =&gt;
+(k -&gt; x -&gt; y) -&gt; WhenMissing f k x y
+</span><span class="hs-identifier hs-var">Merge.mapMissing</span></span><span> </span><span class="annot"><span class="annottext">((k -&gt; x -&gt; y) -&gt; WhenMissing Identity k x y)
+-&gt; (k -&gt; x -&gt; y) -&gt; WhenMissing Identity k x y
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679158588"><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158588"><span class="hs-identifier hs-var">k</span></a></span></span><span> </span><span id="local-6989586621679158589"><span class="annot"><span class="annottext">x
+</span><a href="#local-6989586621679158589"><span class="hs-identifier hs-var">x</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-332"></span><span>  </span><span class="annot"><span class="annottext">(() -&gt; (k, x)) -&gt; y
+</span><a href="#local-6989586621679158587"><span class="hs-identifier hs-var">h</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(k, x) -&gt; () -&gt; (k, x)
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">k
+</span><a href="#local-6989586621679158588"><span class="hs-identifier hs-var">k</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">x
+</span><a href="#local-6989586621679158589"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-333"></span></pre></body></html>
