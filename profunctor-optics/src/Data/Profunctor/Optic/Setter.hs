@@ -27,6 +27,8 @@ module Data.Profunctor.Optic.Setter (
   , ixadjoint
   , adjointl
   , adjointr
+  , adjointlVl
+  , adjointrVl
   , ixadjoining
   , cxadjoining
     -- * Dual Constructors
@@ -228,8 +230,8 @@ ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
 -- <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
 --
 -- @
--- 'adjoint' abst ≡ 'adjointl' ('Data.Functor.Adjunction.rightAdjunct' abst)
--- 'adjoint' abst ≡ 'adjointr' ('Data.Functor.Adjunction.leftAdjunct' abst)
+-- 'adjoint' abst ≡ 'adjointlVl' ('Data.Functor.Adjunction.rightAdjunct' abst)
+-- 'adjoint' abst ≡ 'adjointrVl' ('Data.Functor.Adjunction.leftAdjunct' abst)
 -- @
 --
 -- /Caution/: In order for the generated optic to be well-defined,
@@ -255,33 +257,90 @@ ixadjoint :: ((i -> a -> b) -> s -> t) -> Ixadjoint i s t a b
 ixadjoint f = adjoint $ \iab -> f (curry iab) . snd
 {-# INLINE ixadjoint #-}
 
+-- | Construct an 'Adjoint' from a getter and a setter (lens-like).
+--
+-- This is the 'Adjoint' analogue of
+-- 'Data.Profunctor.Optic.Lens.lensVl'. The getter extracts the
+-- focus; the setter rebuilds the structure with a new focus. The
+-- adjunction threads the representation functors through
+-- 'zapWithAdjunction'.
+--
+-- At @(->)@ this reduces to the standard lens SEC:
+--
+-- @
+-- 'over' ('adjointl' sa sbt) f s ≡ sbt s (f (sa s))
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @sbt s (sa s) ≡ s@ (GetPut)
+--
+-- * @sa (sbt s b) ≡ b@ (PutGet)
+--
+-- * @sbt (sbt s b1) b2 ≡ sbt s b2@ (PutPut)
+--
+adjointl :: (s -> a) -> (s -> b -> t) -> Adjoint s t a b
+adjointl sa sbt = adjointlVl $ \ab s -> zapWithAdjunction (flip sbt) (ab . sa $ extractL s) s
+{-# INLINE adjointl #-}
+
 -- | Construct an 'Adjoint' from a Costar-side Van Laarhoven function.
 --
 -- @
--- 'adjointl' f = 'corepresenting' (f '.' 'leftAdjunct')
+-- 'adjointlVl' f = 'corepresenting' (f '.' 'leftAdjunct')
 -- @
 --
 -- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
 -- @'Rep' p = u@, the input is instantiated at the adjunction
 -- @l ⊣ u@.
 --
-adjointl :: (forall l u. Adjunction l u => (a -> u b) -> l s -> t) -> Adjoint s t a b
-adjointl f = corepresenting $ f . leftAdjunct
-{-# INLINE adjointl #-}
+adjointlVl :: (forall l u. Adjunction l u => (a -> u b) -> l s -> t) -> Adjoint s t a b
+adjointlVl f = corepresenting $ f . leftAdjunct
+{-# INLINE adjointlVl #-}
+
+-- | Construct an 'Adjoint' from a matching function and a review
+-- (prism-like).
+--
+-- This is the 'Adjoint' analogue of
+-- 'Data.Profunctor.Optic.Prism.handling'. The matching function
+-- decomposes @s@ into either @t@ (failure) or @a@ (success); the
+-- review rebuilds @t@ from @b@. The adjunction distributes the
+-- 'Either' out of the left adjoint via 'cozipL', then uses
+-- 'rightAdjunct' to cross from the right adjoint to the left.
+--
+-- At @(->)@ this reduces to the standard prism SEC:
+--
+-- @
+-- 'over' ('adjointr' sta bt) f s ≡ either id (bt . f) (sta s)
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input satisfies the following properties:
+--
+-- * @sta (bt b) ≡ Right b@ (PutGet)
+--
+-- * @either id bt (sta s) ≡ s@ when @sta s ≡ Left t@ (GetPut)
+--
+-- * @left' sta (sta s) ≡ left' Left (sta s)@ (Idempotence)
+--
+adjointr :: (s -> t + a) -> (b -> t) -> Adjoint s t a b
+adjointr sta bt = adjointlVl $ \ab s -> either extractL (bt . rightAdjunct ab) . cozipL $ fmap sta s
+{-# INLINE adjointr #-}
 
 -- | Construct an 'Adjoint' from a Star-side Van Laarhoven function.
 --
 -- @
--- 'adjointr' f = 'representing' (f '.' 'rightAdjunct')
+-- 'adjointrVl' f = 'representing' (f '.' 'rightAdjunct')
 -- @
 --
 -- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
 -- @'Rep' p = u@, the input is instantiated at the adjunction
 -- @l ⊣ u@.
 --
-adjointr :: (forall l u. Adjunction l u => (l a -> b) -> s -> u t) -> Adjoint s t a b
-adjointr f = representing $ f . rightAdjunct
-{-# INLINE adjointr #-}
+adjointrVl :: (forall l u. Adjunction l u => (l a -> b) -> s -> u t) -> Adjoint s t a b
+adjointrVl f = representing $ f . rightAdjunct
+{-# INLINE adjointrVl #-}
+
 
 -- | Convert an indexed 'Adjoint' optic to a coindexed one via the
 -- adjunction on the profunctor's representation functors.
@@ -548,12 +607,12 @@ conditioned p = setter $ \f a -> if p a then f a else a
 -- | The identity for 'Adjoint' optics.
 --
 -- @
--- 'adjoined' = 'adjointl' 'rightAdjunct'
--- 'adjoined' = 'adjointr' 'leftAdjunct'
+-- 'adjoined' = 'adjointlVl' 'rightAdjunct'
+-- 'adjoined' = 'adjointrVl' 'leftAdjunct'
 -- @
 --
 adjoined :: Adjoint a b a b
-adjoined = adjointl rightAdjunct
+adjoined = adjointlVl rightAdjunct
 {-# INLINE adjoined #-}
 
 -- | Map one exception into another as proposed in
