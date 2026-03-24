@@ -1,6 +1,8 @@
 {-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes            #-}
+{-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE TypeOperators         #-}
 module Data.Profunctor.Optic.Setter (
     -- * Constructors
@@ -17,6 +19,15 @@ module Data.Profunctor.Optic.Setter (
   , Ixsetter1, Ixsetter1'
   , setter1
   , ixsetter1
+    -- * Adjoint Constructors
+    -- ** Adjoint, Ixadjoint, Cxadjoint
+  , Adjoint, Adjoint'
+  , Ixadjoint, Ixadjoint'
+  , Cxadjoint, Cxadjoint'
+  , adjoint
+  , ixadjoint
+  , adjointl
+  , adjointr
     -- * Dual Constructors
     -- ** Cosetter, Cxsetter
   , Cosetter, Cosetter'
@@ -42,6 +53,12 @@ module Data.Profunctor.Optic.Setter (
   , modded
   , conditioned
     -- ** Setter1, Ixsetter1
+    -- * Adjoint Optics
+  , adjoined
+  , mappedException
+    -- * Adjoint Operators
+  , lifts
+  , lowers
     -- * Dual Optics
     -- ** Cosetter, Cxsetter
     -- ** Cosetter1, Cxsetter1
@@ -76,15 +93,18 @@ module Data.Profunctor.Optic.Setter (
 ) where
 
 import Control.Applicative (liftA,ZipList(..))
+import Control.Exception (Exception)
 import Control.Monad.Reader as Reader
 import Control.Monad.State as State
 import Control.Monad.Writer as Writer
+import Data.Functor.Adjunction
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import hiding ((&&&))
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Iso (indexing,coindexing)
 import Data.Profunctor.Optic.Traversal
+import qualified Control.Exception as Ex
 import qualified Data.Functor.Rep as F
 
 -- $setup
@@ -196,6 +216,69 @@ setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
 ixsetter1 :: ((i -> a -> b) -> a -> t) -> Ixsetter1 i a t a b
 ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
 {-# INLINE ixsetter1 #-}
+
+---------------------------------------------------------------------
+-- Adjoint Constructors
+---------------------------------------------------------------------
+
+-- | Obtain an 'Adjoint' from a
+-- <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
+--
+-- @
+-- 'adjoint' abst ≡ 'adjointl' ('Data.Functor.Adjunction.rightAdjunct' abst)
+-- 'adjoint' abst ≡ 'adjointr' ('Data.Functor.Adjunction.leftAdjunct' abst)
+-- @
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input function satisfies the following
+-- properties:
+--
+-- * @abst id ≡ id@
+--
+-- * @abst f . abst g ≡ abst (f . g)@
+--
+adjoint :: ((a -> b) -> s -> t) -> Adjoint s t a b
+adjoint abst = indexing abst . representing (\f -> distribute . fmap f)
+{-# INLINE adjoint #-}
+
+-- | Build an 'Ixadjoint' from an indexed function.
+--
+-- @
+-- 'ixadjoint' '.' 'ixsets' ≡ 'id'
+-- 'ixsets' '.' 'ixadjoint' ≡ 'id'
+-- @
+--
+ixadjoint :: ((i -> a -> b) -> s -> t) -> Ixadjoint i s t a b
+ixadjoint f = adjoint $ \iab -> f (curry iab) . snd
+{-# INLINE ixadjoint #-}
+
+-- | Construct an 'Adjoint' from a Costar-side Van Laarhoven function.
+--
+-- @
+-- 'adjointl' f = 'corepresenting' (f '.' 'leftAdjunct')
+-- @
+--
+-- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
+-- @'Rep' p = u@, the input is instantiated at the adjunction
+-- @l ⊣ u@.
+--
+adjointl :: (forall l u. Adjunction l u => (a -> u b) -> l s -> t) -> Adjoint s t a b
+adjointl f = corepresenting $ f . leftAdjunct
+{-# INLINE adjointl #-}
+
+-- | Construct an 'Adjoint' from a Star-side Van Laarhoven function.
+--
+-- @
+-- 'adjointr' f = 'representing' (f '.' 'rightAdjunct')
+-- @
+--
+-- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
+-- @'Rep' p = u@, the input is instantiated at the adjunction
+-- @l ⊣ u@.
+--
+adjointr :: (forall l u. Adjunction l u => (l a -> b) -> s -> u t) -> Adjoint s t a b
+adjointr f = representing $ f . rightAdjunct
+{-# INLINE adjointr #-}
 
 ---------------------------------------------------------------------
 -- Dual Constructors
@@ -362,6 +445,58 @@ modded p = setter $ \mods f a -> if p a then mods (f a) else f a
 conditioned :: (a -> Bool) -> Setter' a a
 conditioned p = setter $ \f a -> if p a then f a else a
 {-# INLINE conditioned #-}
+
+---------------------------------------------------------------------
+-- Adjoint Optics
+---------------------------------------------------------------------
+
+-- | The identity for 'Adjoint' optics.
+--
+-- @
+-- 'adjoined' = 'adjointl' 'rightAdjunct'
+-- 'adjoined' = 'adjointr' 'leftAdjunct'
+-- @
+--
+adjoined :: Adjoint a b a b
+adjoined = adjointl rightAdjunct
+{-# INLINE adjoined #-}
+
+-- | Map one exception into another as proposed in
+-- /"A semantics for imprecise exceptions"/.
+--
+-- @
+-- 'mappedException' :: ('Exception' e1, 'Exception' e2) => 'Adjoint' s s e1 e2
+-- @
+--
+mappedException :: (Exception e1, Exception e2) => Adjoint s s e1 e2
+mappedException = adjoint Ex.mapException
+{-# INLINE mappedException #-}
+
+---------------------------------------------------------------------
+-- Adjoint Operators
+---------------------------------------------------------------------
+
+-- | Lift a Costar-side (co-Van Laarhoven) traversal through an
+-- adjunction to obtain a Star-side result.
+--
+-- @
+-- 'lifts' o f = 'leftAdjunct' ('cotraverseOf' o f)
+-- @
+--
+lifts :: Adjunction l u => ACotraversal l s t a b -> (l a -> b) -> s -> u t
+lifts o f = leftAdjunct $ cotraverseOf o f
+{-# INLINE lifts #-}
+
+-- | Lower a Star-side (Van Laarhoven) traversal through an
+-- adjunction to obtain a Costar-side result.
+--
+-- @
+-- 'lowers' o f = 'rightAdjunct' ('traverseOf' o f)
+-- @
+--
+lowers :: Adjunction l u => ATraversal u s t a b -> (a -> u b) -> l s -> t
+lowers o f = rightAdjunct $ traverseOf o f
+{-# INLINE lowers #-}
 
 ---------------------------------------------------------------------
 -- Dual Optics

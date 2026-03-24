@@ -57,6 +57,15 @@ module Data.Profunctor.Optic.Types (
     -- $setter1
   , Setter1, Setter1'
   , Ixsetter1, Ixsetter1'
+    -- ** Adjoint, Ixadjoint, Cxadjoint
+    -- $adjoint
+  , Adjoint, Adjoint'
+  , Ixadjoint, Ixadjoint'
+  , Cxadjoint, Cxadjoint'
+    -- ** Adjoint1, Ixadjoint1, Cxadjoint1
+  , Adjoint1, Adjoint1'
+  , Ixadjoint1, Ixadjoint1'
+  , Cxadjoint1, Cxadjoint1'
     -- * Dual Optics
     -- ** Cxoptic
   , Cx, Cx'
@@ -111,8 +120,9 @@ module Data.Profunctor.Optic.Types (
   , Affine, Coaffine
   , Traversing, Cotraversing
   , Traversing1, Cotraversing1
-  , Mapping, Remapping
-  , Mapping1, Remapping1
+  , Mapping, Comapping
+  , Mapping1, Comapping1
+  , Adjoining, Adjoining1
   , CoercingL, CoercingR
   , Foldable', Foldable1'
   , module Export
@@ -120,6 +130,7 @@ module Data.Profunctor.Optic.Types (
 
 
 import Data.Bifunctor (Bifunctor(..))
+import Data.Functor.Adjunction (Adjunction)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Types as Export
 
@@ -317,6 +328,47 @@ type Ixsetter1 k s t a b = forall p. (Strong p, Traversing1 p, Mapping1 p) => Ix
 type Ixsetter1' k s a = Ixsetter1 k s s a a
 
 ---------------------------------------------------------------------
+-- Adjoint
+---------------------------------------------------------------------
+
+-- $adjoint
+-- An 'Adjoint' optic requires a profunctor that is simultaneously
+-- 'Representable' ('Star'-like) and 'Corepresentable' ('Costar'-like),
+-- with the representation functors forming an adjunction
+-- @'Corep' p ⊣ 'Rep' p@.
+--
+-- The canonical 'Adjoining' profunctor is 'Conjoin' @j@, which sits
+-- at the currying adjunction @(,) j ⊣ (->) j@. An 'Adjoint' optic
+-- can freely convert between 'Star'-like and 'Costar'-like forms
+-- via 'Data.Profunctor.Optic.Iso.adjuncted'.
+--
+-- \( \mathsf{Adjoint}\;S\;A = \exists F\,U, F \dashv U, S \cong F\,A \cong U^{-1}\,A \)
+
+type Adjoint s t a b = forall p. Adjoining p => Optic p s t a b
+
+type Adjoint' s a = Adjoint s s a a
+
+type Ixadjoint k s t a b = forall p. Adjoining p => Ixoptic p k s t a b
+
+type Ixadjoint' k s a = Ixadjoint k s s a a
+
+type Adjoint1 s t a b = forall p. Adjoining1 p => Optic p s t a b
+
+type Adjoint1' s a = Adjoint1 s s a a
+
+type Ixadjoint1 k s t a b = forall p. Adjoining1 p => Ixoptic p k s t a b
+
+type Ixadjoint1' k s a = Ixadjoint1 k s s a a
+
+type Cxadjoint k s t a b = forall p. Adjoining p => Cxoptic p k s t a b
+
+type Cxadjoint' k t b = Cxadjoint k t t b b
+
+type Cxadjoint1 k s t a b = forall p. Adjoining1 p => Cxoptic p k s t a b
+
+type Cxadjoint1' k t b = Cxadjoint1 k t t b b
+
+---------------------------------------------------------------------
 -- Dual Optics
 ---------------------------------------------------------------------
 
@@ -503,11 +555,11 @@ type Review t b = forall p. (Costrong p, CoercingL p) => Optic' p t b
 --
 -- See also section 3 on Kaleidoscopes < https://cs.ttu.ee/events/nwpt2019/abstracts/paper14.pdf here >.
 
-type Cosetter s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Optic p s t a b
+type Cosetter s t a b = forall p. (Coaffine p, Cotraversing p, Comapping p) => Optic p s t a b
 
 type Cosetter' s a = Cosetter s s a a
 
-type Cxsetter k s t a b = forall p. (Coaffine p, Cotraversing p, Remapping p) => Cxoptic p k s t a b
+type Cxsetter k s t a b = forall p. (Coaffine p, Cotraversing p, Comapping p) => Cxoptic p k s t a b
 
 type Cxsetter' k t b = Cxsetter k t t b b
 
@@ -516,11 +568,11 @@ type Cxsetter' k t b = Cxsetter k t t b b
 --
 -- \( \quad \mathsf{Cxsetter1}\;K\;T\;B = \exists n \geq 1, T \cong \mathsf{Fin}\,n \to (K \to B) \)
 
-type Cosetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Optic p s t a b
+type Cosetter1 s t a b = forall p. (Closed p, Cotraversing1 p, Comapping1 p) => Optic p s t a b
 
 type Cosetter1' s a = Cosetter1 s s a a
 
-type Cxsetter1 k s t a b = forall p. (Closed p, Cotraversing1 p, Remapping1 p) => Cxoptic p k s t a b
+type Cxsetter1 k s t a b = forall p. (Closed p, Cotraversing1 p, Comapping1 p) => Cxoptic p k s t a b
 
 type Cxsetter1' k t b = Cxsetter1 k t t b b
 
@@ -542,11 +594,15 @@ type Cotraversing1 p = (Closed p, Corepresentable p, Coapply (Corep p))
 
 type Mapping p = (Representable p, Distributive (Rep p))
 
-type Remapping p = (Corepresentable p, Traversable (Corep p))
+type Comapping p = (Corepresentable p, Traversable (Corep p))
 
 type Mapping1 p = (Representable p, Distributive1 (Rep p))
 
-type Remapping1 p = (Corepresentable p, Traversable1 (Corep p))
+type Comapping1 p = (Corepresentable p, Traversable1 (Corep p))
+
+type Adjoining p = (Mapping p, Comapping p, Adjunction (Corep p) (Rep p))
+
+type Adjoining1 p = (Mapping1 p, Comapping1 p, Adjunction (Corep p) (Rep p))
 
 type CoercingL p = (Bifunctor p)
 
