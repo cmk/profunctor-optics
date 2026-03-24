@@ -16,6 +16,7 @@ module Data.Profunctor.Optic.Traversal (
   , reversing
   , ix, noix
   , cloneTraversalVl
+  , cloneTraversal1Vl
     -- ** Traversal0, Ixtraversal0
   , Traversal0, Traversal0'
   , Ixtraversal0, Ixtraversal0'
@@ -297,6 +298,13 @@ noix o = ixrepresenting $ \iab s -> flip runStar s . o . Star $ iab mempty
 cloneTraversalVl :: Applicative f => ATraversal f s t a b -> (a -> f b) -> s -> f t
 cloneTraversalVl = traverseOf
 {-# INLINE cloneTraversalVl #-}
+
+-- | Extract the Van Laarhoven function that characterizes a 'Traversal1'.
+--
+-- @since 0.0.3
+cloneTraversal1Vl :: Apply f => ATraversal1 f s t a b -> (a -> f b) -> s -> f t
+cloneTraversal1Vl = traverseOf
+{-# INLINE cloneTraversal1Vl #-}
 
 ---------------------------------------------------------------------
 -- Traversal0 Constructors

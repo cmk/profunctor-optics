@@ -10,6 +10,8 @@ module Data.Profunctor.Optic.Setter (
   , setter
   , ixsetter
   , closing
+  , cloneSetter
+  , cloneIxsetter
     -- ** Setter1, Ixsetter1
   , Setter1, Setter1'
   , Ixsetter1, Ixsetter1'
@@ -20,6 +22,7 @@ module Data.Profunctor.Optic.Setter (
   , Cosetter, Cosetter'
   , Cxsetter, Cxsetter'
   , cosetter
+  , cloneCosetter
     -- ** Cosetter1, Cxsetter1
   , Cosetter1, Cosetter1'
   , Cxsetter1, Cxsetter1'
@@ -164,6 +167,18 @@ closing :: (((s -> a) -> b) -> t) -> Setter s t a b
 closing sabt = setter $ \ab s -> sabt $ \sa -> ab (sa s)
 {-# INLINE closing #-}
 
+-- | Clone a 'Setter'.
+--
+cloneSetter :: ASetter s t a b -> Setter s t a b
+cloneSetter o = setter (sets o)
+{-# INLINE cloneSetter #-}
+
+-- | Clone an 'Ixsetter'.
+--
+cloneIxsetter :: Monoid k => AIxsetter k s t a b -> Ixsetter k s t a b
+cloneIxsetter o = ixsetter (ixsets o)
+{-# INLINE cloneIxsetter #-}
+
 ---------------------------------------------------------------------
 -- Setter1
 ---------------------------------------------------------------------
@@ -199,6 +214,14 @@ ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
 cosetter :: ((a -> t) -> s -> t) -> Cosetter s t a t
 cosetter abst = coindexing abst . corepresenting (\f -> fmap f . sequenceA)
 {-# INLINE cosetter #-}
+
+-- | Clone a 'Cosetter'.
+--
+cloneCosetter :: ACosetter s t a t -> Cosetter s t a t
+cloneCosetter o = cosetter (cosets o)
+{-# INLINE cloneCosetter #-}
+
+-- TODO: cloneCxsetter needs cxsetter constructor (S17.27)
 
 ---------------------------------------------------------------------
 -- Cosetter1

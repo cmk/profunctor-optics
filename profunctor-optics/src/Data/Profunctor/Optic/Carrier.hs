@@ -108,6 +108,9 @@ module Data.Profunctor.Optic.Carrier (
   , ACxview
     -- * Carrier operators
     -- ** Main
+  , withStar
+  , withFold
+  , withView
   , withIso
   , withLens
   , withIxlens
@@ -117,6 +120,9 @@ module Data.Profunctor.Optic.Carrier (
   , withTraversal0
   , withTraversal0'
     -- ** Dual
+  , withCostar
+  , withCofold
+  , withReview
   , withColens
   , withCxlens
   , withRelens
@@ -448,9 +454,65 @@ withTraversal0' :: ATraversal0 s s a b -> ((s -> Maybe a) -> (s -> b -> s) -> r)
 withTraversal0' o k = case o (Traversal0Rep Right $ const id) of Traversal0Rep x y -> k (either (const Nothing) Just . x) y
 {-# INLINE withTraversal0' #-}
 
+-- | Extract the Star (Van Laarhoven) function from an optic.
+--
+-- @
+-- 'withStar' :: 'ATraversal' f s t a b -> (a -> f b) -> s -> f t
+-- @
+--
+-- This is the fundamental Star-side VL extractor. 'traverseOf',
+-- 'foldMapOf', and 'views' are all specializations.
+--
+-- See also 'withCostar' for the dual, and "Data.Profunctor.Optic.Dual"
+-- for the relationship between Star and Costar.
+--
+withStar :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
+withStar o = runStar #. o .# Star
+{-# INLINE withStar #-}
+
+-- | Extract the fold function from an optic, via 'withStar'.
+--
+withFold :: Monoid r => AFold r s a -> (a -> r) -> s -> r
+withFold o = (getConst #.) #. withStar o .# (Const #.)
+{-# INLINE withFold #-}
+
+-- | Extract the view function from an optic, via 'withStar'.
+--
+withView :: AView r s a -> (a -> r) -> s -> r
+withView o = (getConst #.) #. withStar o .# (Const #.)
+{-# INLINE withView #-}
+
 ---------------------------------------------------------------------
 -- Dual carrier operators
 ---------------------------------------------------------------------
+
+-- | Extract the Costar (Van Laarhoven) function from an optic.
+--
+-- @
+-- 'withCostar' :: 'ACotraversal' f s t a b -> (f a -> b) -> f s -> t
+-- @
+--
+-- This is the fundamental Costar-side VL extractor. 'cotraverseOf',
+-- 'cofoldMapOf', and 'reviews' are all specializations.
+--
+-- See also 'withStar' for the dual, and "Data.Profunctor.Optic.Dual"
+-- for the relationship between Star and Costar.
+--
+withCostar :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
+withCostar o = runCostar #. o .# Costar
+{-# INLINE withCostar #-}
+
+-- | Extract the cofold function from an optic, via 'withCostar'.
+--
+withCofold :: ACofold r t b -> (r -> b) -> r -> t
+withCofold o = (.# Const) #. withCostar o .# (.# getConst)
+{-# INLINE withCofold #-}
+
+-- | Extract the review function from an optic, via 'Tagged'.
+--
+withReview :: AReview t b -> (t -> r) -> b -> r
+withReview o f = f . unTagged #. o .# Tagged
+{-# INLINE withReview #-}
 
 -- | Extract the function that characterizes a 'Colens'.
 --
