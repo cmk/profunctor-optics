@@ -108,15 +108,15 @@ forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
 </span><span id="line-75"></span><span class="annot"><span class="hs-comment">-- | Split on an arbitrary delimiter.</span></span><span>
 </span><span id="line-76"></span><span class="annot"><a href="Data.Text.Optic.html#splitOn"><span class="hs-identifier hs-type">splitOn</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#Iso%27"><span class="hs-identifier hs-type">Iso'</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span class="hs-special">]</span><span>
 </span><span id="line-77"></span><span id="splitOn"><span class="annot"><span class="annottext">splitOn :: Text -&gt; Iso' Text [Text]
-</span><a href="Data.Text.Optic.html#splitOn"><span class="hs-identifier hs-var hs-var">splitOn</span></a></span></span><span> </span><span id="local-6989586621679058711"><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679058711"><span class="hs-identifier hs-var">delim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; [Text]) -&gt; ([Text] -&gt; Text) -&gt; Iso' Text [Text]
+</span><a href="Data.Text.Optic.html#splitOn"><span class="hs-identifier hs-var hs-var">splitOn</span></a></span></span><span> </span><span id="local-6989586621679058867"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679058867"><span class="hs-identifier hs-var">delim</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Text -&gt; [Text]) -&gt; ([Text] -&gt; Text) -&gt; Iso' Text [Text]
 forall s a b t. (s -&gt; a) -&gt; (b -&gt; t) -&gt; Iso s t a b
 </span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Iso.html#iso"><span class="hs-identifier hs-var">iso</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">HasCallStack =&gt; Text -&gt; Text -&gt; [Text]
 Text -&gt; Text -&gt; [Text]
 </span><span class="hs-identifier hs-var">T.splitOn</span></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679058711"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; Text
+</span><a href="#local-6989586621679058867"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; Text
 </span><span class="hs-identifier hs-var">T.intercalate</span></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679058711"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679058867"><span class="hs-identifier hs-var">delim</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-78"></span><span>
 </span><span id="line-79"></span><span class="hs-comment">-- | Traversal over individual characters.</span><span>
 </span><span id="line-80"></span><span class="hs-comment">--</span><span>
@@ -127,7 +127,7 @@ Text -&gt; Text -&gt; [Text]
 -&gt; Optic p Text Text String String
 forall (p :: * -&gt; * -&gt; *) a b s t.
 Optic (Re p a b) s t a b -&gt; Optic p b a t s
-</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Types.html#re"><span class="hs-identifier hs-var">re</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (Re p Text Text) String String Text Text
+</span><a href="file:///home/runner/work/profunctor-optics/profunctor-optics/dist-newstyle/build/x86_64-linux/ghc-9.6.7/profunctor-optics-0.0.3/doc/html/profunctor-optics/src/Data.Profunctor.Optic.Dual.html#re"><span class="hs-identifier hs-var">re</span></a></span><span> </span><span class="annot"><span class="annottext">Optic (Re p Text Text) String String Text Text
 Iso' String Text
 </span><a href="Data.Text.Optic.html#packed"><span class="hs-identifier hs-var">packed</span></a></span><span> </span><span class="annot"><span class="annottext">Optic p Text Text String String
 -&gt; (p Char Char -&gt; p String String) -&gt; p Char Char -&gt; p Text Text
