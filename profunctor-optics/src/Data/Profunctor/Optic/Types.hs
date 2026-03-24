@@ -594,11 +594,11 @@ type Cotraversing1 p = (Closed p, Corepresentable p, Coapply (Corep p))
 
 type Mapping p = (Representable p, Distributive (Rep p))
 
-type Comapping p = (Corepresentable p, Traversable (Corep p))
+type Comapping p = (Closed p, Corepresentable p, Traversable (Corep p))
 
 type Mapping1 p = (Representable p, Distributive1 (Rep p))
 
-type Comapping1 p = (Corepresentable p, Traversable1 (Corep p))
+type Comapping1 p = (Closed p, Corepresentable p, Traversable1 (Corep p))
 
 type Adjoining p = (Mapping p, Comapping p, Adjunction (Corep p) (Rep p))
 
