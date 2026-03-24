@@ -29,7 +29,6 @@ module Data.IntMap.Optic (
     -- ** Fold0, Ixfold0
   , lookedMin
   , lookedMax
-  , validated
     -- ** Setter, Ixsetter
   , adjusted
   , ixmapped
@@ -37,7 +36,7 @@ module Data.IntMap.Optic (
   , altered
   , altered'
   , ixaltered
-  --, ixaltered'
+  , ixaltered'
     -- * Dual Optics
     -- ** Colens
   , zipsIntMap
@@ -46,6 +45,10 @@ module Data.IntMap.Optic (
     -- * Operators
   , toIntMapOf
   , countingIntMapOf
+    -- * Post-sort fold (IntMap)
+  , foldSortsIM
+  , foldSorts1IM
+  , mconcatSortsIM
 ) where
 
 import Data.Profunctor.Optic
@@ -116,12 +119,6 @@ lookedMax :: Ixfold0 Int (IM.IntMap a) a
 lookedMax = ixfold0 IM.lookupMax
 {-# INLINE lookedMax #-}
 
--- | /O(n)/. Test if the internal structure is valid.
---
-validated :: Fold0 (IM.IntMap a) (IM.IntMap a)
-validated = filtered (const True)
-{-# INLINE validated #-}
-
 -- | /O(log n)/. Adjust a value at a key.
 --
 adjusted :: Int -> Ixsetter' Int (IM.IntMap a) a
@@ -157,6 +154,12 @@ altered' k = setter $ \ab -> IM.alter ab k
 ixaltered :: Int -> Ixsetter' Int (IM.IntMap a) (Maybe a)
 ixaltered k = ixsetter $ \kab -> IM.alter (kab k) k
 {-# INLINE ixaltered #-}
+
+-- | /O(log n)/. Indexed alter (strict, values forced on insert).
+--
+ixaltered' :: Int -> Ixsetter' Int (IM.IntMap a) (Maybe a)
+ixaltered' k = ixsetter $ \kab -> IM.alter (kab k) k
+{-# INLINE ixaltered' #-}
 
 ---------------------------------------------------------------------
 -- Dual optics
@@ -199,3 +202,19 @@ countingIntMapOf :: Lens' s Int -> [s] -> IM.IntMap Int
 countingIntMapOf _ [] = IM.empty
 countingIntMapOf o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 {-# INLINE countingIntMapOf #-}
+
+---------------------------------------------------------------------
+-- Post-sort fold (IntMap)
+---------------------------------------------------------------------
+
+-- | Sort through an Int lens, then right-fold each group.
+foldSortsIM :: Lens' s Int -> (s -> r -> r) -> r -> [s] -> [r]
+foldSortsIM o g z xs = map (foldr g z) (IM.elems $ toIntMapOf o xs)
+
+-- | Sort through an Int lens, then reduce each non-empty group.
+foldSorts1IM :: Lens' s Int -> (s -> s -> s) -> [s] -> [s]
+foldSorts1IM o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
+
+-- | Sort through an Int lens, then monoidal concat per group.
+mconcatSortsIM :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
+mconcatSortsIM o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)

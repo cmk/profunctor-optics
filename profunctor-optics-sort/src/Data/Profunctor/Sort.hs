@@ -38,7 +38,6 @@ module Data.Profunctor.Sort
   , remapSort
   , eitherSort
   , maybeSort
-  , zipsSorting
 
     -- * Sort carriers (Ord)
   , mkSort
@@ -65,7 +64,7 @@ import Data.Either (lefts, rights)
 import Data.Hashable (Hashable)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor
-import Data.Profunctor.Optic.Sort (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort, zipsSorting)
+import Data.Profunctor.Optic.Sort (Sort(..), runSort, (%.), bindSort, catSort, sortC, remapSort, eitherSort, maybeSort)
 
 import Data.Functor.Coapply (Coapply(..))
 

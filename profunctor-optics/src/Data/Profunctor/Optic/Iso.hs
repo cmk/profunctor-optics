@@ -39,7 +39,6 @@ module Data.Profunctor.Optic.Iso (
     -- * Operators
   , au
   , aup
-  , reover
   , withIso
   , re
     -- * Auxiliary Types
@@ -355,13 +354,4 @@ aup o = withIso o $ \sa bt f g -> fmap bt (f (rmap sa g))
 {-# INLINE aup #-}
 
 -- | Given a conversion on one side of an 'Iso', recover the other.
---
--- @
--- reover ≡ 'over' '.' 're'
--- @
---
--- Compare 'Data.Profunctor.Optic.Setter.over'.
---
-reover :: AIso s t a b -> (t -> s) -> b -> a
-reover o = withIso o $ \sa bt ts -> sa . ts . bt
-{-# INLINE reover #-}
+-- reover moved to Data.Profunctor.Optic.Lens (generalized from AIso to ARelens)

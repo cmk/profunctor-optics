@@ -9,13 +9,18 @@ import qualified Hedgehog.Range as Range
 
 import Data.Monoid (Sum(..))
 import Data.Profunctor
+import Data.Profunctor.Strong (Costrong(..))
+import Data.Profunctor.Choice (Choice(..), Cochoice(..))
 import Data.Profunctor.Optic.Carrier
-import Data.Profunctor.Optic.Lens (lensVl)
+import Data.Profunctor.Optic.Lens (lensVl, refirst)
+import Data.Profunctor.Optic.Prism (releft)
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Sort
 import Data.Profunctor.Optic.Types (Lens')
 import qualified Control.Category as C
 import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IM
+import qualified Data.Set as Set
 
 tests :: IO Bool
 tests = checkParallel $$(discover)
@@ -146,7 +151,7 @@ prop_sort_zips = property $ do
              :: Sort Int Int Int Int
         s2 = Sort (\inp -> snd (inp 0) + 2)
              :: Sort Int Int Int Int
-        merged = zipsSorting (+) s1 s2
+        merged = liftA2 (+) s1 s2
         inp i = (i, i * 10)
     runSort merged inp === 3
 
@@ -190,3 +195,102 @@ prop_innerMerges = property $ do
         ys = [(2, "x"), (3, "y"), (4, "z")] :: [(Int, String)]
         result = innerMerges fstL fstL (\_ l r -> (l, r)) xs ys
     Map.keys result === [2, 3]
+
+---------------------------------------------------------------------
+-- Relens/Reprism + Sort + containers
+---------------------------------------------------------------------
+
+-- Sort is Costrong (has unfirst/unsecond) and Cochoice (has unleft/unright).
+-- These act as sort TRANSFORMERS:
+--
+--   refirst  :: Sort i k (a, c) (b, c) -> Sort i k a b
+--     "sort pairs, keep only the first component"
+--
+--   releft   :: Sort i k (Either a c) (Either b c) -> Sort i k a b
+--     "sort Either values, keep only the Left branch"
+--
+-- Combined with mkSortN (which groups into Maps), these give container
+-- operations that project or filter during sorting.
+
+-- | refirst projects pair-sort output to first component.
+-- Sort that produces (Int, String) pairs → refirst → Sort that produces Int.
+-- After refirst, the Sort consumes just Int (not (Int, String)).
+-- The String is tied via Costrong knot-tying.
+prop_refirst_sort_project :: Property
+prop_refirst_sort_project = property $ do
+    let -- Sort that takes (Int, String) input and returns it
+        pairSort :: Sort Int Int (Int, String) (Int, String)
+        pairSort = Sort $ \inp -> snd (inp 0)
+        -- refirst: Sort (a,c) (b,c) → Sort a b  with a=Int, b=Int, c=String
+        intSort = refirst pairSort :: Sort Int Int Int Int
+        -- After refirst, inp provides (key, Int) — the String comes from the knot
+        inp i = (i, i * 10)
+    runSort intSort inp === 0
+
+-- | unsecond projects pair-sort output to second component.
+prop_unsecond_sort_project :: Property
+prop_unsecond_sort_project = property $ do
+    let pairSort :: Sort Int Int (Int, String) (Int, String)
+        pairSort = Sort $ \inp -> snd (inp 0)
+        -- unsecond: Sort (c,a) (c,b) → Sort a b  with a=String, b=String, c=Int
+        strSort = unsecond pairSort :: Sort Int Int String String
+        -- After unsecond, inp provides (key, String) — the Int comes from the knot
+        inp i = (i, "hello")
+    runSort strSort inp === "hello"
+
+-- | refirst + mkSortN: Sort produces (Map, metadata) pairs.
+-- refirst discards the metadata, keeping only the Map.
+prop_refirst_sort_map :: Property
+prop_refirst_sort_map = property $ do
+    let -- Sort that produces (grouped Map, total count) as a pair
+        taggedSort :: Sort Int Int (Int, String) (Map.Map Int [(Int, String)], String)
+        taggedSort = Sort $ \inp ->
+          let pairs = [inp i | i <- [0..3]]
+              m = Map.fromListWith (++) [(fst p, [snd p]) | p <- pairs]
+          in (m, "metadata")
+        -- refirst: Sort (a,c) (b,c) → Sort a b
+        -- a=Int, b=Map Int [(Int,String)], c=String
+        -- After refirst, consumes Int (not (Int,String))
+        mapSort = refirst taggedSort :: Sort Int Int Int (Map.Map Int [(Int, String)])
+        inp i = (i `mod` 2, i * 10)
+    Map.size (runSort mapSort inp) === 2
+
+-- | releft filters Either-sort to Left branch.
+-- After releft, the Sort consumes String (not Either String Bool).
+prop_releft_sort_filter :: Property
+prop_releft_sort_filter = property $ do
+    let -- Sort consuming Either String Bool, producing Either String Bool
+        validated :: Sort (Sum Int) (Sum Int) (Either String Bool) (Either String Bool)
+        validated = Sort $ \inp -> snd (inp (Sum 0))
+        -- releft: Sort (Either a c) (Either b c) → Sort a b
+        -- After releft, consumes String directly
+        strSort = releft validated :: Sort (Sum Int) (Sum Int) String String
+        inp _ = (Sum 0, "ok")
+    runSort strSort inp === "ok"
+
+-- | remapSort changes keys through a container-producing Sort.
+prop_remap_sort :: Property
+prop_remap_sort = property $ do
+    let base = mkSortN 5 :: Sort Int Int String (Map.Map Int [String])
+        remapped = remapSort (* 10) base
+        inp i = (i, "x" ++ show i)
+    Map.keys (runSort remapped inp) === [0, 10, 20, 30, 40]
+
+-- | refirst + mkSortN: practical pattern for sort-and-project.
+-- Sort (name, score) records, produce (Map of records, best score),
+-- then refirst discards the best score keeping just the Map.
+prop_refirst_tagged_sort :: Property
+prop_refirst_tagged_sort = property $ do
+    let -- Sort producing (Map of (name, score) records, best score)
+        taggedSort :: Sort Int Int (String, Int) (Map.Map Int [(String, Int)], Int)
+        taggedSort = Sort $ \inp ->
+          let pairs = [inp i | i <- [0..5]]
+              m = Map.fromListWith (++) [(fst p, [snd p]) | p <- pairs]
+              best = maximum [snd (snd p) | p <- pairs]
+          in (m, best)
+        -- refirst: a=String, b=Map, c=Int → consumes String, produces Map
+        mapSort = refirst taggedSort :: Sort Int Int String (Map.Map Int [(String, Int)])
+        inp i = (i `mod` 3, "user" ++ show i)
+    let result = runSort mapSort inp
+    Map.size result === 3
+    assert $ all (\v -> length v == 2) result

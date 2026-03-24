@@ -84,6 +84,10 @@ module Data.Profunctor.Optic.Property (
   , cxreturn_cxunit
   , roundtrip_ixcx
   , roundtrip_cxix
+    -- * Ixprism
+  , tofrom_ixprism
+  , fromto_ixprism
+  , idempotent_ixprism
 ) where
 
 import Control.Monad as M (join)
@@ -95,6 +99,7 @@ import qualified Control.Category as C
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Dual (re)
 import Data.Profunctor.Optic.Index (cxix, ixcx)
+import Data.Profunctor.Optic.Prism (withIxprism)
 import Data.Profunctor.Optic.Traversal
 import Data.Profunctor.Optic.Setter
 import Data.Profunctor.Optic.Lens
@@ -490,3 +495,24 @@ roundtrip_ixcx o akb s k =
 roundtrip_cxix :: (Eq t) => Ixoptic (->) k s t a b -> ((k, a) -> b) -> (k, s) -> Bool
 roundtrip_cxix o kab ks =
   cxix (ixcx o) kab ks == o kab ks
+
+---------------------------------------------------------------------
+-- Ixprism
+---------------------------------------------------------------------
+
+-- | If we are able to view an existing focus, then building it
+-- will return the original structure.
+--
+tofrom_ixprism :: (Eq s, Monoid k) => Ixprism' k s a -> s -> Bool
+tofrom_ixprism o s = withIxprism o $ \sta bt -> either id bt (fmap snd (sta s)) == s
+
+-- | If we build a whole from a focus, that whole must contain the focus.
+--
+fromto_ixprism :: (Eq s, Eq a, Monoid k) => Ixprism' k s a -> a -> Bool
+fromto_ixprism o a = withIxprism o $ \sta bt -> fmap snd (sta (bt a)) == Right a
+
+-- | Matching the result of a match is the same as wrapping in 'Left'.
+--
+idempotent_ixprism :: (Eq s, Eq a, Monoid k) => Ixprism' k s a -> s -> Bool
+idempotent_ixprism o s = withIxprism o $ \sta _ ->
+  left' (fmap snd . sta) (fmap snd (sta s)) == left' Left (fmap snd (sta s))

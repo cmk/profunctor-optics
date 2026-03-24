@@ -83,6 +83,7 @@ module Data.Profunctor.Optic.Lens (
   , withColens
   , withCxlens
     -- ** Relens, Rxlens
+  , reover
   , withRelens
     -- * Reexports
   , Strong(..)
@@ -95,7 +96,7 @@ import Data.Profunctor.Closed (Closure(..), Environment(..), curry')
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Iso
+import Data.Profunctor.Optic.Iso hiding (reover)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong hiding (pastro, tambara)
 import qualified Data.Functor.Rep as F
@@ -681,6 +682,28 @@ refirst = unfirst
 resecond :: Relens a b (c, a) (c, b)
 resecond = unsecond
 {-# INLINE resecond #-}
+
+-- | The Re-dual of 'Data.Profunctor.Optic.Setter.over': apply a
+-- function through a 'Relens', going in the reverse direction.
+--
+-- @
+-- 'over'   :: 'ALens'   s t a b -> (a -> b) -> s -> t
+-- 'reover' :: 'ARelens' s t a b -> (t -> s) -> b -> a
+-- @
+--
+-- 'reover' accepts any optic with a 'RelensRep' carrier ('ARelens'),
+-- including 'Relens', 'Iso', and any optic that is both 'Strong'
+-- and 'Costrong'.
+--
+-- /Example/: collapse a pair-producing 'Sort' to its first component:
+--
+-- @
+-- 'reover' 'refirst' :: (t -> s) -> (a, c) -> a
+-- @
+--
+reover :: ARelens s t a b -> (t -> s) -> b -> a
+reover o ts b = withRelens o $ \bsa bt -> bsa b (ts (bt b))
+{-# INLINE reover #-}
 
 ---------------------------------------------------------------------
 -- Operators

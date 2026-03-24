@@ -481,7 +481,7 @@ prop_SF14_zipsSorting :: Property
 prop_SF14_zipsSorting = property $ do
     let s1 = Sort (\inp -> snd (inp 0) + 1) :: Sort Int Int Int Int
         s2 = Sort (\inp -> snd (inp 0) + 2) :: Sort Int Int Int Int
-        merged = zipsSorting (+) s1 s2
+        merged = liftA2 (+) s1 s2
         inp i = (i, i * 10)
     runSort merged inp === 3  -- (0 + 1) + (0 + 2), since snd (inp 0) = 0
 

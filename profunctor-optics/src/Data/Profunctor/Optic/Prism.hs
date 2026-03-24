@@ -41,6 +41,7 @@ module Data.Profunctor.Optic.Prism (
   , pastroSum
   , tambaraSum
     -- * Dual Operators
+  , rematches
   , withReprism
     -- * Reexports
   , Choice(..)
@@ -360,3 +361,25 @@ tambaraSum o p = withPrism o $ \sta bt -> TambaraSum (left' . prism sta bt $ p)
 ---------------------------------------------------------------------
 -- ** Reversed Operators
 ---------------------------------------------------------------------
+
+-- | The Re-dual of 'Data.Profunctor.Optic.Traversal.matchOf': match
+-- through a 'Reprism', going in the reverse direction.
+--
+-- @
+-- 'matchOf'    :: 'APrism'   s t a b -> s -> t + a
+-- 'rematches' :: 'AReprism' s t a b -> b -> a + t
+-- @
+--
+-- 'rematches' accepts any optic with a 'ReprismRep' carrier
+-- ('AReprism'), including 'Reprism', 'Iso', and any optic that is
+-- both 'Choice' and 'Cochoice'.
+--
+-- /Example/: filter an Either-producing 'Sort' to the Left branch:
+--
+-- @
+-- 'rematches' 'releft' :: b -> (Either a c) + a
+-- @
+--
+rematches :: AReprism s t a b -> b -> a + t
+rematches o b = withReprism o $ \_ bat -> bat b
+{-# INLINE rematches #-}

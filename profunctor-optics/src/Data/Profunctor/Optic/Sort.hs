@@ -18,7 +18,6 @@ module Data.Profunctor.Optic.Sort (
   , remapSort
   , eitherSort
   , maybeSort
-  , zipsSorting
 
     -- * Cosort
   , Cosort(..)
@@ -188,10 +187,7 @@ maybeSort def (Sort f) = Sort $ \inp ->
     Nothing -> def
     Just a0 -> f (\i -> B.second (maybe a0 id) (inp i))
 
--- | Merge two 'Sort' results pointwise.
-{-# INLINE zipsSorting #-}
-zipsSorting :: (b -> b -> b) -> Sort i k a b -> Sort i k a b -> Sort i k a b
-zipsSorting f (Sort h1) (Sort h2) = Sort $ \inp -> f (h1 inp) (h2 inp)
+-- zipsSorting was removed — it's just liftA2 from Sort's Applicative instance.
 
 ---------------------------------------------------------------------
 -- Cosort

@@ -12,7 +12,7 @@ import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
 import Data.Profunctor.Optic.Index (cxix, ixcx)
 import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
-import Data.Profunctor.Optic.Prism (just, reprism, releft)
+import Data.Profunctor.Optic.Prism (just, reprism, releft, ixjust)
 import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
 import Data.Monoid (Sum(..))
 import Data.Profunctor.Optic.Setter (set)
@@ -656,6 +656,25 @@ prop_roundtrip_cxix = withTests 100 . property $ do
   let o :: Ixoptic (->) Char Int Int Int Int
       o kab (k1, s) = kab (k1, s + 1) - 1
   assert $ Prop.roundtrip_cxix o (\(_k, a) -> a * 2) (k, s)
+
+---------------------------------------------------------------------
+-- Ixprism properties
+---------------------------------------------------------------------
+
+prop_ixprism_tofrom :: Property
+prop_ixprism_tofrom = withTests 100 . property $ do
+  s <- forAll (gen_maybe int)
+  assert $ Prop.tofrom_ixprism (ixjust @(Sum Int)) s
+
+prop_ixprism_fromto :: Property
+prop_ixprism_fromto = withTests 100 . property $ do
+  a <- forAll int
+  assert $ Prop.fromto_ixprism (ixjust @(Sum Int)) a
+
+prop_ixprism_idempotent :: Property
+prop_ixprism_idempotent = withTests 100 . property $ do
+  s <- forAll (gen_maybe int)
+  assert $ Prop.idempotent_ixprism (ixjust @(Sum Int)) s
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

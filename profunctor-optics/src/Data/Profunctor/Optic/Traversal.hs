@@ -92,8 +92,8 @@ module Data.Profunctor.Optic.Traversal (
   , scanl1Of
   , scanr1Of
     -- ** Traversal0, Ixtraversal0
-  , matchOf
-  , ixmatchOf
+  , matches
+  , ixmatches
     -- ** Traversal1, Ixtraversal1
     -- * Dual Operators
     -- ** Cotraversal, Cxtraversal
@@ -844,6 +844,25 @@ cotraversed1 = cotraversalVl1 cotraverse1
 -- Operators
 ---------------------------------------------------------------------
 
+-- | Test whether the optic matches or not.
+--
+-- >>> matches just (Just 2)
+-- Right 2
+-- >>> matches just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
+-- Left Nothing
+--
+matches :: ATraversal0 s t a b -> s -> t + a
+matches o = withTraversal0 o $ \sta _ -> sta
+{-# INLINE matches #-}
+
+-- | Indexed 'matches'. Returns the index along with the matched value.
+--
+-- @since 0.0.3
+ixmatches :: Monoid k => AIxtraversal0 k s t a b -> s -> t + (k, a)
+ixmatches o s = case o (Traversal0Rep (\(k, a) -> Right a) (\_ b -> b)) of
+  Traversal0Rep sta _ -> fmap (mempty,) (sta (mempty, s))
+{-# INLINE ixmatches #-}
+
 -- | Traverse over a 'Traversal'.
 --
 -- /Benchmark: 0.89x vs direct fmap — GHC optimizes Star carrier well. See "Data.Profunctor.Optic.Bench"./
@@ -851,10 +870,6 @@ cotraversed1 = cotraversalVl1 cotraverse1
 traverseOf :: ATraversal f s t a b -> (a -> f b) -> s -> f t
 traverseOf o = runStar #. o .# Star
 {-# INLINE traverseOf #-}
-
----------------------------------------------------------------------
--- Indexed Operators
----------------------------------------------------------------------
 
 -- | Traverse over an 'Ixtraversal'.
 --
@@ -958,25 +973,6 @@ scanr1Of o f = snd . mapAccumROf o step Nothing where
   step Nothing a  = (Just a, a)
   step (Just s) a = (Just r, r) where r = f a s
 {-# INLINE scanr1Of #-}
-
--- | Test whether the optic matchOf or not.
---
--- >>> matchOf just (Just 2)
--- Right 2
--- >>> matchOf just (Nothing :: Maybe Int) :: Either (Maybe Bool) Int
--- Left Nothing
---
-matchOf :: ATraversal0 s t a b -> s -> t + a
-matchOf o = withTraversal0 o $ \sta _ -> sta
-{-# INLINE matchOf #-}
-
--- | Indexed 'matchOf'. Returns the index along with the matched value.
---
--- @since 0.0.3
-ixmatchOf :: Monoid k => AIxtraversal0 k s t a b -> s -> t + (k, a)
-ixmatchOf o s = case o (Traversal0Rep (\(k, a) -> Right a) (\_ b -> b)) of
-  Traversal0Rep sta _ -> fmap (mempty,) (sta (mempty, s))
-{-# INLINE ixmatchOf #-}
 
 -- | Cotraverse over a 'Cotraversal'.
 --
