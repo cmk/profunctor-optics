@@ -83,13 +83,17 @@ module Data.Profunctor.Optic.Traversal (
   , traverseOf
   , ixtraverseOf
   , sequenceOf
+  , ixsequenceOf
   , reverseOf
   , mapAccumLOf
   , mapAccumROf
+  , ixmapAccumLOf
+  , ixmapAccumROf
   , scanl1Of
   , scanr1Of
     -- ** Traversal0, Ixtraversal0
   , matchOf
+  , ixmatchOf
     -- ** Traversal1, Ixtraversal1
     -- * Dual Operators
     -- ** Cotraversal, Cxtraversal
@@ -585,6 +589,13 @@ cotraversal0 stabt =
   . closed . right'
 {-# INLINE cotraversal0 #-}
 
+-- TODO S17.23: cotraversalVl0 and cxtraversalVl0
+-- The VL-to-profunctor bridge for Coaffine (Closed + Choice) is
+-- non-trivial. The extraction witness (forall c. f c -> c) needs
+-- to be threaded through both closed and right' in a way that
+-- preserves the functor parameter. Deferred to sprint 20 for
+-- careful implementation and verification.
+
 -- | Clone a 'Cotraversal0'.
 --
 -- @since 0.0.3
@@ -853,6 +864,13 @@ sequenceOf :: Applicative f => ATraversal f s t (f a) a -> s -> f t
 sequenceOf o = traverseOf o id
 {-# INLINE sequenceOf #-}
 
+-- | Indexed 'sequenceOf'.
+--
+-- @since 0.0.3
+ixsequenceOf :: Monoid k => Applicative f => AIxtraversal f k s t (f a) a -> s -> f t
+ixsequenceOf o = ixtraverseOf o (const id)
+{-# INLINE ixsequenceOf #-}
+
 -- | This allows you to 'Control.Traversable.traverse' the elements of a 'Traversing' or 'Traversing1' optic in the opposite order.
 --
 -- This will preserve indexes on 'Indexed' types and for example will give you the elements of a (finite) 'Fold' or 'Traversal' in the opposite order.
@@ -890,6 +908,22 @@ mapAccumROf :: ATraversal (Backwards (State r)) s t a b -> (r -> a -> (r, b)) ->
 mapAccumROf = mapAccumLOf . reversing
 {-# INLINE mapAccumROf #-}
 
+-- | Indexed 'mapAccumLOf'. Accumulates state from left to right,
+-- threading the index.
+--
+-- @since 0.0.3
+ixmapAccumLOf :: Monoid k => AIxtraversal (State r) k s t a b -> (k -> r -> a -> (r, b)) -> r -> s -> (r, t)
+ixmapAccumLOf o f acc0 s = swap (runState (ixtraverseOf o g s) acc0) where
+  g k a = state $ \acc -> swap (f k acc a)
+
+-- | Indexed 'mapAccumROf'. Accumulates state from right to left,
+-- threading the index.
+--
+-- @since 0.0.3
+ixmapAccumROf :: Monoid k => AIxtraversal (Backwards (State r)) k s t a b -> (k -> r -> a -> (r, b)) -> r -> s -> (r, t)
+ixmapAccumROf o f acc0 s = swap (runState (forwards (ixtraverseOf o g s)) acc0) where
+  g k a = Backwards . state $ \acc -> swap (f k acc a)
+
 -- | Scan left over a 'Traversing' or 'Traversing1' optic.
 --
 -- @
@@ -926,6 +960,14 @@ scanr1Of o f = snd . mapAccumROf o step Nothing where
 matchOf :: ATraversal0 s t a b -> s -> t + a
 matchOf o = withTraversal0 o $ \sta _ -> sta
 {-# INLINE matchOf #-}
+
+-- | Indexed 'matchOf'. Returns the index along with the matched value.
+--
+-- @since 0.0.3
+ixmatchOf :: Monoid k => AIxtraversal0 k s t a b -> s -> t + (k, a)
+ixmatchOf o s = case o (Traversal0Rep (\(k, a) -> Right a) (\_ b -> b)) of
+  Traversal0Rep sta _ -> fmap (mempty,) (sta (mempty, s))
+{-# INLINE ixmatchOf #-}
 
 -- | Cotraverse over a 'Cotraversal'.
 --

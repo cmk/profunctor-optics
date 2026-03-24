@@ -21,6 +21,7 @@ module Data.Profunctor.Optic.View (
     -- ** Review, Rxview
     -- * Optics
   , tupling
+  , ixtupling
     -- * Dual Optics
   , summing
     -- * Operators
@@ -232,6 +233,20 @@ cloneCoview o = from (review o)
 tupling :: AView a1 s a1 -> AView a2 s a2 -> View s (a1 , a2)
 tupling l r = to (fanout (view l) (view r))
 {-# INLINE tupling #-}
+
+-- | Combine two indexed 'View's into an indexed 'View' to a product.
+--
+-- @
+-- 'ixtupling' :: 'Monoid' k => 'AIxview' k s a1 -> 'AIxview' k s a2 -> 'Ixview' k s (a1 , a2)
+-- @
+--
+-- @since 0.0.3
+ixtupling :: Monoid k => AIxview k s a1 -> AIxview k s a2 -> Ixview k s (a1 , a2)
+ixtupling l r = ixto $ \s ->
+  let (mk1, a1) = ixview l s
+      (mk2, a2) = ixview r s
+  in  (maybe mempty id mk1 <> maybe mempty id mk2, (a1, a2))
+{-# INLINE ixtupling #-}
 
 ---------------------------------------------------------------------
 -- ** Dual Optics

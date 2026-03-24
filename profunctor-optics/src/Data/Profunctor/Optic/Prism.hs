@@ -10,12 +10,14 @@ module Data.Profunctor.Optic.Prism (
   , prism, prism'
   , ixprism, ixprism'
   , handling
+  , ixhandling
   , clonePrism
   , cloneIxprism
     -- ** Reprism, Rxprism
   , Reprism, Reprism'
   , Rxprism, Rxprism'
   , reprism, reprism'
+  , rxprism, rxprism'
   , rehandling
   , rehandling'
   , cloneReprism
@@ -23,6 +25,7 @@ module Data.Profunctor.Optic.Prism (
     -- ** Prism, Ixprism
   , left, right
   , just, nothing
+  , ixleft, ixright, ixjust
   , prefixed
   , only
   , nearly
@@ -131,6 +134,14 @@ cloneIxprism :: Monoid k => AIxprism k s t a b -> Ixprism k s t a b
 cloneIxprism o = withIxprism o ixprism
 {-# INLINE cloneIxprism #-}
 
+-- | Indexed 'handling': obtain an 'Ixprism' from an indexed matcher
+-- and a constructor on the complement.
+--
+-- @since 0.0.3
+ixhandling :: (s -> c + (k, a)) -> (c + b -> t) -> Ixprism k s t a b
+ixhandling scka cbt = handling (\(_, s) -> scka s) cbt
+{-# INLINE ixhandling #-}
+
 ---------------------------------------------------------------------
 -- ** Reversed Constructors
 ---------------------------------------------------------------------
@@ -177,6 +188,24 @@ cloneReprism :: AReprism s t a b -> Reprism s t a b
 cloneReprism o = withReprism o reprism
 {-# INLINE cloneReprism #-}
 
+-- | Indexed 'Reprism': coindexed by @k@.
+--
+-- The viewer returns @(k, a)@ and the matcher returns @(k, a) + t@.
+--
+-- @since 0.0.3
+rxprism :: (s -> (k, a)) -> (b -> (k, a) + t) -> Rxprism k s t a b
+rxprism ska bat = reprism (\(_, s) -> ska s) bat
+{-# INLINE rxprism #-}
+
+-- | Simple indexed 'Reprism' from a viewer and a 'Maybe' matcher.
+--
+-- @since 0.0.3
+rxprism' :: Monoid k => (s -> (k, a)) -> ((k, a) -> Maybe s) -> Rxprism' k s a
+rxprism' ska kas = rxprism ska $ \b -> maybe (Left (mempty, b)) Right (kas (mempty, b))
+{-# INLINE rxprism' #-}
+
+-- TODO: cloneRxprism needs ARxprism carrier type (deferred)
+
 ---------------------------------------------------------------------
 -- * Optics
 ---------------------------------------------------------------------
@@ -205,6 +234,24 @@ just = prism (maybe (Left Nothing) Right) Just
 --
 nothing :: Prism (Maybe a) (Maybe b) () ()
 nothing = prism (maybe (Right ()) (const $ Left Nothing)) (const Nothing)
+
+-- | Indexed 'left'. The index is 'mempty'.
+--
+-- @since 0.0.3
+ixleft :: Monoid k => Ixprism k (a + c) (b + c) a b
+ixleft = ixprism (either (\a -> Right (mempty, a)) (Left . Right)) Left
+
+-- | Indexed 'right'. The index is 'mempty'.
+--
+-- @since 0.0.3
+ixright :: Monoid k => Ixprism k (c + a) (c + b) a b
+ixright = ixprism (either (Left . Left) (\a -> Right (mempty, a))) Right
+
+-- | Indexed 'just'. The index is 'mempty'.
+--
+-- @since 0.0.3
+ixjust :: Monoid k => Ixprism k (Maybe a) (Maybe b) a b
+ixjust = ixprism (maybe (Left Nothing) (\a -> Right (mempty, a))) Just
 
 -- | Focus on the remainder of a list with a given prefix.
 --
