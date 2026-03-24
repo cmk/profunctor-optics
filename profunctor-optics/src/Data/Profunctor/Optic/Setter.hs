@@ -61,6 +61,9 @@ module Data.Profunctor.Optic.Setter (
   , lowers
   , alower
   , aupper
+    -- * Ix\/Cx adjunction transforms
+  , ixadjoining
+  , cxadjoining
     -- * Sort-Conjoin bridge
   , absorbSort
   , embedSort
@@ -525,6 +528,90 @@ alower abst f = rightAdjunct $ aupper abst (leftAdjunct f)
 aupper :: F.Representable u => ((a -> b) -> s -> t) -> (a -> u b) -> s -> u t
 aupper abst afb s = F.tabulate $ \i -> abst (flip F.index i . afb) s
 {-# INLINE aupper #-}
+
+---------------------------------------------------------------------
+-- Ix/Cx adjunction transforms
+---------------------------------------------------------------------
+
+-- | Convert an indexed 'Adjoint' optic to a coindexed one via the
+-- adjunction on the profunctor's representation functors.
+--
+-- 'Ix' @p k a b = p (k, a) b@ threads the index as a product on the
+-- left — the 'Corep' (left adjoint) side. 'Cx' @p k a b = p a (k -> b)@
+-- threads the index as a function on the right — the 'Rep' (right
+-- adjoint) side. For an 'Adjoining' profunctor, these are isomorphic
+-- because the adjunction @'Corep' p ⊣ 'Rep' p@ relates products and
+-- functions.
+--
+-- The conversion factors into three steps:
+--
+-- @
+-- p (k, a) b
+--   ─── 'cosieve' ──────> Corep p (k, a) -> b       (enter Corep)
+--   ─── 'leftAdjunct' ──> (k, a) -> Rep p b          (cross via adjunction)
+--   ─── curry/distribute > a -> Rep p (k -> b)        (rearrange k)
+--   ─── 'tabulate' ─────> p a (k -> b)               (exit Rep)
+-- @
+--
+-- Compare 'Data.Profunctor.Optic.Index.ixcx', which achieves the
+-- same isomorphism using 'Strong' + 'Closed' via a mechanical
+-- shuffle through 'first'' and 'closed'. Here, the adjunction
+-- makes the structure explicit: Ix threads through the left adjoint,
+-- Cx through the right, and 'leftAdjunct'\/'rightAdjunct' is the
+-- bridge.
+--
+-- @
+-- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
+-- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
+-- @
+--
+ixadjoining :: Adjoining p => Ixoptic p k s t a b -> Cxoptic p k s t a b
+ixadjoining o p_a_kb = p_s_kt
+  where
+    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
+    p_ka_b = cotabulate $ rightAdjunct $ \(k, a) ->
+      fmap ($ k) (sieve p_a_kb a)
+
+    -- Apply the indexed optic
+    p_ks_t = o p_ka_b
+
+    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
+    p_s_kt = tabulate $ \s -> distribute $ \k ->
+      leftAdjunct (cosieve p_ks_t) (k, s)
+{-# INLINE ixadjoining #-}
+
+-- | Convert a coindexed 'Adjoint' optic to an indexed one via the
+-- adjunction. The inverse of 'ixadjoining'.
+--
+-- The conversion factors into the reverse three steps:
+--
+-- @
+-- p a (k -> b)
+--   ─── 'sieve' ────────> a -> Rep p (k -> b)        (enter Rep)
+--   ─── undistribute/fmap > (k, a) -> Rep p b          (rearrange k)
+--   ─── 'rightAdjunct' ──> Corep p (k, a) -> b        (cross via adjunction)
+--   ─── 'cotabulate' ───> p (k, a) b                  (exit Corep)
+-- @
+--
+-- @
+-- 'cxadjoining' '.' 'ixadjoining' ≡ 'id'
+-- 'ixadjoining' '.' 'cxadjoining' ≡ 'id'
+-- @
+--
+cxadjoining :: Adjoining p => Cxoptic p k s t a b -> Ixoptic p k s t a b
+cxadjoining o p_ka_b = p_ks_t
+  where
+    -- Ix → Cx: cosieve, leftAdjunct, curry k + distribute, tabulate
+    p_a_kb = tabulate $ \a -> distribute $ \k ->
+      leftAdjunct (cosieve p_ka_b) (k, a)
+
+    -- Apply the coindexed optic
+    p_s_kt = o p_a_kb
+
+    -- Cx → Ix: sieve, uncurry k, rightAdjunct, cotabulate
+    p_ks_t = cotabulate $ rightAdjunct $ \(k, s) ->
+      fmap ($ k) (sieve p_s_kt s)
+{-# INLINE cxadjoining #-}
 
 ---------------------------------------------------------------------
 -- Sort-Conjoin-Adjoint bridge
