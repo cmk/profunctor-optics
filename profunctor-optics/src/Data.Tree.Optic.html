@@ -5,39 +5,46 @@
 </span><span id="line-5"></span><span class="hs-pragma">{-# LANGUAGE TupleSections         #-}</span><span>
 </span><span id="line-6"></span><span class="hs-pragma">{-# LANGUAGE TypeOperators         #-}</span><span>
 </span><span id="line-7"></span><span class="hs-pragma">{-# LANGUAGE TypeFamilies          #-}</span><span>
-</span><span id="line-8"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Tree.Optic</span><span> </span><span class="hs-special">(</span><span>
-</span><span id="line-9"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Lens</span></span><span>
-</span><span id="line-10"></span><span>    </span><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier">root</span></a></span><span>
-</span><span id="line-11"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier">branches</span></a></span><span>
-</span><span id="line-12"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Dual Optics</span></span><span>
-</span><span id="line-13"></span><span>    </span><span class="hs-comment">-- $todo-zipsTree</span><span>
-</span><span id="line-14"></span><span>    </span><span class="hs-comment">-- * Traversal</span><span>
-</span><span id="line-15"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier">flattened</span></a></span><span>
-</span><span id="line-16"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier">ixflattened</span></a></span><span>
-</span><span id="line-17"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Fold</span></span><span>
-</span><span id="line-18"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier">folded</span></a></span><span>
-</span><span id="line-19"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-20"></span><span>
-</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Fold.html#folded"><span class="hs-identifier">folded</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Import.html"><span class="hs-identifier">Data.Profunctor.Optic.Import</span></a></span><span>
-</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tree</span></span><span>
-</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">traverse_</span></span><span class="hs-special">)</span><span>
-</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
-</span><span id="line-26"></span><span>
-</span><span id="line-27"></span><span class="hs-comment">-- $setup</span><span>
-</span><span id="line-28"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XNoOverloadedStrings</span><span>
-</span><span id="line-29"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
-</span><span id="line-30"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XFlexibleContexts</span><span>
-</span><span id="line-31"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Tree</span><span>
-</span><span id="line-32"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Profunctor.Optic</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- | Left and right carriers are characterized by their representation</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- functors ('Rep' and 'Corep'). 'Iso' sits at the top where both</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- are trivial ('Identity'). 'Adjoint' sits at the bottom where they</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- form a full adjunction (@'Corep' p &#8867; 'Rep' p@). A left-indexed</span><span>
+</span><span id="line-12"></span><span class="hs-comment">-- ('Ix') optic threads an index through the left adjoint functor</span><span>
+</span><span id="line-13"></span><span class="hs-comment">-- @(,) k@, while a right-indexed ('Cx') optic threads a coindex</span><span>
+</span><span id="line-14"></span><span class="hs-comment">-- through the right adjoint functor @(-&gt;) k@.</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Data.Tree.Optic</span><span> </span><span class="hs-special">(</span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Types</span></span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><span class="hs-identifier">Tree</span></span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Lens</span></span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier">root</span></a></span><span>
+</span><span id="line-20"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier">branches</span></a></span><span>
+</span><span id="line-21"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Traversal</span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier">flattened</span></a></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier">ixflattened</span></a></span><span>
+</span><span id="line-24"></span><span>    </span><span class="annot"><span class="hs-comment">-- * Fold</span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier">folded</span></a></span><span>
+</span><span id="line-26"></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.html"><span class="hs-identifier">Data.Profunctor.Optic</span></a></span><span> </span><span class="hs-keyword">hiding</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Data.Profunctor.Optic.Fold.html#folded"><span class="hs-identifier">folded</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Import.html"><span class="hs-identifier">Data.Profunctor.Optic.Import</span></a></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Tree</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Foldable</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">traverse_</span></span><span class="hs-special">)</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Prelude</span></span><span>
 </span><span id="line-33"></span><span>
-</span><span id="line-34"></span><span class="hs-comment">-- | A 'Lens' that focuses on the root of a 'Tree'.</span><span>
-</span><span id="line-35"></span><span class="hs-comment">--</span><span>
-</span><span id="line-36"></span><span class="hs-comment">-- &gt;&gt;&gt; view root $ Node 42 []</span><span>
-</span><span id="line-37"></span><span class="hs-comment">-- 42</span><span>
-</span><span id="line-38"></span><span class="hs-comment">--</span><span>
-</span><span id="line-39"></span><span id="local-6989586621679173436"><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier hs-type">root</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173436"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173436"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-40"></span><span id="root"><span class="annot"><span class="annottext">root :: forall a (p :: * -&gt; * -&gt; *).
+</span><span id="line-34"></span><span class="hs-comment">-- $setup</span><span>
+</span><span id="line-35"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XNoOverloadedStrings</span><span>
+</span><span id="line-36"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XTypeApplications</span><span>
+</span><span id="line-37"></span><span class="hs-comment">-- &gt;&gt;&gt; :set -XFlexibleContexts</span><span>
+</span><span id="line-38"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Tree</span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- &gt;&gt;&gt; import Data.Profunctor.Optic</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-comment">-- | A 'Lens' that focuses on the root of a 'Tree'.</span><span>
+</span><span id="line-42"></span><span class="hs-comment">--</span><span>
+</span><span id="line-43"></span><span class="hs-comment">-- &gt;&gt;&gt; view root $ Node 42 []</span><span>
+</span><span id="line-44"></span><span class="hs-comment">-- 42</span><span>
+</span><span id="line-45"></span><span class="hs-comment">--</span><span>
+</span><span id="line-46"></span><span id="local-6989586621679186512"><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-identifier hs-type">root</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186512"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679186512"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-47"></span><span id="root"><span class="annot"><span class="annottext">root :: forall a (p :: * -&gt; * -&gt; *).
 Strong p =&gt;
 Optic p (Tree a) (Tree a) a a
 </span><a href="Data.Tree.Optic.html#root"><span class="hs-identifier hs-var hs-var">root</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
@@ -56,25 +63,25 @@ forall a b s t.
     (a -&gt; f a) -&gt; Tree a -&gt; f (Tree a))
 -&gt; Lens (Tree a) (Tree a) a a
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679173542"><span class="annot"><span class="annottext">a -&gt; f a
-</span><a href="#local-6989586621679173542"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173544"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679173544"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173545"><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679173545"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679186626"><span class="annot"><span class="annottext">a -&gt; f a
+</span><a href="#local-6989586621679186626"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679186628"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679186628"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679186629"><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679186629"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-operator hs-var">`Node`</span></span><span> </span><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679173545"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Tree a) -&gt; f a -&gt; f (Tree a)
+</span><a href="#local-6989586621679186629"><span class="hs-keyword hs-var">as</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">(a -&gt; Tree a) -&gt; f a -&gt; f (Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">a -&gt; f a
-</span><a href="#local-6989586621679173542"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679173544"><span class="hs-identifier hs-var">a</span></a></span><span>
-</span><span id="line-41"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-pragma hs-type">root</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><span id="line-42"></span><span>
-</span><span id="line-43"></span><span class="hs-comment">-- | A 'Lens' returning the direct descendants of the root of a 'Tree'</span><span>
-</span><span id="line-44"></span><span class="hs-comment">--</span><span>
-</span><span id="line-45"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.View.view' 'branches' &#8801; 'subForest'@</span><span>
-</span><span id="line-46"></span><span class="hs-comment">--</span><span>
-</span><span id="line-47"></span><span id="local-6989586621679173455"><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier hs-type">branches</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173455"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173455"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
-</span><span id="line-48"></span><span id="branches"><span class="annot"><span class="annottext">branches :: forall a (p :: * -&gt; * -&gt; *).
+</span><a href="#local-6989586621679186626"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679186628"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-48"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#root"><span class="hs-pragma hs-type">root</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-49"></span><span>
+</span><span id="line-50"></span><span class="hs-comment">-- | A 'Lens' returning the direct descendants of the root of a 'Tree'</span><span>
+</span><span id="line-51"></span><span class="hs-comment">--</span><span>
+</span><span id="line-52"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.View.view' 'branches' &#8801; 'subForest'@</span><span>
+</span><span id="line-53"></span><span class="hs-comment">--</span><span>
+</span><span id="line-54"></span><span id="local-6989586621679186531"><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier hs-type">branches</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Lens%27"><span class="hs-identifier hs-type">Lens'</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186531"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186531"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">]</span></span><span>
+</span><span id="line-55"></span><span id="branches"><span class="annot"><span class="annottext">branches :: forall a (p :: * -&gt; * -&gt; *).
 Strong p =&gt;
 Optic p (Tree a) (Tree a) [Tree a] [Tree a]
 </span><a href="Data.Tree.Optic.html#branches"><span class="hs-identifier hs-var hs-var">branches</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
@@ -93,39 +100,30 @@ forall a b s t.
     ([Tree a] -&gt; f [Tree a]) -&gt; Tree a -&gt; f (Tree a))
 -&gt; Lens (Tree a) (Tree a) [Tree a] [Tree a]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679173552"><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
-</span><a href="#local-6989586621679173552"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173553"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679173553"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173554"><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679173554"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679186636"><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
+</span><a href="#local-6989586621679186636"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679186637"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679186637"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679186638"><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679186638"><span class="hs-keyword hs-var">as</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679173553"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679186637"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">[Tree a] -&gt; f [Tree a]
-</span><a href="#local-6989586621679173552"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Tree a]
-</span><a href="#local-6989586621679173554"><span class="hs-keyword hs-var">as</span></a></span><span>
-</span><span id="line-49"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-pragma hs-type">branches</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><span id="line-50"></span><span>
-</span><span id="line-51"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-52"></span><span class="hs-comment">-- Dual optics</span><span>
-</span><span id="line-53"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-54"></span><span>
-</span><span id="line-55"></span><span class="hs-comment">-- TODO: zipsTree :: Colens (Tree a) (Tree b) a b</span><span>
-</span><span id="line-56"></span><span class="hs-comment">-- Pointwise zipping of trees. Zips structurally &#8212; root with root,</span><span>
-</span><span id="line-57"></span><span class="hs-comment">-- children with children. Mismatched shapes truncate to the shorter tree.</span><span>
-</span><span id="line-58"></span><span class="hs-comment">-- Requires careful handling of subforest zipping; deferred for now.</span><span>
-</span><span id="line-59"></span><span>
+</span><a href="#local-6989586621679186636"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">[Tree a]
+</span><a href="#local-6989586621679186638"><span class="hs-keyword hs-var">as</span></a></span><span>
+</span><span id="line-56"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#branches"><span class="hs-pragma hs-type">branches</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-57"></span><span>
+</span><span id="line-58"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-59"></span><span class="hs-comment">-- Traversal</span><span>
 </span><span id="line-60"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-61"></span><span class="hs-comment">-- Traversal</span><span>
-</span><span id="line-62"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-63"></span><span>
-</span><span id="line-64"></span><span class="hs-comment">-- | Pre-order traversal of all values in a 'Tree'.</span><span>
-</span><span id="line-65"></span><span class="hs-comment">--</span><span>
-</span><span id="line-66"></span><span class="hs-comment">-- &gt;&gt;&gt; over flattened (+1) (Node 1 [Node 2 [], Node 3 [Node 4 []]])</span><span>
-</span><span id="line-67"></span><span class="hs-comment">-- Node 2 [Node 3 [],Node 4 [Node 5 []]]</span><span>
-</span><span id="line-68"></span><span class="hs-comment">--</span><span>
-</span><span id="line-69"></span><span id="local-6989586621679173462"><span id="local-6989586621679173463"><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier hs-type">flattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Traversal"><span class="hs-identifier hs-type">Traversal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173462"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173463"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173462"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679173463"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
-</span><span id="line-70"></span><span id="flattened"><span class="annot"><span class="annottext">flattened :: forall a b (p :: * -&gt; * -&gt; *).
+</span><span id="line-61"></span><span>
+</span><span id="line-62"></span><span class="hs-comment">-- | Pre-order traversal of all values in a 'Tree'.</span><span>
+</span><span id="line-63"></span><span class="hs-comment">--</span><span>
+</span><span id="line-64"></span><span class="hs-comment">-- &gt;&gt;&gt; over flattened (+1) (Node 1 [Node 2 [], Node 3 [Node 4 []]])</span><span>
+</span><span id="line-65"></span><span class="hs-comment">-- Node 2 [Node 3 [],Node 4 [Node 5 []]]</span><span>
+</span><span id="line-66"></span><span class="hs-comment">--</span><span>
+</span><span id="line-67"></span><span id="local-6989586621679186538"><span id="local-6989586621679186539"><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier hs-type">flattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Traversal"><span class="hs-identifier hs-type">Traversal</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186538"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186539"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679186538"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679186539"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-68"></span><span id="flattened"><span class="annot"><span class="annottext">flattened :: forall a b (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p) =&gt;
 Optic p (Tree a) (Tree b) a b
 </span><a href="Data.Tree.Optic.html#flattened"><span class="hs-identifier hs-var hs-var">flattened</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
@@ -142,18 +140,18 @@ Applicative' f =&gt;
 forall {f :: * -&gt; *} {t} {a}.
 Applicative f =&gt;
 (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173560"><span class="hs-identifier hs-var">go</span></a></span><span>
-</span><span id="line-71"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173560"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173560"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173573"><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173573"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173574"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173574"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173575"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173575"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><a href="#local-6989586621679186644"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679186644"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
+</span><a href="#local-6989586621679186644"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679186657"><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679186657"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679186658"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186658"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679186659"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186659"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; [Tree a] -&gt; Tree a) -&gt; f a -&gt; f ([Tree a] -&gt; Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173573"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173574"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679186657"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186658"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f (Tree a)) -&gt; [Tree t] -&gt; f [Tree a]
@@ -164,16 +162,16 @@ forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; [a] -&gt; f [b]
 </span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173560"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173573"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173575"><span class="hs-identifier hs-var">cs</span></a></span><span>
-</span><span id="line-72"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-pragma hs-type">flattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><span id="line-73"></span><span>
-</span><span id="line-74"></span><span class="hs-comment">-- | Depth-indexed traversal of all values in a 'Tree'.</span><span>
-</span><span id="line-75"></span><span class="hs-comment">-- The index is the depth from the root (root = 0).</span><span>
-</span><span id="line-76"></span><span class="hs-comment">--</span><span>
-</span><span id="line-77"></span><span id="local-6989586621679173488"><span id="local-6989586621679173489"><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier hs-type">ixflattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173488"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173489"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173488"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679173489"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
-</span><span id="line-78"></span><span id="ixflattened"><span class="annot"><span class="annottext">ixflattened :: forall a b (p :: * -&gt; * -&gt; *).
+</span><a href="#local-6989586621679186644"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679186657"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186659"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-70"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#flattened"><span class="hs-pragma hs-type">flattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-71"></span><span>
+</span><span id="line-72"></span><span class="hs-comment">-- | Depth-indexed traversal of all values in a 'Tree'.</span><span>
+</span><span id="line-73"></span><span class="hs-comment">-- The index is the depth from the root (root = 0).</span><span>
+</span><span id="line-74"></span><span class="hs-comment">--</span><span>
+</span><span id="line-75"></span><span id="local-6989586621679186564"><span id="local-6989586621679186565"><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier hs-type">ixflattened</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Ixtraversal"><span class="hs-identifier hs-type">Ixtraversal</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186564"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186565"><span class="hs-identifier hs-type">b</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679186564"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679186565"><span class="hs-identifier hs-type">b</span></a></span></span></span><span>
+</span><span id="line-76"></span><span id="ixflattened"><span class="annot"><span class="annottext">ixflattened :: forall a b (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p) =&gt;
 Ixoptic p Int (Tree a) (Tree b) a b
 </span><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-identifier hs-var hs-var">ixflattened</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
@@ -189,21 +187,21 @@ forall k a b s t.
 forall {f :: * -&gt; *} {t} {t} {a}.
 (Applicative f, Num t) =&gt;
 t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173587"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679186671"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span class="hs-special">)</span><span>
-</span><span id="line-79"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173587"><span class="annot"><span class="annottext">go :: t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173587"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173598"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173598"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679173599"><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679173599"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173600"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173600"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173601"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173601"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
+</span><span id="line-77"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679186671"><span class="annot"><span class="annottext">go :: t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
+</span><a href="#local-6989586621679186671"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679186682"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186682"><span class="hs-identifier hs-var">d</span></a></span></span><span> </span><span id="local-6989586621679186683"><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
+</span><a href="#local-6989586621679186683"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679186684"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186684"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679186685"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186685"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; [Tree a] -&gt; Tree a
 forall a. a -&gt; [Tree a] -&gt; Tree a
 </span><span class="hs-identifier hs-var">Node</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; [Tree a] -&gt; Tree a) -&gt; f a -&gt; f ([Tree a] -&gt; Tree a)
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679173599"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173598"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173600"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
+</span><a href="#local-6989586621679186683"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186682"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186684"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f ([Tree a] -&gt; Tree a) -&gt; f [Tree a] -&gt; f (Tree a)
 forall a b. f (a -&gt; b) -&gt; f a -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f (Tree a)) -&gt; [Tree t] -&gt; f [Tree a]
@@ -214,25 +212,25 @@ forall (f :: * -&gt; *) a b.
 Applicative f =&gt;
 (a -&gt; f b) -&gt; [a] -&gt; f [b]
 </span><span class="hs-identifier hs-var">traverse</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t -&gt; (t -&gt; t -&gt; f a) -&gt; Tree t -&gt; f (Tree a)
-</span><a href="#local-6989586621679173587"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173598"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; t
+</span><a href="#local-6989586621679186671"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186682"><span class="hs-identifier hs-var">d</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; t
 forall a. Num a =&gt; a -&gt; a -&gt; a
 </span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">t
 </span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">t -&gt; t -&gt; f a
-</span><a href="#local-6989586621679173599"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173601"><span class="hs-identifier hs-var">cs</span></a></span><span>
-</span><span id="line-80"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-pragma hs-type">ixflattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><span id="line-81"></span><span>
+</span><a href="#local-6989586621679186683"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186685"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-78"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#ixflattened"><span class="hs-pragma hs-type">ixflattened</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-81"></span><span class="hs-comment">-- Fold</span><span>
 </span><span id="line-82"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-83"></span><span class="hs-comment">-- Fold</span><span>
-</span><span id="line-84"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
-</span><span id="line-85"></span><span>
-</span><span id="line-86"></span><span class="hs-comment">-- | Fold over all values in a 'Tree' (pre-order).</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="hs-comment">-- | Fold over all values in a 'Tree' (pre-order).</span><span>
+</span><span id="line-85"></span><span class="hs-comment">--</span><span>
+</span><span id="line-86"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.Fold.toListOf' 'folded' &#8801; 'flatten'@</span><span>
 </span><span id="line-87"></span><span class="hs-comment">--</span><span>
-</span><span id="line-88"></span><span class="hs-comment">-- @'Data.Profunctor.Optic.Fold.toListOf' 'folded' &#8801; 'flatten'@</span><span>
-</span><span id="line-89"></span><span class="hs-comment">--</span><span>
-</span><span id="line-90"></span><span id="local-6989586621679173509"><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier hs-type">folded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679173509"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679173509"><span class="hs-identifier hs-type">a</span></a></span></span><span>
-</span><span id="line-91"></span><span id="folded"><span class="annot"><span class="annottext">folded :: forall a (p :: * -&gt; * -&gt; *).
+</span><span id="line-88"></span><span id="local-6989586621679186585"><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier hs-type">folded</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Data.Profunctor.Optic.Types.html#Fold"><span class="hs-identifier hs-type">Fold</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Tree</span></span><span> </span><span class="annot"><a href="#local-6989586621679186585"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679186585"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-89"></span><span id="folded"><span class="annot"><span class="annottext">folded :: forall a (p :: * -&gt; * -&gt; *).
 (Affine p, Traversing p, CoercingR p) =&gt;
 Optic' p (Tree a) a
 </span><a href="Data.Tree.Optic.html#folded"><span class="hs-identifier hs-var hs-var">folded</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(forall (f :: * -&gt; *).
@@ -249,14 +247,14 @@ Applicative f =&gt;
 forall {f :: * -&gt; *} {t} {a}.
 Applicative f =&gt;
 (t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679173611"><span class="hs-identifier hs-var">go</span></a></span><span>
-</span><span id="line-92"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679173611"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679173611"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679173621"><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173621"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679173622"><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173622"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679173623"><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173623"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173621"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
-</span><a href="#local-6989586621679173622"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f () -&gt; f ()
+</span><a href="#local-6989586621679186695"><span class="hs-identifier hs-var">go</span></a></span><span>
+</span><span id="line-90"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679186695"><span class="annot"><span class="annottext">go :: (t -&gt; f a) -&gt; Tree t -&gt; f ()
+</span><a href="#local-6989586621679186695"><span class="hs-identifier hs-var hs-var">go</span></a></span></span><span> </span><span id="local-6989586621679186705"><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679186705"><span class="hs-identifier hs-var">f</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Node</span></span><span> </span><span id="local-6989586621679186706"><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186706"><span class="hs-identifier hs-var">a</span></a></span></span><span> </span><span id="local-6989586621679186707"><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186707"><span class="hs-identifier hs-var">cs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679186705"><span class="hs-identifier hs-var">f</span></a></span><span> </span><span class="annot"><span class="annottext">t
+</span><a href="#local-6989586621679186706"><span class="hs-identifier hs-var">a</span></a></span><span> </span><span class="annot"><span class="annottext">f a -&gt; f () -&gt; f ()
 forall a b. f a -&gt; f b -&gt; f b
 forall (f :: * -&gt; *) a b. Applicative f =&gt; f a -&gt; f b -&gt; f b
 </span><span class="hs-operator hs-var">*&gt;</span></span><span> </span><span class="annot"><span class="annottext">(Tree t -&gt; f ()) -&gt; [Tree t] -&gt; f ()
@@ -264,8 +262,27 @@ forall (t :: * -&gt; *) (f :: * -&gt; *) a b.
 (Foldable t, Applicative f) =&gt;
 (a -&gt; f b) -&gt; t a -&gt; f ()
 </span><span class="hs-identifier hs-var">traverse_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(t -&gt; f a) -&gt; Tree t -&gt; f ()
-</span><a href="#local-6989586621679173611"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
-</span><a href="#local-6989586621679173621"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
-</span><a href="#local-6989586621679173623"><span class="hs-identifier hs-var">cs</span></a></span><span>
-</span><span id="line-93"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-pragma hs-type">folded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
-</span><span id="line-94"></span></pre></body></html>
+</span><a href="#local-6989586621679186695"><span class="hs-identifier hs-var">go</span></a></span><span> </span><span class="annot"><span class="annottext">t -&gt; f a
+</span><a href="#local-6989586621679186705"><span class="hs-identifier hs-var">f</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Tree t]
+</span><a href="#local-6989586621679186707"><span class="hs-identifier hs-var">cs</span></a></span><span>
+</span><span id="line-91"></span><span class="hs-pragma">{-# INLINE</span><span> </span><span class="annot"><a href="Data.Tree.Optic.html#folded"><span class="hs-pragma hs-type">folded</span></a></span><span> </span><span class="hs-pragma">#-}</span><span>
+</span><span id="line-92"></span><span>
+</span><span id="line-93"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-94"></span><span class="hs-comment">-- Dual optics</span><span>
+</span><span id="line-95"></span><span class="hs-comment">---------------------------------------------------------------------</span><span>
+</span><span id="line-96"></span><span>
+</span><span id="line-97"></span><span class="hs-comment">-- TODO: zipsTree :: Colens (Tree a) (Tree b) a b</span><span>
+</span><span id="line-98"></span><span class="hs-comment">-- Pointwise zipping of trees. Zips structurally &#8212; root with root,</span><span>
+</span><span id="line-99"></span><span class="hs-comment">-- children with children. Mismatched shapes truncate to the shorter tree.</span><span>
+</span><span id="line-100"></span><span class="hs-comment">-- Requires careful handling of subforest zipping; deferred for now.</span><span>
+</span><span id="line-101"></span><span>
+</span><span id="line-102"></span><span class="hs-comment">-- Note: no Cofold or Cxfold for Tree.</span><span>
+</span><span id="line-103"></span><span class="hs-comment">--</span><span>
+</span><span id="line-104"></span><span class="hs-comment">-- A Cofold requires a Cotraversal-compatible structure, which in turn</span><span>
+</span><span id="line-105"></span><span class="hs-comment">-- needs pointwise zipping (Distributive or a fixed shape). Trees are</span><span>
+</span><span id="line-106"></span><span class="hs-comment">-- recursive with variable branching factor, so there is no canonical</span><span>
+</span><span id="line-107"></span><span class="hs-comment">-- way to zip two trees without truncating or padding. The same issue</span><span>
+</span><span id="line-108"></span><span class="hs-comment">-- blocks Cotraversal (see TODO above for zipsTree). If a fixed-shape</span><span>
+</span><span id="line-109"></span><span class="hs-comment">-- Cotraversal is added in the future, the corresponding Cxfold can</span><span>
+</span><span id="line-110"></span><span class="hs-comment">-- be derived from it.</span><span>
+</span><span id="line-111"></span></pre></body></html>
