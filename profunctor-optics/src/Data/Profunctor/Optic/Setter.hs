@@ -13,7 +13,7 @@
 -- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
 -- through the right adjoint functor @(->) k@.
 module Data.Profunctor.Optic.Setter (
-    -- * Constructors
+    -- * Left Adjoint Constructors
     -- ** Setter, Ixsetter
     Setter, Setter'
   , Ixsetter, Ixsetter'
@@ -27,7 +27,18 @@ module Data.Profunctor.Optic.Setter (
   , Ixsetter1, Ixsetter1'
   , setter1
   , ixsetter1
-    -- ** Adjoint, Ixadjoint, Cxadjoint
+    -- * Right Adjoint Constructors
+    -- ** Cosetter, Cxsetter
+  , Cosetter, Cosetter'
+  , Cxsetter, Cxsetter'
+  , cosetter
+  , cxsetter
+  , cloneCosetter
+  , cloneCxsetter
+    -- ** Cosetter1, Cxsetter1
+  , Cosetter1, Cosetter1'
+  , Cxsetter1, Cxsetter1'
+    -- * Adjoint Constructors
   , Adjoint, Adjoint'
   , Ixadjoint, Ixadjoint'
   , Cxadjoint, Cxadjoint'
@@ -40,18 +51,7 @@ module Data.Profunctor.Optic.Setter (
   , adjointrVl
   , ixadjoining
   , cxadjoining
-    -- * Dual Constructors
-    -- ** Cosetter, Cxsetter
-  , Cosetter, Cosetter'
-  , Cxsetter, Cxsetter'
-  , cosetter
-  , cxsetter
-  , cloneCosetter
-  , cloneCxsetter
-    -- ** Cosetter1, Cxsetter1
-  , Cosetter1, Cosetter1'
-  , Cxsetter1, Cxsetter1'
-    -- * Optics
+    -- * Left Adjoint Optics
     -- ** Setter, Ixsetter
   , fmapped
   , contramapped
@@ -66,15 +66,15 @@ module Data.Profunctor.Optic.Setter (
   , modded
   , conditioned
     -- ** Setter1, Ixsetter1
-    -- ** Adjoint, Ixadjoint
-  , adjoined
-  , mappedException
-    -- * Dual Optics
+    -- * Right Adjoint Optics
     -- ** Cosetter, Cxsetter
     -- ** Cosetter1, Cxsetter1
   , coliftedA
   , zipListed
-    -- * Operators
+    -- * Adjoint Optics
+  , adjoined
+  , mappedException
+    -- * Left Adjoint Operators
     -- ** Setter, Ixsetter
   , set
   , ixset
@@ -83,12 +83,7 @@ module Data.Profunctor.Optic.Setter (
   , over
   , ixover
     -- ** Setter1, Ixsetter1
-    -- ** Adjoint
-  , lifts
-  , lowers
-  , alower
-  , aupper
-    -- * Dual Operators
+    -- * Right Adjoint Operators
     -- ** Cosetter, Cxsetter
   , coset
   , cxset
@@ -96,6 +91,11 @@ module Data.Profunctor.Optic.Setter (
   , cxsets
   , cxover
     -- ** Cosetter1, Cxsetter1
+    -- * Adjoint Operators
+  , lifts
+  , lowers
+  , alower
+  , aupper
     -- * MTL
   , assigns
   , ixassigns

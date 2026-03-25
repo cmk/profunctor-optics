@@ -20,8 +20,7 @@
 module Data.Map.Lazy.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics
-    -- ** Lens, Ixlens
+    -- * Left Adjoint Optics     -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
@@ -41,8 +40,7 @@ module Data.Map.Lazy.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics
-    -- ** Colens
+    -- * Right Adjoint Optics     -- ** Colens
   , zippedIfKey
     -- ** Cxlens
   , cxzippedIfKey
@@ -53,8 +51,7 @@ module Data.Map.Lazy.Optic (
   , cxzippedIf
     -- ** Cxfold
   , cxfolded
-    -- * Adjoint Optics
-  , mappedIf
+    -- * Adjoint Optics   , mappedIf
   , ixmappedIf
   , cxmappedIf
   , mappedKey
@@ -104,6 +101,9 @@ import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
 import qualified Data.Map.Merge.Lazy as Merge
 import Prelude
+
+---------------------------------------------------------------------
+-- Left Adjoint Optics ---------------------------------------------------------------------
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
 --
@@ -206,145 +206,8 @@ validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = fold0 $ \m -> if Map.valid m then Just m else Nothing
 {-# INLINE validated #-}
 
--- | /O(n)/. Adjoint that maps and filters values simultaneously.
---
--- @'sets' 'mappedIf' = 'Map.mapMaybe'@
---
-mappedIf :: Adjoint (Map.Map k a) (Map.Map k b) a (Maybe b)
-mappedIf = adjoint Map.mapMaybe
-{-# INLINE mappedIf #-}
-
--- | /O(n)/. Indexed adjoint that maps and filters values with key.
---
--- @'ixsets' 'ixmappedIf' = 'Map.mapMaybeWithKey'@
---
-ixmappedIf :: Ixadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
-ixmappedIf = ixadjoint Map.mapMaybeWithKey
-{-# INLINE ixmappedIf #-}
-
--- | /O(n log n)/. Adjoint over the keys of a 'Map.Map'.
---
--- @'sets' 'mappedKey' = 'Map.mapKeys'@
---
-mappedKey :: Ord k2 => Adjoint (Map.Map k1 a) (Map.Map k2 a) k1 k2
-mappedKey = adjoint Map.mapKeys
-{-# INLINE mappedKey #-}
-
--- | /O(n)/. Filter values.
---
--- @'sets' 'filtered' = 'Map.filter'@
---
-filtered :: Adjoint (Map.Map k a) (Map.Map k a) a Bool
-filtered = adjoint Map.filter
-{-# INLINE filtered #-}
-
--- | /O(n)/. Filter values with key.
---
--- @'ixsets' 'ixfiltered' = 'Map.filterWithKey'@
---
-ixfiltered :: Ixadjoint k (Map.Map k a) (Map.Map k a) a Bool
-ixfiltered = ixadjoint Map.filterWithKey
-{-# INLINE ixfiltered #-}
-
--- | /O(log n)/. Adjust a value at a specific key.
---
--- @'sets' ('adjusted' k) = 'Map.adjust' k@
---
-adjusted :: Ord k => k -> Adjoint' (Map.Map k a) a
-adjusted k = adjoint $ \f -> Map.adjust f k
-{-# INLINE adjusted #-}
-
--- | /O(log n)/. Adjust a value at a specific key, with key available.
---
--- @'ixsets' ('ixadjusted' k) = 'Map.adjustWithKey' k@
---
-ixadjusted :: Ord k => k -> Ixadjoint' k (Map.Map k a) a
-ixadjusted k = ixadjoint $ \f -> Map.adjustWithKey f k
-{-# INLINE ixadjusted #-}
-
--- | /O(n)/. Map over values.
---
--- @'ixsets' 'ixmapped' = 'Map.mapWithKey'@
---
-ixmapped :: Ixadjoint k (Map.Map k a) (Map.Map k b) a b
-ixmapped = ixadjoint Map.mapWithKey
-{-# INLINE ixmapped #-}
-
--- | /O(log n)/. Alter the value at a specific key (lazy).
---
--- @'sets' ('altered' k) = 'Map.alter' k@
---
-altered :: Ord k => k -> Adjoint' (Map.Map k a) (Maybe a)
-altered k = adjoint $ \f -> Map.alter f k
-{-# INLINE altered #-}
-
--- | /O(log n)/. Indexed alter, key available.
---
--- @'ixsets' ('ixaltered' k) f = 'Map.alter' (f k) k@
---
-ixaltered :: Ord k => k -> Ixadjoint' k (Map.Map k a) (Maybe a)
-ixaltered k = ixadjoint $ \f -> Map.alter (f k) k
-{-# INLINE ixaltered #-}
-
--- | /O(log n)/. Update a value at a specific key. 'Nothing' deletes.
---
--- @'sets' ('updated' k) = 'Map.update' k@
---
-updated :: Ord k => k -> Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
-updated k = adjoint $ \f -> Map.update f k
-{-# INLINE updated #-}
-
--- | /O(log n)/. Update a value at a specific key with key available.
---
--- @'ixsets' ('ixupdated' k) = 'Map.updateWithKey' k@
---
-ixupdated :: Ord k => k -> Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdated k = ixadjoint $ \f -> Map.updateWithKey f k
-{-# INLINE ixupdated #-}
-
--- | /O(log n)/. Lookup and update a value at a specific key.
---
--- @'ixsets' ('ixupdatedLookup' k) = 'Map.updateLookupWithKey' k@
---
-ixupdatedLookup :: Ord k => k -> Ixadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-ixupdatedLookup k = ixadjoint $ \f -> Map.updateLookupWithKey f k
-{-# INLINE ixupdatedLookup #-}
-
--- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
---
--- @'sets' 'updatedMin' = 'Map.updateMin'@
---
-updatedMin :: Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
-updatedMin = adjoint Map.updateMin
-{-# INLINE updatedMin #-}
-
--- | /O(log n)/. Update the value at the minimal key, with key available.
---
--- @'ixsets' 'ixupdatedMin' = 'Map.updateMinWithKey'@
---
-ixupdatedMin :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdatedMin = ixadjoint Map.updateMinWithKey
-{-# INLINE ixupdatedMin #-}
-
--- | /O(log n)/. Update the value at the maximal key. 'Nothing' deletes.
---
--- @'sets' 'updatedMax' = 'Map.updateMax'@
---
-updatedMax :: Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
-updatedMax = adjoint Map.updateMax
-{-# INLINE updatedMax #-}
-
--- | /O(log n)/. Update the value at the maximal key, with key available.
---
--- @'ixsets' 'ixupdatedMax' = 'Map.updateMaxWithKey'@
---
-ixupdatedMax :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdatedMax = ixadjoint Map.updateMaxWithKey
-{-# INLINE ixupdatedMax #-}
-
 ---------------------------------------------------------------------
--- Dual optics
----------------------------------------------------------------------
+-- Right Adjoint Optics ---------------------------------------------------------------------
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.
 --
@@ -385,6 +248,19 @@ zippedIf = cotraversalVl $ \fab fs ->
   in  Map.mapMaybe id $ Map.fromSet (\k -> fab (fmap (Map.lookup k) fs)) (Map.keysSet m0)
 {-# INLINE zippedIf #-}
 
+-- | /O(n)/. 'Cxtraversal' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixtraversed'. Threads the key as coindex.
+--
+-- @
+-- 'cxtraverseOf' cxtraversed ≡ 'Data.Map.traverseWithKey'
+-- @
+--
+cxtraversed :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxtraversed = cxtraversalVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
+{-# INLINE cxtraversed #-}
+
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
 -- Self-keyed via 'copure'.
 --
@@ -394,22 +270,68 @@ cxzippedIf = cxtraversalVl $ \fakb fs ->
   in  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) (Map.keysSet m0)
 {-# INLINE cxzippedIf #-}
 
----------------------------------------------------------------------
--- Coindexed optics
----------------------------------------------------------------------
+-- | /O(n)/. 'Cxfold' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixfolded'. Threads the key as coindex.
+--
+cxfolded :: Ord k => Cxfold k (Map.Map k a) a
+cxfolded = cxfoldVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
+{-# INLINE cxfolded #-}
 
--- | /O(n)/. 'Cxadjoint' over the values of a 'Map.Map'.
+---------------------------------------------------------------------
+-- Adjoint Optics ---------------------------------------------------------------------
+
+-- | /O(n)/. Adjoint that maps and filters values simultaneously.
 --
--- Cx dual of 'ixmapped'. Threads the key as coindex on the
--- Costar side, composable with 'Colens' chains.
+-- @'sets' 'mappedIf' = 'Map.mapMaybe'@
+--
+mappedIf :: Adjoint (Map.Map k a) (Map.Map k b) a (Maybe b)
+mappedIf = adjoint Map.mapMaybe
+{-# INLINE mappedIf #-}
+
+-- | /O(n)/. Indexed adjoint that maps and filters values with key.
+--
+-- @'ixsets' 'ixmappedIf' = 'Map.mapMaybeWithKey'@
+--
+ixmappedIf :: Ixadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
+ixmappedIf = ixadjoint Map.mapMaybeWithKey
+{-# INLINE ixmappedIf #-}
+
+-- | /O(n)/. 'Cxadjoint' that simultaneously maps and filters the
+-- values of a 'Map.Map'.
 --
 -- @
--- 'cxsets' cxmapped ≡ 'Data.Map.mapWithKey'
+-- 'cxsets' cxmappedIf ≡ 'Data.Map.mapMaybeWithKey'
 -- @
 --
-cxmapped :: Cxadjoint k (Map.Map k a) (Map.Map k b) a b
-cxmapped = cxadjoint Map.mapWithKey
-{-# INLINE cxmapped #-}
+cxmappedIf :: Cxadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
+cxmappedIf = cxadjoint Map.mapMaybeWithKey
+{-# INLINE cxmappedIf #-}
+
+-- | /O(n log n)/. Adjoint over the keys of a 'Map.Map'.
+--
+-- @'sets' 'mappedKey' = 'Map.mapKeys'@
+--
+mappedKey :: Ord k2 => Adjoint (Map.Map k1 a) (Map.Map k2 a) k1 k2
+mappedKey = adjoint Map.mapKeys
+{-# INLINE mappedKey #-}
+
+-- | /O(n)/. Filter values.
+--
+-- @'sets' 'filtered' = 'Map.filter'@
+--
+filtered :: Adjoint (Map.Map k a) (Map.Map k a) a Bool
+filtered = adjoint Map.filter
+{-# INLINE filtered #-}
+
+-- | /O(n)/. Filter values with key.
+--
+-- @'ixsets' 'ixfiltered' = 'Map.filterWithKey'@
+--
+ixfiltered :: Ixadjoint k (Map.Map k a) (Map.Map k a) a Bool
+ixfiltered = ixadjoint Map.filterWithKey
+{-# INLINE ixfiltered #-}
 
 -- | /O(n)/. 'Cxadjoint' filtering the values of a 'Map.Map'.
 --
@@ -424,68 +346,144 @@ cxfiltered :: Cxadjoint k (Map.Map k a) (Map.Map k a) a Bool
 cxfiltered = cxadjoint Map.filterWithKey
 {-# INLINE cxfiltered #-}
 
--- | /O(n)/. 'Cxadjoint' that simultaneously maps and filters the
--- values of a 'Map.Map'.
+-- | /O(log n)/. Adjust a value at a specific key.
 --
--- @
--- 'cxsets' cxmappedIf ≡ 'Data.Map.mapMaybeWithKey'
--- @
+-- @'sets' ('adjusted' k) = 'Map.adjust' k@
 --
-cxmappedIf :: Cxadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
-cxmappedIf = cxadjoint Map.mapMaybeWithKey
-{-# INLINE cxmappedIf #-}
+adjusted :: Ord k => k -> Adjoint' (Map.Map k a) a
+adjusted k = adjoint $ \f -> Map.adjust f k
+{-# INLINE adjusted #-}
+
+-- | /O(log n)/. Adjust a value at a specific key, with key available.
+--
+-- @'ixsets' ('ixadjusted' k) = 'Map.adjustWithKey' k@
+--
+ixadjusted :: Ord k => k -> Ixadjoint' k (Map.Map k a) a
+ixadjusted k = ixadjoint $ \f -> Map.adjustWithKey f k
+{-# INLINE ixadjusted #-}
 
 -- | Cxadjoint wrapping 'Map.adjustWithKey'. Costar dual of 'ixadjusted'.
 cxadjusted :: Ord k => k -> Cxadjoint' k (Map.Map k a) a
 cxadjusted k = cxadjoint $ \f -> Map.adjustWithKey f k
 {-# INLINE cxadjusted #-}
 
+-- | /O(n)/. Map over values.
+--
+-- @'ixsets' 'ixmapped' = 'Map.mapWithKey'@
+--
+ixmapped :: Ixadjoint k (Map.Map k a) (Map.Map k b) a b
+ixmapped = ixadjoint Map.mapWithKey
+{-# INLINE ixmapped #-}
+
+-- | /O(n)/. 'Cxadjoint' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixmapped'. Threads the key as coindex on the
+-- Costar side, composable with 'Colens' chains.
+--
+-- @
+-- 'cxsets' cxmapped ≡ 'Data.Map.mapWithKey'
+-- @
+--
+cxmapped :: Cxadjoint k (Map.Map k a) (Map.Map k b) a b
+cxmapped = cxadjoint Map.mapWithKey
+{-# INLINE cxmapped #-}
+
+-- | /O(log n)/. Alter the value at a specific key (lazy).
+--
+-- @'sets' ('altered' k) = 'Map.alter' k@
+--
+altered :: Ord k => k -> Adjoint' (Map.Map k a) (Maybe a)
+altered k = adjoint $ \f -> Map.alter f k
+{-# INLINE altered #-}
+
+-- | /O(log n)/. Indexed alter, key available.
+--
+-- @'ixsets' ('ixaltered' k) f = 'Map.alter' (f k) k@
+--
+ixaltered :: Ord k => k -> Ixadjoint' k (Map.Map k a) (Maybe a)
+ixaltered k = ixadjoint $ \f -> Map.alter (f k) k
+{-# INLINE ixaltered #-}
+
 -- | Cxadjoint wrapping 'Map.alter'. Costar dual of 'ixaltered'.
 cxaltered :: Ord k => k -> Cxadjoint' k (Map.Map k a) (Maybe a)
 cxaltered k = cxadjoint $ \f -> Map.alter (f k) k
 {-# INLINE cxaltered #-}
+
+-- | /O(log n)/. Update a value at a specific key. 'Nothing' deletes.
+--
+-- @'sets' ('updated' k) = 'Map.update' k@
+--
+updated :: Ord k => k -> Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
+updated k = adjoint $ \f -> Map.update f k
+{-# INLINE updated #-}
+
+-- | /O(log n)/. Update a value at a specific key with key available.
+--
+-- @'ixsets' ('ixupdated' k) = 'Map.updateWithKey' k@
+--
+ixupdated :: Ord k => k -> Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdated k = ixadjoint $ \f -> Map.updateWithKey f k
+{-# INLINE ixupdated #-}
 
 -- | Cxadjoint wrapping 'Map.updateWithKey'. Costar dual of 'ixupdated'.
 cxupdated :: Ord k => k -> Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
 cxupdated k = cxadjoint $ \f -> Map.updateWithKey f k
 {-# INLINE cxupdated #-}
 
+-- | /O(log n)/. Lookup and update a value at a specific key.
+--
+-- @'ixsets' ('ixupdatedLookup' k) = 'Map.updateLookupWithKey' k@
+--
+ixupdatedLookup :: Ord k => k -> Ixadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+ixupdatedLookup k = ixadjoint $ \f -> Map.updateLookupWithKey f k
+{-# INLINE ixupdatedLookup #-}
+
 -- | Cxadjoint wrapping 'Map.updateLookupWithKey'. Costar dual of 'ixupdatedLookup'.
 cxupdatedLookup :: Ord k => k -> Cxadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
 cxupdatedLookup k = cxadjoint $ \f -> Map.updateLookupWithKey f k
 {-# INLINE cxupdatedLookup #-}
+
+-- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
+--
+-- @'sets' 'updatedMin' = 'Map.updateMin'@
+--
+updatedMin :: Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMin = adjoint Map.updateMin
+{-# INLINE updatedMin #-}
+
+-- | /O(log n)/. Update the value at the minimal key, with key available.
+--
+-- @'ixsets' 'ixupdatedMin' = 'Map.updateMinWithKey'@
+--
+ixupdatedMin :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMin = ixadjoint Map.updateMinWithKey
+{-# INLINE ixupdatedMin #-}
 
 -- | Cxadjoint wrapping 'Map.updateMinWithKey'. Costar dual of 'ixupdatedMin'.
 cxupdatedMin :: Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
 cxupdatedMin = cxadjoint Map.updateMinWithKey
 {-# INLINE cxupdatedMin #-}
 
+-- | /O(log n)/. Update the value at the maximal key. 'Nothing' deletes.
+--
+-- @'sets' 'updatedMax' = 'Map.updateMax'@
+--
+updatedMax :: Adjoint (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMax = adjoint Map.updateMax
+{-# INLINE updatedMax #-}
+
+-- | /O(log n)/. Update the value at the maximal key, with key available.
+--
+-- @'ixsets' 'ixupdatedMax' = 'Map.updateMaxWithKey'@
+--
+ixupdatedMax :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMax = ixadjoint Map.updateMaxWithKey
+{-# INLINE ixupdatedMax #-}
+
 -- | Cxadjoint wrapping 'Map.updateMaxWithKey'. Costar dual of 'ixupdatedMax'.
 cxupdatedMax :: Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
 cxupdatedMax = cxadjoint Map.updateMaxWithKey
 {-# INLINE cxupdatedMax #-}
-
--- | /O(n)/. 'Cxtraversal' over the values of a 'Map.Map'.
---
--- Cx dual of 'ixtraversed'. Threads the key as coindex.
---
--- @
--- 'cxtraverseOf' cxtraversed ≡ 'Data.Map.traverseWithKey'
--- @
---
-cxtraversed :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
-cxtraversed = cxtraversalVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
-{-# INLINE cxtraversed #-}
-
--- | /O(n)/. 'Cxfold' over the values of a 'Map.Map'.
---
--- Cx dual of 'ixfolded'. Threads the key as coindex.
---
-cxfolded :: Ord k => Cxfold k (Map.Map k a) a
-cxfolded = cxfoldVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
-{-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
 -- Operators
