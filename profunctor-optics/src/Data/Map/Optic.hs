@@ -51,7 +51,7 @@ module Data.Map.Optic (
   , ixaltered'
   , updated
   , ixupdated
-  , ixupdateLooked
+  , ixupdatedLookup
   , updatedMin
   , ixupdatedMin
   , updatedMax
@@ -309,11 +309,11 @@ ixupdated k = ixsetter $ \f -> Map.updateWithKey f k
 
 -- | /O(log n)/. Lookup and update a value at a specific key.
 --
--- @'ixsets' ('ixupdateLooked' k) = 'Map.updateLookupWithKey' k@
+-- @'ixsets' ('ixupdatedLookup' k) = 'Map.updateLookupWithKey' k@
 --
-ixupdateLooked :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-ixupdateLooked k = ixsetter $ \f -> Map.updateLookupWithKey f k
-{-# INLINE ixupdateLooked #-}
+ixupdatedLookup :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+ixupdatedLookup k = ixsetter $ \f -> Map.updateLookupWithKey f k
+{-# INLINE ixupdatedLookup #-}
 
 -- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
 --
