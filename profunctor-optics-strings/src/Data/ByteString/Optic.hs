@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | Profunctor optics for 'ByteString'.
 --
@@ -12,22 +13,30 @@
 -- review short (view short myBS) == myBS
 -- @
 module Data.ByteString.Optic (
-    -- * Short iso
+    -- * Optics
+    -- ** Iso
     short,
-
-    -- * Lazy\/strict iso
     lazy,
-
-    -- * Packing
     packed,
-
-    -- * Splitting
     lined,
     worded,
     splitOn,
 
-    -- * Element traversal
+    -- ** Traversal
     bytes,
+
+    -- ** Fold
+    folded,
+
+    -- ** Setter
+    mapped,
+
+    -- * Dual Optics
+    -- ** Cotraversal
+    zippedBS,
+
+    -- ** Cosetter
+    comapped,
 ) where
 
 import Data.ByteString (ByteString)
@@ -36,7 +45,7 @@ import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
 import Data.ByteString.Short (ShortByteString)
 import qualified Data.ByteString.Short as SBS
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (folded)
 import Data.Word (Word8)
 
 -- | Iso between strict 'ByteString' and 'ShortByteString'.
@@ -96,3 +105,46 @@ splitOn delim = iso (split delim) (BS.intercalate delim)
 -- "bcd"
 bytes :: Traversal' ByteString Word8
 bytes = re packed . traversed
+
+-- | Fold over individual bytes.
+--
+folded :: Fold ByteString Word8
+folded = fold_ BS.unpack
+{-# INLINE folded #-}
+
+-- | Setter over individual bytes.
+--
+-- @over mapped f = BS.map f@
+mapped :: Setter' ByteString Word8
+mapped = setter BS.map
+{-# INLINE mapped #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Pointwise 'Cotraversal' over bytes of two 'ByteString' values.
+--
+-- @'BS.packZipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString@
+--
+-- Truncates to the shorter bytestring, like 'ZipList'.
+--
+zippedBS :: Cotraversal ByteString ByteString Word8 Word8
+zippedBS = cotraversalVl $ \fab fs ->
+  let t = copure fs
+      n = BS.length t
+  in  BS.pack [ fab (fmap (\t' -> BS.index t' i) fs) | i <- [0..n-1] ]
+{-# INLINE zippedBS #-}
+
+-- | Strict setter over bytes.
+--
+-- @cosets comapped f = BS.map f@
+--
+-- Cosetter dual of 'mapped'. Since 'ByteString' is monomorphic in its
+-- element type, 'mapped' and 'comapped' have the same operational
+-- behaviour — the distinction is in profunctor constraints
+-- (Star-side vs Costar-side).
+--
+comapped :: Cosetter ByteString ByteString Word8 Word8
+comapped = cosetter BS.map
+{-# INLINE comapped #-}
