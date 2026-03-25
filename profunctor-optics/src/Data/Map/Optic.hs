@@ -72,9 +72,9 @@ module Data.Map.Optic (
     -- ** Sort-based
   , toMapOf
   , countsOf
-  , foldSorts
-  , foldSorts1
-  , mconcatSorts
+  , sortFoldOf
+  , sortFold1Of
+  , sortFoldMapOf
     -- ** Merge (Sort + containers merge)
   , merges
   , mergesInner
@@ -86,7 +86,7 @@ module Data.Map.Optic (
   , sortsWhenMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -440,16 +440,16 @@ countsOf _ [] = MapS.empty
 countsOf o xs = MapS.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 
 -- | Sort through a lens, then right-fold each group.
-foldSorts :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
-foldSorts o g z xs = map (foldr g z) (MapS.elems $ toMapOf o xs)
+sortFoldOf :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
+sortFoldOf o g z xs = map (foldr g z) (MapS.elems $ toMapOf o xs)
 
 -- | Sort through a lens, then reduce each non-empty group.
-foldSorts1 :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
-foldSorts1 o f xs = map (foldr1 f) (MapS.elems $ toMapOf o xs)
+sortFold1Of :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
+sortFold1Of o f xs = map (foldr1 f) (MapS.elems $ toMapOf o xs)
 
 -- | Sort through a lens, then monoidal concat per group.
-mconcatSorts :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
-mconcatSorts o g xs = map (foldMap g) (MapS.elems $ toMapOf o xs)
+sortFoldMapOf :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
+sortFoldMapOf o g xs = map (foldMap g) (MapS.elems $ toMapOf o xs)
 
 ---------------------------------------------------------------------
 -- Merge (Sort + containers merge)

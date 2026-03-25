@@ -60,9 +60,9 @@ module Data.IntMap.Optic (
   , toIntMapOf
   , countsOf
     -- ** Sort-based
-  , foldSorts
-  , foldSorts1
-  , mconcatSorts
+  , sortFoldOf
+  , sortFold1Of
+  , sortFoldMapOf
     -- ** Merge (Sort + containers merge)
   , merges
   , mergesInner
@@ -74,7 +74,7 @@ module Data.IntMap.Optic (
   , sortsWhenMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -338,16 +338,16 @@ countsOf o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
 ---------------------------------------------------------------------
 
 -- | Sort through an Int lens, then right-fold each group.
-foldSorts :: Lens' s Int -> (s -> r -> r) -> r -> [s] -> [r]
-foldSorts o g z xs = map (foldr g z) (IM.elems $ toIntMapOf o xs)
+sortFoldOf :: Lens' s Int -> (s -> r -> r) -> r -> [s] -> [r]
+sortFoldOf o g z xs = map (foldr g z) (IM.elems $ toIntMapOf o xs)
 
 -- | Sort through an Int lens, then reduce each non-empty group.
-foldSorts1 :: Lens' s Int -> (s -> s -> s) -> [s] -> [s]
-foldSorts1 o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
+sortFold1Of :: Lens' s Int -> (s -> s -> s) -> [s] -> [s]
+sortFold1Of o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
 
 -- | Sort through an Int lens, then monoidal concat per group.
-mconcatSorts :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
-mconcatSorts o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)
+sortFoldMapOf :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
+sortFoldMapOf o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)
 
 ---------------------------------------------------------------------
 -- Merge (Sort + containers merge)

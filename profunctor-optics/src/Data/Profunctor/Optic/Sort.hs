@@ -43,9 +43,9 @@ module Data.Profunctor.Optic.Sort (
   , countsOf
 
     -- * Post-sort foldMapOf (List)
-  , foldSorts
-  , foldSorts1
-  , mconcatSorts
+  , sortFoldOf
+  , sortFold1Of
+  , sortFoldMapOf
 
     -- * Sort as String sort
   , sortingString
@@ -344,16 +344,16 @@ countsOf o xs = Map.fromListWith (+) [(viewOf o s, 1 :: Int) | s <- xs]
 ---------------------------------------------------------------------
 
 -- | Sort through a lens, then right-fold each group.
-foldSorts :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
-foldSorts o g z xs = map (foldr g z) (sorts o xs)
+sortFoldOf :: Ord a => Lens' s a -> (s -> r -> r) -> r -> [s] -> [r]
+sortFoldOf o g z xs = map (foldr g z) (sorts o xs)
 
 -- | Sort through a lens, then reduce each non-empty group.
-foldSorts1 :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
-foldSorts1 o f xs = map (foldr1 f) (sorts o xs)
+sortFold1Of :: Ord a => Lens' s a -> (s -> s -> s) -> [s] -> [s]
+sortFold1Of o f xs = map (foldr1 f) (sorts o xs)
 
 -- | Sort through a lens, then monoidal concat per group.
-mconcatSorts :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
-mconcatSorts o g xs = map (foldMap g) (sorts o xs)
+sortFoldMapOf :: (Ord a, Monoid m) => Lens' s a -> (s -> m) -> [s] -> [m]
+sortFoldMapOf o g xs = map (foldMap g) (sorts o xs)
 
 ---------------------------------------------------------------------
 -- String sort
