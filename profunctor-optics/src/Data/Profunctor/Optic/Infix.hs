@@ -169,7 +169,7 @@ infix  4  .=, ..=
 --
 -- @s '^%' o ≡ 'V.ixview' o s@
 --
-(^%) :: Monoid k => s -> AIxview k s a -> (Maybe k, a)
+(^%) :: Monoid k => s -> AIxview k s a -> (k, a)
 (^%) = flip V.ixview
 {-# INLINE (^%) #-}
 

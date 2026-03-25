@@ -144,7 +144,7 @@ cloneView o = to (view o)
 -- | Clone an indexed 'View'.
 --
 -- @since 0.0.3
-cloneIxview :: Monoid k => AIxview k s a -> View s (Maybe k, a)
+cloneIxview :: Monoid k => AIxview k s a -> View s (k, a)
 cloneIxview o = to (ixview o)
 {-# INLINE cloneIxview #-}
 
@@ -269,9 +269,9 @@ tupling l r = to (fanout (view l) (view r))
 -- @since 0.0.3
 ixtupling :: Monoid k => AIxview k s a1 -> AIxview k s a2 -> Ixview k s (a1 , a2)
 ixtupling l r = ixto $ \s ->
-  let (mk1, a1) = ixview l s
-      (mk2, a2) = ixview r s
-  in  (maybe mempty id mk1 <> maybe mempty id mk2, (a1, a2))
+  let (k1, a1) = ixview l s
+      (k2, a2) = ixview r s
+  in  (k1 <> k2, (a1, a2))
 {-# INLINE ixtupling #-}
 
 ---------------------------------------------------------------------
@@ -315,12 +315,12 @@ view = flip views id
 
 -- | View the focus of an indexed optic along with its index.
 --
--- >>> ixview ixfirst ("foo", 42) :: (Maybe (Sum Int), String)
--- (Just (Sum {getSum = 0}),"foo")
+-- >>> ixview ixfirst ("foo", 42) :: (Sum Int, String)
+-- (Sum {getSum = 0},"foo")
 --
 -- @since 0.0.3
-ixview :: MonadReader s m => Monoid k => AIxview k s a -> m (Maybe k , a)
-ixview o = ixviews o $ \k a -> (Just k, a)
+ixview :: MonadReader s m => Monoid k => AIxview k s a -> m (k, a)
+ixview o = ixviews o (,)
 {-# INLINE ixview #-}
 
 -- | Map each part of a structure viewed to a semantic editor combinator.
@@ -339,7 +339,7 @@ views o f = asks $ foldMapOf o f
 
 -- | Bring a function of the index and value of an indexed optic into the current environment.
 --
--- Use 'ixview' if there is a need to disambiguate between 'mempty' as a miss vs. as a return value.
+-- See also 'ixview' which returns @(k, a)@ directly.
 --
 -- @since 0.0.3
 ixviews :: MonadReader s m => Monoid k => Ixoptic' (Star (Const r)) k s a -> (k -> a -> r) -> m r
@@ -441,7 +441,7 @@ use o = gets (view o)
 -- | Indexed 'use': view the focus of an indexed optic in the current state.
 --
 -- @since 0.0.3
-ixuse :: MonadState s m => Monoid k => AIxview k s a -> m (Maybe k, a)
+ixuse :: MonadState s m => Monoid k => AIxview k s a -> m (k, a)
 ixuse o = gets (ixview o)
 {-# INLINE ixuse #-}
 

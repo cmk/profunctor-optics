@@ -428,7 +428,7 @@ type ACoview t b = Optic' Tagged t b
 -- operator accepts both.
 type AReview t b = Optic' Tagged t b
 
-type AIxview k s a = AIxfold (Maybe k, a) k s a
+type AIxview k s a = AIxfold (k, a) k s a
 
 -- | A monomorphized 'Cxview'. The coindex @k@ threads via @k -> b@ on
 -- the right of 'Tagged', producing @b -> (k -> t)@ through 'cxview'.
