@@ -11,108 +11,71 @@
 {-# LANGUAGE GADTs                 #-}
 {-# LANGUAGE UndecidableInstances  #-}
 module Data.Profunctor.Optic.Carrier (
-    -- * Carriers
-    -- ** Iso
+    -- * Iso Carriers
     AIso, AIso'
-    -- ** Lens
-  , ALens
-  , ALens'
-  , AIxlens
-  , AIxlens'
-    -- ** Prism
-  , APrism
-  , APrism'
-  , AIxprism
-  , AIxprism'
+    -- * Left Adjoint Carriers (Star side)
+    -- ** Lens, Ixlens
+  , ALens, ALens'
+  , AIxlens, AIxlens'
+    -- ** Prism, Ixprism
+  , APrism, APrism'
+  , AIxprism, AIxprism'
     -- ** Traversal, Ixtraversal
-  , ATraversal
-  , ATraversal'
-  , AIxtraversal
-  , AIxtraversal'
+  , ATraversal, ATraversal'
+  , AIxtraversal, AIxtraversal'
     -- ** Traversal0, Ixtraversal0
-  , ATraversal0
-  , ATraversal0'
-  , AIxtraversal0
-  , AIxtraversal0'
+  , ATraversal0, ATraversal0'
+  , AIxtraversal0, AIxtraversal0'
     -- ** Traversal1, Ixtraversal1
-  , ATraversal1
-  , ATraversal1'
-  , AIxtraversal1
-  , AIxtraversal1'
+  , ATraversal1, ATraversal1'
+  , AIxtraversal1, AIxtraversal1'
     -- ** Fold, Ixfold
-  , AFold
-  , AIxfold
+  , AFold, AIxfold
     -- ** Fold0, Ixfold0
-  , AFold0
-  , AIxfold0
+  , AFold0, AIxfold0
     -- ** Fold1, Ixfold1
-  , AFold1
-  , AIxfold1
-    -- * Dual Carriers
-    -- ** Colens, Cxlens
-  , AColens
-  , AColens'
-  , ARelens
-  , ARelens'
-  , ACxlens
-  , ACxlens'
-    -- ** Reprism, Rxprism
-  , AReprism
-  , AReprism'
-  , ARxprism
-  , ARxprism'
-    -- ** Cotraversal, Cxtraversal
-  , ACotraversal
-  , ACotraversal'
-  , ACxtraversal
-  , ACxtraversal'
-    -- ** Cotraversal0
-  , ACotraversal0
-  , ACotraversal0'
-    -- ** Cotraversal1, Cxtraversal1
-  , ACotraversal1
-  , ACotraversal1'
-  , ACxtraversal1
-  , ACxtraversal1'
-    -- ** Cofold, Cxfold
-  , ACofold
-  , ACxfold
-    -- ** Cofold1, Cxfold1
-  , ACofold1
-  , ACxfold1
+  , AFold1, AIxfold1
+    -- ** View, Ixview
+  , AView, AIxview
     -- ** Setter, Ixsetter
-  , ASetter
-  , ASetter'
-  , AIxsetter
-  , AIxsetter'
+  , ASetter, ASetter'
+  , AIxsetter, AIxsetter'
     -- ** Setter1, Ixsetter1
-  , ASetter1
-  , ASetter1'
-  , AIxsetter1
-  , AIxsetter1'
+  , ASetter1, ASetter1'
+  , AIxsetter1, AIxsetter1'
+    -- * Right Adjoint Carriers (Costar side)
+    -- ** Colens, Cxlens
+  , AColens, AColens'
+  , ACxlens, ACxlens'
+    -- ** Relens
+  , ARelens, ARelens'
+    -- ** Reprism, Rxprism
+  , AReprism, AReprism'
+  , ARxprism, ARxprism'
+    -- ** Cotraversal, Cxtraversal
+  , ACotraversal, ACotraversal'
+  , ACxtraversal, ACxtraversal'
+    -- ** Cotraversal0
+  , ACotraversal0, ACotraversal0'
+    -- ** Cotraversal1, Cxtraversal1
+  , ACotraversal1, ACotraversal1'
+  , ACxtraversal1, ACxtraversal1'
+    -- ** Cofold, Cxfold
+  , ACofold, ACxfold
+    -- ** Cofold1, Cxfold1
+  , ACofold1, ACxfold1
+    -- ** Coview, Cxview, Review
+  , ACoview, ACxview, AReview
     -- ** Cosetter, Cxsetter
-  , ACosetter
-  , ACosetter'
-  , ACxsetter
-  , ACxsetter'
+  , ACosetter, ACosetter'
+  , ACxsetter, ACxsetter'
     -- ** Cosetter1, Cxsetter1
-  , ACosetter1
-  , ACosetter1'
-  , ACxsetter1
-  , ACxsetter1'
-    -- ** Adjoint, Ixadjoint, Cxadjoint
-  , AAdjoint
-  , AAdjoint'
-  , AIxadjoint
-  , AIxadjoint'
-  , ACxadjoint
-  , ACxadjoint'
-    -- ** View
-  , AView
-  , ACoview
-  , AReview
-  , AIxview
-  , ACxview
+  , ACosetter1, ACosetter1'
+  , ACxsetter1, ACxsetter1'
+    -- * Adjoint Carriers (both sides)
+  , AAdjoint, AAdjoint'
+  , AIxadjoint, AIxadjoint'
+  , ACxadjoint, ACxadjoint'
     -- * Carrier operators
     -- ** Main
   , withStar

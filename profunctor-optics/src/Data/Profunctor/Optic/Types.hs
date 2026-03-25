@@ -7,16 +7,14 @@
 
 module Data.Profunctor.Optic.Types (
     Optic, Optic'
-    -- * Optics
-    -- ** Equality
+  , Ix, Ix', Ixoptic, Ixoptic'
+  , Cx, Cx', Cxoptic, Cxoptic'
+    -- * Iso
     -- $equality
   , Equality, Equality'
-    -- ** Iso
     -- $iso
   , Iso, Iso'
-    -- ** Ixoptic
-  , Ix, Ix'
-  , Ixoptic, Ixoptic'
+    -- * Left Adjoint Optics (Star side)
     -- ** Lens, Ixlens
     -- $lens
   , Lens, Lens'
@@ -57,19 +55,7 @@ module Data.Profunctor.Optic.Types (
     -- $setter1
   , Setter1, Setter1'
   , Ixsetter1, Ixsetter1'
-    -- ** Adjoint, Ixadjoint, Cxadjoint
-    -- $adjoint
-  , Adjoint, Adjoint'
-  , Ixadjoint, Ixadjoint'
-  , Cxadjoint, Cxadjoint'
-    -- ** Adjoint1, Ixadjoint1, Cxadjoint1
-  , Adjoint1, Adjoint1'
-  , Ixadjoint1, Ixadjoint1'
-  , Cxadjoint1, Cxadjoint1'
-    -- * Dual Optics
-    -- ** Cxoptic
-  , Cx, Cx'
-  , Cxoptic, Cxoptic'
+    -- * Right Adjoint Optics (Costar side)
     -- ** Colens, Cxlens
     -- $colens
   , Colens, Colens'
@@ -116,6 +102,14 @@ module Data.Profunctor.Optic.Types (
     -- $cosetter1
   , Cosetter1, Cosetter1'
   , Cxsetter1, Cxsetter1'
+    -- * Adjoint Optics (both sides)
+    -- $adjoint
+  , Adjoint, Adjoint'
+  , Ixadjoint, Ixadjoint'
+  , Cxadjoint, Cxadjoint'
+  , Adjoint1, Adjoint1'
+  , Ixadjoint1, Ixadjoint1'
+  , Cxadjoint1, Cxadjoint1'
     -- * Constraints
   , Affine, Coaffine
   , Traversing, Cotraversing
