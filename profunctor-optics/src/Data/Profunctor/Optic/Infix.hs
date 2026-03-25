@@ -204,7 +204,7 @@ infix  4  .=, ..=
 --
 -- @o '.~' b ≡ 'S.set' o b@
 --
-(.~) :: Optic (->) s t a b -> b -> s -> t
+(.~) :: AAdjoint s t a b -> b -> s -> t
 (.~) o b = o (const b)
 {-# INLINE (.~) #-}
 
@@ -212,7 +212,7 @@ infix  4  .=, ..=
 --
 -- @o '..~' f ≡ 'C.over' o f@
 --
-(..~) :: Optic (->) s t a b -> (a -> b) -> s -> t
+(..~) :: AAdjoint s t a b -> (a -> b) -> s -> t
 (..~) = id
 {-# INLINE (..~) #-}
 
@@ -224,7 +224,7 @@ infix  4  .=, ..=
 --
 -- @o '%~' f ≡ 'S.ixset' o f@
 --
-(%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> b) -> s -> t
+(%~) :: Monoid i => AIxadjoint i s t a b -> (i -> b) -> s -> t
 (%~) o = C.ixover o . (const .)
 {-# INLINE (%~) #-}
 
@@ -232,7 +232,7 @@ infix  4  .=, ..=
 --
 -- @o '%%~' f ≡ 'C.ixover' o f@
 --
-(%%~) :: Monoid i => Ixoptic (->) i s t a b -> (i -> a -> b) -> s -> t
+(%%~) :: Monoid i => AIxadjoint i s t a b -> (i -> a -> b) -> s -> t
 (%%~) = C.ixover
 {-# INLINE (%%~) #-}
 
@@ -244,7 +244,7 @@ infix  4  .=, ..=
 --
 -- @o '*~' b ≡ \\s -> 'Data.Profunctor.Types.runStar' (o ('Data.Profunctor.Types.Star' (const b))) s@
 --
-(*~) :: Optic (Star f) s t a b -> f b -> s -> f t
+(*~) :: ATraversal f s t a b -> f b -> s -> f t
 (*~) o b = o **~ const b
 {-# INLINE (*~) #-}
 
@@ -252,7 +252,7 @@ infix  4  .=, ..=
 --
 -- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverseOf' o f@
 --
-(**~) :: Optic (Star f) s t a b -> (a -> f b) -> s -> f t
+(**~) :: ATraversal f s t a b -> (a -> f b) -> s -> f t
 (**~) o = runStar #. o .# Star
 {-# INLINE (**~) #-}
 
@@ -308,7 +308,7 @@ infix  4  .=, ..=
 --
 -- @o '#~' f ≡ 'S.cxset' o f@
 --
-(#~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> b) -> s -> t
+(#~) :: Monoid i => ACxadjoint i s t a b -> (i -> b) -> s -> t
 (#~) o = C.cxover o . (const .)
 {-# INLINE (#~) #-}
 
@@ -316,7 +316,7 @@ infix  4  .=, ..=
 --
 -- @o '##~' f ≡ 'C.cxover' o f@
 --
-(##~) :: Monoid i => Cxoptic (->) i s t a b -> (i -> a -> b) -> s -> t
+(##~) :: Monoid i => ACxadjoint i s t a b -> (i -> a -> b) -> s -> t
 (##~) = C.cxover
 {-# INLINE (##~) #-}
 
@@ -328,7 +328,7 @@ infix  4  .=, ..=
 --
 -- @o '\/~' b ≡ (o '\/\/~' const b)@
 --
-(/~) :: Optic (Costar f) s t a b -> b -> f s -> t
+(/~) :: ACotraversal f s t a b -> b -> f s -> t
 (/~) o b = o //~ const b
 {-# INLINE (/~) #-}
 
@@ -336,7 +336,7 @@ infix  4  .=, ..=
 --
 -- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverseOf' o f@
 --
-(//~) :: Optic (Costar f) s t a b -> (f a -> b) -> f s -> t
+(//~) :: ACotraversal f s t a b -> (f a -> b) -> f s -> t
 (//~) o = runCostar #. o .# Costar
 {-# INLINE (//~) #-}
 
@@ -348,7 +348,7 @@ infix  4  .=, ..=
 --
 -- @o '.=' b ≡ 'S.assigns' o b@
 --
-(.=) :: MonadState s m => Optic (->) s s a b -> b -> m ()
+(.=) :: MonadState s m => AAdjoint s s a b -> b -> m ()
 (.=) = S.assigns
 {-# INLINE (.=) #-}
 
@@ -356,6 +356,6 @@ infix  4  .=, ..=
 --
 -- @o '..=' f ≡ 'S.modifies' o f@
 --
-(..=) :: MonadState s m => Optic (->) s s a b -> (a -> b) -> m ()
+(..=) :: MonadState s m => AAdjoint s s a b -> (a -> b) -> m ()
 (..=) = S.modifies
 {-# INLINE (..=) #-}

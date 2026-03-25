@@ -100,6 +100,13 @@ module Data.Profunctor.Optic.Carrier (
   , ACosetter1'
   , ACxsetter1
   , ACxsetter1'
+    -- ** Adjoint, Ixadjoint, Cxadjoint
+  , AAdjoint
+  , AAdjoint'
+  , AIxadjoint
+  , AIxadjoint'
+  , ACxadjoint
+  , ACxadjoint'
     -- ** View
   , AView
   , ACoview
@@ -356,6 +363,53 @@ type ACosetter1' s a = ACosetter1 s s a a
 type ACxsetter1 k s t a b = ACxtraversal1 Identity k s t a b
 
 type ACxsetter1' k t b = ACxsetter1 k t t b b
+
+---------------------------------------------------------------------
+-- Adjoint carriers
+---------------------------------------------------------------------
+
+-- | Monomorphized 'Adjoint' carrier.
+--
+-- @AAdjoint s t a b = Optic (->) s t a b = (a -> b) -> s -> t@
+--
+-- The @(->)@ profunctor sits at the trivial adjunction
+-- @'Identity' ⊣ 'Identity'@, making it the canonical 'Adjoining'
+-- profunctor for simple types. It is simultaneously
+-- 'Representable' ('Rep' = 'Identity') and 'Corepresentable'
+-- ('Corep' = 'Identity'), so an 'AAdjoint' can be consumed by
+-- both Star-side operators ('sets', 'traverseOf') and Costar-side
+-- operators ('cosets', 'cotraverseOf').
+--
+-- This is the meet of the optic constraint diamond:
+--
+-- @
+--           Iso
+--          / | \\
+--     Lens Prism Colens
+--      |    |     |
+--    Setter ... Cosetter
+--       \\       /
+--        Adjoint
+-- @
+--
+-- Any 'Adjoint' is simultaneously a 'Setter' and a 'Cosetter'.
+-- At the carrier level, 'ASetter' = @Optic (Star Identity)@ and
+-- 'ACosetter' = @Optic (Costar Identity)@ are both isomorphic to
+-- @(a -> b) -> s -> t@, but GHC treats them as distinct types.
+-- 'AAdjoint' = @Optic (->)@ unifies them: @(->)@ satisfies all
+-- three constraint sets.
+--
+type AAdjoint s t a b = Optic (->) s t a b
+
+type AAdjoint' s a = AAdjoint s s a a
+
+type AIxadjoint k s t a b = Ixoptic (->) k s t a b
+
+type AIxadjoint' k s a = AIxadjoint k s s a a
+
+type ACxadjoint k s t a b = Cxoptic (->) k s t a b
+
+type ACxadjoint' k t b = ACxadjoint k t t b b
 
 ---------------------------------------------------------------------
 -- View carriers
