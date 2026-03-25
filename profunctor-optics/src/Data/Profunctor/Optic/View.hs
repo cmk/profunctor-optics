@@ -18,7 +18,10 @@ module Data.Profunctor.Optic.View (
   , cxfrom
   , unlike
   , cloneCoview
-    -- ** Review, Rxview
+    -- ** Review
+  , Review
+  , reinto
+  , cloneReview
     -- * Optics
   , tupling
   , ixtupling
@@ -218,6 +221,30 @@ cloneCoview o = from (review o)
 {-# INLINE cloneCoview #-}
 
 -- TODO: cloneCxview — needs investigation into Cxoptic' Tagged path
+
+-- | Obtain a 'Review' from a function.
+--
+-- @
+-- 'reinto' f ≡ 're' ('to' f)
+-- @
+--
+-- 'reinto' is the 'Re'-dual of 'to': where 'to' builds a 'View'
+-- from a getter @s -> a@, 'reinto' builds a 'Review' from a
+-- constructor @b -> t@. Both 'reinto' and 'from' accept the same
+-- argument, but return different types: 'from' returns 'Coview'
+-- ('Closed' + 'CoercingL') while 'reinto' returns 'Review'
+-- ('Costrong' + 'CoercingL'). At the carrier level ('Tagged')
+-- they are interchangeable.
+--
+reinto :: (b -> t) -> Review t b
+reinto f = coercedL . rmap f
+{-# INLINE reinto #-}
+
+-- | Clone a 'Review'.
+--
+cloneReview :: AReview t b -> Review t b
+cloneReview o = reinto (review o)
+{-# INLINE cloneReview #-}
 
 ---------------------------------------------------------------------
 -- * Optics

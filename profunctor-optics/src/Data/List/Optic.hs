@@ -23,6 +23,8 @@ module Data.List.Optic (
     -- * Dual Optics
     -- ** Colens
   , zipsListWith
+    -- ** Cosetter
+  , zipListed
     -- ** Cxsetter
   , cxmapped
     -- * Operators
