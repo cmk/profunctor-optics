@@ -307,7 +307,7 @@ cxmapMaybed = cxsetter IM.mapMaybeWithKey
 --
 cxtraversed :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
 cxtraversed = cxtraversalVl $ \fakb fs ->
-  IM.mapWithKey (\k a -> fakb (fmap (IM.! k) fs) k) (copure fs)
+  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the values of an 'IM.IntMap'.
@@ -316,7 +316,7 @@ cxtraversed = cxtraversalVl $ \fakb fs ->
 --
 cxfolded :: Cxfold Int (IM.IntMap a) a
 cxfolded = cxfoldVl $ \fakb fs ->
-  IM.mapWithKey (\k a -> fakb (fmap (IM.! k) fs) k) (copure fs)
+  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

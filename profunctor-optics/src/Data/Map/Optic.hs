@@ -79,7 +79,6 @@ module Data.Map.Optic (
 ) where
 
 import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
-import Data.Profunctor.Optic.Sort (Sort(..))
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -325,7 +324,7 @@ cxmapMaybed = cxsetter Map.mapMaybeWithKey
 --
 cxtraversed :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
 cxtraversed = cxtraversalVl $ \fakb fs ->
-  Map.mapWithKey (\k a -> fakb (fmap (Map.! k) fs) k) (copure fs)
+  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the values of a 'Map.Map'.
@@ -334,7 +333,7 @@ cxtraversed = cxtraversalVl $ \fakb fs ->
 --
 cxfolded :: Ord k => Cxfold k (Map.Map k a) a
 cxfolded = cxfoldVl $ \fakb fs ->
-  Map.mapWithKey (\k a -> fakb (fmap (Map.! k) fs) k) (copure fs)
+  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
