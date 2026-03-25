@@ -40,12 +40,15 @@ module Data.IntMap.Optic (
     -- * Dual Optics
     -- ** Colens
   , zipsIntMap
+    -- ** Cotraversal
+  , zippedIntMap
+    -- ** Cxtraversal
+  , cxtraversed
+  , cxzippedIntMap
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
   , cxmapMaybed
-    -- ** Cxtraversal
-  , cxtraversed
     -- ** Cxfold
   , cxfolded
     -- ** Cxview
@@ -53,18 +56,28 @@ module Data.IntMap.Optic (
     -- * Operators
   , toIntMapOf
   , countingIntMapOf
-    -- * Post-sort fold (IntMap)
+    -- ** Sort-based
   , foldSortsIM
   , foldSorts1IM
   , mconcatSortsIM
+    -- ** Merge (Sort + containers merge)
+  , merges
+  , innerMerges
+  , outerMerges
+  , leftMerges
+  , rightMerges
+    -- ** Sort merge tactics
+  , sortedMatched
+  , sortedMissing
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import qualified Data.IntMap.Strict as IM
 import qualified Data.IntMap.Lazy as IML
+import qualified Data.IntMap.Merge.Strict as Merge
 import Prelude
 
 -- | /O(log n)/. Lens into Maybe of a value at a key.
@@ -210,6 +223,28 @@ zipsIntMap :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
 zipsIntMap ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (error "zipsIntMap: missing key") k' m) k) | k <- IntSet.toList ks]
 {-# INLINE zipsIntMap #-}
 
+-- | Pointwise 'Cotraversal' over the values of an 'IM.IntMap' at a
+-- fixed key set. Extends 'zipsIntMap' from 'Colens' to 'Cotraversal':
+-- where 'zipsIntMap' views the map as a function from keys,
+-- 'zippedIntMap' views it as a container that can be zipped pointwise.
+--
+-- Requires a fixed key set because 'IM.IntMap' is not 'Distributive'
+-- (it has variable size).
+--
+zippedIntMap :: IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
+zippedIntMap ks = cotraversalVl $ \fab fs ->
+  IM.fromSet (\k -> fab (fmap (IM.! k) fs)) ks
+{-# INLINE zippedIntMap #-}
+
+-- | Keyed pointwise 'Cxtraversal' over the values of an 'IM.IntMap'.
+-- Threads the key as coindex. Combines 'zippedIntMap' with
+-- key-dependent operations.
+--
+cxzippedIntMap :: IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
+cxzippedIntMap ks = cxtraversalVl $ \fakb fs ->
+  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) ks
+{-# INLINE cxzippedIntMap #-}
+
 ---------------------------------------------------------------------
 -- Coindexed optics
 ---------------------------------------------------------------------
@@ -315,3 +350,60 @@ foldSorts1IM o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
 -- | Sort through an Int lens, then monoidal concat per group.
 mconcatSortsIM :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
 mconcatSortsIM o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)
+
+---------------------------------------------------------------------
+-- Merge (Sort + containers merge)
+---------------------------------------------------------------------
+
+-- | Merge two lists through 'Int' lenses using containers merge tactics.
+merges :: Lens' s Int -> Lens' t Int
+       -> Merge.SimpleWhenMissing [s] c
+       -> Merge.SimpleWhenMissing [t] c
+       -> Merge.SimpleWhenMatched [s] [t] c
+       -> [s] -> [t] -> IM.IntMap c
+merges lo ro wml wmr wm xs ys =
+  Merge.merge wml wmr wm (toIntMapOf lo xs) (toIntMapOf ro ys)
+
+-- | Inner merge: only keys present in both inputs.
+innerMerges :: Lens' s Int -> Lens' t Int
+            -> (Int -> [s] -> [t] -> c)
+            -> [s] -> [t] -> IM.IntMap c
+innerMerges lo ro f =
+  merges lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+
+-- | Full outer merge.
+outerMerges :: Lens' s Int -> Lens' t Int
+            -> (Int -> [s] -> c) -> (Int -> [t] -> c) -> (Int -> [s] -> [t] -> c)
+            -> [s] -> [t] -> IM.IntMap c
+outerMerges lo ro fl fr fb =
+  merges lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+-- | Left merge: all keys from left.
+leftMerges :: Lens' s Int -> Lens' t Int
+           -> (Int -> [s] -> c) -> (Int -> [s] -> [t] -> c)
+           -> [s] -> [t] -> IM.IntMap c
+leftMerges lo ro fl fb =
+  merges lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+
+-- | Right merge: all keys from right.
+rightMerges :: Lens' s Int -> Lens' t Int
+            -> (Int -> [t] -> c) -> (Int -> [s] -> [t] -> c)
+            -> [s] -> [t] -> IM.IntMap c
+rightMerges lo ro fr fb =
+  merges lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+
+---------------------------------------------------------------------
+-- Sort merge tactics
+---------------------------------------------------------------------
+
+-- | Construct a 'WhenMatched' merge tactic from a 'Sort'.
+-- Uses @i = ()@ (one position per key).
+sortedMatched :: Sort () Int (x, y) z -> Merge.SimpleWhenMatched x y z
+sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
+  h (const (k, (x, y)))
+
+-- | Construct a 'WhenMissing' merge tactic from a 'Sort'.
+-- Uses @i = ()@ (one position per key).
+sortedMissing :: Sort () Int x y -> Merge.SimpleWhenMissing x y
+sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
+  h (const (k, x))
