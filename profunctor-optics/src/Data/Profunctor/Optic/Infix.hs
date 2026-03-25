@@ -2,7 +2,15 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE QuantifiedConstraints #-}
 
--- | Infix operators for profunctor optics.
+-- | Left and right carriers are characterized by their representation
+-- functors ('Rep' and 'Corep'). 'Iso' sits at the top where both
+-- are trivial ('Identity'). 'Adjoint' sits at the bottom where they
+-- form a full adjunction (@'Corep' p ⊣ 'Rep' p@). A left-indexed
+-- ('Ix') optic threads an index through the left adjoint functor
+-- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
+-- through the right adjoint functor @(->) k@.
+--
+-- Infix operators for profunctor optics.
 --
 -- This module collects all infix operators in one place. Every operator
 -- is defined in terms of a named function elsewhere in the library, so

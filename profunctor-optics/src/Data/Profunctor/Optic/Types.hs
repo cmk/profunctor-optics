@@ -5,6 +5,28 @@
 {-# LANGUAGE QuantifiedConstraints #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
+-- | The profunctor optic type hierarchy, structured as an adjunction
+-- diamond.
+--
+-- Left (Star-side) carriers are characterized by 'Rep' p (a covariant
+-- functor). Right (Costar-side) carriers are characterized by 'Corep' p
+-- (used contravariantly). When @'Corep' p ⊣ 'Rep' p@ — i.e., the
+-- representation functors form an adjunction — the profunctor is
+-- 'Adjoining' and sits at the meet of the diamond.
+--
+-- @
+--           Iso                       (Identity ⊣ Identity)
+--          / | \\
+--     Lens Prism Colens               (left and right adjoints)
+--      |    |     |
+--    Setter ... Cosetter              (full representation)
+--       \\       /
+--        Adjoint                      (Corep p ⊣ Rep p)
+-- @
+--
+-- Left-indexed ('Ix') optics thread an index through the left adjoint
+-- functor @(,) k@, while right-indexed ('Cx') optics thread a coindex
+-- through the right adjoint functor @(->) k@.
 module Data.Profunctor.Optic.Types (
     Optic, Optic'
   , Ix, Ix', Ixoptic, Ixoptic'
