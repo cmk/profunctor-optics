@@ -43,14 +43,14 @@ module Data.IntMap.Optic (
   , ixaltered'
     -- * Dual Optics
     -- ** Colens
-  , zipped
+  , zippedIf
     -- ** Cxlens
-  , cxzipped
+  , cxzippedIf
     -- ** Cotraversal
-  , zippedTraverse
+  , zippedTraverseIf
     -- ** Cxtraversal
   , cxtraversed
-  , cxzippedTraverse
+  , cxzippedTraverseIf
     -- ** Cosetter
   , comapped
     -- ** Cxsetter
@@ -77,7 +77,7 @@ module Data.IntMap.Optic (
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (zipped, toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -230,32 +230,31 @@ ixaltered' k = ixsetter $ \kab -> IM.alter (kab k) k
 -- Dual optics
 ---------------------------------------------------------------------
 
--- | Grate viewing an IntMap as a function from Int keys.
--- Requires a fixed key set and a default for missing keys.
+-- | Colens viewing an 'IM.IntMap' as a partial function from keys.
+-- The focus is @Int -> Maybe a@ — 'Nothing' for absent keys.
+-- Requires a fixed key set (Colens has no 'copure').
 --
-zipped :: a -> IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
-zipped def ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault def k' m) k) | k <- IntSet.toList ks]
-{-# INLINE zipped #-}
+zippedIf :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> Maybe a) (Int -> Maybe b)
+zippedIf ks = grate $ \f ->
+  IM.mapMaybe id $ IM.fromSet (\k -> f (\m k' -> IM.lookup k' m) k) ks
+{-# INLINE zippedIf #-}
 
--- | Coindexed 'Cxlens' viewing an 'IM.IntMap' as keyed elements.
--- Threads the key as coindex, focuses on individual values.
+-- | Coindexed 'Cxlens' with 'Maybe' focus.
+-- Requires a fixed key set (Cxlens has no 'copure').
 --
--- Requires a fixed key set and a default for missing keys.
---
-cxzipped :: a -> IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) a b
-cxzipped def ks = cxlensVl $ \fakb fs ->
-  IM.fromSet (\k -> fakb (fmap (\m -> IM.findWithDefault def k m) fs) k) ks
-{-# INLINE cxzipped #-}
+cxzippedIf :: IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
+cxzippedIf ks = cxlensVl $ \fakb fs ->
+  IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) ks
+{-# INLINE cxzippedIf #-}
 
--- | Pointwise 'Cotraversal' over the values of an 'IM.IntMap' at a
--- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal'.
+-- | Pointwise 'Cotraversal' with 'Maybe' focus.
+-- Self-keyed: the key set comes from the focal map via 'copure'.
 --
--- Requires a fixed key set and a default for missing keys.
---
-zippedTraverse :: a -> IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
-zippedTraverse def ks = cotraversalVl $ \fab fs ->
-  IM.fromSet (\k -> fab (fmap (\m -> IM.findWithDefault def k m) fs)) ks
-{-# INLINE zippedTraverse #-}
+zippedTraverseIf :: Cotraversal (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
+zippedTraverseIf = cotraversalVl $ \fab fs ->
+  let m0 = copure fs
+  in  IM.mapMaybe id $ IM.fromSet (\k -> fab (fmap (IM.lookup k) fs)) (IM.keysSet m0)
+{-# INLINE zippedTraverseIf #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of an 'IM.IntMap'.
 --
@@ -265,15 +264,14 @@ comapped :: Cosetter (IM.IntMap a) (IM.IntMap b) a b
 comapped = cosetter fmap
 {-# INLINE comapped #-}
 
--- | Keyed pointwise 'Cxtraversal' over the values of an 'IM.IntMap'.
--- Threads the key as coindex.
+-- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
+-- Self-keyed via 'copure'.
 --
--- Requires a fixed key set and a default for missing keys.
---
-cxzippedTraverse :: a -> IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-cxzippedTraverse def ks = cxtraversalVl $ \fakb fs ->
-  IM.fromSet (\k -> fakb (fmap (\m -> IM.findWithDefault def k m) fs) k) ks
-{-# INLINE cxzippedTraverse #-}
+cxzippedTraverseIf :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
+cxzippedTraverseIf = cxtraversalVl $ \fakb fs ->
+  let m0 = copure fs
+  in  IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) (IM.keysSet m0)
+{-# INLINE cxzippedTraverseIf #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
