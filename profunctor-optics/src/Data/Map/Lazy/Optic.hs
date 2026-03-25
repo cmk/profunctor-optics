@@ -5,14 +5,11 @@
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
--- | Profunctor optics for strict 'Data.Map.Map'.
+-- | Profunctor optics for lazy 'Data.Map.Map'.
 --
--- For lazy variants, import "Data.Map.Lazy.Optic".
+-- For strict variants, import "Data.Map.Optic".
 --
--- For structural optics (depth, sizes, rebalanced) that require
--- pattern functors, see @Data.Map.Fold.Optic@ in
--- @profunctor-optics-containers@.
-module Data.Map.Optic (
+module Data.Map.Lazy.Optic (
     -- * Types
     Map.Map
     -- * Optics
@@ -105,8 +102,8 @@ module Data.Map.Optic (
 import Data.Profunctor.Optic hiding (filtered, toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
-import qualified Data.Map.Strict as Map
-import qualified Data.Map.Merge.Strict as Merge
+import qualified Data.Map.Lazy as Map
+import qualified Data.Map.Merge.Lazy as Merge
 import Prelude
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.

@@ -60,6 +60,7 @@ library
 
       Data.List.Optic
       Data.Map.Optic
+      Data.Map.Lazy.Optic
       Data.Set.Optic
       Data.IntMap.Optic
       Data.IntSet.Optic
