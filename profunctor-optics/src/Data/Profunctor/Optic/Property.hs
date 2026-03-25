@@ -78,6 +78,9 @@ module Data.Profunctor.Optic.Property (
   , compose_sort
   , id_category_sort
   , assoc_category_sort
+    -- * Cxsetter
+  , id_cxsetter
+  , compose_cxsetter
     -- * Adjoint
   , Adjoint
   , id_adjoint
@@ -426,6 +429,20 @@ id_cosetter o s = cosets o id s == s
 --
 compose_cosetter :: Eq s => ACosetter s s a a -> (a -> a) -> (a -> a) -> s -> Bool
 compose_cosetter o f g s = (cosets o f . cosets o g) s == cosets o (f . g) s
+
+---------------------------------------------------------------------
+-- 'Cxsetter'
+---------------------------------------------------------------------
+
+-- | @cxsets o (const id) ≡ id@
+--
+id_cxsetter :: (Eq s, Monoid k) => ACxsetter k s s a a -> s -> Bool
+id_cxsetter o s = cxsets o (const id) s == s
+
+-- | @cxsets o (const f) . cxsets o (const g) ≡ cxsets o (const $ f . g)@
+--
+compose_cxsetter :: (Eq s, Monoid k) => ACxsetter k s s a a -> (a -> a) -> (a -> a) -> s -> Bool
+compose_cxsetter o f g s = (cxsets o (const f) . cxsets o (const g)) s == cxsets o (const $ f . g) s
 
 ---------------------------------------------------------------------
 -- 'Adjoint'

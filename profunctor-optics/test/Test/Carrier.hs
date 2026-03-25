@@ -16,8 +16,14 @@ import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)
 import Data.Profunctor.Optic.Prism (just, reprism, releft, ixjust)
 import Data.Profunctor.Optic.Traversal (traversed, ix, cotraverseOf, cloneCotraversal0)
 import Data.Monoid (Sum(..))
-import Data.Profunctor.Optic.Setter (set, adjoint, ixadjoint)
+import Data.Profunctor.Optic.Setter (set, adjoint, ixadjoint, cosets)
 import Data.Profunctor.Optic.Fold (acofold, cofoldMapOf)
+import Data.Map.Optic as MapO
+import Data.IntMap.Optic as IMO
+import Data.Sequence.Optic as SeqO
+import qualified Data.Map.Strict as Map
+import qualified Data.IntMap.Strict as IM
+import qualified Data.Sequence as Seq
 import Data.Functor.Identity
 import Data.Profunctor.Types (Profunctor(..))
 import Data.Profunctor.Choice (Choice(..))
@@ -742,6 +748,61 @@ prop_retract_embedSort = withTests 100 . property $ do
   let c :: Conjoin Char Int Int
       c = Conjoin $ \k1 n -> n + fromEnum k1
   assert $ Prop.retract_embedSort c k a
+
+---------------------------------------------------------------------
+-- Container Cx optic properties (S21.19–S21.21)
+---------------------------------------------------------------------
+
+gen_map :: Gen (Map.Map (Sum Int) Int)
+gen_map = Map.fromList <$> G.list (R.linear 0 10) ((,) <$> (Sum <$> int) <*> int)
+
+gen_intmap :: Gen (IM.IntMap Int)
+gen_intmap = IM.fromList <$> G.list (R.linear 0 10) ((,) <$> int <*> int)
+
+gen_seq :: Gen (Seq.Seq Int)
+gen_seq = Seq.fromList <$> G.list (R.linear 0 10) int
+
+-- Map Cxsetter
+prop_map_cxmapped_id :: Property
+prop_map_cxmapped_id = withTests 100 . property $ do
+  m <- forAll gen_map
+  assert $ Prop.id_cxsetter MapO.cxmapped m
+
+prop_map_cxmapped_compose :: Property
+prop_map_cxmapped_compose = withTests 100 . property $ do
+  m <- forAll gen_map
+  assert $ Prop.compose_cxsetter MapO.cxmapped (+1) (*2) m
+
+-- IntMap Cxsetter (cosets on Cxsetter gives (a -> k -> b) -> s -> k -> t,
+-- so we use const to ignore the key and evaluate at 0)
+prop_intmap_cxmapped_id :: Property
+prop_intmap_cxmapped_id = withTests 100 . property $ do
+  m <- forAll gen_intmap
+  cosets IMO.cxmapped (const . id) m 0 === m
+
+prop_intmap_cxmapped_compose :: Property
+prop_intmap_cxmapped_compose = withTests 100 . property $ do
+  m <- forAll gen_intmap
+  ((\s -> cosets IMO.cxmapped (const . (+1)) s 0) . (\s -> cosets IMO.cxmapped (const . (*2)) s 0)) m
+    === cosets IMO.cxmapped (const . ((+1) . (*2))) m 0
+
+-- Seq Cxsetter
+prop_seq_cxmapped_id :: Property
+prop_seq_cxmapped_id = withTests 100 . property $ do
+  s <- forAll gen_seq
+  cosets SeqO.cxmapped (const . id) s 0 === s
+
+prop_seq_cxmapped_compose :: Property
+prop_seq_cxmapped_compose = withTests 100 . property $ do
+  s <- forAll gen_seq
+  ((\q -> cosets SeqO.cxmapped (const . (+1)) q 0) . (\q -> cosets SeqO.cxmapped (const . (*2)) q 0)) s
+    === cosets SeqO.cxmapped (const . ((+1) . (*2))) s 0
+
+-- Map Cxsetter via cosets (ignoring key, same as Cosetter id law)
+prop_map_cxmapped_cosets_id :: Property
+prop_map_cxmapped_cosets_id = withTests 100 . property $ do
+  m <- forAll gen_map
+  cosets MapO.cxmapped (const . id) m (Sum 0) === m
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
