@@ -46,8 +46,16 @@ module Data.Map.Optic (
     -- * Dual Optics
     -- ** Colens
   , zipsMap
+    -- ** Cxtraversal
+  , cxtraversed
+    -- ** Cxfold
+  , cxfolded
     -- ** Cxview
   , cxmapped'
+    -- ** Cxsetter
+  , cxmapped
+  , cxfiltered
+  , cxmapMaybed
     -- * Operators
   , fromIxfold
     -- ** Sort-based
@@ -244,6 +252,65 @@ zipsMap ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (e
 cxmapped' :: Cxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
 cxmapped' = cxfrom Map.mapWithKey
 {-# INLINE cxmapped' #-}
+
+-- | /O(n)/. 'Cxsetter' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixmapped'. Threads the key as coindex on the
+-- Costar side, composable with 'Colens' chains.
+--
+-- @
+-- 'cxsets' cxmapped ≡ 'Data.Map.mapWithKey'
+-- @
+--
+cxmapped :: Cxsetter k (Map.Map k a) (Map.Map k b) a b
+cxmapped = cxsetter Map.mapWithKey
+{-# INLINE cxmapped #-}
+
+-- | /O(n)/. 'Cxsetter' filtering the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixfiltered'. Keeps entries where the coindexed
+-- predicate returns 'True'.
+--
+-- @
+-- 'cxsets' cxfiltered ≡ 'Data.Map.filterWithKey'
+-- @
+--
+cxfiltered :: Cxsetter k (Map.Map k a) (Map.Map k a) a Bool
+cxfiltered = cxsetter Map.filterWithKey
+{-# INLINE cxfiltered #-}
+
+-- | /O(n)/. 'Cxsetter' that simultaneously maps and filters the
+-- values of a 'Map.Map'.
+--
+-- @
+-- 'cxsets' cxmapMaybed ≡ 'Data.Map.mapMaybeWithKey'
+-- @
+--
+cxmapMaybed :: Cxsetter k (Map.Map k a) (Map.Map k b) a (Maybe b)
+cxmapMaybed = cxsetter Map.mapMaybeWithKey
+{-# INLINE cxmapMaybed #-}
+
+-- | /O(n)/. 'Cxtraversal' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixtraversed'. Threads the key as coindex.
+--
+-- @
+-- 'cxtraverseOf' cxtraversed ≡ 'Data.Map.traverseWithKey'
+-- @
+--
+cxtraversed :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxtraversed = cxtraversalVl $ \fakb fs ->
+  Map.mapWithKey (\k a -> fakb (fmap (Map.! k) fs) k) (copure fs)
+{-# INLINE cxtraversed #-}
+
+-- | /O(n)/. 'Cxfold' over the values of a 'Map.Map'.
+--
+-- Cx dual of 'ixfolded'. Threads the key as coindex.
+--
+cxfolded :: Ord k => Cxfold k (Map.Map k a) a
+cxfolded = cxfoldVl $ \fakb fs ->
+  Map.mapWithKey (\k a -> fakb (fmap (Map.! k) fs) k) (copure fs)
+{-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
 -- Operators
