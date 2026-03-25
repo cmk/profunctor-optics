@@ -167,7 +167,7 @@ f % g = representing $ \ia1a2 (ic,c1) ->
 -- 'Iso'), reflecting the fact that currying and uncurrying are
 -- inverse operations that each require one half of the duality.
 --
-cxix :: (Closed p, Strong p) => Cxoptic p k s t a b -> Ixoptic p k s t a b
+cxix :: Strong p => Closed p => Cxoptic p k s t a b -> Ixoptic p k s t a b
 cxix o pka_b =
   let pa_kb   = lmap (\a k -> (k, a)) (closed pka_b)   -- p (k,a) b  →  p a (k->b)
       ps_kt   = o pa_kb                                  -- p a (k->b) →  p s (k->t)
@@ -254,7 +254,7 @@ f # g = corepresenting $ \a1ka2 c1 kc ->
 -- optics. This is a genuine limitation: you cannot curry an 'Ixlens'
 -- into a 'Cxlens' because 'Ixlens' requires 'Strong' but not 'Closed'.
 --
-ixcx :: (Closed p, Strong p) => Ixoptic p k s t a b -> Cxoptic p k s t a b
+ixcx :: Strong p => Closed p => Ixoptic p k s t a b -> Cxoptic p k s t a b
 ixcx o pa_kb =
   let pka_b   = dimap swap (\(f, k) -> f k) (first' pa_kb)  -- p a (k->b)  →  p (k,a) b
       pks_t   = o pka_b                                       -- p (k,a) b   →  p (k,s) t
