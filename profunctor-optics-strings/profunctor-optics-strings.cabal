@@ -1,6 +1,6 @@
 cabal-version: 2.0
 
-name:           profunctor-optics-strings
+name:           string-optics
 version:        0.0.1
 synopsis:       Cotraversal-based Text/ByteString ops via profunctor optics.
 description:    Treats fixed-size types (Word8, Word16, etc.) as Representable
@@ -34,6 +34,7 @@ library
   build-depends:
       base               >= 4.16  && < 5.0
     , bytestring
+    , containers
     , profunctor-optics
     , scheme-extensions
     , text
@@ -57,7 +58,7 @@ test-suite props
     , bytestring
     , hedgehog           >= 1.0
     , profunctor-optics
-    , profunctor-optics-strings
+    , string-optics
     , scheme-extensions
     , text
     , text-short
@@ -74,6 +75,6 @@ benchmark bench
     , bytestring
     , criterion          >= 1.5
     , profunctor-optics
-    , profunctor-optics-strings
+    , string-optics
     , scheme-extensions
     , text

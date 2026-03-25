@@ -38,9 +38,14 @@ module Data.Text.Optic (
 
     -- ** Cosetter
     comapped,
+
+    -- * Operators
+    -- ** Sort-based
+    sortingText,
 ) where
 
 import Data.ByteString (ByteString)
+import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
@@ -128,3 +133,18 @@ zippedText = cotraversalVl $ \fab fs ->
 --
 comapped :: Cosetter Text Text Char Char
 comapped = cosetter T.map
+
+---------------------------------------------------------------------
+-- Operators
+---------------------------------------------------------------------
+
+-- | Sort a 'Text' by a key on each character.
+--
+-- @
+-- sortingText (Data.Char.toLower) "Hello World"
+--   == fromList [(' '," "),('d',"d"),('e',"e"),('h',"H"),('l',"ll"),('o',"oo"),('r',"r"),('w',"W")]
+-- @
+--
+sortingText :: Ord k => (Char -> k) -> Text -> Map.Map k Text
+sortingText = sortingRep T.length T.index T.pack
+{-# INLINE sortingText #-}
