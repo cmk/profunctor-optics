@@ -3,8 +3,10 @@
 {-# LANGUAGE TypeFamilies          #-}
 -- | Profunctor optics for 'Data.Set.Set'.
 module Data.Set.Optic (
+    -- * Types
+    Set.Set
     -- * Membership
-    member
+  , member
     -- * Fold
   , folded
     -- * Dual Optics

@@ -13,9 +13,11 @@
 -- pattern functors, see @Data.Map.Fold.Optic@ in
 -- @profunctor-optics-containers@.
 module Data.Map.Optic (
+    -- * Types
+    Map.Map
     -- * Optics
     -- ** Lens, Ixlens
-    alteredF
+  , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
   , ixtraversed

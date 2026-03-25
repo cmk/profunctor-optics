@@ -6,8 +6,10 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Tree.Optic (
+    -- * Types
+    Tree
     -- * Lens
-    root
+  , root
   , branches
     -- * Dual Optics
     -- $todo-zipsTree

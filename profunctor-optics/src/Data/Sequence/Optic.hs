@@ -6,8 +6,10 @@
 {-# LANGUAGE TypeOperators         #-}
 {-# LANGUAGE TypeFamilies          #-}
 module Data.Sequence.Optic (
+    -- * Types
+    Seq
     -- * Traversal0
-    at
+  , at
   , ixat
     -- * Traversal
   , traversed

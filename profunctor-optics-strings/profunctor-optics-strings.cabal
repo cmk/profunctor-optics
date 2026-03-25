@@ -34,7 +34,6 @@ library
   build-depends:
       base               >= 4.16  && < 5.0
     , bytestring
-    , containers
     , profunctor-optics
     , scheme-extensions
     , text

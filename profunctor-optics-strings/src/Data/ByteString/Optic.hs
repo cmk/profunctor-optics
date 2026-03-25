@@ -47,7 +47,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import qualified Data.Map.Strict as Map
+import Data.Map.Optic (Map(..))
 import Data.ByteString.Short (ShortByteString)
 import qualified Data.ByteString.Short as SBS
 import Data.Profunctor.Optic hiding (folded)
@@ -159,7 +159,7 @@ comapped = cosetter BS.map
 
 -- | Sort a 'ByteString' by a key on each byte.
 --
-sortingBS :: Ord k => (Word8 -> k) -> ByteString -> Map.Map k ByteString
+sortingBS :: Ord k => (Word8 -> k) -> ByteString -> Map k ByteString
 sortingBS = sortingRep BS.length BS.index BS.pack
 {-# INLINE sortingBS #-}
 {-# INLINE comapped #-}

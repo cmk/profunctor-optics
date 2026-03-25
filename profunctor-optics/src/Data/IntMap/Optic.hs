@@ -9,8 +9,11 @@
 --
 -- Unprimed variants are lazy. Primed (@'@) variants are strict.
 module Data.IntMap.Optic (
+    -- * Types
+    IM.IntMap
+    -- * Optics
     -- ** Lens, Ixlens
-    alteredF
+  , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
   , ixtraversed
