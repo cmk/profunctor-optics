@@ -79,8 +79,8 @@ module Data.Map.Optic (
   , mergesLeft
   , mergesRight
     -- ** Sort merge tactics
-  , sortingMatched
-  , sortingMissing
+  , sortsWhenMatched
+  , sortsWhenMissing
 ) where
 
 import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
@@ -454,12 +454,12 @@ mergesRight lo ro wmr wm =
 
 -- | Construct a 'WhenMatched' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortingMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
-sortingMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
+sortsWhenMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
+sortsWhenMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
   h (const (k, (x, y)))
 
 -- | Construct a 'WhenMissing' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortingMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
-sortingMissing (Sort h) = Merge.mapMissing $ \k x ->
+sortsWhenMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
+sortsWhenMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))
