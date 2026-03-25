@@ -18,11 +18,11 @@ module Data.IntMap.Optic (
   , at
   , ixat
   , updated
-  -- , updateLooked
-  -- , lookedLT
-  -- , lookedLE
-  -- , lookedGE
-  -- , lookedGT
+  , updateLooked
+  , lookedLT
+  , lookedLE
+  , lookedGE
+  , lookedGT
     -- ** Fold, Ixfold
   , values
   , ixfolded
@@ -103,6 +103,36 @@ updated :: Int -> Ixsetter Int (IM.IntMap a) (IM.IntMap a) a (Maybe a)
 updated k = ixsetter $ \kab -> IM.updateWithKey kab k
 {-# INLINE updated #-}
 
+-- | /O(log n)/. Lookup and update a value at a specific key.
+--
+updateLooked :: Int -> Ixsetter Int (IM.IntMap a) (Maybe a, IM.IntMap a) a (Maybe a)
+updateLooked k = ixsetter $ \kab -> IM.updateLookupWithKey kab k
+{-# INLINE updateLooked #-}
+
+-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.
+--
+lookedLT :: Int -> Ixtraversal0' Int (IM.IntMap a) a
+lookedLT k = ixtraversal0' (IM.lookupLT k) (flip $ IM.insert k)
+{-# INLINE lookedLT #-}
+
+-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the given one.
+--
+lookedLE :: Int -> Ixtraversal0' Int (IM.IntMap a) a
+lookedLE k = ixtraversal0' (IM.lookupLE k) (flip $ IM.insert k)
+{-# INLINE lookedLE #-}
+
+-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than or equal to the given one.
+--
+lookedGE :: Int -> Ixtraversal0' Int (IM.IntMap a) a
+lookedGE k = ixtraversal0' (IM.lookupGE k) (flip $ IM.insert k)
+{-# INLINE lookedGE #-}
+
+-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than the given one.
+--
+lookedGT :: Int -> Ixtraversal0' Int (IM.IntMap a) a
+lookedGT k = ixtraversal0' (IM.lookupGT k) (flip $ IM.insert k)
+{-# INLINE lookedGT #-}
+
 -- | /O(n)/. 'Fold' over all values in ascending key order.
 --
 values :: Fold (IM.IntMap a) a
@@ -157,10 +187,10 @@ altered' :: Int -> Setter' (IM.IntMap a) (Maybe a)
 altered' k = setter $ \ab -> IM.alter ab k
 {-# INLINE altered' #-}
 
--- | /O(log n)/. Indexed alter.
+-- | /O(log n)/. Indexed alter (lazy).
 --
 ixaltered :: Int -> Ixsetter' Int (IM.IntMap a) (Maybe a)
-ixaltered k = ixsetter $ \kab -> IM.alter (kab k) k
+ixaltered k = ixsetter $ \kab -> IML.alter (kab k) k
 {-# INLINE ixaltered #-}
 
 -- | /O(log n)/. Indexed alter (strict, values forced on insert).
