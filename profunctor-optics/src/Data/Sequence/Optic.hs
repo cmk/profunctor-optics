@@ -25,9 +25,9 @@ module Data.Sequence.Optic (
   , ixmapped
     -- * Dual Optics
     -- ** Colens
-  , grateSeq
+  , zipped
     -- ** Cotraversal
-  , zippedSeq
+  , zippedTraverse
     -- ** Cosetter
   , comapped
     -- ** Cxsetter
@@ -41,7 +41,7 @@ module Data.Sequence.Optic (
   , viewedr
 ) where
 
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (zipped)
 import Data.Profunctor.Optic.Import
 import Data.Sequence (Seq, ViewL(..), ViewR(..), viewl, viewr)
 import qualified Data.Sequence as Seq
@@ -127,20 +127,20 @@ ixmapped = ixsetter $ \f -> Seq.mapWithIndex f
 -- | Grate viewing a Seq as a function from Int indices.
 -- Requires known length to be representable.
 --
-grateSeq :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
-grateSeq n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
-{-# INLINE grateSeq #-}
+zipped :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
+zipped n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
+{-# INLINE zipped #-}
 
 -- | Pointwise 'Cotraversal' over the elements of a 'Seq' at a
--- fixed length. Extends 'grateSeq' from 'Colens' to 'Cotraversal'.
+-- fixed length. Extends 'zipped' from 'Colens' to 'Cotraversal'.
 --
 -- Requires known length because 'Seq' is not 'Distributive'
 -- (it has variable size).
 --
-zippedSeq :: Int -> Cotraversal (Seq a) (Seq b) a b
-zippedSeq n = cotraversalVl $ \fab fs ->
+zippedTraverse :: Int -> Cotraversal (Seq a) (Seq b) a b
+zippedTraverse n = cotraversalVl $ \fab fs ->
   Seq.fromFunction n (\i -> fab (fmap (`Seq.index` i) fs))
-{-# INLINE zippedSeq #-}
+{-# INLINE zippedTraverse #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the elements of a 'Seq'.
 --

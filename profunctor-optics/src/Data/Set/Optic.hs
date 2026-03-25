@@ -10,12 +10,12 @@ module Data.Set.Optic (
     -- * Fold
   , folded
     -- * Dual Optics
-  , zipsSet
+  , zipped
     -- * Conversion
   , listed
 ) where
 
-import Data.Profunctor.Optic hiding (folded)
+import Data.Profunctor.Optic hiding (zipped, folded)
 import Data.Profunctor.Optic.Import
 import qualified Data.Set as Set
 import Prelude
@@ -35,12 +35,12 @@ folded = fold_ Set.toAscList
 -- | Grate viewing a Set as a predicate (function to Bool).
 -- The key set parameter defines the universe of elements.
 --
--- @zipsWith (zipsSet universe) (||) s1 s2@ is set union.
--- @zipsWith (zipsSet universe) (&&) s1 s2@ is set intersection.
+-- @zipsWith (zipped universe) (||) s1 s2@ is set union.
+-- @zipsWith (zipped universe) (&&) s1 s2@ is set intersection.
 --
-zipsSet :: Ord a => Set.Set a -> Colens (Set.Set a) (Set.Set a) (a -> Bool) (a -> Bool)
-zipsSet universe = grate $ \f -> Set.filter (\a -> f (\s -> flip Set.member s) a) universe
-{-# INLINE zipsSet #-}
+zipped :: Ord a => Set.Set a -> Colens (Set.Set a) (Set.Set a) (a -> Bool) (a -> Bool)
+zipped universe = grate $ \f -> Set.filter (\a -> f (\s -> flip Set.member s) a) universe
+{-# INLINE zipped #-}
 
 -- | 'Iso' between a 'Set' and a sorted list.
 --

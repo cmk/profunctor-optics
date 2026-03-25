@@ -75,24 +75,5 @@ prop_values_elems = property $ do
     m <- forAll genMap
     (m ^.. values) === Map.elems m
 
--- cxmapped': coindexed cofold over map-of-maps
-prop_rxmapped_cofold :: Property
-prop_rxmapped_cofold = property $ do
-    let nested = Map.fromList [("a", Map.fromList [("x", 1 :: Int), ("y", 2)])]
-        result = cxfoldMapOf (cxmapped' # cxmapped')
-                   (\k r a -> Map.singleton k (a + r))
-                   (0 :: Int)
-                   nested
-    -- The outer key "a" and inner keys "x","y" accumulate via (<>)
-    -- result should be a nested map with combined keys
-    assert $ not (Map.null result)
-
--- cxmapped': single-level cofold
-prop_rxmapped_single :: Property
-prop_rxmapped_single = property $ do
-    let m = Map.fromList [("a", 1 :: Int), ("b", 2)]
-        result = cxfoldMapOf cxmapped'
-                   (\k _r a -> Map.singleton k a)
-                   (0 :: Int)
-                   m
-    Map.keys result === ["a", "b"]
+-- cxmapped' was removed (had (->) in type variables).
+-- TODO: Replace with cxmapped-based tests.

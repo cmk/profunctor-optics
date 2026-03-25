@@ -43,12 +43,14 @@ module Data.IntMap.Optic (
   , ixaltered'
     -- * Dual Optics
     -- ** Colens
-  , zipsIntMap
+  , zipped
+    -- ** Cxlens
+  , cxzipped
     -- ** Cotraversal
-  , zippedIntMap
+  , zippedTraverse
     -- ** Cxtraversal
   , cxtraversed
-  , cxzippedIntMap
+  , cxzippedTraverse
     -- ** Cosetter
   , comapped
     -- ** Cxsetter
@@ -57,8 +59,6 @@ module Data.IntMap.Optic (
   , cxmappedIf
     -- ** Cxfold
   , cxfolded
-    -- ** Cxview
-  , cxmapped'
     -- * Operators
   , toIntMapOf
   , countsOf
@@ -77,7 +77,7 @@ module Data.IntMap.Optic (
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (zipped, toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -233,22 +233,32 @@ ixaltered' k = ixsetter $ \kab -> IM.alter (kab k) k
 -- | Grate viewing an IntMap as a function from Int keys.
 -- Requires a fixed key set to be representable.
 --
-zipsIntMap :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
-zipsIntMap ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (error "zipsIntMap: missing key") k' m) k) | k <- IntSet.toList ks]
-{-# INLINE zipsIntMap #-}
+zipped :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
+zipped ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (error "zipped: missing key") k' m) k) | k <- IntSet.toList ks]
+{-# INLINE zipped #-}
+
+-- | Coindexed 'Cxlens' viewing an 'IM.IntMap' as keyed elements.
+-- Threads the key as coindex, focuses on individual values.
+--
+-- Requires a fixed key set.
+--
+cxzipped :: IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) a b
+cxzipped ks = cxlensVl $ \fakb fs ->
+  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) ks
+{-# INLINE cxzipped #-}
 
 -- | Pointwise 'Cotraversal' over the values of an 'IM.IntMap' at a
--- fixed key set. Extends 'zipsIntMap' from 'Colens' to 'Cotraversal':
--- where 'zipsIntMap' views the map as a function from keys,
--- 'zippedIntMap' views it as a container that can be zipped pointwise.
+-- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal':
+-- where 'zipped' views the map as a function from keys,
+-- 'zippedTraverse' views it as a container that can be zipped pointwise.
 --
 -- Requires a fixed key set because 'IM.IntMap' is not 'Distributive'
 -- (it has variable size).
 --
-zippedIntMap :: IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
-zippedIntMap ks = cotraversalVl $ \fab fs ->
+zippedTraverse :: IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
+zippedTraverse ks = cotraversalVl $ \fab fs ->
   IM.fromSet (\k -> fab (fmap (IM.! k) fs)) ks
-{-# INLINE zippedIntMap #-}
+{-# INLINE zippedTraverse #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of an 'IM.IntMap'.
 --
@@ -259,28 +269,17 @@ comapped = cosetter fmap
 {-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' over the values of an 'IM.IntMap'.
--- Threads the key as coindex. Combines 'zippedIntMap' with
+-- Threads the key as coindex. Combines 'zippedTraverse' with
 -- key-dependent operations.
 --
-cxzippedIntMap :: IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-cxzippedIntMap ks = cxtraversalVl $ \fakb fs ->
+cxzippedTraverse :: IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
+cxzippedTraverse ks = cxtraversalVl $ \fakb fs ->
   IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) ks
-{-# INLINE cxzippedIntMap #-}
+{-# INLINE cxzippedTraverse #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
 ---------------------------------------------------------------------
-
--- | /O(n)/. Coindexed review for 'IM.IntMap': reconstruct with
--- key-dependent logic. Dual of 'ixmapped'.
---
--- @
--- 'cxfoldMapOf' (cxmapped' '#' cxmapped') f r nestedIntMap
--- @
---
-cxmapped' :: Cxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
-cxmapped' = cxfrom IM.mapWithKey
-{-# INLINE cxmapped' #-}
 
 -- | /O(n)/. 'Cxsetter' over the values of an 'IM.IntMap'.
 --

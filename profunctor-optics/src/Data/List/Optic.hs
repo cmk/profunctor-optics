@@ -22,7 +22,7 @@ module Data.List.Optic (
   , ixfiltered
     -- * Dual Optics
     -- ** Colens
-  , zipsListWith
+  , zipped
     -- ** Cosetter
   , comapped
   , zipListed
@@ -49,7 +49,7 @@ module Data.List.Optic (
   , uniqueSortOn
 ) where
 
-import Data.Profunctor.Optic hiding (sorts, sortsDesc, groups, nubs, sortingString)
+import Data.Profunctor.Optic hiding (zipped, sorts, sortsDesc, groups, nubs, sortingString)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)
@@ -108,9 +108,9 @@ ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
 -- | Colens for lists of known length. Zips pointwise.
 -- Requires known length to be representable.
 --
-zipsListWith :: Int -> Colens [a] [b] a b
-zipsListWith n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
-{-# INLINE zipsListWith #-}
+zipped :: Int -> Colens [a] [b] a b
+zipped n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
+{-# INLINE zipped #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of a list.
 --

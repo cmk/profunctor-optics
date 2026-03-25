@@ -10,12 +10,12 @@ module Data.IntSet.Optic (
     -- * Fold
   , folded
     -- * Dual Optics
-  , zipsIntSet
+  , zipped
     -- * Conversion
   , listed
 ) where
 
-import Data.Profunctor.Optic hiding (folded)
+import Data.Profunctor.Optic hiding (zipped, folded)
 import Data.Profunctor.Optic.Import
 import qualified Data.IntSet as IS
 import Prelude
@@ -34,9 +34,9 @@ folded = fold_ IS.toAscList
 
 -- | Grate viewing an IntSet as a predicate (function to Bool).
 --
-zipsIntSet :: IS.IntSet -> Colens IS.IntSet IS.IntSet (Int -> Bool) (Int -> Bool)
-zipsIntSet universe = grate $ \f -> IS.filter (\a -> f (\s -> flip IS.member s) a) universe
-{-# INLINE zipsIntSet #-}
+zipped :: IS.IntSet -> Colens IS.IntSet IS.IntSet (Int -> Bool) (Int -> Bool)
+zipped universe = grate $ \f -> IS.filter (\a -> f (\s -> flip IS.member s) a) universe
+{-# INLINE zipped #-}
 
 -- | 'Iso' between an 'IntSet' and a sorted list.
 --

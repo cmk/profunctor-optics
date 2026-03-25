@@ -48,18 +48,18 @@ module Data.Map.Optic (
   , ixaltered'
     -- * Dual Optics
     -- ** Colens
-  , zipsMap
+  , zipped
+    -- ** Cxlens
+  , cxzipped
     -- ** Cotraversal
-  , zippedMap
+  , zippedTraverse
     -- ** Cxtraversal
   , cxtraversed
-  , cxzippedMap
+  , cxzippedTraverse
     -- ** Cxfold
   , cxfolded
     -- ** Cosetter
   , comapped
-    -- ** Cxview
-  , cxmapped'
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
@@ -83,7 +83,7 @@ module Data.Map.Optic (
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (zipped, toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -244,22 +244,32 @@ ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 -- | Grate viewing a Map as a function from keys.
 -- Requires a fixed key set to be representable.
 --
-zipsMap :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
-zipsMap ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (error "zipsMap: missing key") k' m) k) ks
-{-# INLINE zipsMap #-}
+zipped :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
+zipped ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (error "zipped: missing key") k' m) k) ks
+{-# INLINE zipped #-}
+
+-- | Coindexed 'Cxlens' viewing a 'Map.Map' as keyed elements.
+-- Threads the key as coindex, focuses on individual values.
+--
+-- Requires a fixed key set.
+--
+cxzipped :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) a b
+cxzipped ks = cxlensVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (flip (Map.!) k) fs) k) ks
+{-# INLINE cxzipped #-}
 
 -- | Pointwise 'Cotraversal' over the values of a 'Map.Map' at a
--- fixed key set. Extends 'zipsMap' from 'Colens' to 'Cotraversal':
--- where 'zipsMap' views the map as a function from keys,
--- 'zippedMap' views it as a container that can be zipped pointwise.
+-- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal':
+-- where 'zipped' views the map as a function from keys,
+-- 'zippedTraverse' views it as a container that can be zipped pointwise.
 --
 -- Requires a fixed key set because 'Map.Map' is not 'Distributive'
 -- (it has variable size).
 --
-zippedMap :: Ord k => Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
-zippedMap ks = cotraversalVl $ \fab fs ->
+zippedTraverse :: Ord k => Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
+zippedTraverse ks = cotraversalVl $ \fab fs ->
   Map.fromSet (\k -> fab (fmap (flip (Map.!) k) fs)) ks
-{-# INLINE zippedMap #-}
+{-# INLINE zippedTraverse #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of a 'Map.Map'.
 --
@@ -270,33 +280,17 @@ comapped = cosetter fmap
 {-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' over the values of a 'Map.Map'.
--- Threads the key as coindex. Combines 'zippedMap' with
+-- Threads the key as coindex. Combines 'zippedTraverse' with
 -- key-dependent operations.
 --
-cxzippedMap :: Ord k => Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
-cxzippedMap ks = cxtraversalVl $ \fakb fs ->
+cxzippedTraverse :: Ord k => Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxzippedTraverse ks = cxtraversalVl $ \fakb fs ->
   Map.fromSet (\k -> fakb (fmap (flip (Map.!) k) fs) k) ks
-{-# INLINE cxzippedMap #-}
+{-# INLINE cxzippedTraverse #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
 ---------------------------------------------------------------------
-
--- | /O(n)/. Coindexed review for 'Map.Map': reconstruct a map
--- with key-dependent logic.
---
--- Built via 'cxfrom' 'Data.Map.mapWithKey'. The coindex @k@ is the
--- map key — available on the reconstruction side. Dual of 'ixmapped'.
---
--- Compose with '(#)' for multi-level coindexed operations:
---
--- @
--- 'cxfoldMapOf' (cxmapped '#' cxmapped) f r nestedMap
--- @
---
-cxmapped' :: Cxview k (MapS.Map k a -> MapS.Map k b) (a -> b)
-cxmapped' = cxfrom Map.mapWithKey
-{-# INLINE cxmapped' #-}
 
 -- | /O(n)/. 'Cxsetter' over the values of a 'Map.Map'.
 --
