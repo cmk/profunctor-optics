@@ -63,7 +63,7 @@ module Data.Map.Optic (
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
-  , cxmapMaybed
+  , cxmappedIf
     -- * Operators
   , fromIxfold
     -- ** Sort-based
@@ -79,8 +79,8 @@ module Data.Map.Optic (
   , leftMerges
   , rightMerges
     -- ** Sort merge tactics
-  , sortedMatched
-  , sortedMissing
+  , sortingMatched
+  , sortingMissing
 ) where
 
 import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
@@ -328,12 +328,12 @@ cxfiltered = cxsetter Map.filterWithKey
 -- values of a 'Map.Map'.
 --
 -- @
--- 'cxsets' cxmapMaybed ≡ 'Data.Map.mapMaybeWithKey'
+-- 'cxsets' cxmappedIf ≡ 'Data.Map.mapMaybeWithKey'
 -- @
 --
-cxmapMaybed :: Cxsetter k (Map.Map k a) (Map.Map k b) a (Maybe b)
-cxmapMaybed = cxsetter Map.mapMaybeWithKey
-{-# INLINE cxmapMaybed #-}
+cxmappedIf :: Cxsetter k (Map.Map k a) (Map.Map k b) a (Maybe b)
+cxmappedIf = cxsetter Map.mapMaybeWithKey
+{-# INLINE cxmappedIf #-}
 
 -- | /O(n)/. 'Cxtraversal' over the values of a 'Map.Map'.
 --
@@ -448,12 +448,12 @@ rightMerges lo ro fr fb =
 
 -- | Construct a 'WhenMatched' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortedMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
-sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
+sortingMatched :: Sort () k (x, y) z -> Merge.SimpleWhenMatched k x y z
+sortingMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
   h (const (k, (x, y)))
 
 -- | Construct a 'WhenMissing' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortedMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
-sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
+sortingMissing :: Sort () k x y -> Merge.SimpleWhenMissing k x y
+sortingMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))

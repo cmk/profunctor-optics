@@ -54,18 +54,18 @@ module Data.IntMap.Optic (
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
-  , cxmapMaybed
+  , cxmappedIf
     -- ** Cxfold
   , cxfolded
     -- ** Cxview
   , cxmapped'
     -- * Operators
   , toIntMapOf
-  , countingIntMapOf
+  , countsOf
     -- ** Sort-based
-  , foldSortsIM
-  , foldSorts1IM
-  , mconcatSortsIM
+  , foldSorts
+  , foldSorts1
+  , mconcatSorts
     -- ** Merge (Sort + containers merge)
   , merges
   , innerMerges
@@ -73,8 +73,8 @@ module Data.IntMap.Optic (
   , leftMerges
   , rightMerges
     -- ** Sort merge tactics
-  , sortedMatched
-  , sortedMissing
+  , sortingMatched
+  , sortingMissing
 ) where
 
 import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
@@ -312,12 +312,12 @@ cxfiltered = cxsetter IM.filterWithKey
 -- values of an 'IM.IntMap'.
 --
 -- @
--- 'cxsets' cxmapMaybed ≡ 'Data.IntMap.mapMaybeWithKey'
+-- 'cxsets' cxmappedIf ≡ 'Data.IntMap.mapMaybeWithKey'
 -- @
 --
-cxmapMaybed :: Cxsetter Int (IM.IntMap a) (IM.IntMap b) a (Maybe b)
-cxmapMaybed = cxsetter IM.mapMaybeWithKey
-{-# INLINE cxmapMaybed #-}
+cxmappedIf :: Cxsetter Int (IM.IntMap a) (IM.IntMap b) a (Maybe b)
+cxmappedIf = cxsetter IM.mapMaybeWithKey
+{-# INLINE cxmappedIf #-}
 
 -- | /O(n)/. 'Cxtraversal' over the values of an 'IM.IntMap'.
 --
@@ -352,26 +352,26 @@ toIntMapOf o xs = IM.fromListWith (flip (++)) [(s ^. o, [s]) | s <- xs]
 {-# INLINE toIntMapOf #-}
 
 -- | Count occurrences per Int key from a list.
-countingIntMapOf :: Lens' s Int -> [s] -> IM.IntMap Int
-countingIntMapOf _ [] = IM.empty
-countingIntMapOf o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
-{-# INLINE countingIntMapOf #-}
+countsOf :: Lens' s Int -> [s] -> IM.IntMap Int
+countsOf _ [] = IM.empty
+countsOf o xs = IM.fromListWith (+) [(s ^. o, 1 :: Int) | s <- xs]
+{-# INLINE countsOf #-}
 
 ---------------------------------------------------------------------
 -- Post-sort fold (IntMap)
 ---------------------------------------------------------------------
 
 -- | Sort through an Int lens, then right-fold each group.
-foldSortsIM :: Lens' s Int -> (s -> r -> r) -> r -> [s] -> [r]
-foldSortsIM o g z xs = map (foldr g z) (IM.elems $ toIntMapOf o xs)
+foldSorts :: Lens' s Int -> (s -> r -> r) -> r -> [s] -> [r]
+foldSorts o g z xs = map (foldr g z) (IM.elems $ toIntMapOf o xs)
 
 -- | Sort through an Int lens, then reduce each non-empty group.
-foldSorts1IM :: Lens' s Int -> (s -> s -> s) -> [s] -> [s]
-foldSorts1IM o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
+foldSorts1 :: Lens' s Int -> (s -> s -> s) -> [s] -> [s]
+foldSorts1 o f xs = map (foldr1 f) (IM.elems $ toIntMapOf o xs)
 
 -- | Sort through an Int lens, then monoidal concat per group.
-mconcatSortsIM :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
-mconcatSortsIM o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)
+mconcatSorts :: Monoid m => Lens' s Int -> (s -> m) -> [s] -> [m]
+mconcatSorts o g xs = map (foldMap g) (IM.elems $ toIntMapOf o xs)
 
 ---------------------------------------------------------------------
 -- Merge (Sort + containers merge)
@@ -420,12 +420,12 @@ rightMerges lo ro fr fb =
 
 -- | Construct a 'WhenMatched' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortedMatched :: Sort () Int (x, y) z -> Merge.SimpleWhenMatched x y z
-sortedMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
+sortingMatched :: Sort () Int (x, y) z -> Merge.SimpleWhenMatched x y z
+sortingMatched (Sort h) = Merge.zipWithMatched $ \k x y ->
   h (const (k, (x, y)))
 
 -- | Construct a 'WhenMissing' merge tactic from a 'Sort'.
 -- Uses @i = ()@ (one position per key).
-sortedMissing :: Sort () Int x y -> Merge.SimpleWhenMissing x y
-sortedMissing (Sort h) = Merge.mapMissing $ \k x ->
+sortingMissing :: Sort () Int x y -> Merge.SimpleWhenMissing x y
+sortingMissing (Sort h) = Merge.mapMissing $ \k x ->
   h (const (k, x))

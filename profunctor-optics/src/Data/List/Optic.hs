@@ -32,11 +32,11 @@ module Data.List.Optic (
   , cxfolded
     -- * Operators
     -- * Sort-based operators (Lens, Ord)
-  , sortingOf
-  , sortingDescOf
-  , groupingOf
-  , nubbingOf
-  , sortingString
+  , sortsOf
+  , sortsDescOf
+  , groupsOf
+  , nubsOf
+  , sortsString
     -- * Comparator-based operators (*By)
   , groupSortBy
   , groupSort
@@ -49,7 +49,7 @@ module Data.List.Optic (
   , uniqueSortOn
 ) where
 
-import Data.Profunctor.Optic hiding (sortingOf, sortingDescOf, groupingOf, nubbingOf, sortingString)
+import Data.Profunctor.Optic hiding (sorts, sortsDesc, groups, nubs, sortingString)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
 import Data.Maybe (listToMaybe)
@@ -159,29 +159,29 @@ cxfolded = cxfoldVl $ \fakb fs ->
 --
 -- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
-sortingOf :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingOf _ [] = []
-sortingOf o xs = Map.elems $ Map.fromListWith (flip (++))
+sortsOf :: Ord a => Lens' s a -> [s] -> [[s]]
+sortsOf _ [] = []
+sortsOf o xs = Map.elems $ Map.fromListWith (flip (++))
   [(s ^. o, [s]) | s <- xs]
 
 -- | Sort a list in descending order through a lens.
-sortingDescOf :: Ord a => Lens' s a -> [s] -> [[s]]
-sortingDescOf _ [] = []
-sortingDescOf o xs = Map.elems $ Map.fromListWith (flip (++))
+sortsDescOf :: Ord a => Lens' s a -> [s] -> [[s]]
+sortsDescOf _ [] = []
+sortsDescOf o xs = Map.elems $ Map.fromListWith (flip (++))
   [(Down (s ^. o), [s]) | s <- xs]
 
 -- | Group a list through a lens.
-groupingOf :: Ord a => Lens' s a -> [s] -> [[s]]
-groupingOf = sortingOf
+groupsOf :: Ord a => Lens' s a -> [s] -> [[s]]
+groupsOf = sortsOf
 
 -- | Deduplicate a list through a lens, keeping first per group.
-nubbingOf :: Ord a => Lens' s a -> [s] -> [s]
-nubbingOf _ [] = []
-nubbingOf o xs = map head $ sortingOf o xs
+nubsOf :: Ord a => Lens' s a -> [s] -> [s]
+nubsOf _ [] = []
+nubsOf o xs = map head $ sortsOf o xs
 
 -- | Sort a 'String' by a key on each character.
-sortingString :: Ord k => (Char -> k) -> String -> Map.Map k String
-sortingString = sortingRep length (\s i -> s !! i) id
+sortsString :: Ord k => (Char -> k) -> String -> Map.Map k String
+sortsString = sortingRep length (\s i -> s !! i) id
 
 ---------------------------------------------------------------------
 -- Comparator-based operators (*By)

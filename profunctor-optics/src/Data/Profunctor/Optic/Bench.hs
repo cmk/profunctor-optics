@@ -103,7 +103,7 @@
 -- Fold toListOf (Map)             3.5\/2.0 μs      1.73x
 -- Composition traversed.first  2.2\/2.2 μs      0.97x
 -- Sort carrier mkSortN (1K)    3.0\/3.1 μs      0.98x
--- sortingOf (1K)              334\/331 μs       1.01x
+-- sortsOf (1K)              334\/331 μs       1.01x
 -- toMapOf (1K)                346\/343 μs       1.01x
 -- @
 --
@@ -139,7 +139,7 @@ import Data.Profunctor.Optic.Traversal (traverseOf)
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.View (view)
 import Data.Profunctor.Optic.Import
-import Data.List.Optic (sortingOf)
+import Data.List.Optic (sortsOf)
 import Data.Map.Optic (toMapOf)
 import qualified Data.Map.Strict as Map
 import Prelude
@@ -248,14 +248,14 @@ benchCompose2 o1 o2 f direct =
 -- Container baselines
 ---------------------------------------------------------------------
 
--- | Compare sortingOf vs Data.List.sortOn + manual grouping.
+-- | Compare sortsOf vs Data.List.sortOn + manual grouping.
 --
 benchSortingOf :: Ord a
                 => Lens' s a
                 -> [s]
                 -> ([s] -> [[s]], [s] -> [[s]])
 benchSortingOf o xs =
-  ( sortingOf o
+  ( sortsOf o
   , \ys -> Map.elems $ Map.fromListWith (flip (++))
       [(view o s, [s]) | s <- ys]
   )
