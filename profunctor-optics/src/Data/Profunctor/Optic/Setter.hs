@@ -33,6 +33,7 @@ module Data.Profunctor.Optic.Setter (
   , Cxadjoint, Cxadjoint'
   , adjoint
   , ixadjoint
+  , cxadjoint
   , adjointl
   , adjointr
   , adjointlVl
@@ -264,6 +265,16 @@ adjoint abst = indexing abst . representing (\f -> distribute . fmap f)
 ixadjoint :: ((i -> a -> b) -> s -> t) -> Ixadjoint i s t a b
 ixadjoint f = adjoint $ \iab -> f (curry iab) . snd
 {-# INLINE ixadjoint #-}
+
+-- | Build a 'Cxadjoint' from a coindexed function.
+--
+-- The coindex @i@ threads through the right side of the profunctor.
+-- Same implementation as 'cxsetter' but returns 'Cxadjoint'
+-- (requires 'Adjoining').
+--
+cxadjoint :: ((i -> a -> b) -> s -> t) -> Cxadjoint i s t a b
+cxadjoint f = adjoint $ \aib s -> const $ f (\i a -> aib a i) s
+{-# INLINE cxadjoint #-}
 
 -- | Construct an 'Adjoint' from a getter and a setter (lens-like).
 --

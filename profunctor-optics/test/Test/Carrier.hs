@@ -762,16 +762,18 @@ gen_intmap = IM.fromList <$> G.list (R.linear 0 10) ((,) <$> int <*> int)
 gen_seq :: Gen (Seq.Seq Int)
 gen_seq = Seq.fromList <$> G.list (R.linear 0 10) int
 
--- Map Cxsetter
-prop_map_cxmapped_id :: Property
-prop_map_cxmapped_id = withTests 100 . property $ do
+-- Map Adjoint (adjusted is Adjoint', works with over/cosets/sets)
+prop_map_adjoint_id :: Property
+prop_map_adjoint_id = withTests 100 . property $ do
   m <- forAll gen_map
-  assert $ Prop.id_cxsetter MapO.cxmapped m
+  k <- forAll (Sum <$> int)
+  assert $ Prop.id_adjoint (MapO.adjusted k) m
 
-prop_map_cxmapped_compose :: Property
-prop_map_cxmapped_compose = withTests 100 . property $ do
+prop_map_adjoint_compose :: Property
+prop_map_adjoint_compose = withTests 100 . property $ do
   m <- forAll gen_map
-  assert $ Prop.compose_cxsetter MapO.cxmapped (+1) (*2) m
+  k <- forAll (Sum <$> int)
+  assert $ Prop.compose_adjoint (MapO.adjusted k) (+1) (*2) m
 
 -- IntMap Cxsetter (cosets on Cxsetter gives (a -> k -> b) -> s -> k -> t,
 -- so we use const to ignore the key and evaluate at 0)
@@ -798,11 +800,11 @@ prop_seq_cxmapped_compose = withTests 100 . property $ do
   ((\q -> cosets SeqO.cxmapped (const . (+1)) q 0) . (\q -> cosets SeqO.cxmapped (const . (*2)) q 0)) s
     === cosets SeqO.cxmapped (const . ((+1) . (*2))) s 0
 
--- Map Cxsetter via cosets (ignoring key, same as Cosetter id law)
-prop_map_cxmapped_cosets_id :: Property
-prop_map_cxmapped_cosets_id = withTests 100 . property $ do
+-- Map Cxadjoint via over (ignoring coindex)
+prop_map_cxmapped_over_id :: Property
+prop_map_cxmapped_over_id = withTests 100 . property $ do
   m <- forAll gen_map
-  cosets MapO.cxmapped (const . id) m (Sum 0) === m
+  over MapO.cxmapped (const . id) m (Sum 0) === m
 
 tests :: IO Bool
 tests = checkSequential $$(discover)
