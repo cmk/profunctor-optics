@@ -859,7 +859,7 @@ matches o = withTraversal0 o $ \sta _ -> sta
 --
 -- @since 0.0.3
 ixmatches :: Monoid k => AIxtraversal0 k s t a b -> s -> t + (k, a)
-ixmatches o s = case o (Traversal0Rep (\(k, a) -> Right a) (\_ b -> b)) of
+ixmatches o s = case o (Traversal0Rep (\(_k, a) -> Right a) (\_ b -> b)) of
   Traversal0Rep sta _ -> fmap (mempty,) (sta (mempty, s))
 {-# INLINE ixmatches #-}
 

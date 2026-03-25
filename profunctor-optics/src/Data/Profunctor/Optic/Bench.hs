@@ -254,7 +254,7 @@ benchSortingOf :: Ord a
                 => Lens' s a
                 -> [s]
                 -> ([s] -> [[s]], [s] -> [[s]])
-benchSortingOf o xs =
+benchSortingOf o =
   ( sortsOf o
   , \ys -> Map.elems $ Map.fromListWith (flip (++))
       [(view o s, [s]) | s <- ys]
