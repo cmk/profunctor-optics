@@ -2,9 +2,15 @@ cabal-version: 2.0
 
 name:           profunctor-optics-containers
 version:        0.0.1
-synopsis:       Profunctor optics for containers types.
+synopsis:       Extended container optics: nonempty variants and recursion schemes.
 description:
-  Optics for types in the @containers@ package: Map, Seq, Tree, and List.
+  Extended optics for @containers@ types that require additional dependencies
+  (@nonempty-containers@, @scheme-extensions@). Includes nonempty Map optics,
+  pattern functors for recursion schemes, and structural operations (depth,
+  sizes, rebalanced).
+  .
+  The standard container optics (Map, IntMap, Set, IntSet, Seq, Tree, List)
+  live in the core @profunctor-optics@ package.
   .
   See the <https://github.com/cmk/profunctor-optics#readme README> for more information.
 
