@@ -25,8 +25,6 @@ module Data.Map.Optic (
   , at
   , ixat
   , posAt
-  , updated
-  , updateLooked
   , lookedLT
   , lookedLE
   , lookedGE
@@ -39,18 +37,20 @@ module Data.Map.Optic (
   , lookedMax
   , validated
     -- ** Setter, Ixsetter
+  , mappedIf
+  , mappedKey
+  , filteredKey
   , adjusted
   , ixmapped
   , ixfiltered
-  , mappedIf
-  , keyed
-  , filteredKeys
-  , updatedMin
-  , updatedMax
   , altered
   , altered'
   , ixaltered
   , ixaltered'
+  , updated
+  , updateLooked
+  , updatedMin
+  , updatedMax
     -- * Dual Optics
     -- ** Colens
   , zippedIf
@@ -140,18 +140,6 @@ posAt i = ixtraversal0' getter setter'
       Nothing     -> m
       Just (k, _) -> Map.insert k a m
 {-# INLINE posAt #-}
-
--- | /O(log n)/. Update a value at a specific key.
---
-updated :: Ord k => k -> Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
-updated k = ixsetter $ \kab -> Map.updateWithKey kab k
-{-# INLINE updated #-}
-
--- | /O(log n)/. Lookup and update a value at a specific key.
---
-updateLooked :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-updateLooked k = ixsetter $ \kab -> Map.updateLookupWithKey kab k
-{-# INLINE updateLooked #-}
 
 -- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.
 --
@@ -249,6 +237,18 @@ ixaltered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
 ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ixaltered' #-}
 
+-- | /O(log n)/. Update a value at a specific key.
+--
+updated :: Ord k => k -> Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+updated k = ixsetter $ \kab -> Map.updateWithKey kab k
+{-# INLINE updated #-}
+
+-- | /O(log n)/. Lookup and update a value at a specific key.
+--
+updateLooked :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+updateLooked k = ixsetter $ \kab -> Map.updateLookupWithKey kab k
+{-# INLINE updateLooked #-}
+
 -- | /O(n)/. Setter that maps and filters values simultaneously.
 --
 -- @'sets' 'mappedIf' f = 'Map.mapMaybe' f@
@@ -259,23 +259,23 @@ mappedIf = setter Map.mapMaybe
 
 -- | /O(n log n)/. Setter over the keys of a 'Map.Map'.
 --
--- @'sets' 'keyed' f = 'Map.mapKeys' f@
+-- @'sets' 'mappedKey' f = 'Map.mapKeys' f@
 --
-keyed :: Ord k2 => Setter (Map.Map k1 a) (Map.Map k2 a) k1 k2
-keyed = setter Map.mapKeys
-{-# INLINE keyed #-}
+mappedKey :: Ord k2 => Setter (Map.Map k1 a) (Map.Map k2 a) k1 k2
+mappedKey = setter Map.mapKeys
+{-# INLINE mappedKey #-}
 
 -- | /O(n)/. Setter that filters entries by key predicate.
 --
--- @'sets' 'filteredKeys' p = 'Map.filterKeys' p@
+-- @'sets' 'filteredKey' p = 'Map.filterKeys' p@
 --
 -- /Note/: does not satisfy the Setter composition law.
--- @'sets' filteredKeys p '.' 'sets' filteredKeys q ≢ 'sets' filteredKeys (p '.' q)@.
--- Instead: @'sets' filteredKeys p '.' 'sets' filteredKeys q ≡ 'sets' filteredKeys (\\k -> p k '&&' q k)@.
+-- @'sets' filteredKey p '.' 'sets' filteredKey q ≢ 'sets' filteredKey (p '.' q)@.
+-- Instead: @'sets' filteredKey p '.' 'sets' filteredKey q ≡ 'sets' filteredKey (\\k -> p k '&&' q k)@.
 --
-filteredKeys :: Setter (Map.Map k a) (Map.Map k a) k Bool
-filteredKeys = setter $ \p -> Map.filterWithKey (\k _ -> p k)
-{-# INLINE filteredKeys #-}
+filteredKey :: Setter (Map.Map k a) (Map.Map k a) k Bool
+filteredKey = setter $ \p -> Map.filterWithKey (\k _ -> p k)
+{-# INLINE filteredKey #-}
 
 -- | /O(log n)/. Ixsetter that updates the value at the minimal key.
 -- The key is threaded as index. Returns 'Nothing' to delete.
@@ -303,7 +303,7 @@ updatedMax = ixsetter Map.updateMaxWithKey
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.
 --
--- Self-keyed: the key set comes from the focal map (via 'copure').
+-- Self-mappedKey: the key set comes from the focal map (via 'copure').
 -- The focus is @k -> Maybe a@ — 'Nothing' for keys absent from a
 -- given map. No external key set or default needed.
 --
@@ -332,7 +332,7 @@ cxzippedIf ks = cxlensVl $ \fakb fs ->
 {-# INLINE cxzippedIf #-}
 
 -- | Pointwise 'Cotraversal' with 'Maybe' focus.
--- Self-keyed: the key set comes from the focal map via 'copure'.
+-- Self-mappedKey: the key set comes from the focal map via 'copure'.
 --
 zippedTraverseIf :: Ord k => Cotraversal (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
 zippedTraverseIf = cotraversalVl $ \fab fs ->
@@ -341,7 +341,7 @@ zippedTraverseIf = cotraversalVl $ \fab fs ->
 {-# INLINE zippedTraverseIf #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
--- Self-keyed via 'copure'.
+-- Self-mappedKey via 'copure'.
 --
 cxzippedTraverseIf :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
 cxzippedTraverseIf = cxtraversalVl $ \fakb fs ->
@@ -426,7 +426,7 @@ fromIxfold o = ixfoldMapOf o Map.singleton
 -- Sort-based operators
 ---------------------------------------------------------------------
 
--- | Build a 'Map.Map' keyed by lens focus from a list.
+-- | Build a 'Map.Map' mappedKey by lens focus from a list.
 --
 -- /Benchmark: 1.01x vs direct Map.fromListWith (zero-cost). See "Data.Profunctor.Optic.Bench"./
 --
