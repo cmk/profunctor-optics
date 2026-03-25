@@ -62,8 +62,8 @@ module Data.Profunctor.Optic.Lens (
     -- ** Colens, Cxlens
   , cofirst, cosecond
   , cxfirst, cxsecond
-  , closed
-  , cxclosed
+  , grated
+  , cxgrated
   , represented
   , distributed
   , endomorphed
@@ -613,13 +613,19 @@ cxsecond = rmap (unsecond . uncurry) . curry' . lmap swap
 
 -- | TODO: Document
 --
--- >>> cxover cxclosed (,) (*2) 5
+grated :: Colens (c -> a) (c -> b) a b
+grated = closed
+{-# INLINE grated #-}
+
+-- | TODO: Document
+--
+-- >>> cxover cxgrated (,) (*2) 5
 -- ((),10)
 --
 -- @since 0.0.3
-cxclosed :: Cxlens k (c -> a) (c -> b) a b
-cxclosed = rmap flip . closed
-{-# INLINE cxclosed #-}
+cxgrated :: Cxlens k (c -> a) (c -> b) a b
+cxgrated = rmap flip . closed
+{-# INLINE cxgrated #-}
 
 -- | Obtain a 'Colens' from a 'F.Representable' functor.
 --
