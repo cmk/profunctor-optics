@@ -23,6 +23,8 @@ module Data.Sequence.Optic (
     -- * Dual Optics
     -- ** Colens
   , grateSeq
+    -- ** Cotraversal
+  , zippedSeq
     -- ** Cxsetter
   , cxmapped
     -- ** Cxtraversal
@@ -115,6 +117,17 @@ ixmapped = ixsetter $ \f -> Seq.mapWithIndex f
 grateSeq :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
 grateSeq n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
 {-# INLINE grateSeq #-}
+
+-- | Pointwise 'Cotraversal' over the elements of a 'Seq' at a
+-- fixed length. Extends 'grateSeq' from 'Colens' to 'Cotraversal'.
+--
+-- Requires known length because 'Seq' is not 'Distributive'
+-- (it has variable size).
+--
+zippedSeq :: Int -> Cotraversal (Seq a) (Seq b) a b
+zippedSeq n = cotraversalVl $ \fab fs ->
+  Seq.fromFunction n (\i -> fab (fmap (`Seq.index` i) fs))
+{-# INLINE zippedSeq #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics

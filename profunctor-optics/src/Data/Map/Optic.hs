@@ -46,8 +46,11 @@ module Data.Map.Optic (
     -- * Dual Optics
     -- ** Colens
   , zipsMap
+    -- ** Cotraversal
+  , zippedMap
     -- ** Cxtraversal
   , cxtraversed
+  , cxzippedMap
     -- ** Cxfold
   , cxfolded
     -- ** Cxview
@@ -232,6 +235,28 @@ ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 zipsMap :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
 zipsMap ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (error "zipsMap: missing key") k' m) k) ks
 {-# INLINE zipsMap #-}
+
+-- | Pointwise 'Cotraversal' over the values of a 'Map.Map' at a
+-- fixed key set. Extends 'zipsMap' from 'Colens' to 'Cotraversal':
+-- where 'zipsMap' views the map as a function from keys,
+-- 'zippedMap' views it as a container that can be zipped pointwise.
+--
+-- Requires a fixed key set because 'Map.Map' is not 'Distributive'
+-- (it has variable size).
+--
+zippedMap :: Ord k => Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
+zippedMap ks = cotraversalVl $ \fab fs ->
+  Map.fromSet (\k -> fab (fmap (flip (Map.!) k) fs)) ks
+{-# INLINE zippedMap #-}
+
+-- | Keyed pointwise 'Cxtraversal' over the values of a 'Map.Map'.
+-- Threads the key as coindex. Combines 'zippedMap' with
+-- key-dependent operations.
+--
+cxzippedMap :: Ord k => Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxzippedMap ks = cxtraversalVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (flip (Map.!) k) fs) k) ks
+{-# INLINE cxzippedMap #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
