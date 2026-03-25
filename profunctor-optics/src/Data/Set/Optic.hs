@@ -1,7 +1,15 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE RankNTypes            #-}
 {-# LANGUAGE TypeFamilies          #-}
--- | Profunctor optics for 'Data.Set.Set'.
+-- | Left and right carriers are characterized by their representation
+-- functors ('Rep' and 'Corep'). 'Iso' sits at the top where both
+-- are trivial ('Identity'). 'Adjoint' sits at the bottom where they
+-- form a full adjunction (@'Corep' p ⊣ 'Rep' p@). A left-indexed
+-- ('Ix') optic threads an index through the left adjoint functor
+-- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
+-- through the right adjoint functor @(->) k@.
+--
+-- Profunctor optics for 'Data.Set.Set'.
 module Data.Set.Optic (
     -- * Types
     Set.Set

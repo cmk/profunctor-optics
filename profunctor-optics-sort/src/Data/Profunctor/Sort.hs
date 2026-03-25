@@ -1,6 +1,14 @@
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE TypeFamilies #-}
--- | Profunctor sort with separated key, input, and output parameters.
+-- | Left and right carriers are characterized by their representation
+-- functors ('Rep' and 'Corep'). 'Iso' sits at the top where both
+-- are trivial ('Identity'). 'Adjoint' sits at the bottom where they
+-- form a full adjunction (@'Corep' p ⊣ 'Rep' p@). A left-indexed
+-- ('Ix') optic threads an index through the left adjoint functor
+-- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
+-- through the right adjoint functor @(->) k@.
+--
+-- Profunctor sort with separated key, input, and output parameters.
 --
 -- Three families:
 --

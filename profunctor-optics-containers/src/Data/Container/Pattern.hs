@@ -2,7 +2,15 @@
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DeriveTraversable #-}
 
--- | Pattern functors for @containers@ types.
+-- | Left and right carriers are characterized by their representation
+-- functors ('Rep' and 'Corep'). 'Iso' sits at the top where both
+-- are trivial ('Identity'). 'Adjoint' sits at the bottom where they
+-- form a full adjunction (@'Corep' p ⊣ 'Rep' p@). A left-indexed
+-- ('Ix') optic threads an index through the left adjoint functor
+-- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
+-- through the right adjoint functor @(->) k@.
+--
+-- Pattern functors for @containers@ types.
 --
 -- These mirror the internal structure of 'Data.Map.Map',
 -- 'Data.IntMap.IntMap', 'Data.Set.Set', and 'Data.IntSet.IntSet',
