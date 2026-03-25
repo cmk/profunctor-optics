@@ -20,7 +20,7 @@
 module Data.Map.Lazy.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics
+    -- * Star Optics
     -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
@@ -41,7 +41,7 @@ module Data.Map.Lazy.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics
+    -- * Costar Optics
     -- ** Colens
   , zippedIfKey
     -- ** Cxlens
@@ -106,7 +106,7 @@ import qualified Data.Map.Merge.Lazy as Merge
 import Prelude
 
 ---------------------------------------------------------------------
--- Left Adjoint Optics (Star side)
+-- Star Optics
 ---------------------------------------------------------------------
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
@@ -211,7 +211,7 @@ validated = fold0 $ \m -> if Map.valid m then Just m else Nothing
 {-# INLINE validated #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Optics (Costar side)
+-- Costar Optics
 ---------------------------------------------------------------------
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.

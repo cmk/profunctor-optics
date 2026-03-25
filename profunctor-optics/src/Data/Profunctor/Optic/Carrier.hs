@@ -21,7 +21,7 @@
 module Data.Profunctor.Optic.Carrier (
     -- * Iso Carriers
     AIso, AIso'
-    -- * Left Adjoint Carriers (Star side)
+    -- * Star Carriers
     -- ** Lens, Ixlens
   , ALens, ALens'
   , AIxlens, AIxlens'
@@ -51,7 +51,7 @@ module Data.Profunctor.Optic.Carrier (
     -- ** Setter1, Ixsetter1
   , ASetter1, ASetter1'
   , AIxsetter1, AIxsetter1'
-    -- * Right Adjoint Carriers (Costar side)
+    -- * Costar Carriers
     -- ** Colens, Cxlens
   , AColens, AColens'
   , ACxlens, ACxlens'
@@ -80,7 +80,7 @@ module Data.Profunctor.Optic.Carrier (
     -- ** Cosetter1, Cxsetter1
   , ACosetter1, ACosetter1'
   , ACxsetter1, ACxsetter1'
-    -- * Adjoint Carriers (both sides)
+    -- * Adjoint Carriers
   , AAdjoint, AAdjoint'
   , AIxadjoint, AIxadjoint'
   , ACxadjoint, ACxadjoint'

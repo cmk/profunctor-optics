@@ -13,7 +13,7 @@
 -- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
 -- through the right adjoint functor @(->) k@.
 module Data.Profunctor.Optic.Setter (
-    -- * Left Adjoint Constructors
+    -- * Star Constructors
     -- ** Setter, Ixsetter
     Setter, Setter'
   , Ixsetter, Ixsetter'
@@ -27,7 +27,7 @@ module Data.Profunctor.Optic.Setter (
   , Ixsetter1, Ixsetter1'
   , setter1
   , ixsetter1
-    -- * Right Adjoint Constructors
+    -- * Costar Constructors
     -- ** Cosetter, Cxsetter
   , Cosetter, Cosetter'
   , Cxsetter, Cxsetter'
@@ -35,9 +35,6 @@ module Data.Profunctor.Optic.Setter (
   , cxsetter
   , cloneCosetter
   , cloneCxsetter
-    -- ** Cosetter1, Cxsetter1
-  , Cosetter1, Cosetter1'
-  , Cxsetter1, Cxsetter1'
     -- * Adjoint Constructors
   , Adjoint, Adjoint'
   , Ixadjoint, Ixadjoint'
@@ -51,7 +48,7 @@ module Data.Profunctor.Optic.Setter (
   , adjointrVl
   , ixadjoining
   , cxadjoining
-    -- * Left Adjoint Optics
+    -- * Star Optics
     -- ** Setter, Ixsetter
   , fmapped
   , contramapped
@@ -65,16 +62,14 @@ module Data.Profunctor.Optic.Setter (
   , zipped
   , modded
   , conditioned
-    -- ** Setter1, Ixsetter1
-    -- * Right Adjoint Optics
+    -- * Costar Optics
     -- ** Cosetter, Cxsetter
-    -- ** Cosetter1, Cxsetter1
   , coliftedA
   , zipListed
     -- * Adjoint Optics
   , adjoined
   , mappedException
-    -- * Left Adjoint Operators
+    -- * Star Operators
     -- ** Setter, Ixsetter
   , set
   , ixset
@@ -82,15 +77,13 @@ module Data.Profunctor.Optic.Setter (
   , ixsets
   , over
   , ixover
-    -- ** Setter1, Ixsetter1
-    -- * Right Adjoint Operators
+    -- * Costar Operators
     -- ** Cosetter, Cxsetter
   , coset
   , cxset
   , cosets
   , cxsets
   , cxover
-    -- ** Cosetter1, Cxsetter1
     -- * Adjoint Operators
   , lifts
   , lowers
@@ -143,7 +136,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Prelude
 
 ---------------------------------------------------------------------
--- Left Adjoint Constructors
+-- Star Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Setter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
@@ -228,7 +221,7 @@ ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
 {-# INLINE ixsetter1 #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Constructors
+-- Costar Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
@@ -493,7 +486,7 @@ cxadjoining o p_ka_b = p_ks_t
 {-# INLINE cxadjoining #-}
 
 ---------------------------------------------------------------------
--- Left Adjoint Optics
+-- Star Optics
 ---------------------------------------------------------------------
 
 -- | 'Setter' on each value of a functor.
@@ -619,7 +612,7 @@ conditioned p = setter $ \f a -> if p a then f a else a
 {-# INLINE conditioned #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Optics
+-- Costar Optics
 ---------------------------------------------------------------------
 
 -- | TODO: Document
@@ -664,7 +657,7 @@ mappedException = adjoint Ex.mapException
 {-# INLINE mappedException #-}
 
 ---------------------------------------------------------------------
--- Left Adjoint Operators
+-- Star Operators
 ---------------------------------------------------------------------
 
 -- | Set the focus of a 'Setter'.
@@ -705,7 +698,7 @@ ixsets o f = curry (sets o $ uncurry f) mempty
 {-# INLINE ixsets #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Operators
+-- Costar Operators
 ---------------------------------------------------------------------
 
 -- | Set the focus of a 'Cosetter'.

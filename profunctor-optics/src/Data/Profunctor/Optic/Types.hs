@@ -36,7 +36,7 @@ module Data.Profunctor.Optic.Types (
   , Equality, Equality'
     -- $iso
   , Iso, Iso'
-    -- * Left Adjoint Optics (Star side)
+    -- * Star Optics
     -- ** Lens, Ixlens
     -- $lens
   , Lens, Lens'
@@ -77,7 +77,7 @@ module Data.Profunctor.Optic.Types (
     -- $setter1
   , Setter1, Setter1'
   , Ixsetter1, Ixsetter1'
-    -- * Right Adjoint Optics (Costar side)
+    -- * Costar Optics
     -- ** Colens, Cxlens
     -- $colens
   , Colens, Colens'
