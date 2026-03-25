@@ -53,14 +53,14 @@ module Data.Map.Optic (
   , updatedMax
     -- * Dual Optics
     -- ** Colens
-  , zippedIf
+  , zippedIfKey
     -- ** Cxlens
-  , cxzippedIf
+  , cxzippedIfKey
     -- ** Cotraversal
-  , zippedTraverseIf
+  , zippedIf
     -- ** Cxtraversal
   , cxtraversed
-  , cxzippedTraverseIf
+  , cxzippedIf
     -- ** Cxfold
   , cxfolded
     -- ** Cxsetter
@@ -303,7 +303,7 @@ updatedMax = ixsetter Map.updateMaxWithKey
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.
 --
--- Self-mappedKey: the key set comes from the focal map (via 'copure').
+-- Self-keyed: the key set comes from the focal map (via 'copure').
 -- The focus is @k -> Maybe a@ — 'Nothing' for keys absent from a
 -- given map. No external key set or default needed.
 --
@@ -318,36 +318,36 @@ updatedMax = ixsetter Map.updateMaxWithKey
 -- The focus is @k -> Maybe a@ — 'Nothing' for absent keys.
 -- Requires a fixed key set (Colens has no 'copure').
 --
-zippedIf :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> Maybe a) (k -> Maybe b)
-zippedIf ks = grate $ \f ->
+zippedIfKey :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> Maybe a) (k -> Maybe b)
+zippedIfKey ks = grate $ \f ->
   Map.mapMaybe id $ Map.fromSet (\k -> f (\m k' -> Map.lookup k' m) k) ks
-{-# INLINE zippedIf #-}
+{-# INLINE zippedIfKey #-}
 
 -- | Coindexed 'Cxlens' with 'Maybe' focus.
 -- Requires a fixed key set (Cxlens has no 'copure').
 --
-cxzippedIf :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
-cxzippedIf ks = cxlensVl $ \fakb fs ->
+cxzippedIfKey :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedIfKey ks = cxlensVl $ \fakb fs ->
   Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) ks
-{-# INLINE cxzippedIf #-}
+{-# INLINE cxzippedIfKey #-}
 
 -- | Pointwise 'Cotraversal' with 'Maybe' focus.
--- Self-mappedKey: the key set comes from the focal map via 'copure'.
+-- Self-keyed: the key set comes from the focal map via 'copure'.
 --
-zippedTraverseIf :: Ord k => Cotraversal (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
-zippedTraverseIf = cotraversalVl $ \fab fs ->
+zippedIf :: Ord k => Cotraversal (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+zippedIf = cotraversalVl $ \fab fs ->
   let m0 = copure fs
   in  Map.mapMaybe id $ Map.fromSet (\k -> fab (fmap (Map.lookup k) fs)) (Map.keysSet m0)
-{-# INLINE zippedTraverseIf #-}
+{-# INLINE zippedIf #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
--- Self-mappedKey via 'copure'.
+-- Self-keyed via 'copure'.
 --
-cxzippedTraverseIf :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
-cxzippedTraverseIf = cxtraversalVl $ \fakb fs ->
+cxzippedIf :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedIf = cxtraversalVl $ \fakb fs ->
   let m0 = copure fs
   in  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) (Map.keysSet m0)
-{-# INLINE cxzippedTraverseIf #-}
+{-# INLINE cxzippedIf #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
