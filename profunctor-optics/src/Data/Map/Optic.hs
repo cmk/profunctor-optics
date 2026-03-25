@@ -38,7 +38,6 @@ module Data.Map.Optic (
   , lookedMax
   , validated
     -- ** Setter, Ixsetter
-  , mapped
   , adjusted
   , ixmapped
   , ixfiltered
@@ -58,8 +57,6 @@ module Data.Map.Optic (
   , cxzippedTraverseIf
     -- ** Cxfold
   , cxfolded
-    -- ** Cosetter
-  , comapped
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
@@ -187,14 +184,6 @@ validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = filtered Map.valid
 {-# INLINE validated #-}
 
--- | /O(n)/. Non-indexed 'Setter' over the values of a 'Map.Map'.
---
--- @'over' 'mapped' f = 'fmap' f@
---
-mapped :: Setter (Map.Map k a) (Map.Map k b) a b
-mapped = setter fmap
-{-# INLINE mapped #-}
-
 -- | /O(log n)/. Adjust a value at a specific key.
 --
 adjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
@@ -279,14 +268,6 @@ zippedTraverseIf = cotraversalVl $ \fab fs ->
   let m0 = copure fs
   in  Map.mapMaybe id $ Map.fromSet (\k -> fab (fmap (Map.lookup k) fs)) (Map.keysSet m0)
 {-# INLINE zippedTraverseIf #-}
-
--- | /O(n)/. Non-indexed 'Cosetter' over the values of a 'Map.Map'.
---
--- @'cosets' 'comapped' f = 'fmap' f@
---
-comapped :: Cosetter (Map.Map k a) (Map.Map k b) a b
-comapped = cosetter fmap
-{-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
 -- Self-keyed via 'copure'.

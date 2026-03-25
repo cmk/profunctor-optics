@@ -33,7 +33,6 @@ module Data.IntMap.Optic (
   , lookedMin
   , lookedMax
     -- ** Setter, Ixsetter
-  , mapped
   , adjusted
   , ixmapped
   , ixfiltered
@@ -51,8 +50,6 @@ module Data.IntMap.Optic (
     -- ** Cxtraversal
   , cxtraversed
   , cxzippedTraverseIf
-    -- ** Cosetter
-  , comapped
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
@@ -176,14 +173,6 @@ lookedMax :: Ixfold0 Int (IM.IntMap a) a
 lookedMax = ixfold0 IM.lookupMax
 {-# INLINE lookedMax #-}
 
--- | /O(n)/. Non-indexed 'Setter' over the values of an 'IM.IntMap'.
---
--- @'over' 'mapped' f = 'fmap' f@
---
-mapped :: Setter (IM.IntMap a) (IM.IntMap b) a b
-mapped = setter fmap
-{-# INLINE mapped #-}
-
 -- | /O(log n)/. Adjust a value at a key.
 --
 adjusted :: Int -> Ixsetter' Int (IM.IntMap a) a
@@ -255,14 +244,6 @@ zippedTraverseIf = cotraversalVl $ \fab fs ->
   let m0 = copure fs
   in  IM.mapMaybe id $ IM.fromSet (\k -> fab (fmap (IM.lookup k) fs)) (IM.keysSet m0)
 {-# INLINE zippedTraverseIf #-}
-
--- | /O(n)/. Non-indexed 'Cosetter' over the values of an 'IM.IntMap'.
---
--- @'cosets' 'comapped' f = 'fmap' f@
---
-comapped :: Cosetter (IM.IntMap a) (IM.IntMap b) a b
-comapped = cosetter fmap
-{-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
 -- Self-keyed via 'copure'.

@@ -24,7 +24,6 @@ module Data.List.Optic (
     -- ** Colens
   , zipped
     -- ** Cosetter
-  , comapped
   , zipListed
     -- ** Cxsetter
   , cxmapped
@@ -111,14 +110,6 @@ ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
 zipped :: Int -> Colens [a] [b] a b
 zipped n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 {-# INLINE zipped #-}
-
--- | /O(n)/. Non-indexed 'Cosetter' over the values of a list.
---
--- @'cosets' 'comapped' f = 'fmap' f@
---
-comapped :: Cosetter [a] [b] a b
-comapped = cosetter fmap
-{-# INLINE comapped #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics

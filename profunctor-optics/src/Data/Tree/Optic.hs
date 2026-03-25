@@ -16,12 +16,6 @@ module Data.Tree.Optic (
   , ixflattened
     -- * Fold
   , folded
-    -- * Setter
-  , mapped
-    -- * Dual Optics
-    -- $todo-zipsTree
-    -- ** Cosetter
-  , comapped
 ) where
 
 import Data.Profunctor.Optic hiding (folded)
@@ -90,18 +84,6 @@ folded = foldVl go
 {-# INLINE folded #-}
 
 ---------------------------------------------------------------------
--- Setter
----------------------------------------------------------------------
-
--- | /O(n)/. Non-indexed 'Setter' over all values in a 'Tree'.
---
--- @'over' 'mapped' f = 'fmap' f@
---
-mapped :: Setter (Tree a) (Tree b) a b
-mapped = setter fmap
-{-# INLINE mapped #-}
-
----------------------------------------------------------------------
 -- Dual optics
 ---------------------------------------------------------------------
 
@@ -109,14 +91,6 @@ mapped = setter fmap
 -- Pointwise zipping of trees. Zips structurally — root with root,
 -- children with children. Mismatched shapes truncate to the shorter tree.
 -- Requires careful handling of subforest zipping; deferred for now.
-
--- | /O(n)/. Non-indexed 'Cosetter' over all values in a 'Tree'.
---
--- @'cosets' 'comapped' f = 'fmap' f@
---
-comapped :: Cosetter (Tree a) (Tree b) a b
-comapped = cosetter fmap
-{-# INLINE comapped #-}
 
 -- Note: no Cofold or Cxfold for Tree.
 --

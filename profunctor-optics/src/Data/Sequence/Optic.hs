@@ -21,15 +21,12 @@ module Data.Sequence.Optic (
   , folded
   , ixfolded
     -- * Setter
-  , mapped
   , ixmapped
     -- * Dual Optics
     -- ** Colens
   , zipped
     -- ** Cotraversal
   , zippedTraverse
-    -- ** Cosetter
-  , comapped
     -- ** Cxsetter
   , cxmapped
     -- ** Cxtraversal
@@ -106,14 +103,6 @@ ixfolded = ixfoldVl $ \f ->
 -- Setter
 ---------------------------------------------------------------------
 
--- | /O(n)/. Non-indexed 'Setter' over the elements of a 'Seq'.
---
--- @'over' 'mapped' f = 'fmap' f@
---
-mapped :: Setter (Seq a) (Seq b) a b
-mapped = setter fmap
-{-# INLINE mapped #-}
-
 -- | /O(n)/. Indexed setter over the elements of a 'Seq'.
 --
 ixmapped :: Ixsetter Int (Seq a) (Seq b) a b
@@ -141,14 +130,6 @@ zippedTraverse :: Int -> Cotraversal (Seq a) (Seq b) a b
 zippedTraverse n = cotraversalVl $ \fab fs ->
   Seq.fromFunction n (\i -> fab (fmap (`Seq.index` i) fs))
 {-# INLINE zippedTraverse #-}
-
--- | /O(n)/. Non-indexed 'Cosetter' over the elements of a 'Seq'.
---
--- @'cosets' 'comapped' f = 'fmap' f@
---
-comapped :: Cosetter (Seq a) (Seq b) a b
-comapped = cosetter fmap
-{-# INLINE comapped #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics

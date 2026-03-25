@@ -35,9 +35,6 @@ module Data.ByteString.Optic (
     -- ** Cotraversal
     zippedBS,
 
-    -- ** Cosetter
-    comapped,
-
     -- * Operators
     -- ** Sort-based
     sortingBS,
@@ -141,18 +138,6 @@ zippedBS = cotraversalVl $ \fab fs ->
   in  BS.pack [ fab (fmap (\t' -> BS.index t' i) fs) | i <- [0..n-1] ]
 {-# INLINE zippedBS #-}
 
--- | Strict setter over bytes.
---
--- @cosets comapped f = BS.map f@
---
--- Cosetter dual of 'mapped'. Since 'ByteString' is monomorphic in its
--- element type, 'mapped' and 'comapped' have the same operational
--- behaviour — the distinction is in profunctor constraints
--- (Star-side vs Costar-side).
---
-comapped :: Cosetter ByteString ByteString Word8 Word8
-comapped = cosetter BS.map
-
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
@@ -162,4 +147,3 @@ comapped = cosetter BS.map
 sortingBS :: Ord k => (Word8 -> k) -> ByteString -> Map k ByteString
 sortingBS = sortingRep BS.length BS.index BS.pack
 {-# INLINE sortingBS #-}
-{-# INLINE comapped #-}

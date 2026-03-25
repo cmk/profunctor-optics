@@ -36,9 +36,6 @@ module Data.Text.Optic (
     -- ** Cotraversal
     zippedText,
 
-    -- ** Cosetter
-    comapped,
-
     -- * Operators
     -- ** Sort-based
     sortingText,
@@ -121,18 +118,6 @@ zippedText = cotraversalVl $ \fab fs ->
       n = T.length t
   in  T.pack [ fab (fmap (\t' -> T.index t' i) fs) | i <- [0..n-1] ]
 {-# INLINE zippedText #-}
-
--- | Strict setter over characters.
---
--- @cosets comapped f = T.map f@
---
--- Cosetter dual of 'comapped. Since 'Text' is monomorphic in its
--- element type, 'comapped and 'comapped' have the same operational
--- behaviour — the distinction is in profunctor constraints
--- (Star-side vs Costar-side).
---
-comapped :: Cosetter Text Text Char Char
-comapped = cosetter T.map
 
 ---------------------------------------------------------------------
 -- Operators
