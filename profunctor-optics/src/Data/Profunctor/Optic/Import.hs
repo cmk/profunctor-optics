@@ -248,13 +248,18 @@ coercedR :: (Profunctor p, forall x. Contravariant (p x)) => p a b -> p a c
 coercedR = rmap absurd . contramap absurd
 {-# INLINE coercedR #-}
 
--- | Map over an 'Optic'.
+-- | Map a function over the focus of any optic.
+--
+-- @'over' o f@ instantiates the optic at @(->)@, which sits at the
+-- meet of the optic constraint diamond ('Identity' ⊣ 'Identity')
+-- and satisfies every profunctor constraint. This means 'over'
+-- accepts /any/ polymorphic optic: 'Iso', 'Lens', 'Prism',
+-- 'Traversal', 'Setter', 'Cosetter', 'Colens', 'Adjoint', etc.
 --
 -- @
 -- 'over' o 'id' ≡ 'id'
 -- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
 -- 'over' '.' 'setter' ≡ 'id'
--- 'over' '.' 'resetter' ≡ 'id'
 -- @
 --
 -- >>> over fmapped (+1) (Just 1)
@@ -265,6 +270,11 @@ coercedR = rmap absurd . contramap absurd
 -- (2,2)
 -- >>> over first show (10,20)
 -- ("10",20)
+--
+-- /Note/: 'over' does not accept pre-monomorphized optics (e.g.
+-- 'ASetter', 'ACosetter'). If you have a monomorphized optic, use
+-- the appropriate clone function ('cloneSetter', 'cloneCosetter',
+-- etc.) to re-polymorphize it first.
 --
 -- /Benchmark: 1.00x vs direct (Lens), 0.89x vs fmap (Traversal). See "Data.Profunctor.Optic.Bench"./
 --
