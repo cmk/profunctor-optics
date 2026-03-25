@@ -38,20 +38,24 @@ module Data.Map.Optic (
   , validated
     -- ** Setter, Ixsetter
   , mappedIf
+  , ixmappedIf
   , mappedKey
-  , filteredKey
+  , filtered
+  , ixfiltered
   , adjusted
   , ixadjusted
   , ixmapped
-  , ixfiltered
   , altered
   , altered'
   , ixaltered
   , ixaltered'
   , updated
-  , updateLooked
+  , ixupdated
+  , ixupdateLooked
   , updatedMin
+  , ixupdatedMin
   , updatedMax
+  , ixupdatedMax
     -- * Dual Optics
     -- ** Colens
   , zippedIfKey
@@ -86,7 +90,7 @@ module Data.Map.Optic (
   , sortsWhenMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (filtered, toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -192,116 +196,156 @@ lookedMax = ixfold0 Map.lookupMax
 -- | /O(n)/. Test if the internal map structure is valid.
 --
 validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
-validated = filtered Map.valid
+validated = fold0 $ \m -> if Map.valid m then Just m else Nothing
 {-# INLINE validated #-}
-
--- | /O(log n)/. Adjust a value at a specific key.
---
-adjusted :: Ord k => k -> Setter' (Map.Map k a) a
-adjusted k = setter $ \ab -> Map.adjust ab k
-{-# INLINE adjusted #-}
-
--- | /O(log n)/. Indexed adjust: the key is available to the update function.
---
-ixadjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
-ixadjusted k = ixsetter $ \kab -> Map.adjustWithKey kab k
-{-# INLINE ixadjusted #-}
-
--- | /O(n)/. 'Ixsetter' over the values of a 'Map.Map'.
---
-ixmapped :: Ixsetter k (Map.Map k a) (Map.Map k b) a b
-ixmapped = ixsetter Map.mapWithKey
-{-# INLINE ixmapped #-}
-
--- | /O(n)/. 'Ixsetter' filtering the values of a 'Map.Map'.
---
-ixfiltered :: Ixsetter k (Map.Map k a) (Map.Map k a) a Bool
-ixfiltered = ixsetter Map.filterWithKey
-{-# INLINE ixfiltered #-}
-
--- | /O(log n)/. Alter the value at a specific key (lazy).
---
-altered :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered k = setter $ \ab -> Map.alter ab k
-{-# INLINE altered #-}
-
--- | /O(log n)/. Strict alter (values forced on insert).
---
-altered' :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
-altered' k = setter $ \ab -> MapS.alter ab k
-{-# INLINE altered' #-}
-
--- | /O(log n)/. Indexed alter (lazy).
---
-ixaltered :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ixaltered k = ixsetter $ \kab -> Map.alter (kab k) k
-{-# INLINE ixaltered #-}
-
--- | /O(log n)/. Strict indexed alter.
---
-ixaltered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
-ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
-{-# INLINE ixaltered' #-}
-
--- | /O(log n)/. Update a value at a specific key.
---
-updated :: Ord k => k -> Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
-updated k = ixsetter $ \kab -> Map.updateWithKey kab k
-{-# INLINE updated #-}
-
--- | /O(log n)/. Lookup and update a value at a specific key.
---
-updateLooked :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-updateLooked k = ixsetter $ \kab -> Map.updateLookupWithKey kab k
-{-# INLINE updateLooked #-}
 
 -- | /O(n)/. Setter that maps and filters values simultaneously.
 --
--- @'sets' 'mappedIf' f = 'Map.mapMaybe' f@
+-- @'sets' 'mappedIf' = 'Map.mapMaybe'@
 --
 mappedIf :: Setter (Map.Map k a) (Map.Map k b) a (Maybe b)
 mappedIf = setter Map.mapMaybe
 {-# INLINE mappedIf #-}
 
+-- | /O(n)/. Indexed setter that maps and filters values with key.
+--
+-- @'ixsets' 'ixmappedIf' = 'Map.mapMaybeWithKey'@
+--
+ixmappedIf :: Ixsetter k (Map.Map k a) (Map.Map k b) a (Maybe b)
+ixmappedIf = ixsetter Map.mapMaybeWithKey
+{-# INLINE ixmappedIf #-}
+
 -- | /O(n log n)/. Setter over the keys of a 'Map.Map'.
 --
--- @'sets' 'mappedKey' f = 'Map.mapKeys' f@
+-- @'sets' 'mappedKey' = 'Map.mapKeys'@
 --
 mappedKey :: Ord k2 => Setter (Map.Map k1 a) (Map.Map k2 a) k1 k2
 mappedKey = setter Map.mapKeys
 {-# INLINE mappedKey #-}
 
--- | /O(n)/. Setter that filters entries by key predicate.
+-- | /O(n)/. Filter values.
 --
--- @'sets' 'filteredKey' p = 'Map.filterKeys' p@
+-- @'sets' 'filtered' = 'Map.filter'@
 --
--- /Note/: does not satisfy the Setter composition law.
--- @'sets' filteredKey p '.' 'sets' filteredKey q ≢ 'sets' filteredKey (p '.' q)@.
--- Instead: @'sets' filteredKey p '.' 'sets' filteredKey q ≡ 'sets' filteredKey (\\k -> p k '&&' q k)@.
---
-filteredKey :: Setter (Map.Map k a) (Map.Map k a) k Bool
-filteredKey = setter $ \p -> Map.filterWithKey (\k _ -> p k)
-{-# INLINE filteredKey #-}
+filtered :: Setter (Map.Map k a) (Map.Map k a) a Bool
+filtered = setter Map.filter
+{-# INLINE filtered #-}
 
--- | /O(log n)/. Ixsetter that updates the value at the minimal key.
--- The key is threaded as index. Returns 'Nothing' to delete.
--- No-op on empty maps.
+-- | /O(n)/. Filter values with key.
 --
--- @'ixsets' 'updatedMin' f = 'Map.updateMinWithKey' f@
+-- @'ixsets' 'ixfiltered' = 'Map.filterWithKey'@
 --
-updatedMin :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
-updatedMin = ixsetter Map.updateMinWithKey
+ixfiltered :: Ixsetter k (Map.Map k a) (Map.Map k a) a Bool
+ixfiltered = ixsetter Map.filterWithKey
+{-# INLINE ixfiltered #-}
+
+-- | /O(log n)/. Adjust a value at a specific key.
+--
+-- @'sets' ('adjusted' k) = 'Map.adjust' k@
+--
+adjusted :: Ord k => k -> Setter' (Map.Map k a) a
+adjusted k = setter $ \f -> Map.adjust f k
+{-# INLINE adjusted #-}
+
+-- | /O(log n)/. Adjust a value at a specific key, with key available.
+--
+-- @'ixsets' ('ixadjusted' k) = 'Map.adjustWithKey' k@
+--
+ixadjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
+ixadjusted k = ixsetter $ \f -> Map.adjustWithKey f k
+{-# INLINE ixadjusted #-}
+
+-- | /O(n)/. Map over values.
+--
+-- @'ixsets' 'ixmapped' = 'Map.mapWithKey'@
+--
+ixmapped :: Ixsetter k (Map.Map k a) (Map.Map k b) a b
+ixmapped = ixsetter Map.mapWithKey
+{-# INLINE ixmapped #-}
+
+-- | /O(log n)/. Alter the value at a specific key (lazy).
+--
+-- @'sets' ('altered' k) = 'Map.alter' k@
+--
+altered :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
+altered k = setter $ \f -> Map.alter f k
+{-# INLINE altered #-}
+
+-- | /O(log n)/. Strict alter (values forced on insert).
+--
+altered' :: Ord k => k -> Setter' (Map.Map k a) (Maybe a)
+altered' k = setter $ \f -> MapS.alter f k
+{-# INLINE altered' #-}
+
+-- | /O(log n)/. Indexed alter (lazy), key available.
+--
+-- @'ixsets' ('ixaltered' k) f = 'Map.alter' (f k) k@
+--
+ixaltered :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
+ixaltered k = ixsetter $ \f -> Map.alter (f k) k
+{-# INLINE ixaltered #-}
+
+-- | /O(log n)/. Strict indexed alter.
+--
+ixaltered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
+ixaltered' k = ixsetter $ \f -> MapS.alter (f k) k
+{-# INLINE ixaltered' #-}
+
+-- | /O(log n)/. Update a value at a specific key. 'Nothing' deletes.
+--
+-- @'sets' ('updated' k) = 'Map.update' k@
+--
+updated :: Ord k => k -> Setter (Map.Map k a) (Map.Map k a) a (Maybe a)
+updated k = setter $ \f -> Map.update (f) k
+{-# INLINE updated #-}
+
+-- | /O(log n)/. Update a value at a specific key with key available.
+--
+-- @'ixsets' ('ixupdated' k) = 'Map.updateWithKey' k@
+--
+ixupdated :: Ord k => k -> Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdated k = ixsetter $ \f -> Map.updateWithKey f k
+{-# INLINE ixupdated #-}
+
+-- | /O(log n)/. Lookup and update a value at a specific key.
+--
+-- @'ixsets' ('ixupdateLooked' k) = 'Map.updateLookupWithKey' k@
+--
+ixupdateLooked :: Ord k => k -> Ixsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+ixupdateLooked k = ixsetter $ \f -> Map.updateLookupWithKey f k
+{-# INLINE ixupdateLooked #-}
+
+-- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
+--
+-- @'sets' 'updatedMin' = 'Map.updateMin'@
+--
+updatedMin :: Setter (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMin = setter Map.updateMin
 {-# INLINE updatedMin #-}
 
--- | /O(log n)/. Ixsetter that updates the value at the maximal key.
--- The key is threaded as index. Returns 'Nothing' to delete.
--- No-op on empty maps.
+-- | /O(log n)/. Update the value at the minimal key, with key available.
 --
--- @'ixsets' 'updatedMax' f = 'Map.updateMaxWithKey' f@
+-- @'ixsets' 'ixupdatedMin' = 'Map.updateMinWithKey'@
 --
-updatedMax :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
-updatedMax = ixsetter Map.updateMaxWithKey
+ixupdatedMin :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMin = ixsetter Map.updateMinWithKey
+{-# INLINE ixupdatedMin #-}
+
+-- | /O(log n)/. Update the value at the maximal key. 'Nothing' deletes.
+--
+-- @'sets' 'updatedMax' = 'Map.updateMax'@
+--
+updatedMax :: Setter (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMax = setter Map.updateMax
 {-# INLINE updatedMax #-}
+
+-- | /O(log n)/. Update the value at the maximal key, with key available.
+--
+-- @'ixsets' 'ixupdatedMax' = 'Map.updateMaxWithKey'@
+--
+ixupdatedMax :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMax = ixsetter Map.updateMaxWithKey
+{-# INLINE ixupdatedMax #-}
 
 ---------------------------------------------------------------------
 -- Dual optics
