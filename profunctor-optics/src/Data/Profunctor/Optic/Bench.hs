@@ -252,7 +252,6 @@ benchCompose2 o1 o2 f direct =
 --
 benchSortingOf :: Ord a
                 => Lens' s a
-                -> [s]
                 -> ([s] -> [[s]], [s] -> [[s]])
 benchSortingOf o =
   ( sortsOf o

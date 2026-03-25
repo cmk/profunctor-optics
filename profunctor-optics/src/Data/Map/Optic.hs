@@ -74,16 +74,16 @@ module Data.Map.Optic (
   , mconcatSorts
     -- ** Merge (Sort + containers merge)
   , merges
-  , innerMerges
-  , outerMerges
-  , leftMerges
-  , rightMerges
+  , mergesInner
+  , mergesOuter
+  , mergesLeft
+  , mergesRight
     -- ** Sort merge tactics
   , sortingMatched
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -414,36 +414,39 @@ merges lo ro wml wmr wm xs ys =
   Merge.merge wml wmr wm (toMapOf lo xs) (toMapOf ro ys)
 
 -- | Inner merge: only keys present in both inputs.
-innerMerges :: Ord a
+mergesInner :: Ord a
             => Lens' s a -> Lens' t a
-            -> (a -> [s] -> [t] -> c)
+            -> Merge.SimpleWhenMatched a [s] [t] c
             -> [s] -> [t] -> Map.Map a c
-innerMerges lo ro f =
-  merges lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+mergesInner lo ro wm =
+  merges lo ro Merge.dropMissing Merge.dropMissing wm
 
 -- | Full outer merge.
-outerMerges :: Ord a
+mergesOuter :: Ord a
             => Lens' s a -> Lens' t a
-            -> (a -> [s] -> c) -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
+            -> Merge.SimpleWhenMissing a [s] c
+            -> Merge.SimpleWhenMissing a [t] c
+            -> Merge.SimpleWhenMatched a [s] [t] c
             -> [s] -> [t] -> Map.Map a c
-outerMerges lo ro fl fr fb =
-  merges lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+mergesOuter = merges
 
--- | Left merge: all keys from left.
-leftMerges :: Ord a
+-- | Left merge: all keys from left, matched keys from both.
+mergesLeft :: Ord a
            => Lens' s a -> Lens' t a
-           -> (a -> [s] -> c) -> (a -> [s] -> [t] -> c)
+           -> Merge.SimpleWhenMissing a [s] c
+           -> Merge.SimpleWhenMatched a [s] [t] c
            -> [s] -> [t] -> Map.Map a c
-leftMerges lo ro fl fb =
-  merges lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+mergesLeft lo ro wml wm =
+  merges lo ro wml Merge.dropMissing wm
 
--- | Right merge: all keys from right.
-rightMerges :: Ord a
+-- | Right merge: all keys from right, matched keys from both.
+mergesRight :: Ord a
             => Lens' s a -> Lens' t a
-            -> (a -> [t] -> c) -> (a -> [s] -> [t] -> c)
+            -> Merge.SimpleWhenMissing a [t] c
+            -> Merge.SimpleWhenMatched a [s] [t] c
             -> [s] -> [t] -> Map.Map a c
-rightMerges lo ro fr fb =
-  merges lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+mergesRight lo ro wmr wm =
+  merges lo ro Merge.dropMissing wmr wm
 
 ---------------------------------------------------------------------
 -- Sort merge tactics

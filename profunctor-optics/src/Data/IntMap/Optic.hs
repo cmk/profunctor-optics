@@ -68,16 +68,16 @@ module Data.IntMap.Optic (
   , mconcatSorts
     -- ** Merge (Sort + containers merge)
   , merges
-  , innerMerges
-  , outerMerges
-  , leftMerges
-  , rightMerges
+  , mergesInner
+  , mergesOuter
+  , mergesLeft
+  , mergesRight
     -- ** Sort merge tactics
   , sortingMatched
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -382,32 +382,35 @@ merges lo ro wml wmr wm xs ys =
   Merge.merge wml wmr wm (toIntMapOf lo xs) (toIntMapOf ro ys)
 
 -- | Inner merge: only keys present in both inputs.
-innerMerges :: Lens' s Int -> Lens' t Int
-            -> (Int -> [s] -> [t] -> c)
+mergesInner :: Lens' s Int -> Lens' t Int
+            -> Merge.SimpleWhenMatched [s] [t] c
             -> [s] -> [t] -> IM.IntMap c
-innerMerges lo ro f =
-  merges lo ro Merge.dropMissing Merge.dropMissing (Merge.zipWithMatched f)
+mergesInner lo ro wm =
+  merges lo ro Merge.dropMissing Merge.dropMissing wm
 
 -- | Full outer merge.
-outerMerges :: Lens' s Int -> Lens' t Int
-            -> (Int -> [s] -> c) -> (Int -> [t] -> c) -> (Int -> [s] -> [t] -> c)
+mergesOuter :: Lens' s Int -> Lens' t Int
+            -> Merge.SimpleWhenMissing [s] c
+            -> Merge.SimpleWhenMissing [t] c
+            -> Merge.SimpleWhenMatched [s] [t] c
             -> [s] -> [t] -> IM.IntMap c
-outerMerges lo ro fl fr fb =
-  merges lo ro (Merge.mapMissing fl) (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+mergesOuter = merges
 
--- | Left merge: all keys from left.
-leftMerges :: Lens' s Int -> Lens' t Int
-           -> (Int -> [s] -> c) -> (Int -> [s] -> [t] -> c)
+-- | Left merge: all keys from left, matched keys from both.
+mergesLeft :: Lens' s Int -> Lens' t Int
+           -> Merge.SimpleWhenMissing [s] c
+           -> Merge.SimpleWhenMatched [s] [t] c
            -> [s] -> [t] -> IM.IntMap c
-leftMerges lo ro fl fb =
-  merges lo ro (Merge.mapMissing fl) Merge.dropMissing (Merge.zipWithMatched fb)
+mergesLeft lo ro wml wm =
+  merges lo ro wml Merge.dropMissing wm
 
--- | Right merge: all keys from right.
-rightMerges :: Lens' s Int -> Lens' t Int
-            -> (Int -> [t] -> c) -> (Int -> [s] -> [t] -> c)
+-- | Right merge: all keys from right, matched keys from both.
+mergesRight :: Lens' s Int -> Lens' t Int
+            -> Merge.SimpleWhenMissing [t] c
+            -> Merge.SimpleWhenMatched [s] [t] c
             -> [s] -> [t] -> IM.IntMap c
-rightMerges lo ro fr fb =
-  merges lo ro Merge.dropMissing (Merge.mapMissing fr) (Merge.zipWithMatched fb)
+mergesRight lo ro wmr wm =
+  merges lo ro Merge.dropMissing wmr wm
 
 ---------------------------------------------------------------------
 -- Sort merge tactics
