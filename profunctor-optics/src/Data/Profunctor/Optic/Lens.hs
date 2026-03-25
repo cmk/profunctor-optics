@@ -69,7 +69,6 @@ module Data.Profunctor.Optic.Lens (
   , endomorphed
   , continued
   , continuedT
-  , calledCC
     -- ** Relens, Rxlens
   , refirst, resecond
     -- * Operators
@@ -93,6 +92,8 @@ module Data.Profunctor.Optic.Lens (
     -- ** Relens, Rxlens
   , reover
   , withRelens
+    -- * MTL
+  , calledCC
     -- * Reexports
   , Strong(..)
   , Closed(..)
@@ -661,16 +662,6 @@ continuedT :: Colens c (ContT a m c) (m a) (m a)
 continuedT = grate ContT
 {-# INLINE continuedT #-}
 
--- | Lift the current continuation into the calling context.
---
--- @
--- 'zipsWith' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
--- @
---
-calledCC :: MonadCont m => Colens a (m a) (m b) (m a)
-calledCC = grate callCC
-{-# INLINE calledCC #-}
-
 ---------------------------------------------------------------------
 -- Reversed Optics
 ---------------------------------------------------------------------
@@ -799,3 +790,17 @@ closure o p = withColens o $ \sabt -> Closure (closed . grate sabt $ p)
 environment :: Closed p => AColens s t a b -> p a b -> Environment p s t
 environment o p = withColens o $ \sabt -> Environment sabt p (curry eval)
 {-# INLINE environment #-}
+
+---------------------------------------------------------------------
+-- MTL
+---------------------------------------------------------------------
+
+-- | Lift the current continuation into the calling context.
+--
+-- @
+-- 'zipsWith' 'calledCC' :: 'MonadCont' m => (m b -> m b -> m s) -> s -> s -> m s
+-- @
+--
+calledCC :: MonadCont m => Colens a (m a) (m b) (m a)
+calledCC = grate callCC
+{-# INLINE calledCC #-}
