@@ -23,8 +23,7 @@
 module Data.Map.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics (Star side)
-    -- ** Lens, Ixlens
+    -- * Left Adjoint Optics    -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
@@ -44,8 +43,7 @@ module Data.Map.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics (Costar side)
-    -- ** Colens
+    -- * Right Adjoint Optics    -- ** Colens
   , zippedIfKey
     -- ** Cxlens
   , cxzippedIfKey
@@ -109,8 +107,7 @@ import qualified Data.Map.Merge.Strict as Merge
 import Prelude
 
 ---------------------------------------------------------------------
--- Left Adjoint Optics (Star side)
----------------------------------------------------------------------
+-- Left Adjoint Optics---------------------------------------------------------------------
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
 --
@@ -214,8 +211,7 @@ validated = fold0 $ \m -> if Map.valid m then Just m else Nothing
 {-# INLINE validated #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Optics (Costar side)
----------------------------------------------------------------------
+-- Right Adjoint Optics---------------------------------------------------------------------
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.
 --

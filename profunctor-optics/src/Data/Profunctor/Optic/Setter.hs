@@ -143,7 +143,7 @@ import qualified Data.Functor.Rep as F
 -- >>> import Prelude
 
 ---------------------------------------------------------------------
--- Constructors
+-- Left Adjoint Constructors
 ---------------------------------------------------------------------
 
 -- | Obtain a 'Setter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
@@ -213,10 +213,6 @@ cloneIxsetter :: Monoid k => AIxsetter k s t a b -> Ixsetter k s t a b
 cloneIxsetter o = ixsetter (ixsets o)
 {-# INLINE cloneIxsetter #-}
 
----------------------------------------------------------------------
--- Setter1
----------------------------------------------------------------------
-
 -- | TODO: Document
 --
 -- @since 0.0.3
@@ -230,6 +226,58 @@ setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
 ixsetter1 :: ((i -> a -> b) -> a -> t) -> Ixsetter1 i a t a b
 ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
 {-# INLINE ixsetter1 #-}
+
+---------------------------------------------------------------------
+-- Right Adjoint Constructors
+---------------------------------------------------------------------
+
+-- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
+--
+-- The construction uses 'copure' to extract the focal element and
+-- @'fmap' ('const' a)@ to build a constant container, avoiding the
+-- @'Applicative' ('Coindex' t b)@ constraint that would force
+-- @b = t@.
+--
+-- /Caution/: In order for the generated optic to be well-defined,
+-- you must ensure that the input function satisfies the following
+-- properties:
+--
+-- * @abst id ≡ id@
+--
+-- * @abst f . abst g ≡ abst (f . g)@
+--
+cosetter :: ((a -> b) -> s -> t) -> Cosetter s t a b
+cosetter abst = corepresenting $ \fab fs ->
+  abst (\a -> fab (fmap (const a) fs)) (copure fs)
+{-# INLINE cosetter #-}
+
+-- | Obtain a 'Cxsetter' from a coindexed SEC.
+--
+-- The coindex @i@ threads through the right side of the profunctor
+-- via @'Cxoptic' p i s t a b = p a (i -> b) -> p s (i -> t)@, which
+-- is equivalent to @'Cosetter' s (i -> t) a (i -> b)@. The
+-- constructor delegates to 'cosetter' on these function-wrapped types.
+--
+-- @
+-- 'cxsets' '.' 'cxsetter' ≡ 'id'
+-- 'cxsetter' '.' 'cxsets' ≡ 'id'
+-- @
+--
+cxsetter :: ((i -> a -> b) -> s -> t) -> Cxsetter i s t a b
+cxsetter f = cosetter $ \aib s -> const $ f (\i a -> aib a i) s
+{-# INLINE cxsetter #-}
+
+-- | Clone a 'Cosetter'.
+--
+cloneCosetter :: ACosetter s t a b -> Cosetter s t a b
+cloneCosetter o = cosetter (cosets o)
+{-# INLINE cloneCosetter #-}
+
+-- | Clone a 'Cxsetter'.
+--
+cloneCxsetter :: Monoid i => ACxsetter i s t a b -> Cxsetter i s t a b
+cloneCxsetter o = cxsetter (cxsets o)
+{-# INLINE cloneCxsetter #-}
 
 ---------------------------------------------------------------------
 -- Adjoint Constructors
@@ -303,20 +351,6 @@ adjointl :: (s -> a) -> (s -> b -> t) -> Adjoint s t a b
 adjointl sa sbt = adjointlVl $ \ab s -> zapWithAdjunction (flip sbt) (ab . sa $ extractL s) s
 {-# INLINE adjointl #-}
 
--- | Construct an 'Adjoint' from a Costar-side Van Laarhoven function.
---
--- @
--- 'adjointlVl' f = 'corepresenting' (f '.' 'leftAdjunct')
--- @
---
--- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
--- @'Rep' p = u@, the input is instantiated at the adjunction
--- @l ⊣ u@.
---
-adjointlVl :: (forall l u. Adjunction l u => (a -> u b) -> l s -> t) -> Adjoint s t a b
-adjointlVl f = corepresenting $ f . leftAdjunct
-{-# INLINE adjointlVl #-}
-
 -- | Construct an 'Adjoint' from a matching function and a review
 -- (prism-like).
 --
@@ -348,6 +382,20 @@ adjointr :: (s -> t + a) -> (b -> t) -> Adjoint s t a b
 adjointr sta bt = adjointrVl $ \lab s ->
   either (leftAdjunct extractL) (fmap bt . leftAdjunct lab) (sta s)
 {-# INLINE adjointr #-}
+
+-- | Construct an 'Adjoint' from a Costar-side Van Laarhoven function.
+--
+-- @
+-- 'adjointlVl' f = 'corepresenting' (f '.' 'leftAdjunct')
+-- @
+--
+-- For each 'Adjoining' profunctor @p@ with @'Corep' p = l@ and
+-- @'Rep' p = u@, the input is instantiated at the adjunction
+-- @l ⊣ u@.
+--
+adjointlVl :: (forall l u. Adjunction l u => (a -> u b) -> l s -> t) -> Adjoint s t a b
+adjointlVl f = corepresenting $ f . leftAdjunct
+{-# INLINE adjointlVl #-}
 
 -- | Construct an 'Adjoint' from a Star-side Van Laarhoven function.
 --
@@ -445,59 +493,7 @@ cxadjoining o p_ka_b = p_ks_t
 {-# INLINE cxadjoining #-}
 
 ---------------------------------------------------------------------
--- Dual Constructors
----------------------------------------------------------------------
-
--- | Obtain a 'Cosetter' from a <http://conal.net/blog/posts/semantic-editor-combinators SEC>.
---
--- The construction uses 'copure' to extract the focal element and
--- @'fmap' ('const' a)@ to build a constant container, avoiding the
--- @'Applicative' ('Coindex' t b)@ constraint that would force
--- @b = t@.
---
--- /Caution/: In order for the generated optic to be well-defined,
--- you must ensure that the input function satisfies the following
--- properties:
---
--- * @abst id ≡ id@
---
--- * @abst f . abst g ≡ abst (f . g)@
---
-cosetter :: ((a -> b) -> s -> t) -> Cosetter s t a b
-cosetter abst = corepresenting $ \fab fs ->
-  abst (\a -> fab (fmap (const a) fs)) (copure fs)
-{-# INLINE cosetter #-}
-
--- | Clone a 'Cosetter'.
---
-cloneCosetter :: ACosetter s t a b -> Cosetter s t a b
-cloneCosetter o = cosetter (cosets o)
-{-# INLINE cloneCosetter #-}
-
--- | Obtain a 'Cxsetter' from a coindexed SEC.
---
--- The coindex @i@ threads through the right side of the profunctor
--- via @'Cxoptic' p i s t a b = p a (i -> b) -> p s (i -> t)@, which
--- is equivalent to @'Cosetter' s (i -> t) a (i -> b)@. The
--- constructor delegates to 'cosetter' on these function-wrapped types.
---
--- @
--- 'cxsets' '.' 'cxsetter' ≡ 'id'
--- 'cxsetter' '.' 'cxsets' ≡ 'id'
--- @
---
-cxsetter :: ((i -> a -> b) -> s -> t) -> Cxsetter i s t a b
-cxsetter f = cosetter $ \aib s -> const $ f (\i a -> aib a i) s
-{-# INLINE cxsetter #-}
-
--- | Clone a 'Cxsetter'.
---
-cloneCxsetter :: Monoid i => ACxsetter i s t a b -> Cxsetter i s t a b
-cloneCxsetter o = cxsetter (cxsets o)
-{-# INLINE cloneCxsetter #-}
-
----------------------------------------------------------------------
--- Optics
+-- Left Adjoint Optics
 ---------------------------------------------------------------------
 
 -- | 'Setter' on each value of a functor.
@@ -623,6 +619,25 @@ conditioned p = setter $ \f a -> if p a then f a else a
 {-# INLINE conditioned #-}
 
 ---------------------------------------------------------------------
+-- Right Adjoint Optics
+---------------------------------------------------------------------
+
+-- | TODO: Document
+--
+coliftedA :: Applicative f => Cosetter (f a) (f b) a b
+coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
+{-# INLINE coliftedA #-}
+
+-- | Variant of 'coliftedA' specialized to zip-toListOf.
+--
+-- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
+--
+-- @since 0.0.3
+zipListed :: Cosetter [a] [b] a b
+zipListed = dimap ZipList getZipList . coliftedA
+{-# INLINE zipListed #-}
+
+---------------------------------------------------------------------
 -- Adjoint Optics
 ---------------------------------------------------------------------
 
@@ -649,26 +664,7 @@ mappedException = adjoint Ex.mapException
 {-# INLINE mappedException #-}
 
 ---------------------------------------------------------------------
--- Dual Optics
----------------------------------------------------------------------
-
--- | TODO: Document
---
-coliftedA :: Applicative f => Cosetter (f a) (f b) a b
-coliftedA p = cotabulate $ fmap (cosieve p) . sequenceA
-{-# INLINE coliftedA #-}
-
--- | Variant of 'coliftedA' specialized to zip-toListOf.
---
--- Useful because toListOf are not 'Control.Coapplicative.Coapplicative'.
---
--- @since 0.0.3
-zipListed :: Cosetter [a] [b] a b
-zipListed = dimap ZipList getZipList . coliftedA
-{-# INLINE zipListed #-}
-
----------------------------------------------------------------------
--- Operators
+-- Left Adjoint Operators
 ---------------------------------------------------------------------
 
 -- | Set the focus of a 'Setter'.
@@ -707,6 +703,41 @@ sets o = (runIdentity #.) #. traverseOf o .# (Identity #.)
 ixsets :: Monoid i => AIxsetter i s t a b -> (i -> a -> b) -> s -> t
 ixsets o f = curry (sets o $ uncurry f) mempty
 {-# INLINE ixsets #-}
+
+---------------------------------------------------------------------
+-- Right Adjoint Operators
+---------------------------------------------------------------------
+
+-- | Set the focus of a 'Cosetter'.
+--
+-- @
+-- 'coset' o b = (o '/~' b) . 'Data.Functor.Identity'
+-- @
+--
+coset :: ACosetter s t a b -> b -> s -> t
+coset o b = cosets o $ const b
+
+-- | Set the focus of a 'Cxsetter'.
+--
+-- Equivalent to 'cxsets' with the current value ignored.
+--
+-- @since 0.0.3
+cxset :: Monoid i => ACxsetter i s t a b -> (i -> b) -> s -> t
+cxset o ib = cxsets o $ flip (const ib)
+{-# INLINE cxset #-}
+
+-- | Set the focus of a 'Cosetter'.
+--
+cosets :: ACosetter s t a b -> (a -> b) -> s -> t
+cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity)
+{-# INLINE cosets #-}
+
+-- | Set the focus of a 'Cxsetter'.
+--
+-- @since 0.0.3
+cxsets :: Monoid i => ACxsetter i s t a b -> (i -> a -> b) -> s -> t
+cxsets o f = flip (cosets o $ flip f) mempty
+{-# INLINE cxsets #-}
 
 ---------------------------------------------------------------------
 -- Adjoint Operators
@@ -754,41 +785,6 @@ alower abst f = rightAdjunct $ aupper abst (leftAdjunct f)
 aupper :: F.Representable u => ((a -> b) -> s -> t) -> (a -> u b) -> s -> u t
 aupper abst afb s = F.tabulate $ \i -> abst (flip F.index i . afb) s
 {-# INLINE aupper #-}
-
----------------------------------------------------------------------
--- Dual Operators
----------------------------------------------------------------------
-
--- | Set the focus of a 'Cosetter'.
---
--- @
--- 'coset' o b = (o '/~' b) . 'Data.Functor.Identity'
--- @
---
-coset :: ACosetter s t a b -> b -> s -> t
-coset o b = cosets o $ const b
-
--- | Set the focus of a 'Cxsetter'.
---
--- Equivalent to 'cxsets' with the current value ignored.
---
--- @since 0.0.3
-cxset :: Monoid i => ACxsetter i s t a b -> (i -> b) -> s -> t
-cxset o ib = cxsets o $ flip (const ib)
-{-# INLINE cxset #-}
-
--- | Set the focus of a 'Cosetter'.
---
-cosets :: ACosetter s t a b -> (a -> b) -> s -> t
-cosets o = (.# Identity) #. cotraverseOf o .# (.# runIdentity)
-{-# INLINE cosets #-}
-
--- | Set the focus of a 'Cxsetter'.
---
--- @since 0.0.3
-cxsets :: Monoid i => ACxsetter i s t a b -> (i -> a -> b) -> s -> t
-cxsets o f = flip (cosets o $ flip f) mempty
-{-# INLINE cxsets #-}
 
 ---------------------------------------------------------------------
 -- MonadState / MonadReader / MonadWriter

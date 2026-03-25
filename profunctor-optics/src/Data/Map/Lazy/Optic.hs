@@ -20,7 +20,8 @@
 module Data.Map.Lazy.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics     -- ** Lens, Ixlens
+    -- * Left Adjoint Optics (Star side)
+    -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
@@ -40,7 +41,8 @@ module Data.Map.Lazy.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics     -- ** Colens
+    -- * Right Adjoint Optics (Costar side)
+    -- ** Colens
   , zippedIfKey
     -- ** Cxlens
   , cxzippedIfKey
@@ -51,7 +53,8 @@ module Data.Map.Lazy.Optic (
   , cxzippedIf
     -- ** Cxfold
   , cxfolded
-    -- * Adjoint Optics   , mappedIf
+    -- * Adjoint Optics (both sides)
+  , mappedIf
   , ixmappedIf
   , cxmappedIf
   , mappedKey
@@ -103,7 +106,8 @@ import qualified Data.Map.Merge.Lazy as Merge
 import Prelude
 
 ---------------------------------------------------------------------
--- Left Adjoint Optics ---------------------------------------------------------------------
+-- Left Adjoint Optics (Star side)
+---------------------------------------------------------------------
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key.
 --
@@ -207,7 +211,8 @@ validated = fold0 $ \m -> if Map.valid m then Just m else Nothing
 {-# INLINE validated #-}
 
 ---------------------------------------------------------------------
--- Right Adjoint Optics ---------------------------------------------------------------------
+-- Right Adjoint Optics (Costar side)
+---------------------------------------------------------------------
 
 -- | Colens viewing a 'Map.Map' as a partial function from keys.
 --
@@ -280,7 +285,8 @@ cxfolded = cxfoldVl $ \fakb fs ->
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
--- Adjoint Optics ---------------------------------------------------------------------
+-- Adjoint Optics (both sides)
+---------------------------------------------------------------------
 
 -- | /O(n)/. Adjoint that maps and filters values simultaneously.
 --
