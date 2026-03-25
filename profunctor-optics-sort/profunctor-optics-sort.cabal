@@ -79,7 +79,7 @@ benchmark sort-bench
     , profunctors
     , profunctor-optics
     , profunctor-optics-sort
-    , profunctor-optics-strings
+    , string-optics
     , scheme-extensions
     , transformers
 
@@ -111,7 +111,7 @@ test-suite properties
     , hashable
     , primitive
     , profunctor-optics-sort
-    , profunctor-optics-strings
+    , string-optics
     , scheme-extensions
     , text
     , unordered-containers

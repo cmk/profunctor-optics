@@ -33,6 +33,7 @@ module Data.IntMap.Optic (
   , lookedMin
   , lookedMax
     -- ** Setter, Ixsetter
+  , mapped
   , adjusted
   , ixmapped
   , ixfiltered
@@ -48,6 +49,8 @@ module Data.IntMap.Optic (
     -- ** Cxtraversal
   , cxtraversed
   , cxzippedIntMap
+    -- ** Cosetter
+  , comapped
     -- ** Cxsetter
   , cxmapped
   , cxfiltered
@@ -173,6 +176,14 @@ lookedMax :: Ixfold0 Int (IM.IntMap a) a
 lookedMax = ixfold0 IM.lookupMax
 {-# INLINE lookedMax #-}
 
+-- | /O(n)/. Non-indexed 'Setter' over the values of an 'IM.IntMap'.
+--
+-- @'over' 'mapped' f = 'fmap' f@
+--
+mapped :: Setter (IM.IntMap a) (IM.IntMap b) a b
+mapped = setter fmap
+{-# INLINE mapped #-}
+
 -- | /O(log n)/. Adjust a value at a key.
 --
 adjusted :: Int -> Ixsetter' Int (IM.IntMap a) a
@@ -238,6 +249,14 @@ zippedIntMap :: IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
 zippedIntMap ks = cotraversalVl $ \fab fs ->
   IM.fromSet (\k -> fab (fmap (IM.! k) fs)) ks
 {-# INLINE zippedIntMap #-}
+
+-- | /O(n)/. Non-indexed 'Cosetter' over the values of an 'IM.IntMap'.
+--
+-- @'cosets' 'comapped' f = 'fmap' f@
+--
+comapped :: Cosetter (IM.IntMap a) (IM.IntMap b) a b
+comapped = cosetter fmap
+{-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' over the values of an 'IM.IntMap'.
 -- Threads the key as coindex. Combines 'zippedIntMap' with

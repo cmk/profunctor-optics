@@ -24,9 +24,12 @@ module Data.List.Optic (
     -- ** Colens
   , zipsListWith
     -- ** Cosetter
+  , comapped
   , zipListed
     -- ** Cxsetter
   , cxmapped
+    -- ** Cxfold
+  , cxfolded
     -- * Operators
     -- * Sort-based operators (Lens, Ord)
   , sortingOf
@@ -109,6 +112,14 @@ zipsListWith :: Int -> Colens [a] [b] a b
 zipsListWith n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 {-# INLINE zipsListWith #-}
 
+-- | /O(n)/. Non-indexed 'Cosetter' over the values of a list.
+--
+-- @'cosets' 'comapped' f = 'fmap' f@
+--
+comapped :: Cosetter [a] [b] a b
+comapped = cosetter fmap
+{-# INLINE comapped #-}
+
 ---------------------------------------------------------------------
 -- Coindexed optics
 ---------------------------------------------------------------------
@@ -125,6 +136,20 @@ zipsListWith n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 cxmapped :: Cxsetter Int [a] [b] a b
 cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
 {-# INLINE cxmapped #-}
+
+-- | /O(n^2)/. 'Cxfold' over the elements of a list.
+--
+-- Cx dual of 'ixfolded'. Threads the positional index as coindex.
+--
+-- __Performance note__: /O(n^2)/ due to @('!!')@ lookups. For
+-- performance-sensitive code, convert to @Seq@ or @IntMap@ and use
+-- their /O(n log n)/ 'Data.Sequence.Optic.cxfolded' or
+-- 'Data.IntMap.Optic.cxfolded' instead.
+--
+cxfolded :: Cxfold Int [a] a
+cxfolded = cxfoldVl $ \fakb fs ->
+  zipWith (\i _a -> fakb (fmap (!! i) fs) i) [0..] (copure fs)
+{-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators

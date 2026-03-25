@@ -38,6 +38,7 @@ module Data.Map.Optic (
   , lookedMax
   , validated
     -- ** Setter, Ixsetter
+  , mapped
   , adjusted
   , ixmapped
   , ixfiltered
@@ -55,6 +56,8 @@ module Data.Map.Optic (
   , cxzippedMap
     -- ** Cxfold
   , cxfolded
+    -- ** Cosetter
+  , comapped
     -- ** Cxview
   , cxmapped'
     -- ** Cxsetter
@@ -184,6 +187,14 @@ validated :: Ord k => Fold0 (Map.Map k a) (Map.Map k a)
 validated = filtered Map.valid
 {-# INLINE validated #-}
 
+-- | /O(n)/. Non-indexed 'Setter' over the values of a 'Map.Map'.
+--
+-- @'over' 'mapped' f = 'fmap' f@
+--
+mapped :: Setter (Map.Map k a) (Map.Map k b) a b
+mapped = setter fmap
+{-# INLINE mapped #-}
+
 -- | /O(log n)/. Adjust a value at a specific key.
 --
 adjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
@@ -249,6 +260,14 @@ zippedMap :: Ord k => Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
 zippedMap ks = cotraversalVl $ \fab fs ->
   Map.fromSet (\k -> fab (fmap (flip (Map.!) k) fs)) ks
 {-# INLINE zippedMap #-}
+
+-- | /O(n)/. Non-indexed 'Cosetter' over the values of a 'Map.Map'.
+--
+-- @'cosets' 'comapped' f = 'fmap' f@
+--
+comapped :: Cosetter (Map.Map k a) (Map.Map k b) a b
+comapped = cosetter fmap
+{-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' over the values of a 'Map.Map'.
 -- Threads the key as coindex. Combines 'zippedMap' with

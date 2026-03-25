@@ -11,13 +11,17 @@ module Data.Tree.Optic (
     -- * Lens
   , root
   , branches
-    -- * Dual Optics
-    -- $todo-zipsTree
     -- * Traversal
   , flattened
   , ixflattened
     -- * Fold
   , folded
+    -- * Setter
+  , mapped
+    -- * Dual Optics
+    -- $todo-zipsTree
+    -- ** Cosetter
+  , comapped
 ) where
 
 import Data.Profunctor.Optic hiding (folded)
@@ -49,15 +53,6 @@ root = lensVl $ \f (Node a as) -> (`Node` as) <$> f a
 branches :: Lens' (Tree a) [Tree a]
 branches = lensVl $ \f (Node a as) -> Node a <$> f as
 {-# INLINE branches #-}
-
----------------------------------------------------------------------
--- Dual optics
----------------------------------------------------------------------
-
--- TODO: zipsTree :: Colens (Tree a) (Tree b) a b
--- Pointwise zipping of trees. Zips structurally — root with root,
--- children with children. Mismatched shapes truncate to the shorter tree.
--- Requires careful handling of subforest zipping; deferred for now.
 
 ---------------------------------------------------------------------
 -- Traversal
@@ -93,3 +88,42 @@ folded :: Fold (Tree a) a
 folded = foldVl go
   where go f (Node a cs) = f a *> traverse_ (go f) cs
 {-# INLINE folded #-}
+
+---------------------------------------------------------------------
+-- Setter
+---------------------------------------------------------------------
+
+-- | /O(n)/. Non-indexed 'Setter' over all values in a 'Tree'.
+--
+-- @'over' 'mapped' f = 'fmap' f@
+--
+mapped :: Setter (Tree a) (Tree b) a b
+mapped = setter fmap
+{-# INLINE mapped #-}
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- TODO: zipsTree :: Colens (Tree a) (Tree b) a b
+-- Pointwise zipping of trees. Zips structurally — root with root,
+-- children with children. Mismatched shapes truncate to the shorter tree.
+-- Requires careful handling of subforest zipping; deferred for now.
+
+-- | /O(n)/. Non-indexed 'Cosetter' over all values in a 'Tree'.
+--
+-- @'cosets' 'comapped' f = 'fmap' f@
+--
+comapped :: Cosetter (Tree a) (Tree b) a b
+comapped = cosetter fmap
+{-# INLINE comapped #-}
+
+-- Note: no Cofold or Cxfold for Tree.
+--
+-- A Cofold requires a Cotraversal-compatible structure, which in turn
+-- needs pointwise zipping (Distributive or a fixed shape). Trees are
+-- recursive with variable branching factor, so there is no canonical
+-- way to zip two trees without truncating or padding. The same issue
+-- blocks Cotraversal (see TODO above for zipsTree). If a fixed-shape
+-- Cotraversal is added in the future, the corresponding Cxfold can
+-- be derived from it.
