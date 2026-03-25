@@ -1,6 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | Profunctor optics for 'Text'.
 --
@@ -12,25 +13,31 @@
 -- review packed "hello"
 -- @
 module Data.Text.Optic (
-    -- * Short iso
+    -- * Optics
+    -- ** Iso
     short,
-
-    -- * Lazy\/strict iso
     lazy,
-
-    -- * Packing
     packed,
-
-    -- * UTF-8 encoding
     utf8,
-
-    -- * Splitting
     lined,
     worded,
     splitOn,
 
-    -- * Element traversal
+    -- ** Traversal
     chars,
+
+    -- ** Fold
+    folded,
+
+    -- ** Setter
+    mapped,
+
+    -- * Dual Optics
+    -- ** Cotraversal
+    zippedText,
+
+    -- ** Cosetter
+    comapped,
 ) where
 
 import Data.ByteString (ByteString)
@@ -40,7 +47,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as TE
 import Data.Text.Short (ShortText)
 import qualified Data.Text.Short as ST
-import Data.Profunctor.Optic
+import Data.Profunctor.Optic hiding (folded)
 
 -- | Iso between strict 'Text' and 'ShortText'.
 --
@@ -81,3 +88,43 @@ splitOn delim = iso (T.splitOn delim) (T.intercalate delim)
 -- @chars = re packed . traversed@
 chars :: Traversal' Text Char
 chars = re packed . traversed
+
+-- | Fold over individual characters.
+--
+folded :: Fold Text Char
+folded = fold_ T.unpack
+
+-- | Setter over individual characters.
+--
+-- @over mapped f = T.map f@
+mapped :: Setter' Text Char
+mapped = setter T.map
+
+---------------------------------------------------------------------
+-- Dual optics
+---------------------------------------------------------------------
+
+-- | Pointwise 'Cotraversal' over characters of two 'Text' values.
+--
+-- @'T.zipWith' :: (Char -> Char -> Char) -> Text -> Text -> Text@
+--
+-- Truncates to the shorter text, like 'ZipList'.
+--
+zippedText :: Cotraversal Text Text Char Char
+zippedText = cotraversalVl $ \fab fs ->
+  let t = copure fs
+      n = T.length t
+  in  T.pack [ fab (fmap (\t' -> T.index t' i) fs) | i <- [0..n-1] ]
+{-# INLINE zippedText #-}
+
+-- | Strict setter over characters.
+--
+-- @cosets comapped f = T.map f@
+--
+-- Cosetter dual of 'comapped. Since 'Text' is monomorphic in its
+-- element type, 'comapped and 'comapped' have the same operational
+-- behaviour — the distinction is in profunctor constraints
+-- (Star-side vs Costar-side).
+--
+comapped :: Cosetter Text Text Char Char
+comapped = cosetter T.map
