@@ -22,11 +22,11 @@
 -- indicates which class of optic or carrier the operator targets:
 --
 -- @
---   .   (one dot\/circle)   primary optic, via (->)
---   *   (one star\/circle)  primary optic, via 'Star' f
---   %   (two circles)       indexed primary optic
---   \/   (one slash)         co-dual optic, via 'Costar' f
---   #   (two slashes)       indexed co-dual optic
+--   .   primary optic, via (->)
+--   *   left adjoint optic, via 'Star' f
+--   %   left indexed optic
+--   \/   right adjoint optic, via 'Costar' f
+--   #   right indexed optic
 -- @
 --
 -- The structural characters indicate the /direction/ of the operation:
@@ -40,77 +40,73 @@
 -- Single vs doubled middle character distinguishes set vs over:
 --
 -- @
---   (.~)    set       (..~)    over
---   (*~)    starSet   (**~)    starOver   (= 'traverseOf')
---   (%~)    ixset     (%%~)    ixover
---   (\/~)    coset     (\/\/~)    coover     (= 'cotraverseOf')
---   (#~)    cxset     (##~)    cxover
+--            set              over
+--   (->)    (.~)             (..~)
+--   Star    (*~)             (**~)   = 'traverseOf'
+--   Ix      (%~)             (%%~)   = 'ixover'
+--   Costar  (\/~)             (\/\/~)   = 'cotraverseOf'
+--   Cx      (#~)             (##~)   = 'cxover'
 -- @
 --
 -- View operators use @^@ on the left:
 --
 -- @
---   (^.)    view              (^..)   toList        (^?)   preview
---   (^%)    ixview            (^%%)   ixtoList
---   (^\/)    review            (^\/\/)   colist
---   (^#)    rxview
+--            view             fold\/toList       preview
+--   (->)    (^.)             (^..)             (^?)
+--   Star    (^*)             (^**)
+--   Ix      (^%)             (^%%)
+--   Costar  (^\/)             (^\/\/)
+--   Cx      (^#)             (^##)
 -- @
 --
--- State operators use @=@ instead of @~@:
+-- For ternary operators (@^*@, @^**@), use '&' to pass the structure:
 --
 -- @
---   (.=)    assigns           (..=)   modifies
--- @
---
--- Composition operators for indexed optics:
---
--- @
---   (%)     indexed composition
---   (#)     coindexed composition
+-- myStruct '&' optic '^**' effectfulFn
 -- @
 --
 -- == Fixity
 --
--- Fixities are chosen to be consistent with the @lens@ library:
---
 -- @
---   infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#, ^##
+--   infixl 8  ^., ^?, ^.., ^*, ^**, ^%, ^%%, ^/, ^//, ^#, ^##
 --   infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 --   infix  4  .=, ..=
---   infixr 9  %, #
 -- @
 --
--- This ensures that @s '^.' optic1 '.' optic2@ and @optic '.~' b '$' s@
--- parse correctly, and indexed composition binds tighter than view.
---
 module Data.Profunctor.Optic.Infix (
-    -- * Operators
-    (^?)
-    -- ** Basic view
-  , (^.), (^..)
-    -- ** Indexed view
-  , (^%), (^%%)
-    -- ** Basic set\/over
+    -- * Re-exports
+    (&)
+    -- * Adjoint (via ->)
+    -- ** View
+  , (^?), (^.), (^..)
+    -- ** Set\/over
   , (.~), (..~)
-    -- ** Indexed set\/over
-  , (%~), (%%~)
-    -- ** Effectful set\/over
+    -- * Left Adjoint (Star)
+    -- ** View
+  , (^*), (^**)
+    -- ** Set\/over
   , (*~), (**~)
-    -- * Dual Operators
-    -- ** Basic view
+    -- * Left Adjoint (Ix)
+    -- ** View
+  , (^%), (^%%)
+    -- ** Set\/over
+  , (%~), (%%~)
+    -- * Right Adjoint (Costar)
+    -- ** View
   , (^/), (^//)
-    -- ** Indexed view
-  , (^#)
-  , (^##)
-    -- ** Indexed set\/over
-  , (#~), (##~)
-    -- ** Effectful set\/over
+    -- ** Set\/over
   , (/~), (//~)
+    -- * Right Adjoint (Cx)
+    -- ** View
+  , (^#), (^##)
+    -- ** Set\/over
+  , (#~), (##~)
     -- * MTL
   , (.=), (..=)
 ) where
 
 import Control.Monad.State (MonadState)
+import Data.Function ((&))
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Import
@@ -119,17 +115,18 @@ import qualified Data.Profunctor.Optic.View as V
 import qualified Data.Profunctor.Optic.Fold as F
 import qualified Data.Profunctor.Optic.Setter as S
 import qualified Data.Profunctor.Optic.Index as C
+import qualified Data.Profunctor.Optic.Traversal as T
 
 ---------------------------------------------------------------------
 -- Fixity declarations
 ---------------------------------------------------------------------
 
-infixl 8  ^., ^?, ^.., ^%, ^%%, ^/, ^//, ^#, ^##
+infixl 8  ^., ^?, ^.., ^*, ^**, ^%, ^%%, ^/, ^//, ^#, ^##
 infixr 4  .~, ..~, *~, **~, %~, %%~, /~, //~, #~, ##~
 infix  4  .=, ..=
 
 ---------------------------------------------------------------------
--- View (primary)
+-- Adjoint (via ->)
 ---------------------------------------------------------------------
 
 -- | Preview through an affine fold.
@@ -139,19 +136,6 @@ infix  4  .=, ..=
 (^?) :: s -> AFold0 a s a -> Maybe a
 (^?) = flip F.preview
 {-# INLINE (^?) #-}
-
--- $view
---
--- View operators extract or fold over the focus of an optic.
--- The @^@ character always appears on the value\/structure side.
---
--- @
---            view             toList           preview
---   (->)    (^.)  'V.view'    (^..)  'F.toListOf'   (^?)  'F.preview'
---   Ix      (^%)  'V.ixview'  (^%%)  'F.ixtoListOf'
---   Re      (^/)  'V.review'  (^//)  'F.cofoldOfA'
---   Cx      (^#)  'V.cxview'  (^##)  'F.cxfoldMapOf'
--- @
 
 -- | View through an optic.
 --
@@ -169,8 +153,60 @@ infix  4  .=, ..=
 (^..) = flip F.toListOf
 {-# INLINE (^..) #-}
 
+-- | Set via a primary optic.
+--
+-- @o '.~' b ≡ over o (const b)@
+--
+(.~) :: AAdjoint s t a b -> b -> s -> t
+(.~) o b = o (const b)
+{-# INLINE (.~) #-}
+
+-- | Over (map) via a primary optic.
+--
+-- @o '..~' f ≡ over o f@
+--
+(..~) :: AAdjoint s t a b -> (a -> b) -> s -> t
+(..~) = id
+{-# INLINE (..~) #-}
+
 ---------------------------------------------------------------------
--- View (indexed)
+-- Left Adjoint (Star)
+---------------------------------------------------------------------
+
+-- | Effectful view via 'Star'.
+--
+-- @s '&' o '^*' fb ≡ 'T.traverseOf' o (const fb) s@
+--
+(^*) :: ATraversal f s t a b -> f b -> s -> f t
+(^*) o b = o ^** const b
+{-# INLINE (^*) #-}
+
+-- | Effectful over via 'Star'. Equivalent to 'T.traverseOf'.
+--
+-- @s '&' o '^**' f ≡ 'T.traverseOf' o f s@
+--
+(^**) :: ATraversal f s t a b -> (a -> f b) -> s -> f t
+(^**) o = runStar #. o .# Star
+{-# INLINE (^**) #-}
+
+-- | Effectful set via 'Star'.
+--
+-- @o '*~' fb ≡ o '**~' const fb@
+--
+(*~) :: ATraversal f s t a b -> f b -> s -> f t
+(*~) o b = o **~ const b
+{-# INLINE (*~) #-}
+
+-- | Effectful over via 'Star'. Equivalent to 'T.traverseOf'.
+--
+-- @o '**~' f ≡ 'T.traverseOf' o f@
+--
+(**~) :: ATraversal f s t a b -> (a -> f b) -> s -> f t
+(**~) o = runStar #. o .# Star
+{-# INLINE (**~) #-}
+
+---------------------------------------------------------------------
+-- Left Adjoint (Ix)
 ---------------------------------------------------------------------
 
 -- | View with index.
@@ -189,48 +225,9 @@ infix  4  .=, ..=
 (^%%) = flip F.ixtoListOf
 {-# INLINE (^%%) #-}
 
----------------------------------------------------------------------
--- Set / over (primary, via ->)
----------------------------------------------------------------------
-
--- $setover
---
--- Set and over operators follow a uniform pattern: a single middle
--- character denotes __set__ (replace the focus), while a doubled middle
--- character denotes __over__ (map a function over the focus).
---
--- @
---            set                   over
---   (->)    (.~)  'S.set'          (..~)  'C.over'
---   Star    (*~)               (**~)  'traverseOf'
---   Ix      (%~)  'S.ixset'        (%%~)  'S.ixsets'
---   Costar  (\/~)               (\/\/~)  'cotraverseOf'
---   Cx      (#~)  'S.cxset'        (##~)  'S.cxsets'
--- @
-
--- | Set via a primary optic.
---
--- @o '.~' b ≡ 'S.set' o b@
---
-(.~) :: AAdjoint s t a b -> b -> s -> t
-(.~) o b = o (const b)
-{-# INLINE (.~) #-}
-
--- | Over (map) via a primary optic.
---
--- @o '..~' f ≡ 'C.over' o f@
---
-(..~) :: AAdjoint s t a b -> (a -> b) -> s -> t
-(..~) = id
-{-# INLINE (..~) #-}
-
----------------------------------------------------------------------
--- Set / over (indexed)
----------------------------------------------------------------------
-
 -- | Indexed set.
 --
--- @o '%~' f ≡ 'S.ixset' o f@
+-- @o '%~' f ≡ 'C.ixover' o (const . f)@
 --
 (%~) :: Monoid i => AIxadjoint i s t a b -> (i -> b) -> s -> t
 (%~) o = C.ixover o . (const .)
@@ -245,42 +242,18 @@ infix  4  .=, ..=
 {-# INLINE (%%~) #-}
 
 ---------------------------------------------------------------------
--- Set / over (primary, via Star)
+-- Right Adjoint (Costar)
 ---------------------------------------------------------------------
 
--- | Effectful set via 'Star'.
---
--- @o '*~' b ≡ \\s -> 'Data.Profunctor.Types.runStar' (o ('Data.Profunctor.Types.Star' (const b))) s@
---
-(*~) :: ATraversal f s t a b -> f b -> s -> f t
-(*~) o b = o **~ const b
-{-# INLINE (*~) #-}
-
--- | Effectful over via 'Star'. Equivalent to 'Data.Profunctor.Optic.Traversal.traverseOf'.
---
--- @o '**~' f ≡ 'Data.Profunctor.Optic.Traversal.traverseOf' o f@
---
-(**~) :: ATraversal f s t a b -> (a -> f b) -> s -> f t
-(**~) o = runStar #. o .# Star
-{-# INLINE (**~) #-}
-
----------------------------------------------------------------------
--- View (Re-dual)
----------------------------------------------------------------------
-
--- | Review (Re-dual of view): build a structure from a value.
--- See "Data.Profunctor.Optic.Dual" for the Re\/Co duality.
---
--- Accepts any optic with a 'Tagged' carrier ('AReview'), including
--- 'Coview', 'Review', 'Prism', 'Iso', and 'Grate' optics.
+-- | Review: build a structure from a value.
 --
 -- @o '^/' b ≡ 'V.review' o b@
 --
-(^/) :: AReview t b -> b -> t
+(^/) :: ACoview t b -> b -> t
 (^/) = V.review
 {-# INLINE (^/) #-}
 
--- | Co-dual fold to a list.
+-- | Co-dual fold.
 --
 -- @o '^//' b ≡ 'F.cofoldOfA' o b@
 --
@@ -288,11 +261,27 @@ infix  4  .=, ..=
 (^//) = F.cofoldOfA
 {-# INLINE (^//) #-}
 
--- | Coindexed review: build a coindexed value.
+-- | Co-dual set via 'Costar'.
 --
--- This is the only coindexed Re-dual view infix. There is no
--- @rxview@ infix because the @Rx@ coindex threads via @(k, -)@ on
--- the left of the profunctor, which 'Tagged' discards. See 'V.cxview'.
+-- @o '/~' b ≡ o '//~' const b@
+--
+(/~) :: ACotraversal f s t a b -> b -> f s -> t
+(/~) o b = o //~ const b
+{-# INLINE (/~) #-}
+
+-- | Co-dual over via 'Costar'. Equivalent to 'T.cotraverseOf'.
+--
+-- @o '//~' f ≡ 'T.cotraverseOf' o f@
+--
+(//~) :: ACotraversal f s t a b -> (f a -> b) -> f s -> t
+(//~) o = runCostar #. o .# Costar
+{-# INLINE (//~) #-}
+
+---------------------------------------------------------------------
+-- Right Adjoint (Cx)
+---------------------------------------------------------------------
+
+-- | Coindexed review.
 --
 -- @o '^#' b ≡ 'V.cxview' o b@
 --
@@ -300,7 +289,7 @@ infix  4  .=, ..=
 (^#) = V.cxview
 {-# INLINE (^#) #-}
 
--- | Coindexed cofold: apply a coindexed observation to build a result.
+-- | Coindexed cofold.
 --
 -- @o '^##' f r ≡ 'F.cxfoldMapOf' o f r@
 --
@@ -308,19 +297,15 @@ infix  4  .=, ..=
 (^##) = F.cxfoldMapOf
 {-# INLINE (^##) #-}
 
----------------------------------------------------------------------
--- Set / over (indexed co-dual)
----------------------------------------------------------------------
-
--- | Indexed co-dual set.
+-- | Coindexed set.
 --
--- @o '#~' f ≡ 'S.cxset' o f@
+-- @o '#~' f ≡ 'C.cxover' o (const . f)@
 --
 (#~) :: Monoid i => ACxadjoint i s t a b -> (i -> b) -> s -> t
 (#~) o = C.cxover o . (const .)
 {-# INLINE (#~) #-}
 
--- | Indexed co-dual over.
+-- | Coindexed over.
 --
 -- @o '##~' f ≡ 'C.cxover' o f@
 --
@@ -329,27 +314,7 @@ infix  4  .=, ..=
 {-# INLINE (##~) #-}
 
 ---------------------------------------------------------------------
--- Set / over (co-dual, via Costar)
----------------------------------------------------------------------
-
--- | Co-dual set via 'Costar'.
---
--- @o '\/~' b ≡ (o '\/\/~' const b)@
---
-(/~) :: ACotraversal f s t a b -> b -> f s -> t
-(/~) o b = o //~ const b
-{-# INLINE (/~) #-}
-
--- | Co-dual over via 'Costar'. Equivalent to 'Data.Profunctor.Optic.Traversal.cotraverseOf'.
---
--- @o '\/\/~' f ≡ 'Data.Profunctor.Optic.Traversal.cotraverseOf' o f@
---
-(//~) :: ACotraversal f s t a b -> (f a -> b) -> f s -> t
-(//~) o = runCostar #. o .# Costar
-{-# INLINE (//~) #-}
-
----------------------------------------------------------------------
--- State
+-- MTL
 ---------------------------------------------------------------------
 
 -- | Set in a 'Control.Monad.State.MonadState' context.

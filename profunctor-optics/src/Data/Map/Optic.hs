@@ -23,7 +23,8 @@
 module Data.Map.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics    -- ** Lens, Ixlens
+    -- * Left Adjoint Optics    
+    -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
     -- ** Traversal, Ixtraversal
@@ -43,7 +44,8 @@ module Data.Map.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics    -- ** Colens
+    -- * Right Adjoint Optics    
+    -- ** Colens
   , zippedIfKey
     -- ** Cxlens
   , cxzippedIfKey

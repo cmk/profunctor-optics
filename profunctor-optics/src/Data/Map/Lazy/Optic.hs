@@ -20,7 +20,7 @@
 module Data.Map.Lazy.Optic (
     -- * Types
     Map.Map
-    -- * Left Adjoint Optics (Star side)
+    -- * Left Adjoint Optics
     -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
@@ -41,7 +41,7 @@ module Data.Map.Lazy.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- * Right Adjoint Optics (Costar side)
+    -- * Right Adjoint Optics
     -- ** Colens
   , zippedIfKey
     -- ** Cxlens
@@ -53,7 +53,7 @@ module Data.Map.Lazy.Optic (
   , cxzippedIf
     -- ** Cxfold
   , cxfolded
-    -- * Adjoint Optics (both sides)
+    -- * Adjoint Optics
   , mappedIf
   , ixmappedIf
   , cxmappedIf
