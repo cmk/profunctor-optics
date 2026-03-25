@@ -242,20 +242,20 @@ ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 ---------------------------------------------------------------------
 
 -- | Grate viewing a Map as a function from keys.
--- Requires a fixed key set to be representable.
+-- Requires a fixed key set and a default for missing keys.
 --
-zipped :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
-zipped ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault (error "zipped: missing key") k' m) k) ks
+zipped :: Ord k => a -> Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
+zipped def ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault def k' m) k) ks
 {-# INLINE zipped #-}
 
 -- | Coindexed 'Cxlens' viewing a 'Map.Map' as keyed elements.
 -- Threads the key as coindex, focuses on individual values.
 --
--- Requires a fixed key set.
+-- Requires a fixed key set and a default for missing keys.
 --
-cxzipped :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) a b
-cxzipped ks = cxlensVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (flip (Map.!) k) fs) k) ks
+cxzipped :: Ord k => a -> Set k -> Cxlens k (Map.Map k a) (Map.Map k b) a b
+cxzipped def ks = cxlensVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (\m -> Map.findWithDefault def k m) fs) k) ks
 {-# INLINE cxzipped #-}
 
 -- | Pointwise 'Cotraversal' over the values of a 'Map.Map' at a
@@ -263,12 +263,11 @@ cxzipped ks = cxlensVl $ \fakb fs ->
 -- where 'zipped' views the map as a function from keys,
 -- 'zippedTraverse' views it as a container that can be zipped pointwise.
 --
--- Requires a fixed key set because 'Map.Map' is not 'Distributive'
--- (it has variable size).
+-- Requires a fixed key set and a default for missing keys.
 --
-zippedTraverse :: Ord k => Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
-zippedTraverse ks = cotraversalVl $ \fab fs ->
-  Map.fromSet (\k -> fab (fmap (flip (Map.!) k) fs)) ks
+zippedTraverse :: Ord k => a -> Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
+zippedTraverse def ks = cotraversalVl $ \fab fs ->
+  Map.fromSet (\k -> fab (fmap (\m -> Map.findWithDefault def k m) fs)) ks
 {-# INLINE zippedTraverse #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of a 'Map.Map'.
@@ -283,9 +282,11 @@ comapped = cosetter fmap
 -- Threads the key as coindex. Combines 'zippedTraverse' with
 -- key-dependent operations.
 --
-cxzippedTraverse :: Ord k => Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
-cxzippedTraverse ks = cxtraversalVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (flip (Map.!) k) fs) k) ks
+-- Requires a fixed key set and a default for missing keys.
+--
+cxzippedTraverse :: Ord k => a -> Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxzippedTraverse def ks = cxtraversalVl $ \fakb fs ->
+  Map.fromSet (\k -> fakb (fmap (\m -> Map.findWithDefault def k m) fs) k) ks
 {-# INLINE cxzippedTraverse #-}
 
 ---------------------------------------------------------------------

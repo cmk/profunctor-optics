@@ -231,33 +231,30 @@ ixaltered' k = ixsetter $ \kab -> IM.alter (kab k) k
 ---------------------------------------------------------------------
 
 -- | Grate viewing an IntMap as a function from Int keys.
--- Requires a fixed key set to be representable.
+-- Requires a fixed key set and a default for missing keys.
 --
-zipped :: IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
-zipped ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (error "zipped: missing key") k' m) k) | k <- IntSet.toList ks]
+zipped :: a -> IntSet -> Colens (IM.IntMap a) (IM.IntMap b) (Int -> a) (Int -> b)
+zipped def ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault def k' m) k) | k <- IntSet.toList ks]
 {-# INLINE zipped #-}
 
 -- | Coindexed 'Cxlens' viewing an 'IM.IntMap' as keyed elements.
 -- Threads the key as coindex, focuses on individual values.
 --
--- Requires a fixed key set.
+-- Requires a fixed key set and a default for missing keys.
 --
-cxzipped :: IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) a b
-cxzipped ks = cxlensVl $ \fakb fs ->
-  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) ks
+cxzipped :: a -> IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) a b
+cxzipped def ks = cxlensVl $ \fakb fs ->
+  IM.fromSet (\k -> fakb (fmap (\m -> IM.findWithDefault def k m) fs) k) ks
 {-# INLINE cxzipped #-}
 
 -- | Pointwise 'Cotraversal' over the values of an 'IM.IntMap' at a
--- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal':
--- where 'zipped' views the map as a function from keys,
--- 'zippedTraverse' views it as a container that can be zipped pointwise.
+-- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal'.
 --
--- Requires a fixed key set because 'IM.IntMap' is not 'Distributive'
--- (it has variable size).
+-- Requires a fixed key set and a default for missing keys.
 --
-zippedTraverse :: IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
-zippedTraverse ks = cotraversalVl $ \fab fs ->
-  IM.fromSet (\k -> fab (fmap (IM.! k) fs)) ks
+zippedTraverse :: a -> IntSet -> Cotraversal (IM.IntMap a) (IM.IntMap b) a b
+zippedTraverse def ks = cotraversalVl $ \fab fs ->
+  IM.fromSet (\k -> fab (fmap (\m -> IM.findWithDefault def k m) fs)) ks
 {-# INLINE zippedTraverse #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of an 'IM.IntMap'.
@@ -269,12 +266,13 @@ comapped = cosetter fmap
 {-# INLINE comapped #-}
 
 -- | Keyed pointwise 'Cxtraversal' over the values of an 'IM.IntMap'.
--- Threads the key as coindex. Combines 'zippedTraverse' with
--- key-dependent operations.
+-- Threads the key as coindex.
 --
-cxzippedTraverse :: IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-cxzippedTraverse ks = cxtraversalVl $ \fakb fs ->
-  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) ks
+-- Requires a fixed key set and a default for missing keys.
+--
+cxzippedTraverse :: a -> IntSet -> Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
+cxzippedTraverse def ks = cxtraversalVl $ \fakb fs ->
+  IM.fromSet (\k -> fakb (fmap (\m -> IM.findWithDefault def k m) fs) k) ks
 {-# INLINE cxzippedTraverse #-}
 
 ---------------------------------------------------------------------
