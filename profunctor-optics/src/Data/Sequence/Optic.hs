@@ -21,7 +21,14 @@ module Data.Sequence.Optic (
     -- * Setter
   , ixmapped
     -- * Dual Optics
+    -- ** Colens
   , grateSeq
+    -- ** Cxsetter
+  , cxmapped
+    -- ** Cxtraversal
+  , cxtraversed
+    -- ** Cxfold
+  , cxfolded
     -- * Iso
   , viewedl
   , viewedr
@@ -108,6 +115,44 @@ ixmapped = ixsetter $ \f -> Seq.mapWithIndex f
 grateSeq :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
 grateSeq n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
 {-# INLINE grateSeq #-}
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | /O(n)/. 'Cxsetter' over the elements of a 'Seq'.
+--
+-- Cx dual of 'ixmapped'. Threads the 'Int' index as coindex.
+--
+-- @
+-- 'cxsets' cxmapped ≡ 'Seq.mapWithIndex'
+-- @
+--
+cxmapped :: Cxsetter Int (Seq a) (Seq b) a b
+cxmapped = cxsetter Seq.mapWithIndex
+{-# INLINE cxmapped #-}
+
+-- | /O(n)/. 'Cxtraversal' over the elements of a 'Seq'.
+--
+-- Cx dual of 'ixtraversed'. Threads the 'Int' index as coindex.
+--
+-- @
+-- 'cxtraverseOf' cxtraversed ≡ 'Seq.traverseWithIndex'
+-- @
+--
+cxtraversed :: Cxtraversal Int (Seq a) (Seq b) a b
+cxtraversed = cxtraversalVl $ \fakb fs ->
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) i) (copure fs)
+{-# INLINE cxtraversed #-}
+
+-- | /O(n)/. 'Cxfold' over the elements of a 'Seq'.
+--
+-- Cx dual of 'ixfolded'. Threads the 'Int' index as coindex.
+--
+cxfolded :: Cxfold Int (Seq a) a
+cxfolded = cxfoldVl $ \fakb fs ->
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) i) (copure fs)
+{-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
 -- Slicing

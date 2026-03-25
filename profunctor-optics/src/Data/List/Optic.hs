@@ -21,7 +21,10 @@ module Data.List.Optic (
   , ixmapped
   , ixfiltered
     -- * Dual Optics
+    -- ** Colens
   , zipsListWith
+    -- ** Cxsetter
+  , cxmapped
     -- * Operators
     -- * Sort-based operators (Lens, Ord)
   , sortingOf
@@ -103,6 +106,23 @@ ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
 zipsListWith :: Int -> Colens [a] [b] a b
 zipsListWith n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 {-# INLINE zipsListWith #-}
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | /O(n)/. 'Cxsetter' over the values of a list.
+--
+-- Cx dual of 'ixmapped'. Threads the positional index as coindex
+-- on the Costar side.
+--
+-- @
+-- 'cxsets' cxmapped ≡ \\f xs -> 'zipWith' (\\i a -> f i a) [0..] xs
+-- @
+--
+cxmapped :: Cxsetter Int [a] [b] a b
+cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
+{-# INLINE cxmapped #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators

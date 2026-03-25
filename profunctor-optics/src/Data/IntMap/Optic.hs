@@ -40,8 +40,16 @@ module Data.IntMap.Optic (
     -- * Dual Optics
     -- ** Colens
   , zipsIntMap
-    -- ** Cxview
+    -- ** Cxsetter
   , cxmapped
+  , cxfiltered
+  , cxmapMaybed
+    -- ** Cxtraversal
+  , cxtraversed
+    -- ** Cxfold
+  , cxfolded
+    -- ** Cxview
+  , cxmapped'
     -- * Operators
   , toIntMapOf
   , countingIntMapOf
@@ -180,12 +188,71 @@ zipsIntMap ks = grate $ \f -> IM.fromList [(k, f (\m k' -> IM.findWithDefault (e
 -- key-dependent logic. Dual of 'ixmapped'.
 --
 -- @
--- 'cofoldsWithKey' (cxmapped '#' cxmapped) f r nestedIntMap
+-- 'cxfoldMapOf' (cxmapped' '#' cxmapped') f r nestedIntMap
 -- @
 --
-cxmapped :: Cxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
-cxmapped = cxfrom IM.mapWithKey
+cxmapped' :: Cxview Int (IM.IntMap a -> IM.IntMap b) (a -> b)
+cxmapped' = cxfrom IM.mapWithKey
+{-# INLINE cxmapped' #-}
+
+-- | /O(n)/. 'Cxsetter' over the values of an 'IM.IntMap'.
+--
+-- Cx dual of 'ixmapped'. Threads the key as coindex on the
+-- Costar side, composable with 'Colens' chains.
+--
+-- @
+-- 'cxsets' cxmapped ≡ 'Data.IntMap.mapWithKey'
+-- @
+--
+cxmapped :: Cxsetter Int (IM.IntMap a) (IM.IntMap b) a b
+cxmapped = cxsetter IM.mapWithKey
 {-# INLINE cxmapped #-}
+
+-- | /O(n)/. 'Cxsetter' filtering the values of an 'IM.IntMap'.
+--
+-- Cx dual of 'ixfiltered'. Keeps entries where the coindexed
+-- predicate returns 'True'.
+--
+-- @
+-- 'cxsets' cxfiltered ≡ 'Data.IntMap.filterWithKey'
+-- @
+--
+cxfiltered :: Cxsetter Int (IM.IntMap a) (IM.IntMap a) a Bool
+cxfiltered = cxsetter IM.filterWithKey
+{-# INLINE cxfiltered #-}
+
+-- | /O(n)/. 'Cxsetter' that simultaneously maps and filters the
+-- values of an 'IM.IntMap'.
+--
+-- @
+-- 'cxsets' cxmapMaybed ≡ 'Data.IntMap.mapMaybeWithKey'
+-- @
+--
+cxmapMaybed :: Cxsetter Int (IM.IntMap a) (IM.IntMap b) a (Maybe b)
+cxmapMaybed = cxsetter IM.mapMaybeWithKey
+{-# INLINE cxmapMaybed #-}
+
+-- | /O(n)/. 'Cxtraversal' over the values of an 'IM.IntMap'.
+--
+-- Cx dual of 'ixtraversed'. Threads the key as coindex.
+--
+-- @
+-- 'cxtraverseOf' cxtraversed ≡ 'Data.IntMap.traverseWithKey'
+-- @
+--
+cxtraversed :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
+cxtraversed = cxtraversalVl $ \fakb fs ->
+  IM.mapWithKey (\k a -> fakb (fmap (IM.! k) fs) k) (copure fs)
+{-# INLINE cxtraversed #-}
+
+-- | /O(n)/. 'Cxfold' over the values of an 'IM.IntMap'.
+--
+-- Cx dual of 'ixfolded'. Threads the key as coindex.
+--
+cxfolded :: Cxfold Int (IM.IntMap a) a
+cxfolded = cxfoldVl $ \fakb fs ->
+  IM.mapWithKey (\k a -> fakb (fmap (IM.! k) fs) k) (copure fs)
+{-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
 -- Sort-based
