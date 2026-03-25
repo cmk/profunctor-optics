@@ -48,14 +48,14 @@ module Data.Map.Optic (
   , ixaltered'
     -- * Dual Optics
     -- ** Colens
-  , zipped
+  , zippedIf
     -- ** Cxlens
-  , cxzipped
+  , cxzippedIf
     -- ** Cotraversal
-  , zippedTraverse
+  , zippedTraverseIf
     -- ** Cxtraversal
   , cxtraversed
-  , cxzippedTraverse
+  , cxzippedTraverseIf
     -- ** Cxfold
   , cxfolded
     -- ** Cosetter
@@ -83,7 +83,7 @@ module Data.Map.Optic (
   , sortingMissing
 ) where
 
-import Data.Profunctor.Optic hiding (zipped, toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, foldSorts, foldSorts1, mconcatSorts, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Lazy as Map
@@ -241,34 +241,44 @@ ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 -- Dual optics
 ---------------------------------------------------------------------
 
--- | Grate viewing a Map as a function from keys.
--- Requires a fixed key set and a default for missing keys.
+-- | Colens viewing a 'Map.Map' as a partial function from keys.
 --
-zipped :: Ord k => a -> Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> a) (k -> b)
-zipped def ks = grate $ \f -> Map.fromSet (\k -> f (\m k' -> Map.findWithDefault def k' m) k) ks
-{-# INLINE zipped #-}
+-- Self-keyed: the key set comes from the focal map (via 'copure').
+-- The focus is @k -> Maybe a@ — 'Nothing' for keys absent from a
+-- given map. No external key set or default needed.
+--
+-- @
+-- 'zipsWith' 'zippedIf' f m1 m2
+-- @
+--
+-- zips @m1@ and @m2@ over @m2@'s keys (since @'copure' (m1,m2) = m2@
+-- for @(,)@). Missing keys in @m1@ appear as 'Nothing'.
+--
+-- | Colens viewing a 'Map.Map' as a partial function from keys.
+-- The focus is @k -> Maybe a@ — 'Nothing' for absent keys.
+-- Requires a fixed key set (Colens has no 'copure').
+--
+zippedIf :: Ord k => Set k -> Colens (Map.Map k a) (Map.Map k b) (k -> Maybe a) (k -> Maybe b)
+zippedIf ks = grate $ \f ->
+  Map.mapMaybe id $ Map.fromSet (\k -> f (\m k' -> Map.lookup k' m) k) ks
+{-# INLINE zippedIf #-}
 
--- | Coindexed 'Cxlens' viewing a 'Map.Map' as keyed elements.
--- Threads the key as coindex, focuses on individual values.
+-- | Coindexed 'Cxlens' with 'Maybe' focus.
+-- Requires a fixed key set (Cxlens has no 'copure').
 --
--- Requires a fixed key set and a default for missing keys.
---
-cxzipped :: Ord k => a -> Set k -> Cxlens k (Map.Map k a) (Map.Map k b) a b
-cxzipped def ks = cxlensVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (\m -> Map.findWithDefault def k m) fs) k) ks
-{-# INLINE cxzipped #-}
+cxzippedIf :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedIf ks = cxlensVl $ \fakb fs ->
+  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) ks
+{-# INLINE cxzippedIf #-}
 
--- | Pointwise 'Cotraversal' over the values of a 'Map.Map' at a
--- fixed key set. Extends 'zipped' from 'Colens' to 'Cotraversal':
--- where 'zipped' views the map as a function from keys,
--- 'zippedTraverse' views it as a container that can be zipped pointwise.
+-- | Pointwise 'Cotraversal' with 'Maybe' focus.
+-- Self-keyed: the key set comes from the focal map via 'copure'.
 --
--- Requires a fixed key set and a default for missing keys.
---
-zippedTraverse :: Ord k => a -> Set k -> Cotraversal (Map.Map k a) (Map.Map k b) a b
-zippedTraverse def ks = cotraversalVl $ \fab fs ->
-  Map.fromSet (\k -> fab (fmap (\m -> Map.findWithDefault def k m) fs)) ks
-{-# INLINE zippedTraverse #-}
+zippedTraverseIf :: Ord k => Cotraversal (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+zippedTraverseIf = cotraversalVl $ \fab fs ->
+  let m0 = copure fs
+  in  Map.mapMaybe id $ Map.fromSet (\k -> fab (fmap (Map.lookup k) fs)) (Map.keysSet m0)
+{-# INLINE zippedTraverseIf #-}
 
 -- | /O(n)/. Non-indexed 'Cosetter' over the values of a 'Map.Map'.
 --
@@ -278,16 +288,14 @@ comapped :: Cosetter (Map.Map k a) (Map.Map k b) a b
 comapped = cosetter fmap
 {-# INLINE comapped #-}
 
--- | Keyed pointwise 'Cxtraversal' over the values of a 'Map.Map'.
--- Threads the key as coindex. Combines 'zippedTraverse' with
--- key-dependent operations.
+-- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
+-- Self-keyed via 'copure'.
 --
--- Requires a fixed key set and a default for missing keys.
---
-cxzippedTraverse :: Ord k => a -> Set k -> Cxtraversal k (Map.Map k a) (Map.Map k b) a b
-cxzippedTraverse def ks = cxtraversalVl $ \fakb fs ->
-  Map.fromSet (\k -> fakb (fmap (\m -> Map.findWithDefault def k m) fs) k) ks
-{-# INLINE cxzippedTraverse #-}
+cxzippedTraverseIf :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedTraverseIf = cxtraversalVl $ \fakb fs ->
+  let m0 = copure fs
+  in  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) (Map.keysSet m0)
+{-# INLINE cxzippedTraverseIf #-}
 
 ---------------------------------------------------------------------
 -- Coindexed optics
