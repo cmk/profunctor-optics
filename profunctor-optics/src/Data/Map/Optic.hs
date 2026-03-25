@@ -24,6 +24,7 @@ module Data.Map.Optic (
     -- ** Traversal0, Ixtraversal0
   , at
   , ixat
+  , posAt
   , updated
   , updateLooked
   , lookedLT
@@ -41,6 +42,11 @@ module Data.Map.Optic (
   , adjusted
   , ixmapped
   , ixfiltered
+  , mappedIf
+  , keyed
+  , filteredKeys
+  , updatedMin
+  , updatedMax
   , altered
   , altered'
   , ixaltered
@@ -117,6 +123,23 @@ at k = traversal0' (Map.lookup k) (flip $ Map.insert k)
 ixat :: Ord k => k -> Ixtraversal0' k (Map.Map k a) a
 ixat k = ixtraversal0' (\s -> (k,) <$> Map.lookup k s) (flip $ Map.insert k)
 {-# INLINE ixat #-}
+
+-- | /O(log n)/. Indexed affine traversal into the value at positional
+-- index @i@ (0-based, ascending key order). Returns the key as index.
+--
+-- Total: returns 'Nothing' when @i@ is out of range.
+--
+posAt :: Ord k => Int -> Ixtraversal0' k (Map.Map k a) a
+posAt i = ixtraversal0' getter setter'
+  where
+    getter m
+      | 0 <= i && i < Map.size m =
+          let (k, a) = Map.findMin (Map.drop i m) in Just (k, a)
+      | otherwise = Nothing
+    setter' m a = case getter m of
+      Nothing     -> m
+      Just (k, _) -> Map.insert k a m
+{-# INLINE posAt #-}
 
 -- | /O(log n)/. Update a value at a specific key.
 --
@@ -225,6 +248,54 @@ ixaltered k = ixsetter $ \kab -> Map.alter (kab k) k
 ixaltered' :: Ord k => k -> Ixsetter' k (Map.Map k a) (Maybe a)
 ixaltered' k = ixsetter $ \kab -> MapS.alter (kab k) k
 {-# INLINE ixaltered' #-}
+
+-- | /O(n)/. Setter that maps and filters values simultaneously.
+--
+-- @'sets' 'mappedIf' f = 'Map.mapMaybe' f@
+--
+mappedIf :: Setter (Map.Map k a) (Map.Map k b) a (Maybe b)
+mappedIf = setter Map.mapMaybe
+{-# INLINE mappedIf #-}
+
+-- | /O(n log n)/. Setter over the keys of a 'Map.Map'.
+--
+-- @'sets' 'keyed' f = 'Map.mapKeys' f@
+--
+keyed :: Ord k2 => Setter (Map.Map k1 a) (Map.Map k2 a) k1 k2
+keyed = setter Map.mapKeys
+{-# INLINE keyed #-}
+
+-- | /O(n)/. Setter that filters entries by key predicate.
+--
+-- @'sets' 'filteredKeys' p = 'Map.filterKeys' p@
+--
+-- /Note/: does not satisfy the Setter composition law.
+-- @'sets' filteredKeys p '.' 'sets' filteredKeys q ≢ 'sets' filteredKeys (p '.' q)@.
+-- Instead: @'sets' filteredKeys p '.' 'sets' filteredKeys q ≡ 'sets' filteredKeys (\\k -> p k '&&' q k)@.
+--
+filteredKeys :: Setter (Map.Map k a) (Map.Map k a) k Bool
+filteredKeys = setter $ \p -> Map.filterWithKey (\k _ -> p k)
+{-# INLINE filteredKeys #-}
+
+-- | /O(log n)/. Ixsetter that updates the value at the minimal key.
+-- The key is threaded as index. Returns 'Nothing' to delete.
+-- No-op on empty maps.
+--
+-- @'ixsets' 'updatedMin' f = 'Map.updateMinWithKey' f@
+--
+updatedMin :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMin = ixsetter Map.updateMinWithKey
+{-# INLINE updatedMin #-}
+
+-- | /O(log n)/. Ixsetter that updates the value at the maximal key.
+-- The key is threaded as index. Returns 'Nothing' to delete.
+-- No-op on empty maps.
+--
+-- @'ixsets' 'updatedMax' f = 'Map.updateMaxWithKey' f@
+--
+updatedMax :: Ixsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+updatedMax = ixsetter Map.updateMaxWithKey
+{-# INLINE updatedMax #-}
 
 ---------------------------------------------------------------------
 -- Dual optics
