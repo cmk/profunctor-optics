@@ -41,6 +41,7 @@ module Data.Map.Optic (
   , mappedKey
   , filteredKey
   , adjusted
+  , ixadjusted
   , ixmapped
   , ixfiltered
   , altered
@@ -68,7 +69,6 @@ module Data.Map.Optic (
   , cxfiltered
   , cxmappedIf
     -- * Operators
-  , fromIxfold
     -- ** Sort-based
   , toMapOf
   , countsOf
@@ -197,9 +197,15 @@ validated = filtered Map.valid
 
 -- | /O(log n)/. Adjust a value at a specific key.
 --
-adjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
-adjusted k = ixsetter $ \kab -> Map.adjustWithKey kab k
+adjusted :: Ord k => k -> Setter' (Map.Map k a) a
+adjusted k = setter $ \ab -> Map.adjust ab k
 {-# INLINE adjusted #-}
+
+-- | /O(log n)/. Indexed adjust: the key is available to the update function.
+--
+ixadjusted :: Ord k => k -> Ixsetter' k (Map.Map k a) a
+ixadjusted k = ixsetter $ \kab -> Map.adjustWithKey kab k
+{-# INLINE ixadjusted #-}
 
 -- | /O(n)/. 'Ixsetter' over the values of a 'Map.Map'.
 --
@@ -415,12 +421,6 @@ cxfolded = cxfoldVl $ \fakb fs ->
 ---------------------------------------------------------------------
 -- Operators
 ---------------------------------------------------------------------
-
--- | /O(1)/. Create a 'Map.Map' from an 'Ixfold'.
---
-fromIxfold :: Ord k => Monoid k => AIxfold (Map.Map k a) k s a -> s -> Map.Map k a
-fromIxfold o = ixfoldMapOf o Map.singleton
-{-# INLINE fromIxfold #-}
 
 ---------------------------------------------------------------------
 -- Sort-based operators
