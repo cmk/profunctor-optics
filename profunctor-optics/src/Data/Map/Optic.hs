@@ -23,7 +23,7 @@
 module Data.Map.Optic (
     -- * Types
     Map.Map
-    -- * Optics
+    -- * Left Adjoint Optics
     -- ** Lens, Ixlens
   , alteredF
   , ixalteredF
@@ -44,7 +44,19 @@ module Data.Map.Optic (
   , lookedMin
   , lookedMax
   , validated
-    -- ** Adjoint, Ixadjoint, Cxadjoint
+    -- * Right Adjoint Optics
+    -- ** Colens
+  , zippedIfKey
+    -- ** Cxlens
+  , cxzippedIfKey
+    -- ** Cotraversal
+  , zippedIf
+    -- ** Cxtraversal
+  , cxtraversed
+  , cxzippedIf
+    -- ** Cxfold
+  , cxfolded
+    -- * Adjoint Optics
   , mappedIf
   , ixmappedIf
   , cxmappedIf
@@ -71,18 +83,6 @@ module Data.Map.Optic (
   , updatedMax
   , ixupdatedMax
   , cxupdatedMax
-    -- * Dual Optics
-    -- ** Colens
-  , zippedIfKey
-    -- ** Cxlens
-  , cxzippedIfKey
-    -- ** Cotraversal
-  , zippedIf
-    -- ** Cxtraversal
-  , cxtraversed
-  , cxzippedIf
-    -- ** Cxfold
-  , cxfolded
     -- * Operators
     -- ** Sort-based
   , toMapOf
