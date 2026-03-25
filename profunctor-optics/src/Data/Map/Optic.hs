@@ -68,10 +68,26 @@ module Data.Map.Optic (
   , cxzippedIf
     -- ** Cxfold
   , cxfolded
-    -- ** Cxsetter
+    -- ** Cosetter, Cxsetter
+  , comappedIf
+  , comappedKey
+  , cofiltered
+  , coadjusted
+  , coaltered
+  , coaltered'
+  , coupdated
+  , coupdatedMin
+  , coupdatedMax
   , cxmapped
-  , cxfiltered
   , cxmappedIf
+  , cxfiltered
+  , cxadjusted
+  , cxaltered
+  , cxaltered'
+  , cxupdated
+  , cxupdatedLookup
+  , cxupdatedMin
+  , cxupdatedMax
     -- * Operators
     -- ** Sort-based
   , toMapOf
@@ -439,6 +455,86 @@ cxfiltered = cxsetter Map.filterWithKey
 cxmappedIf :: Cxsetter k (Map.Map k a) (Map.Map k b) a (Maybe b)
 cxmappedIf = cxsetter Map.mapMaybeWithKey
 {-# INLINE cxmappedIf #-}
+
+-- | Cosetter wrapping 'Map.mapMaybe'. Costar dual of 'mappedIf'.
+comappedIf :: Cosetter (Map.Map k a) (Map.Map k b) a (Maybe b)
+comappedIf = cosetter Map.mapMaybe
+{-# INLINE comappedIf #-}
+
+-- | Cosetter wrapping 'Map.mapKeys'. Costar dual of 'mappedKey'.
+comappedKey :: Ord k2 => Cosetter (Map.Map k1 a) (Map.Map k2 a) k1 k2
+comappedKey = cosetter Map.mapKeys
+{-# INLINE comappedKey #-}
+
+-- | Cosetter wrapping 'Map.filter'. Costar dual of 'filtered'.
+cofiltered :: Cosetter (Map.Map k a) (Map.Map k a) a Bool
+cofiltered = cosetter Map.filter
+{-# INLINE cofiltered #-}
+
+-- | Cosetter wrapping 'Map.adjust'. Costar dual of 'adjusted'.
+coadjusted :: Ord k => k -> Cosetter' (Map.Map k a) a
+coadjusted k = cosetter $ \f -> Map.adjust f k
+{-# INLINE coadjusted #-}
+
+-- | Cosetter wrapping 'Map.alter'. Costar dual of 'altered'.
+coaltered :: Ord k => k -> Cosetter' (Map.Map k a) (Maybe a)
+coaltered k = cosetter $ \f -> Map.alter f k
+{-# INLINE coaltered #-}
+
+-- | Cosetter wrapping 'MapS.alter'. Costar dual of 'altered''.
+coaltered' :: Ord k => k -> Cosetter' (Map.Map k a) (Maybe a)
+coaltered' k = cosetter $ \f -> MapS.alter f k
+{-# INLINE coaltered' #-}
+
+-- | Cosetter wrapping 'Map.update'. Costar dual of 'updated'.
+coupdated :: Ord k => k -> Cosetter (Map.Map k a) (Map.Map k a) a (Maybe a)
+coupdated k = cosetter $ \f -> Map.update f k
+{-# INLINE coupdated #-}
+
+-- | Cosetter wrapping 'Map.updateMin'. Costar dual of 'updatedMin'.
+coupdatedMin :: Cosetter (Map.Map k a) (Map.Map k a) a (Maybe a)
+coupdatedMin = cosetter Map.updateMin
+{-# INLINE coupdatedMin #-}
+
+-- | Cosetter wrapping 'Map.updateMax'. Costar dual of 'updatedMax'.
+coupdatedMax :: Cosetter (Map.Map k a) (Map.Map k a) a (Maybe a)
+coupdatedMax = cosetter Map.updateMax
+{-# INLINE coupdatedMax #-}
+
+-- | Cxsetter wrapping 'Map.adjustWithKey'. Costar dual of 'ixadjusted'.
+cxadjusted :: Ord k => k -> Cxsetter' k (Map.Map k a) a
+cxadjusted k = cxsetter $ \f -> Map.adjustWithKey f k
+{-# INLINE cxadjusted #-}
+
+-- | Cxsetter wrapping 'Map.alter'. Costar dual of 'ixaltered'.
+cxaltered :: Ord k => k -> Cxsetter' k (Map.Map k a) (Maybe a)
+cxaltered k = cxsetter $ \f -> Map.alter (f k) k
+{-# INLINE cxaltered #-}
+
+-- | Cxsetter wrapping 'MapS.alter'. Costar dual of 'ixaltered''.
+cxaltered' :: Ord k => k -> Cxsetter' k (Map.Map k a) (Maybe a)
+cxaltered' k = cxsetter $ \f -> MapS.alter (f k) k
+{-# INLINE cxaltered' #-}
+
+-- | Cxsetter wrapping 'Map.updateWithKey'. Costar dual of 'ixupdated'.
+cxupdated :: Ord k => k -> Cxsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdated k = cxsetter $ \f -> Map.updateWithKey f k
+{-# INLINE cxupdated #-}
+
+-- | Cxsetter wrapping 'Map.updateLookupWithKey'. Costar dual of 'ixupdatedLookup'.
+cxupdatedLookup :: Ord k => k -> Cxsetter k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+cxupdatedLookup k = cxsetter $ \f -> Map.updateLookupWithKey f k
+{-# INLINE cxupdatedLookup #-}
+
+-- | Cxsetter wrapping 'Map.updateMinWithKey'. Costar dual of 'ixupdatedMin'.
+cxupdatedMin :: Cxsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdatedMin = cxsetter Map.updateMinWithKey
+{-# INLINE cxupdatedMin #-}
+
+-- | Cxsetter wrapping 'Map.updateMaxWithKey'. Costar dual of 'ixupdatedMax'.
+cxupdatedMax :: Cxsetter k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdatedMax = cxsetter Map.updateMaxWithKey
+{-# INLINE cxupdatedMax #-}
 
 -- | /O(n)/. 'Cxtraversal' over the values of a 'Map.Map'.
 --
