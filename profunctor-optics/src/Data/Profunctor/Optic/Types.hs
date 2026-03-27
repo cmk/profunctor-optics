@@ -28,7 +28,10 @@
 -- functor @(,) k@, while right-indexed ('Cx') optics thread a coindex
 -- through the right adjoint functor @(->) k@.
 module Data.Profunctor.Optic.Types (
-    Optic, Optic'
+    type (+)
+  , type (-)
+  , over
+  , Optic, Optic'
   , Ix, Ix', Ixoptic, Ixoptic'
   , Cx, Cx', Cxoptic, Cxoptic'
     -- * Iso
@@ -153,6 +156,53 @@ import Data.Profunctor.Types as Export
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :load Data.Profunctor.Optic
+
+---------------------------------------------------------------------
+-- Type operators
+---------------------------------------------------------------------
+
+type (+) = Either
+
+-- | Functor composition operator. Read left-to-right: apply @g@ then @f@.
+--
+-- Left-associative so @Dual - Endo - Endo@ parses as @(Dual - Endo) - Endo@,
+-- i.e. @Dual (Endo (Endo a))@.
+infixl 9 -
+type (f - g) a = f (g a)
+
+-- | Map a function over the focus of any optic.
+--
+-- @'over' o f@ instantiates the optic at @(->)@, which sits at the
+-- meet of the optic constraint diamond ('Identity' ⊣ 'Identity')
+-- and satisfies every profunctor constraint. This means 'over'
+-- accepts /any/ polymorphic optic: 'Iso', 'Lens', 'Prism',
+-- 'Traversal', 'Setter', 'Cosetter', 'Colens', 'Adjoint', etc.
+--
+-- @
+-- 'over' o 'id' ≡ 'id'
+-- 'over' o f '.' 'over' o g ≡ 'over' o (f '.' g)
+-- 'over' '.' 'setter' ≡ 'id'
+-- @
+--
+-- >>> over fmapped (+1) (Just 1)
+-- Just 2
+-- >>> over fmapped (*10) [1,2,3]
+-- [10,20,30]
+-- >>> over first (+1) (1,2)
+-- (2,2)
+-- >>> over first show (10,20)
+-- ("10",20)
+--
+-- /Note/: 'over' does not accept pre-monomorphized optics (e.g.
+-- 'ASetter', 'ACosetter'). If you have a monomorphized optic, use
+-- the appropriate clone function ('cloneSetter', 'cloneCosetter',
+-- etc.) to re-polymorphize it first.
+--
+-- /Benchmark: 1.00x vs direct (Lens), 0.89x vs fmap (Traversal). See "Data.Profunctor.Optic.Bench"./
+--
+over :: ((a -> b) -> s -> t) -> (a -> b) -> s -> t
+over = id
+{-# INLINE over #-}
 
 ---------------------------------------------------------------------
 -- Optic

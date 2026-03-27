@@ -104,6 +104,7 @@ import Control.Monad.Cont
 import Data.Profunctor.Closed (Closure(..), Environment(..), curry')
 import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Arrow
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Iso hiding (reover)
 import Data.Profunctor.Optic.Types

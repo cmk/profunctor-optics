@@ -53,9 +53,10 @@ module Data.Profunctor.Optic.Index (
 
 
 import Data.Profunctor.Strong (Pastro(..))
-import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Arrow
 import Data.Profunctor.Optic.Import
+import Data.Profunctor.Optic.Carrier
 import qualified Data.Bifunctor as B
 import qualified Data.Semigroup as S
 

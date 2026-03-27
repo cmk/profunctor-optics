@@ -57,7 +57,7 @@ import Data.Profunctor.Optic.Infix            as Infix
 -- Re-exported class hierarchy
 import Data.Distributive
 import Control.Coapplicative
-import Data.Functor.Coapply hiding (apply, branch)
+import Data.Functor.Coapply hiding (type (+), apply, branch)
 import Data.Profunctor.Types
 import Data.Profunctor.Strong (Strong(..), Costrong(..))
 import Data.Profunctor.Choice (Choice(..), Cochoice(..))

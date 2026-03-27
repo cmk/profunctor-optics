@@ -70,8 +70,7 @@ module Data.Profunctor.Optic.Sort (
 import Data.Ord (Down(..))
 import Data.Profunctor.Optic.Carrier (Conjoin(..))
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Types (Lens')
-import Prelude ((+), (-))
+import Data.Profunctor.Optic.Types (type (+), Lens')
 
 import qualified Control.Category as C
 import qualified Data.Bifunctor as B

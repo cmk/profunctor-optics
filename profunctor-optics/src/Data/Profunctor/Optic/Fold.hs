@@ -144,6 +144,7 @@ import Control.Monad.State as State hiding (lift)
 import Data.Foldable (traverse_)
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Profunctor.Optic.Carrier
+import Data.Profunctor.Optic.Arrow (coercedL, coercedR)
 import Data.Profunctor.Optic.Index
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Traversal

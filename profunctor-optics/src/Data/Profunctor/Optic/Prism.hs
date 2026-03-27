@@ -63,6 +63,7 @@ import Data.Profunctor.Choice hiding (tambaraSum, pastroSum)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Arrow (eswap, join)
 -- $setup
 -- >>> :set -XNoOverloadedStrings
 -- >>> :set -XTypeApplications

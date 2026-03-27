@@ -157,6 +157,7 @@ import Data.Monoid (Alt(..))
 import Data.Profunctor.Choice
 import Data.Profunctor.Strong
 import Data.Profunctor.Optic.Types
+import Data.Profunctor.Optic.Arrow
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Rep (unfirstCorep)
 import GHC.Generics (Generic)
@@ -300,6 +301,32 @@ type ACofold1 r t b = ACotraversal1' (Const r) t b
 type ACxfold1 r k t b = ACxtraversal1' (Const r) k t b
 
 ---------------------------------------------------------------------
+-- View carriers
+---------------------------------------------------------------------
+
+type AView r s a = AFold r s a
+
+-- | A monomorphized 'Coview'. Same carrier as 'AReview' — both use
+-- 'Tagged', which satisfies 'Closed', 'Costrong', and 'CoercingL'.
+-- Use 'review' to extract @b -> t@ from either.
+-- See "Data.Profunctor.Optic.Dual" for why these share a carrier.
+type ACoview t b = Optic' Tagged t b
+
+-- | A monomorphized 'Review'. Same carrier as 'ACoview' ('Tagged'),
+-- since 'Tagged' is both 'Closed' and 'Costrong'. The 'review'
+-- operator accepts both.
+type AReview t b = Optic' Tagged t b
+
+type AIxview k s a = AIxfold (k, a) k s a
+
+-- | A monomorphized 'Cxview'. The coindex @k@ threads via @k -> b@ on
+-- the right of 'Tagged', producing @b -> (k -> t)@ through 'cxview'.
+--
+-- There is no @ARxview@ — the hypothetical @Rxview@ threads @(k, b)@
+-- on the left, which 'Tagged' discards, collapsing to 'AReview'.
+type ACxview k t b = Cxoptic' Tagged k t b
+
+---------------------------------------------------------------------
 -- Setter carriers
 ---------------------------------------------------------------------
 
@@ -381,32 +408,6 @@ type AIxadjoint' k s a = AIxadjoint k s s a a
 type ACxadjoint k s t a b = Cxoptic (->) k s t a b
 
 type ACxadjoint' k t b = ACxadjoint k t t b b
-
----------------------------------------------------------------------
--- View carriers
----------------------------------------------------------------------
-
-type AView r s a = AFold r s a
-
--- | A monomorphized 'Coview'. Same carrier as 'AReview' — both use
--- 'Tagged', which satisfies 'Closed', 'Costrong', and 'CoercingL'.
--- Use 'review' to extract @b -> t@ from either.
--- See "Data.Profunctor.Optic.Dual" for why these share a carrier.
-type ACoview t b = Optic' Tagged t b
-
--- | A monomorphized 'Review'. Same carrier as 'ACoview' ('Tagged'),
--- since 'Tagged' is both 'Closed' and 'Costrong'. The 'review'
--- operator accepts both.
-type AReview t b = Optic' Tagged t b
-
-type AIxview k s a = AIxfold (k, a) k s a
-
--- | A monomorphized 'Cxview'. The coindex @k@ threads via @k -> b@ on
--- the right of 'Tagged', producing @b -> (k -> t)@ through 'cxview'.
---
--- There is no @ARxview@ — the hypothetical @Rxview@ threads @(k, b)@
--- on the left, which 'Tagged' discards, collapsing to 'AReview'.
-type ACxview k t b = Cxoptic' Tagged k t b
 
 ---------------------------------------------------------------------
 -- Carrier operators
