@@ -59,7 +59,7 @@ module Data.Profunctor.Optic.Prism (
 import Data.Bifunctor as B
 import Data.Bits (Bits, bit, testBit)
 import Data.List (stripPrefix)
-import Data.Profunctor.Choice hiding (tambaraSum, pastroSum)
+import Data.Profunctor.Choice hiding (tambaraSum)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Types

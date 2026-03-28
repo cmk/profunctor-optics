@@ -26,6 +26,5 @@ main = do
     , "src/Data/Profunctor/Optic/Fold.hs"
     , "src/Data/Profunctor/Optic/Setter.hs"
     , "src/Data/Profunctor/Optic/View.hs"
-    , "src/Data/Profunctor/Optic/Combinator.hs"
     , "src/Data/Profunctor/Optic/Carrier.hs"
     ]

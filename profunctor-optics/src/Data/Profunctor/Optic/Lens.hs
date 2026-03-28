@@ -106,7 +106,7 @@ import Data.Profunctor.Rep (unfirstCorep, unsecondCorep)
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Arrow
 import Data.Profunctor.Optic.Import
-import Data.Profunctor.Optic.Iso hiding (reover)
+import Data.Profunctor.Optic.Iso
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Strong hiding (pastro, tambara)
 import qualified Data.Functor.Rep as F

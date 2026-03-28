@@ -101,7 +101,7 @@ module Data.Map.Optic (
   , sortsWhenMissing
 ) where
 
-import Data.Profunctor.Optic hiding (filtered, toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (filtered, toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.Set (Set)
 import qualified Data.Map.Strict as Map

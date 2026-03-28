@@ -82,7 +82,7 @@ module Data.IntMap.Optic (
   , sortsWhenMissing
 ) where
 
-import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, mergesInner, mergesOuter, mergesLeft, mergesRight, sortedMatched, sortedMissing)
+import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of, sortFoldMapOf, sortingString, merges, innerMerges, outerMerges, leftMerges, rightMerges, sortedMatched, sortedMissing)
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet

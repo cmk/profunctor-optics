@@ -9,7 +9,6 @@ module Test.Carrier where
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Carrier
 import Data.Profunctor.Optic.Property as Prop
-import Data.Profunctor.Optic.Combinator (over)
 import Data.Profunctor.Optic.Iso (iso)
 import Data.Profunctor.Optic.Index (cxix, ixcx)
 import Data.Profunctor.Optic.Lens (grate, lensVl, ixlens, relens, refirst)

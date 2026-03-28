@@ -50,7 +50,7 @@ module Data.Text.Optic (
 ) where
 
 import Data.ByteString (ByteString)
-import Data.Map.Optic (Map(..))
+import Data.Map.Optic (Map)
 import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL

@@ -52,7 +52,7 @@ import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as B8
 import qualified Data.ByteString.Lazy as BL
-import Data.Map.Optic (Map(..))
+import Data.Map.Optic (Map)
 import Data.ByteString.Short (ShortByteString)
 import qualified Data.ByteString.Short as SBS
 import Data.Profunctor.Optic hiding (folded)
