@@ -320,7 +320,7 @@ cxmappedIf = cxsetter $ \f -> IM.mapMaybeWithKey (\i -> f (Sum i))
 --
 cxtraversed :: Cxtraversal (Sum Int) (IM.IntMap a) (IM.IntMap b) a b
 cxtraversed = cxtraversalVl $ \fakb k fs ->
-  IM.fromSet (\i -> fakb (fmap (IM.! i) fs) (k <> Sum i)) (IM.keysSet (copure fs))
+  IM.mapWithKey (\i a -> fakb (fmap (IM.findWithDefault a i) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the values of an 'IM.IntMap'.
@@ -329,7 +329,7 @@ cxtraversed = cxtraversalVl $ \fakb k fs ->
 --
 cxfolded :: Cxfold (Sum Int) (IM.IntMap a) a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  IM.fromSet (\i -> fakb (fmap (IM.! i) fs) (k <> Sum i)) (IM.keysSet (copure fs))
+  IM.mapWithKey (\i a -> fakb (fmap (IM.findWithDefault a i) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

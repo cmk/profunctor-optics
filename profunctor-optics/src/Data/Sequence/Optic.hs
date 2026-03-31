@@ -47,6 +47,7 @@ module Data.Sequence.Optic (
 
 import Data.Profunctor.Optic hiding (zipped)
 import Data.Profunctor.Optic.Import
+import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq, ViewL(..), ViewR(..), viewl, viewr)
 import qualified Data.Sequence as Seq
 import qualified Data.Foldable as Foldable
@@ -164,7 +165,7 @@ cxmapped = cxsetter $ \f -> Seq.mapWithIndex (\i -> f (Sum i))
 --
 cxtraversed :: Cxtraversal (Sum Int) (Seq a) (Seq b) a b
 cxtraversed = cxtraversalVl $ \fakb k fs ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k <> Sum i)) (copure fs)
+  Seq.mapWithIndex (\i a -> fakb (fmap (\s -> fromMaybe a (Seq.lookup i s)) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the elements of a 'Seq'.
@@ -173,7 +174,7 @@ cxtraversed = cxtraversalVl $ \fakb k fs ->
 --
 cxfolded :: Cxfold (Sum Int) (Seq a) a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k <> Sum i)) (copure fs)
+  Seq.mapWithIndex (\i a -> fakb (fmap (\s -> fromMaybe a (Seq.lookup i s)) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

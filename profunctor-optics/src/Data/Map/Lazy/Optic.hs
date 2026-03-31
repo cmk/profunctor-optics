@@ -264,7 +264,7 @@ zippedIf = cotraversalVl $ \fab fs ->
 --
 cxtraversed :: (Ord k, Semigroup k) => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
 cxtraversed = cxtraversalVl $ \fakb k fs ->
-  Map.fromSet (\i -> fakb (fmap (Map.! i) fs) (k <> i)) (Map.keysSet (copure fs))
+  Map.mapWithKey (\i a -> fakb (fmap (Map.findWithDefault a i) fs) (k <> i)) (copure fs)
 {-# INLINE cxtraversed #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
@@ -282,7 +282,7 @@ cxzippedIf = cxtraversalVl $ \fakb k fs ->
 --
 cxfolded :: (Ord k, Semigroup k) => Cxfold k (Map.Map k a) a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  Map.fromSet (\i -> fakb (fmap (Map.! i) fs) (k <> i)) (Map.keysSet (copure fs))
+  Map.mapWithKey (\i a -> fakb (fmap (Map.findWithDefault a i) fs) (k <> i)) (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

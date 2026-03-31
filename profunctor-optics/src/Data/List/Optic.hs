@@ -58,7 +58,7 @@ module Data.List.Optic (
 import Data.Profunctor.Optic hiding (zipped, sorts, sortsDesc, groups, nubs, sortingString)
 import Data.Profunctor.Optic.Import
 import Data.Profunctor.Optic.Sort (sortingRep)
-import Data.Maybe (listToMaybe)
+import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Ord (Down(..), comparing)
 import qualified Data.List as L
 import qualified Data.Map.Strict as Map
@@ -146,7 +146,7 @@ cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f (Sum i) a) [0..] xs
 --
 cxfolded :: Cxfold (Sum Int) [a] a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  zipWith (\i _a -> fakb (fmap (!! i) fs) (k <> Sum i)) [0..] (copure fs)
+  zipWith (\i a -> fakb (fmap (\s -> fromMaybe a (listToMaybe (drop i s))) fs) (k <> Sum i)) [0..] (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
