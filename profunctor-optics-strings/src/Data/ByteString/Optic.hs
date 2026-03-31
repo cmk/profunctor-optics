@@ -71,6 +71,17 @@ module Data.ByteString.Optic (
     -- ** Ixsetter
     ixmapped,
 
+    -- * Coindexed Optics
+    -- ** Cxtraversal
+    cxtraversed,
+
+    -- ** Cxfold
+    cxfolded,
+
+    -- ** Cxsetter
+    cxmapped,
+    cxfiltered,
+
     -- * Dual Optics
     -- ** Cotraversal
     zippedBS,
@@ -257,6 +268,38 @@ folded = fold_ BS.unpack
 mapped :: Setter' ByteString Word8
 mapped = setter BS.map
 {-# INLINE mapped #-}
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | Coindexed traversal over bytes with positional coindex.
+cxtraversed :: Cxtraversal (Sum Int) ByteString ByteString Word8 Word8
+cxtraversed = cxtraversalVl $ \fakb k fs ->
+  let bs0 = copure fs
+  in  BS.pack $ zipWith (\i w -> fakb (fmap (\bs -> if i < BS.length bs then BS.index bs i else w) fs) (k <> Sum i))
+        [0..] (BS.unpack bs0)
+{-# INLINE cxtraversed #-}
+
+-- | Coindexed fold over bytes with positional coindex.
+cxfolded :: Cxfold (Sum Int) ByteString Word8
+cxfolded = cxfoldVl $ \fakb k fs ->
+  let bs0 = copure fs
+  in  BS.pack $ zipWith (\i w -> fakb (fmap (\bs -> if i < BS.length bs then BS.index bs i else w) fs) (k <> Sum i))
+        [0..] (BS.unpack bs0)
+{-# INLINE cxfolded #-}
+
+-- | Coindexed setter over bytes with positional coindex.
+cxmapped :: Cxsetter (Sum Int) ByteString ByteString Word8 Word8
+cxmapped = cxsetter $ \f k bs ->
+  BS.pack $ zipWith (\i w -> f (k <> Sum i) w) [0..] (BS.unpack bs)
+{-# INLINE cxmapped #-}
+
+-- | Coindexed filter over bytes with positional coindex.
+cxfiltered :: Cxsetter (Sum Int) ByteString ByteString Word8 Bool
+cxfiltered = cxsetter $ \f k bs ->
+  BS.pack [w | (i, w) <- zip [0..] (BS.unpack bs), f (k <> Sum i) w]
+{-# INLINE cxfiltered #-}
 
 ---------------------------------------------------------------------
 -- Dual optics

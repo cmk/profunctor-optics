@@ -74,6 +74,17 @@ module Data.Text.Optic (
     -- ** Ixsetter
     ixmapped,
 
+    -- * Coindexed Optics
+    -- ** Cxtraversal
+    cxtraversed,
+
+    -- ** Cxfold
+    cxfolded,
+
+    -- ** Cxsetter
+    cxmapped,
+    cxfiltered,
+
     -- * Dual Optics
     -- ** Cotraversal
     zippedText,
@@ -268,6 +279,38 @@ folded = fold_ T.unpack
 -- @over mapped f = T.map f@
 mapped :: Setter' Text Char
 mapped = setter T.map
+
+---------------------------------------------------------------------
+-- Coindexed optics
+---------------------------------------------------------------------
+
+-- | Coindexed traversal over characters with positional coindex.
+cxtraversed :: Cxtraversal (Sum Int) Text Text Char Char
+cxtraversed = cxtraversalVl $ \fakb k fs ->
+  let t0 = copure fs
+  in  T.pack $ zipWith (\i c -> fakb (fmap (\t -> if i < T.length t then T.index t i else c) fs) (k <> Sum i))
+        [0..] (T.unpack t0)
+{-# INLINE cxtraversed #-}
+
+-- | Coindexed fold over characters with positional coindex.
+cxfolded :: Cxfold (Sum Int) Text Char
+cxfolded = cxfoldVl $ \fakb k fs ->
+  let t0 = copure fs
+  in  T.pack $ zipWith (\i c -> fakb (fmap (\t -> if i < T.length t then T.index t i else c) fs) (k <> Sum i))
+        [0..] (T.unpack t0)
+{-# INLINE cxfolded #-}
+
+-- | Coindexed setter over characters with positional coindex.
+cxmapped :: Cxsetter (Sum Int) Text Text Char Char
+cxmapped = cxsetter $ \f k t ->
+  T.pack $ zipWith (\i c -> f (k <> Sum i) c) [0..] (T.unpack t)
+{-# INLINE cxmapped #-}
+
+-- | Coindexed filter over characters with positional coindex.
+cxfiltered :: Cxsetter (Sum Int) Text Text Char Bool
+cxfiltered = cxsetter $ \f k t ->
+  T.pack [c | (i, c) <- zip [0..] (T.unpack t), f (k <> Sum i) c]
+{-# INLINE cxfiltered #-}
 
 ---------------------------------------------------------------------
 -- Dual optics
