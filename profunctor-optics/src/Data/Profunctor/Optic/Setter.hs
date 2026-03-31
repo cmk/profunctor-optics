@@ -47,7 +47,7 @@ module Data.Profunctor.Optic.Setter (
     -- ** Setter, Ixsetter
   , fmapped
   , contramapped
-  , imappedRep
+  , rmapped
   , domain
   , codomain
   , liftedM
@@ -493,12 +493,12 @@ contramapped = setter contramap
 
 -- | 'Ixsetter' on each value of a representable functor.
 --
--- >>> 1 :+ 2 & ixany imappedRep %~ bool 20 10 . getAny
+-- >>> 1 :+ 2 & ixany rmapped %~ bool 20 10 . getAny
 -- 20 :+ 10
 --
-imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
-imappedRep = ixsetter $ \f _k -> F.imapRep f
-{-# INLINE imappedRep #-}
+rmapped :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
+rmapped = ixsetter $ \f _k -> F.imapRep f
+{-# INLINE rmapped #-}
 
 -- | Map contravariantly over the input of a profunctor.
 --
