@@ -77,11 +77,11 @@ at i = traversalVl0 $ \point f s ->
 -- | /O(log(min(i, n-i)))/. Indexed affine traversal into the element
 -- at an index of a 'Seq'.
 --
-ixat :: Ixtraversal0' Int (Seq a) a
+ixat :: Ixtraversal0' (Sum Int) (Seq a) a
 ixat = ixtraversalVl0 $ \point f k s ->
-  case Seq.lookup k s of
+  case Seq.lookup (getSum k) s of
     Nothing -> point s
-    Just a  -> fmap (\b -> Seq.update k b s) (f k a)
+    Just a  -> fmap (\b -> Seq.update (getSum k) b s) (f k a)
 {-# INLINE ixat #-}
 
 ---------------------------------------------------------------------
@@ -90,9 +90,9 @@ ixat = ixtraversalVl0 $ \point f k s ->
 
 -- | /O(n)/. Indexed traversal over the elements of a 'Seq'.
 --
-ixtraversed :: Ixtraversal Int (Seq a) (Seq b) a b
+ixtraversed :: Ixtraversal (Sum Int) (Seq a) (Seq b) a b
 ixtraversed = ixtraversalVl $ \f k ->
-  fmap Seq.fromList . traverse (\(i, a) -> f (k + i) a) . zip [0..] . Foldable.toList
+  fmap Seq.fromList . traverse (\(i, a) -> f (k <> Sum i) a) . zip [0..] . Foldable.toList
 {-# INLINE ixtraversed #-}
 
 ---------------------------------------------------------------------
@@ -101,9 +101,9 @@ ixtraversed = ixtraversalVl $ \f k ->
 
 -- | /O(n)/. Indexed fold over the elements of a 'Seq'.
 --
-ixfolded :: Ixfold Int (Seq a) a
+ixfolded :: Ixfold (Sum Int) (Seq a) a
 ixfolded = ixfoldVl $ \f k ->
-  traverse (\(i, a) -> f (k + i) a) . zip [0..] . Foldable.toList
+  traverse (\(i, a) -> f (k <> Sum i) a) . zip [0..] . Foldable.toList
 {-# INLINE ixfolded #-}
 
 ---------------------------------------------------------------------
@@ -112,8 +112,8 @@ ixfolded = ixfoldVl $ \f k ->
 
 -- | /O(n)/. Indexed setter over the elements of a 'Seq'.
 --
-ixmapped :: Ixsetter Int (Seq a) (Seq b) a b
-ixmapped = ixsetter $ \f -> Seq.mapWithIndex f
+ixmapped :: Ixsetter (Sum Int) (Seq a) (Seq b) a b
+ixmapped = ixsetter $ \f -> Seq.mapWithIndex (\i -> f (Sum i))
 {-# INLINE ixmapped #-}
 
 ---------------------------------------------------------------------
@@ -150,8 +150,8 @@ zippedTraverse n = cotraversalVl $ \fab fs ->
 -- 'cxsets' cxmapped ≡ 'Seq.mapWithIndex'
 -- @
 --
-cxmapped :: Cxsetter Int (Seq a) (Seq b) a b
-cxmapped = cxsetter Seq.mapWithIndex
+cxmapped :: Cxsetter (Sum Int) (Seq a) (Seq b) a b
+cxmapped = cxsetter $ \f -> Seq.mapWithIndex (\i -> f (Sum i))
 {-# INLINE cxmapped #-}
 
 -- | /O(n)/. 'Cxtraversal' over the elements of a 'Seq'.
@@ -162,18 +162,18 @@ cxmapped = cxsetter Seq.mapWithIndex
 -- 'cxtraverseOf' cxtraversed ≡ 'Seq.traverseWithIndex'
 -- @
 --
-cxtraversed :: Cxtraversal Int (Seq a) (Seq b) a b
+cxtraversed :: Cxtraversal (Sum Int) (Seq a) (Seq b) a b
 cxtraversed = cxtraversalVl $ \fakb k fs ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k + i)) (copure fs)
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the elements of a 'Seq'.
 --
 -- Cx dual of 'ixfolded'. Threads the 'Int' index as coindex.
 --
-cxfolded :: Cxfold Int (Seq a) a
+cxfolded :: Cxfold (Sum Int) (Seq a) a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k + i)) (copure fs)
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k <> Sum i)) (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

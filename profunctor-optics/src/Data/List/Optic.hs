@@ -76,35 +76,35 @@ at k = traversalVl0 $ \point f xs -> if k < 0 then point xs else
 
 -- | /O(n)/. Indexed affine traversal into the value at an index.
 --
-ixat :: Ixtraversal0' Int [a] a
+ixat :: Ixtraversal0' (Sum Int) [a] a
 ixat = ixtraversalVl0 $ \point f k s ->
-  case listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == k] of
+  case listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == getSum k] of
     Nothing     -> point s
-    Just (_, a) -> fmap (\b -> zipWith (\j x -> if k == j then b else x) [0..] s) (f k a)
+    Just (_, a) -> fmap (\b -> zipWith (\j x -> if getSum k == j then b else x) [0..] s) (f k a)
 {-# INLINE ixat #-}
 
 -- | /O(n)/. 'Ixtraversal' over the values of a list.
 --
-ixtraversed :: Ixtraversal Int [a] [b] a b
-ixtraversed = ixtraversalVl $ \f k -> traverse (\(i, a) -> f (k + i) a) . zip [0..]
+ixtraversed :: Ixtraversal (Sum Int) [a] [b] a b
+ixtraversed = ixtraversalVl $ \f k -> traverse (\(i, a) -> f (k <> Sum i) a) . zip [0..]
 {-# INLINE ixtraversed #-}
 
 -- | /O(n)/. 'Ixfold' over the values of a list.
 --
-ixfolded :: Ixfold Int [a] a
-ixfolded = ixfoldVl $ \f k -> traverse (\(i, a) -> f (k + i) a) . zip [0..]
+ixfolded :: Ixfold (Sum Int) [a] a
+ixfolded = ixfoldVl $ \f k -> traverse (\(i, a) -> f (k <> Sum i) a) . zip [0..]
 {-# INLINE ixfolded #-}
 
 -- | /O(n)/. 'Ixsetter' over the values of a list.
 --
-ixmapped :: Ixsetter Int [a] [b] a b
-ixmapped = ixsetter $ \f -> zipWith f [0..]
+ixmapped :: Ixsetter (Sum Int) [a] [b] a b
+ixmapped = ixsetter $ \f -> zipWith (\i -> f (Sum i)) [0..]
 {-# INLINE ixmapped #-}
 
 -- | /O(n)/. 'Ixsetter' filtering the values of a list.
 --
-ixfiltered :: Ixsetter Int [a] [a] a Bool
-ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f i x]
+ixfiltered :: Ixsetter (Sum Int) [a] [a] a Bool
+ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f (Sum i) x]
 {-# INLINE ixfiltered #-}
 
 ---------------------------------------------------------------------
@@ -131,8 +131,8 @@ zipped n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 -- 'cxsets' cxmapped ≡ \\f xs -> 'zipWith' (\\i a -> f i a) [0..] xs
 -- @
 --
-cxmapped :: Cxsetter Int [a] [b] a b
-cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
+cxmapped :: Cxsetter (Sum Int) [a] [b] a b
+cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f (Sum i) a) [0..] xs
 {-# INLINE cxmapped #-}
 
 -- | /O(n^2)/. 'Cxfold' over the elements of a list.
@@ -144,9 +144,9 @@ cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
 -- their /O(n log n)/ 'Data.Sequence.Optic.cxfolded' or
 -- 'Data.IntMap.Optic.cxfolded' instead.
 --
-cxfolded :: Cxfold Int [a] a
+cxfolded :: Cxfold (Sum Int) [a] a
 cxfolded = cxfoldVl $ \fakb k fs ->
-  zipWith (\i _a -> fakb (fmap (!! i) fs) (k + i)) [0..] (copure fs)
+  zipWith (\i _a -> fakb (fmap (!! i) fs) (k <> Sum i)) [0..] (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------
