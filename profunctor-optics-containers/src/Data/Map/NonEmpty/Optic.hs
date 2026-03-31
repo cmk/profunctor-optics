@@ -101,14 +101,14 @@ values = fold1_ Map.toAscList . second'
 
 -- | /O(n)/. 'Ixsetter' over the values of a 'Map.NEMap'.
 --
-imapped :: Ixsetter k (Map.NEMap k a) (Map.NEMap k b) a b
-imapped = ixsetter Map.mapWithKey
+imapped :: Semigroup k => Ixsetter k (Map.NEMap k a) (Map.NEMap k b) a b
+imapped = ixsetter $ \f k -> Map.mapWithKey (\i -> f (k <> i))
 {-# INLINE imapped #-}
 
 -- | /O(n)/. 'Ixsetter' filtering the values of a 'Map.NEMap'.
 --
-ifiltered :: Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a Bool
-ifiltered = ixsetter Map.filterWithKey
+ifiltered :: Semigroup k => Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a Bool
+ifiltered = ixsetter $ \f k -> Map.filterWithKey (\i -> f (k <> i))
 {-# INLINE ifiltered #-}
 
 -- | /O(n)/. 'Ixtraversal1' over the values of a 'Map.NEMap'.
@@ -162,8 +162,8 @@ altered k = setter $ \ab -> Map.alter ab k
 --
 -- See also 'Data.Map.NonEmpty.alter'.
 --
-ialtered :: Ord k => k -> Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) (Maybe a) (Maybe a)
-ialtered k = ixsetter $ \kab -> Map.alter (kab k) k
+ialtered :: Ord k => Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) (Maybe a) (Maybe a)
+ialtered = ixsetter $ \f k -> Map.alter (f k) k
 
 -- | /O(log n)/. Lens into /Maybe/ of a value at a key of a 'Map.NEMap'.
 --
@@ -192,8 +192,8 @@ ialteredF = ixlensVl $ \f k -> Map.alterF (f k) k
 --
 -- See also 'Data.Map.NonEmpty.adjustWithKey'.
 --
-adjusted :: Ord k => k -> Ixsetter k (Map.NEMap k a) (Map.NEMap k a) a a
-adjusted k = ixsetter $ \kab -> Map.adjustWithKey kab k
+adjusted :: Ord k => Ixsetter k (Map.NEMap k a) (Map.NEMap k a) a a
+adjusted = ixsetter $ \f k -> Map.adjust (f k) k
 
 -- | /O(log n)/. Update a value at a specific key.
 --
@@ -210,8 +210,8 @@ adjusted k = ixsetter $ \kab -> Map.adjustWithKey kab k
 --
 -- See also 'Data.Map.NonEmpty.updateWithKey'.
 --
-updated :: Ord k => k -> Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a (Maybe a)
-updated k = ixsetter $ \kab -> Map.updateWithKey kab k
+updated :: Ord k => Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a (Maybe a)
+updated = ixsetter $ \f k -> Map.updateWithKey (\_ -> f k) k
 
 -- | /O(log n)/. Lookup and update a value at a specific key.
 --
@@ -228,8 +228,8 @@ updated k = ixsetter $ \kab -> Map.updateWithKey kab k
 --
 -- See also 'Data.Map.NonEmpty.updateLookupWithKey'.
 --
-updateLooked :: Ord k => k -> Ixsetter k (Map.NEMap k a) (Maybe a, Unsafe.Map k a) a (Maybe a)
-updateLooked k = ixsetter $ \kab -> Map.updateLookupWithKey kab k
+updateLooked :: Ord k => Ixsetter k (Map.NEMap k a) (Maybe a, Unsafe.Map k a) a (Maybe a)
+updateLooked = ixsetter $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
 
 -- | /O(1)/. 'Ixview' into the value at the minimal key of a 'Map.NEMap'.
 --

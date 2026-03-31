@@ -114,7 +114,7 @@ ixfolded = ixfoldVl $ \f k ->
 -- | /O(n)/. Indexed setter over the elements of a 'Seq'.
 --
 ixmapped :: Ixsetter (Sum Int) (Seq a) (Seq b) a b
-ixmapped = ixsetter $ \f -> Seq.mapWithIndex (\i -> f (Sum i))
+ixmapped = ixsetter $ \f k -> Seq.mapWithIndex (\i -> f (k <> Sum i))
 {-# INLINE ixmapped #-}
 
 ---------------------------------------------------------------------
@@ -152,7 +152,7 @@ zippedTraverse n = cotraversalVl $ \fab fs ->
 -- @
 --
 cxmapped :: Cxsetter (Sum Int) (Seq a) (Seq b) a b
-cxmapped = cxsetter $ \f -> Seq.mapWithIndex (\i -> f (Sum i))
+cxmapped = cxsetter $ \f k -> Seq.mapWithIndex (\i -> f (k <> Sum i))
 {-# INLINE cxmapped #-}
 
 -- | /O(n)/. 'Cxtraversal' over the elements of a 'Seq'.

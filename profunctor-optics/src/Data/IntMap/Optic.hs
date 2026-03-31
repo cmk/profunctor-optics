@@ -124,16 +124,16 @@ ixat = ixtraversalVl0 $ \point f k s -> case IM.lookup (getSum k) s of
   Just a  -> fmap (\b -> IM.insert (getSum k) b s) (f k a)
 {-# INLINE ixat #-}
 
--- | /O(log n)/. Update a value at a key.
+-- | /O(log n)/. Update a value at the incoming index.
 --
-updated :: Int -> Ixsetter (Sum Int) (IM.IntMap a) (IM.IntMap a) a (Maybe a)
-updated k = ixsetter $ \kab -> IM.updateWithKey (\i -> kab (Sum i)) k
+updated :: Ixsetter (Sum Int) (IM.IntMap a) (IM.IntMap a) a (Maybe a)
+updated = ixsetter $ \f k -> IM.updateWithKey (\_ -> f k) (getSum k)
 {-# INLINE updated #-}
 
--- | /O(log n)/. Lookup and update a value at a specific key.
+-- | /O(log n)/. Lookup and update a value at the incoming index.
 --
-updateLooked :: Int -> Ixsetter (Sum Int) (IM.IntMap a) (Maybe a, IM.IntMap a) a (Maybe a)
-updateLooked k = ixsetter $ \kab -> IM.updateLookupWithKey (\i -> kab (Sum i)) k
+updateLooked :: Ixsetter (Sum Int) (IM.IntMap a) (Maybe a, IM.IntMap a) a (Maybe a)
+updateLooked = ixsetter $ \f k -> IM.updateLookupWithKey (\_ -> f k) (getSum k)
 {-# INLINE updateLooked #-}
 
 -- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the incoming index.
@@ -188,22 +188,22 @@ lookedMax :: Ixfold0 (Sum Int) (IM.IntMap a) a
 lookedMax = ixfold0 $ fmap (\(i, a) -> (Sum i, a)) . IM.lookupMax
 {-# INLINE lookedMax #-}
 
--- | /O(log n)/. Adjust a value at a key.
+-- | /O(log n)/. Adjust a value at the incoming index.
 --
-adjusted :: Int -> Ixsetter' (Sum Int) (IM.IntMap a) a
-adjusted k = ixsetter $ \kab -> IM.adjustWithKey (\i -> kab (Sum i)) k
+adjusted :: Ixsetter' (Sum Int) (IM.IntMap a) a
+adjusted = ixsetter $ \f k -> IM.adjust (f k) (getSum k)
 {-# INLINE adjusted #-}
 
 -- | /O(n)/. 'Ixsetter' over values.
 --
 ixmapped :: Ixsetter (Sum Int) (IM.IntMap a) (IM.IntMap b) a b
-ixmapped = ixsetter $ \f -> IM.mapWithKey (\i -> f (Sum i))
+ixmapped = ixsetter $ \f k -> IM.mapWithKey (\i -> f (k <> Sum i))
 {-# INLINE ixmapped #-}
 
 -- | /O(n)/. 'Ixsetter' filtering values.
 --
 ixfiltered :: Ixsetter (Sum Int) (IM.IntMap a) (IM.IntMap a) a Bool
-ixfiltered = ixsetter $ \f -> IM.filterWithKey (\i -> f (Sum i))
+ixfiltered = ixsetter $ \f k -> IM.filterWithKey (\i -> f (k <> Sum i))
 {-# INLINE ixfiltered #-}
 
 -- | /O(log n)/. Alter (lazy).
@@ -220,14 +220,14 @@ altered' k = setter $ \ab -> IM.alter ab k
 
 -- | /O(log n)/. Indexed alter (lazy).
 --
-ixaltered :: Int -> Ixsetter' (Sum Int) (IM.IntMap a) (Maybe a)
-ixaltered k = ixsetter $ \kab -> IML.alter (kab (Sum k)) k
+ixaltered :: Ixsetter' (Sum Int) (IM.IntMap a) (Maybe a)
+ixaltered = ixsetter $ \f k -> IML.alter (f k) (getSum k)
 {-# INLINE ixaltered #-}
 
 -- | /O(log n)/. Indexed alter (strict, values forced on insert).
 --
-ixaltered' :: Int -> Ixsetter' (Sum Int) (IM.IntMap a) (Maybe a)
-ixaltered' k = ixsetter $ \kab -> IM.alter (kab (Sum k)) k
+ixaltered' :: Ixsetter' (Sum Int) (IM.IntMap a) (Maybe a)
+ixaltered' = ixsetter $ \f k -> IM.alter (f k) (getSum k)
 {-# INLINE ixaltered' #-}
 
 ---------------------------------------------------------------------
@@ -283,7 +283,7 @@ cxzippedTraverseIf = cxtraversalVl $ \fakb k fs ->
 -- @
 --
 cxmapped :: Cxsetter (Sum Int) (IM.IntMap a) (IM.IntMap b) a b
-cxmapped = cxsetter $ \f -> IM.mapWithKey (\i -> f (Sum i))
+cxmapped = cxsetter $ \f k -> IM.mapWithKey (\i -> f (k <> Sum i))
 {-# INLINE cxmapped #-}
 
 -- | /O(n)/. 'Cxsetter' filtering the values of an 'IM.IntMap'.
@@ -296,7 +296,7 @@ cxmapped = cxsetter $ \f -> IM.mapWithKey (\i -> f (Sum i))
 -- @
 --
 cxfiltered :: Cxsetter (Sum Int) (IM.IntMap a) (IM.IntMap a) a Bool
-cxfiltered = cxsetter $ \f -> IM.filterWithKey (\i -> f (Sum i))
+cxfiltered = cxsetter $ \f k -> IM.filterWithKey (\i -> f (k <> Sum i))
 {-# INLINE cxfiltered #-}
 
 -- | /O(n)/. 'Cxsetter' that simultaneously maps and filters the
@@ -307,7 +307,7 @@ cxfiltered = cxsetter $ \f -> IM.filterWithKey (\i -> f (Sum i))
 -- @
 --
 cxmappedIf :: Cxsetter (Sum Int) (IM.IntMap a) (IM.IntMap b) a (Maybe b)
-cxmappedIf = cxsetter $ \f -> IM.mapMaybeWithKey (\i -> f (Sum i))
+cxmappedIf = cxsetter $ \f k -> IM.mapMaybeWithKey (\i -> f (k <> Sum i))
 {-# INLINE cxmappedIf #-}
 
 -- | /O(n)/. 'Cxtraversal' over the values of an 'IM.IntMap'.

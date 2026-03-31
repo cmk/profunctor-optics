@@ -184,8 +184,8 @@ setter abst = indexing abst . representing (\f -> distribute . fmap f)
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-ixsetter :: ((i -> a -> b) -> s -> t) -> Ixsetter i s t a b
-ixsetter f = setter $ \iab -> f (curry iab) . snd
+ixsetter :: ((i -> a -> b) -> i -> s -> t) -> Ixsetter i s t a b
+ixsetter f = setter $ \iab -> uncurry (f (curry iab))
 {-# INLINE ixsetter #-}
 
 -- | Every valid 'Colens' is a 'Setter'.
@@ -203,7 +203,7 @@ cloneSetter o = setter (sets o)
 -- | Clone an 'Ixsetter'.
 --
 cloneIxsetter :: Monoid k => AIxsetter k s t a b -> Ixsetter k s t a b
-cloneIxsetter o = ixsetter (ixsets o)
+cloneIxsetter o = ixsetter (\f _k -> ixsets o f)
 {-# INLINE cloneIxsetter #-}
 
 -- | TODO: Document
@@ -256,8 +256,8 @@ cosetter abst = corepresenting $ \fab fs ->
 -- 'cxsetter' '.' 'cxsets' ≡ 'id'
 -- @
 --
-cxsetter :: ((i -> a -> b) -> s -> t) -> Cxsetter i s t a b
-cxsetter f = cosetter $ \aib s -> const $ f (\i a -> aib a i) s
+cxsetter :: ((i -> a -> b) -> i -> s -> t) -> Cxsetter i s t a b
+cxsetter f = cosetter $ \aib fs i -> f (\j a -> aib a j) i fs
 {-# INLINE cxsetter #-}
 
 -- | Clone a 'Cosetter'.
@@ -269,7 +269,7 @@ cloneCosetter o = cosetter (cosets o)
 -- | Clone a 'Cxsetter'.
 --
 cloneCxsetter :: Monoid i => ACxsetter i s t a b -> Cxsetter i s t a b
-cloneCxsetter o = cxsetter (cxsets o)
+cloneCxsetter o = cxsetter (\f _k -> cxsets o f)
 {-# INLINE cloneCxsetter #-}
 
 ---------------------------------------------------------------------
@@ -303,8 +303,8 @@ adjoint abst = indexing abst . representing (\f -> distribute . fmap f)
 -- 'ixsets' '.' 'ixadjoint' ≡ 'id'
 -- @
 --
-ixadjoint :: ((i -> a -> b) -> s -> t) -> Ixadjoint i s t a b
-ixadjoint f = adjoint $ \iab -> f (curry iab) . snd
+ixadjoint :: ((i -> a -> b) -> i -> s -> t) -> Ixadjoint i s t a b
+ixadjoint f = adjoint $ \iab -> uncurry (f (curry iab))
 {-# INLINE ixadjoint #-}
 
 -- | Build a 'Cxadjoint' from a coindexed function.
@@ -313,8 +313,8 @@ ixadjoint f = adjoint $ \iab -> f (curry iab) . snd
 -- Same implementation as 'cxsetter' but returns 'Cxadjoint'
 -- (requires 'Adjoining').
 --
-cxadjoint :: ((i -> a -> b) -> s -> t) -> Cxadjoint i s t a b
-cxadjoint f = adjoint $ \aib s -> const $ f (\i a -> aib a i) s
+cxadjoint :: ((i -> a -> b) -> i -> s -> t) -> Cxadjoint i s t a b
+cxadjoint f = adjoint $ \aib fs i -> f (\j a -> aib a j) i fs
 {-# INLINE cxadjoint #-}
 
 -- | Construct an 'Adjoint' from a getter and a setter (lens-like).
@@ -516,7 +516,7 @@ contramapped = setter contramap
 -- 20 :+ 10
 --
 imappedRep :: F.Representable f => Ixsetter (F.Rep f) (f a) (f b) a b
-imappedRep = ixsetter F.imapRep
+imappedRep = ixsetter $ \f _k -> F.imapRep f
 {-# INLINE imappedRep #-}
 
 -- | Map contravariantly over the input of a profunctor.

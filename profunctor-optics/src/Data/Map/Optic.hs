@@ -302,8 +302,8 @@ mappedIf = adjoint Map.mapMaybe
 --
 -- @'ixsets' 'ixmappedIf' = 'Map.mapMaybeWithKey'@
 --
-ixmappedIf :: Ixadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
-ixmappedIf = ixadjoint Map.mapMaybeWithKey
+ixmappedIf :: Semigroup k => Ixadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
+ixmappedIf = ixadjoint $ \f k -> Map.mapMaybeWithKey (\i -> f (k <> i))
 {-# INLINE ixmappedIf #-}
 
 -- | /O(n)/. 'Cxadjoint' that simultaneously maps and filters the
@@ -313,8 +313,8 @@ ixmappedIf = ixadjoint Map.mapMaybeWithKey
 -- 'cxsets' cxmappedIf ≡ 'Data.Map.mapMaybeWithKey'
 -- @
 --
-cxmappedIf :: Cxadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
-cxmappedIf = cxadjoint Map.mapMaybeWithKey
+cxmappedIf :: Semigroup k => Cxadjoint k (Map.Map k a) (Map.Map k b) a (Maybe b)
+cxmappedIf = cxadjoint $ \f k -> Map.mapMaybeWithKey (\i -> f (k <> i))
 {-# INLINE cxmappedIf #-}
 
 -- | /O(n log n)/. Adjoint over the keys of a 'Map.Map'.
@@ -337,8 +337,8 @@ filtered = adjoint Map.filter
 --
 -- @'ixsets' 'ixfiltered' = 'Map.filterWithKey'@
 --
-ixfiltered :: Ixadjoint k (Map.Map k a) (Map.Map k a) a Bool
-ixfiltered = ixadjoint Map.filterWithKey
+ixfiltered :: Semigroup k => Ixadjoint k (Map.Map k a) (Map.Map k a) a Bool
+ixfiltered = ixadjoint $ \f k -> Map.filterWithKey (\i -> f (k <> i))
 {-# INLINE ixfiltered #-}
 
 -- | /O(n)/. 'Cxadjoint' filtering the values of a 'Map.Map'.
@@ -350,8 +350,8 @@ ixfiltered = ixadjoint Map.filterWithKey
 -- 'cxsets' cxfiltered ≡ 'Data.Map.filterWithKey'
 -- @
 --
-cxfiltered :: Cxadjoint k (Map.Map k a) (Map.Map k a) a Bool
-cxfiltered = cxadjoint Map.filterWithKey
+cxfiltered :: Semigroup k => Cxadjoint k (Map.Map k a) (Map.Map k a) a Bool
+cxfiltered = cxadjoint $ \f k -> Map.filterWithKey (\i -> f (k <> i))
 {-# INLINE cxfiltered #-}
 
 -- | /O(log n)/. Adjust a value at a specific key.
@@ -366,21 +366,21 @@ adjusted k = adjoint $ \f -> Map.adjust f k
 --
 -- @'ixsets' ('ixadjusted' k) = 'Map.adjustWithKey' k@
 --
-ixadjusted :: Ord k => k -> Ixadjoint' k (Map.Map k a) a
-ixadjusted k = ixadjoint $ \f -> Map.adjustWithKey f k
+ixadjusted :: Ord k => Ixadjoint' k (Map.Map k a) a
+ixadjusted = ixadjoint $ \f k -> Map.adjust (f k) k
 {-# INLINE ixadjusted #-}
 
 -- | Cxadjoint wrapping 'Map.adjustWithKey'. Costar dual of 'ixadjusted'.
-cxadjusted :: Ord k => k -> Cxadjoint' k (Map.Map k a) a
-cxadjusted k = cxadjoint $ \f -> Map.adjustWithKey f k
+cxadjusted :: Ord k => Cxadjoint' k (Map.Map k a) a
+cxadjusted = cxadjoint $ \f k -> Map.adjust (f k) k
 {-# INLINE cxadjusted #-}
 
 -- | /O(n)/. Map over values.
 --
 -- @'ixsets' 'ixmapped' = 'Map.mapWithKey'@
 --
-ixmapped :: Ixadjoint k (Map.Map k a) (Map.Map k b) a b
-ixmapped = ixadjoint Map.mapWithKey
+ixmapped :: Semigroup k => Ixadjoint k (Map.Map k a) (Map.Map k b) a b
+ixmapped = ixadjoint $ \f k -> Map.mapWithKey (\i -> f (k <> i))
 {-# INLINE ixmapped #-}
 
 -- | /O(n)/. 'Cxadjoint' over the values of a 'Map.Map'.
@@ -392,8 +392,8 @@ ixmapped = ixadjoint Map.mapWithKey
 -- 'cxsets' cxmapped ≡ 'Data.Map.mapWithKey'
 -- @
 --
-cxmapped :: Cxadjoint k (Map.Map k a) (Map.Map k b) a b
-cxmapped = cxadjoint Map.mapWithKey
+cxmapped :: Semigroup k => Cxadjoint k (Map.Map k a) (Map.Map k b) a b
+cxmapped = cxadjoint $ \f k -> Map.mapWithKey (\i -> f (k <> i))
 {-# INLINE cxmapped #-}
 
 -- | /O(log n)/. Alter the value at a specific key (lazy).
@@ -408,13 +408,13 @@ altered k = adjoint $ \f -> Map.alter f k
 --
 -- @'ixsets' ('ixaltered' k) f = 'Map.alter' (f k) k@
 --
-ixaltered :: Ord k => k -> Ixadjoint' k (Map.Map k a) (Maybe a)
-ixaltered k = ixadjoint $ \f -> Map.alter (f k) k
+ixaltered :: Ord k => Ixadjoint' k (Map.Map k a) (Maybe a)
+ixaltered = ixadjoint $ \f k -> Map.alter (f k) k
 {-# INLINE ixaltered #-}
 
 -- | Cxadjoint wrapping 'Map.alter'. Costar dual of 'ixaltered'.
-cxaltered :: Ord k => k -> Cxadjoint' k (Map.Map k a) (Maybe a)
-cxaltered k = cxadjoint $ \f -> Map.alter (f k) k
+cxaltered :: Ord k => Cxadjoint' k (Map.Map k a) (Maybe a)
+cxaltered = cxadjoint $ \f k -> Map.alter (f k) k
 {-# INLINE cxaltered #-}
 
 -- | /O(log n)/. Update a value at a specific key. 'Nothing' deletes.
@@ -429,26 +429,26 @@ updated k = adjoint $ \f -> Map.update f k
 --
 -- @'ixsets' ('ixupdated' k) = 'Map.updateWithKey' k@
 --
-ixupdated :: Ord k => k -> Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdated k = ixadjoint $ \f -> Map.updateWithKey f k
+ixupdated :: Ord k => Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdated = ixadjoint $ \f k -> Map.update (f k) k
 {-# INLINE ixupdated #-}
 
 -- | Cxadjoint wrapping 'Map.updateWithKey'. Costar dual of 'ixupdated'.
-cxupdated :: Ord k => k -> Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-cxupdated k = cxadjoint $ \f -> Map.updateWithKey f k
+cxupdated :: Ord k => Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdated = cxadjoint $ \f k -> Map.update (f k) k
 {-# INLINE cxupdated #-}
 
 -- | /O(log n)/. Lookup and update a value at a specific key.
 --
 -- @'ixsets' ('ixupdatedLookup' k) = 'Map.updateLookupWithKey' k@
 --
-ixupdatedLookup :: Ord k => k -> Ixadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-ixupdatedLookup k = ixadjoint $ \f -> Map.updateLookupWithKey f k
+ixupdatedLookup :: Ord k => Ixadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+ixupdatedLookup = ixadjoint $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
 {-# INLINE ixupdatedLookup #-}
 
 -- | Cxadjoint wrapping 'Map.updateLookupWithKey'. Costar dual of 'ixupdatedLookup'.
-cxupdatedLookup :: Ord k => k -> Cxadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-cxupdatedLookup k = cxadjoint $ \f -> Map.updateLookupWithKey f k
+cxupdatedLookup :: Ord k => Cxadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
+cxupdatedLookup = cxadjoint $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
 {-# INLINE cxupdatedLookup #-}
 
 -- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
@@ -463,13 +463,13 @@ updatedMin = adjoint Map.updateMin
 --
 -- @'ixsets' 'ixupdatedMin' = 'Map.updateMinWithKey'@
 --
-ixupdatedMin :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdatedMin = ixadjoint Map.updateMinWithKey
+ixupdatedMin :: Semigroup k => Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMin = ixadjoint $ \f k -> Map.updateMinWithKey (\i -> f (k <> i))
 {-# INLINE ixupdatedMin #-}
 
 -- | Cxadjoint wrapping 'Map.updateMinWithKey'. Costar dual of 'ixupdatedMin'.
-cxupdatedMin :: Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-cxupdatedMin = cxadjoint Map.updateMinWithKey
+cxupdatedMin :: Semigroup k => Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdatedMin = cxadjoint $ \f k -> Map.updateMinWithKey (\i -> f (k <> i))
 {-# INLINE cxupdatedMin #-}
 
 -- | /O(log n)/. Update the value at the maximal key. 'Nothing' deletes.
@@ -484,13 +484,13 @@ updatedMax = adjoint Map.updateMax
 --
 -- @'ixsets' 'ixupdatedMax' = 'Map.updateMaxWithKey'@
 --
-ixupdatedMax :: Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-ixupdatedMax = ixadjoint Map.updateMaxWithKey
+ixupdatedMax :: Semigroup k => Ixadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+ixupdatedMax = ixadjoint $ \f k -> Map.updateMaxWithKey (\i -> f (k <> i))
 {-# INLINE ixupdatedMax #-}
 
 -- | Cxadjoint wrapping 'Map.updateMaxWithKey'. Costar dual of 'ixupdatedMax'.
-cxupdatedMax :: Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
-cxupdatedMax = cxadjoint Map.updateMaxWithKey
+cxupdatedMax :: Semigroup k => Cxadjoint k (Map.Map k a) (Map.Map k a) a (Maybe a)
+cxupdatedMax = cxadjoint $ \f k -> Map.updateMaxWithKey (\i -> f (k <> i))
 {-# INLINE cxupdatedMax #-}
 
 ---------------------------------------------------------------------

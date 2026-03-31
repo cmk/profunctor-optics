@@ -98,13 +98,13 @@ ixfolded = ixfoldVl $ \f k -> traverse (\(i, a) -> f (k <> Sum i) a) . zip [0..]
 -- | /O(n)/. 'Ixsetter' over the values of a list.
 --
 ixmapped :: Ixsetter (Sum Int) [a] [b] a b
-ixmapped = ixsetter $ \f -> zipWith (\i -> f (Sum i)) [0..]
+ixmapped = ixsetter $ \f k -> zipWith (\i -> f (k <> Sum i)) [0..]
 {-# INLINE ixmapped #-}
 
 -- | /O(n)/. 'Ixsetter' filtering the values of a list.
 --
 ixfiltered :: Ixsetter (Sum Int) [a] [a] a Bool
-ixfiltered = ixsetter $ \f xs -> [x | (i, x) <- zip [0..] xs, f (Sum i) x]
+ixfiltered = ixsetter $ \f k xs -> [x | (i, x) <- zip [0..] xs, f (k <> Sum i) x]
 {-# INLINE ixfiltered #-}
 
 ---------------------------------------------------------------------
@@ -132,7 +132,7 @@ zipped n = grate $ \f -> [f (\xs -> xs !! i) | i <- [0 .. n - 1]]
 -- @
 --
 cxmapped :: Cxsetter (Sum Int) [a] [b] a b
-cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f (Sum i) a) [0..] xs
+cxmapped = cxsetter $ \f k xs -> zipWith (\i a -> f (k <> Sum i) a) [0..] xs
 {-# INLINE cxmapped #-}
 
 -- | /O(n^2)/. 'Cxfold' over the elements of a list.
