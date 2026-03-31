@@ -11,6 +11,7 @@ import qualified Test.Data.IntSet.Optic as IntSetOptic
 import qualified Test.Data.Profunctor.Optic.Sort as SortOptic
 import qualified Test.Data.Sequence.Optic as SeqOptic
 import qualified Test.Data.Tree.Optic as TreeOptic
+import qualified Test.Data.Profunctor.Optic.Lens as LensOptic
 
 tests :: IO [Bool]
 tests = sequence
@@ -23,6 +24,7 @@ tests = sequence
   , SortOptic.tests
   , SeqOptic.tests
   , TreeOptic.tests
+  , LensOptic.tests
   ]
 
 main :: IO ()

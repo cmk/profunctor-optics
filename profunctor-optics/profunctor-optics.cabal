@@ -141,6 +141,7 @@ test-suite properties
                    , Test.Data.Set.Optic
                    , Test.Data.IntMap.Optic
                    , Test.Data.IntSet.Optic
+                   , Test.Data.Profunctor.Optic.Lens
                    , Test.Data.Profunctor.Optic.Sort
                    , Test.Data.Sequence.Optic
                    , Test.Data.Tree.Optic

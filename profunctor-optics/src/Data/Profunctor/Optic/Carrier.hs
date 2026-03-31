@@ -427,9 +427,16 @@ withLens o f = case o (LensRep id (flip const)) of LensRep x y -> f x y
 
 -- | Extract the two functions that characterize an 'Ixlens'.
 --
+-- Uses lazy knot-tying to avoid the 'Monoid' constraint: the input
+-- index component of @(k, s)@ is never forced by a lawful 'Ixlens'
+-- (the lens extracts its own index from @s@), so we feed the output
+-- index back as the input via a lazy binding.
+--
 -- @since 0.0.3
-withIxlens :: Monoid k => AIxlens k s t a b -> ((s -> (k , a)) -> (s -> b -> t) -> r) -> r
-withIxlens o f = case o (IxlensRep id $ flip const) of IxlensRep x y -> f (x . (mempty,)) (\s b -> y (mempty, s) b)
+withIxlens :: AIxlens k s t a b -> ((s -> (k , a)) -> (s -> b -> t) -> r) -> r
+withIxlens o f = case o (IxlensRep id $ flip const) of
+  IxlensRep x y -> f (\s -> let ka@(k, _) = x (k, s) in ka)
+                      (\s b -> let  (k, _) = x (k, s) in y (k, s) b)
 {-# INLINE withIxlens #-}
 
 -- | Extract the two functions that characterize a 'Prism'.

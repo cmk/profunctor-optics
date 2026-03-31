@@ -257,21 +257,21 @@ idempotent_relens o a s1 s2 = withRelens o $ \bsa _ -> bsa (bsa a s1) s2 == bsa 
 --
 -- * @sbt s (snd $ ska s) ≡ s@
 --
-tofrom_ixlens :: (Eq s, Monoid k) => Ixlens' k s a -> s -> Bool
+tofrom_ixlens :: Eq s => Ixlens' k s a -> s -> Bool
 tofrom_ixlens o s = withIxlens o $ \ska sbt -> sbt s (snd $ ska s) == s
 
 -- | Putting back what you got doesn't change anything (indexed).
 --
 -- * @snd (ska (sbt s a)) ≡ a@
 --
-fromto_ixlens :: (Eq a, Monoid k) => Ixlens' k s a -> s -> a -> Bool
+fromto_ixlens :: Eq a => Ixlens' k s a -> s -> a -> Bool
 fromto_ixlens o s a = withIxlens o $ \ska sbt -> snd (ska (sbt s a)) == a
 
 -- | Setting twice is the same as setting once (indexed).
 --
 -- * @sbt (sbt s a1) a2 ≡ sbt s a2@
 --
-idempotent_ixlens :: (Eq s, Monoid k) => Ixlens' k s a -> s -> a -> a -> Bool
+idempotent_ixlens :: Eq s => Ixlens' k s a -> s -> a -> a -> Bool
 idempotent_ixlens o s a1 a2 = withIxlens o $ \_ sbt -> sbt (sbt s a1) a2 == sbt s a2
 
 ---------------------------------------------------------------------

@@ -257,14 +257,14 @@ cloneLensVl o ab s = withLens o $ \sa sbt -> sbt s <$> ab (sa s)
 -- | Clone an 'Ixlens'.
 --
 -- @since 0.0.3
-cloneIxlens :: Monoid k => AIxlens k s t a b -> Ixlens k s t a b
+cloneIxlens :: AIxlens k s t a b -> Ixlens k s t a b
 cloneIxlens o = withIxlens o $ \ska sbt -> ixlens ska sbt
 {-# INLINE cloneIxlens #-}
 
 -- | Extract the indexed Van Laarhoven form of an 'Ixlens'.
 --
 -- @since 0.0.3
-cloneIxlensVl :: Monoid k => AIxlens k s t a b -> (forall f. Functor f => (k -> a -> f b) -> s -> f t)
+cloneIxlensVl :: AIxlens k s t a b -> (forall f. Functor f => (k -> a -> f b) -> s -> f t)
 cloneIxlensVl o kab s = withIxlens o $ \ska sbt -> sbt s <$> uncurry kab (ska s)
 {-# INLINE cloneIxlensVl #-}
 
