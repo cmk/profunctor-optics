@@ -15,37 +15,54 @@
 module Data.Sequence.Optic (
     -- * Types
     Seq
+    -- * Iso
+  , reversed
+  , viewedl
+  , viewedr
+    -- * Prism
+  , consed
+  , snoced
     -- * Traversal0
   , at
   , ixat
+  , found
     -- * Traversal
   , traversed
   , ixtraversed
   , slicedTo
   , slicedFrom
   , sliced
+    -- * Fold0
+  , headed
+  , lasted
+  , foundIndex
+  , foundIndexR
     -- * Fold
   , folded
   , ixfolded
     -- * Setter
   , ixmapped
+  , adjusted
+  , updated
+  , sorted
+  , ixfiltered
+    -- * Adjoint
+  , filtered
     -- * Dual Optics
-    -- ** Colens
+    -- ** Cxlens
   , zipped
     -- ** Cotraversal
   , zippedTraverse
     -- ** Cxsetter
   , cxmapped
+  , cxfiltered
     -- ** Cxtraversal
   , cxtraversed
     -- ** Cxfold
   , cxfolded
-    -- * Iso
-  , viewedl
-  , viewedr
 ) where
 
-import Data.Profunctor.Optic hiding (zipped)
+import Data.Profunctor.Optic hiding (zipped, filtered)
 import Data.Profunctor.Optic.Import
 import Data.Maybe (fromMaybe)
 import Data.Sequence (Seq, ViewL(..), ViewR(..), viewl, viewr)
@@ -60,6 +77,35 @@ import Prelude
 -- >>> import Data.Sequence (fromList)
 -- >>> import Data.Profunctor.Optic
 -- >>> import qualified Data.Sequence as Seq
+
+---------------------------------------------------------------------
+-- Iso
+---------------------------------------------------------------------
+
+-- | 'Seq' is reversible.
+reversed :: Iso' (Seq a) (Seq a)
+reversed = iso Seq.reverse Seq.reverse
+{-# INLINE reversed #-}
+
+---------------------------------------------------------------------
+-- Prism
+---------------------------------------------------------------------
+
+-- | Prism for cons-cell view of 'Seq'.
+consed :: Prism' (Seq a) (a, Seq a)
+consed = prism' sa bt
+  where
+    sa s = case viewl s of EmptyL -> Nothing; a Seq.:< as -> Just (a, as)
+    bt (a, as) = a Seq.<| as
+{-# INLINE consed #-}
+
+-- | Prism for snoc-cell view of 'Seq'.
+snoced :: Prism' (Seq a) (Seq a, a)
+snoced = prism' sa bt
+  where
+    sa s = case viewr s of EmptyR -> Nothing; as Seq.:> a -> Just (as, a)
+    bt (as, a) = as Seq.|> a
+{-# INLINE snoced #-}
 
 ---------------------------------------------------------------------
 -- Traversal0
@@ -84,6 +130,42 @@ ixat = ixtraversalVl0 $ \point f k s ->
     Nothing -> point s
     Just a  -> fmap (\b -> Seq.update (getSum k) b s) (f k a)
 {-# INLINE ixat #-}
+
+-- | Affine traversal into the first element matching a predicate.
+found :: (a -> Bool) -> Traversal0' (Seq a) a
+found p = traversal0' sa sbt
+  where
+    sa s = case Seq.findIndexL p s of
+      Nothing -> Nothing
+      Just i  -> Seq.lookup i s
+    sbt s a = case Seq.findIndexL p s of
+      Nothing -> s
+      Just i  -> Seq.update i a s
+{-# INLINE found #-}
+
+---------------------------------------------------------------------
+-- Fold0
+---------------------------------------------------------------------
+
+-- | First element, if non-empty.
+headed :: Fold0 (Seq a) a
+headed = fold0 (\s -> case viewl s of EmptyL -> Nothing; a Seq.:< _ -> Just a)
+{-# INLINE headed #-}
+
+-- | Last element, if non-empty.
+lasted :: Fold0 (Seq a) a
+lasted = fold0 (\s -> case viewr s of EmptyR -> Nothing; _ Seq.:> a -> Just a)
+{-# INLINE lasted #-}
+
+-- | Index of the first element matching a predicate (from left).
+foundIndex :: (a -> Bool) -> Fold0 (Seq a) (Sum Int)
+foundIndex p = fold0 (fmap Sum . Seq.findIndexL p)
+{-# INLINE foundIndex #-}
+
+-- | Index of the first element matching a predicate (from right).
+foundIndexR :: (a -> Bool) -> Fold0 (Seq a) (Sum Int)
+foundIndexR p = fold0 (fmap Sum . Seq.findIndexR p)
+{-# INLINE foundIndexR #-}
 
 ---------------------------------------------------------------------
 -- Traversal
@@ -117,22 +199,52 @@ ixmapped :: Ixsetter (Sum Int) (Seq a) (Seq b) a b
 ixmapped = ixsetter $ \f k -> Seq.mapWithIndex (\i -> f (k <> Sum i))
 {-# INLINE ixmapped #-}
 
+-- | Adjust a value at the incoming index.
+adjusted :: Ixsetter' (Sum Int) (Seq a) a
+adjusted = ixsetter $ \f k -> Seq.adjust' (f k) (getSum k)
+{-# INLINE adjusted #-}
+
+-- | Update a value at the incoming index.
+updated :: Ixsetter (Sum Int) (Seq a) (Seq a) a a
+updated = ixsetter $ \f k -> Seq.adjust' (f k) (getSum k)
+{-# INLINE updated #-}
+
+-- | Sort elements by a projection.
+--
+-- @'sets' 'sorted' f = 'Seq.sortOn' f@
+sorted :: Ord b => Adjoint (Seq a) (Seq a) a b
+sorted = adjoint Seq.sortOn
+{-# INLINE sorted #-}
+
+-- | Indexed filter by predicate.
+ixfiltered :: Ixsetter (Sum Int) (Seq a) (Seq a) a Bool
+ixfiltered = ixsetter $ \f k s ->
+  Seq.fromList [a | (i, a) <- zip [0..] (Foldable.toList s), f (k <> Sum i) a]
+{-# INLINE ixfiltered #-}
+
+-- | Filter elements by predicate.
+filtered :: Adjoint (Seq a) (Seq a) a Bool
+filtered = adjoint Seq.filter
+{-# INLINE filtered #-}
+
 ---------------------------------------------------------------------
 -- Dual optics
 ---------------------------------------------------------------------
 
--- | Grate viewing a Seq as a function from Int indices.
--- Requires known length to be representable.
+-- | 'Cxlens' viewing a 'Seq' as a representable functor of known
+-- length. The coindex is the position.
 --
-zipped :: Int -> Colens (Seq a) (Seq b) (Int -> a) (Int -> b)
-zipped n = grate $ \f -> Seq.fromFunction n (\i -> f (\s i' -> Seq.index s i') i)
+-- Stronger than 'cxtraversed' because the known length eliminates
+-- the need for 'Choice'.
+--
+zipped :: Int -> Cxlens (Sum Int) (Seq a) (Seq b) a b
+zipped n = cxlensVl $ \fakb k fs ->
+  Seq.fromFunction n $ \i ->
+    fakb (fmap (`Seq.index` i) fs) (k <> Sum i)
 {-# INLINE zipped #-}
 
 -- | Pointwise 'Cotraversal' over the elements of a 'Seq' at a
--- fixed length. Extends 'zipped' from 'Colens' to 'Cotraversal'.
---
--- Requires known length because 'Seq' is not 'Distributive'
--- (it has variable size).
+-- fixed length.
 --
 zippedTraverse :: Int -> Cotraversal (Seq a) (Seq b) a b
 zippedTraverse n = cotraversalVl $ \fab fs ->
@@ -154,6 +266,12 @@ zippedTraverse n = cotraversalVl $ \fab fs ->
 cxmapped :: Cxsetter (Sum Int) (Seq a) (Seq b) a b
 cxmapped = cxsetter $ \f k -> Seq.mapWithIndex (\i -> f (k <> Sum i))
 {-# INLINE cxmapped #-}
+
+-- | Coindexed filter over elements with positional coindex.
+cxfiltered :: Cxsetter (Sum Int) (Seq a) (Seq a) a Bool
+cxfiltered = cxsetter $ \f k s ->
+  Seq.fromList [a | (i, a) <- zip [0..] (Foldable.toList s), f (k <> Sum i) a]
+{-# INLINE cxfiltered #-}
 
 -- | /O(n)/. 'Cxtraversal' over the elements of a 'Seq'.
 --
@@ -181,50 +299,32 @@ cxfolded = cxfoldVl $ \fakb k fs ->
 -- Slicing
 ---------------------------------------------------------------------
 
--- | Traverse the first @n@ elements of a 'Seq'
+-- | Indexed traversal over the first @n@ elements.
 --
--- >>> fromList [1,2,3,4,5] ^.. slicedTo 2
--- [1,2]
---
--- >>> fromList [1,2,3,4,5] & slicedTo 2 %~ (*10)
--- fromList [10,20,3,4,5]
---
--- >>> fromList [1,2,4,5,6] & slicedTo 10 .~ 0
--- fromList [0,0,0,0,0]
-slicedTo :: Int -> Traversal' (Seq a) a
-slicedTo n = traversalVl $ \f m -> case Seq.splitAt n m of
-  (l, r) -> (Seq.>< r) <$> traverse f l
+-- Each element carries its positional index.
+slicedTo :: Int -> Ixtraversal' (Sum Int) (Seq a) a
+slicedTo n = ixtraversalVl $ \f k m -> case Seq.splitAt n m of
+  (l, r) -> (Seq.>< r) . Seq.fromList <$>
+    traverse (\(i, a) -> f (k <> Sum i) a) (zip [0..] (Foldable.toList l))
 {-# INLINE slicedTo #-}
 
--- | Traverse all but the first @n@ elements of a 'Seq'
+-- | Indexed traversal over all but the first @n@ elements.
 --
--- >>> fromList [1,2,3,4,5] ^.. slicedFrom 2
--- [3,4,5]
---
--- >>> fromList [1,2,3,4,5] & slicedFrom 2 %~ (*10)
--- fromList [1,2,30,40,50]
---
--- >>> fromList [1,2,3,4,5] & slicedFrom 10 .~ 0
--- fromList [1,2,3,4,5]
-slicedFrom :: Int -> Traversal' (Seq a) a
-slicedFrom n = traversalVl $ \f m -> case Seq.splitAt n m of
-  (l, r) -> (l Seq.><) <$> traverse f r
+-- Each element carries its positional index (starting at @n@).
+slicedFrom :: Int -> Ixtraversal' (Sum Int) (Seq a) a
+slicedFrom n = ixtraversalVl $ \f k m -> case Seq.splitAt n m of
+  (l, r) -> (l Seq.><) . Seq.fromList <$>
+    traverse (\(i, a) -> f (k <> Sum (n + i)) a) (zip [0..] (Foldable.toList r))
 {-# INLINE slicedFrom #-}
 
--- | Traverse all the elements numbered from @i@ to @j@ of a 'Seq'
+-- | Indexed traversal over elements in range @[i, j)@.
 --
--- >>> fromList [1,2,3,4,5] & sliced 1 3 %~ (*10)
--- fromList [1,20,30,4,5]
---
--- >>> fromList [1,2,3,4,5] ^.. sliced 1 3
--- [2,3]
---
--- >>> fromList [1,2,3,4,5] & sliced 1 3 .~ 0
--- fromList [1,0,0,4,5]
-sliced :: Int -> Int -> Traversal' (Seq a) a
-sliced i j = traversalVl $ \f s -> case Seq.splitAt i s of
+-- Each element carries its positional index.
+sliced :: Int -> Int -> Ixtraversal' (Sum Int) (Seq a) a
+sliced i j = ixtraversalVl $ \f k s -> case Seq.splitAt i s of
   (l, mr) -> case Seq.splitAt (j-i) mr of
-    (m, r) -> traverse f m <&> \n -> l Seq.>< n Seq.>< r
+    (m, r) -> (\n -> l Seq.>< n Seq.>< r) . Seq.fromList <$>
+      traverse (\(idx, a) -> f (k <> Sum (i + idx)) a) (zip [0..] (Foldable.toList m))
 {-# INLINE sliced #-}
 
 
