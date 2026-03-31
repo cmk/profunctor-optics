@@ -22,7 +22,9 @@ library
   exposed-modules:
       Data.Word.Optic
       Data.ByteString.Optic
+      Data.ByteString.Lazy.Optic
       Data.Text.Optic
+      Data.Text.Lazy.Optic
 
   default-language: Haskell2010
 

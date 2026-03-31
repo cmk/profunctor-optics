@@ -11,7 +11,9 @@
 -- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
 -- through the right adjoint functor @(->) k@.
 --
--- Profunctor optics for 'ByteString'.
+-- Profunctor optics for strict 'ByteString'.
+--
+-- See "Data.ByteString.Lazy.Optic" for the lazy variant.
 --
 -- @
 -- \-\- convert strict ByteString to ShortByteString
