@@ -219,7 +219,7 @@ foldVl f = coercedR . traversalVl f . coercedR
 -- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
 --
 -- @since 0.0.3
-ixfoldVl :: (forall f. Applicative f => (k -> a -> f b) -> s -> f t) -> Ixfold k s a
+ixfoldVl :: (forall f. Applicative f => (k -> a -> f b) -> k -> s -> f t) -> Ixfold k s a
 ixfoldVl f = coercedR . ixtraversalVl f . coercedR
 {-# INLINE ixfoldVl #-}
 
@@ -238,14 +238,14 @@ folding f = foldVl traverse . coercedR . lmap f
 --
 -- @since 0.0.3
 ixfold_ :: Foldable f => (s -> f (k , a)) -> Ixfold k s a
-ixfold_ f = ixfoldVl $ \kab s -> traverse_ (uncurry kab) (f s)
+ixfold_ f = ixfoldVl $ \kab _k s -> traverse_ (uncurry kab) (f s)
 {-# INLINE ixfold_ #-}
 
 -- | Obtain an 'Ixfold' from a 'Traversable' functor with an indexed getter.
 --
 -- @since 0.0.3
 ixfolding :: Traversable f => (s -> (k , a)) -> Ixfold k (f s) a
-ixfolding f = ixfoldVl $ \kab -> traverse (uncurry kab . f)
+ixfolding f = ixfoldVl $ \kab _k -> traverse (uncurry kab . f)
 {-# INLINE ixfolding #-}
 
 ---------------------------------------------------------------------
@@ -294,7 +294,7 @@ fold0' o pab = o (just pab)
 --
 -- @since 0.0.3
 ixfold0 :: (s -> Maybe (k, a)) -> Ixfold0 k s a
-ixfold0 g = ixtraversalVl0 (\point f s -> maybe (point s) (uncurry f) $ g s) . coercedR
+ixfold0 g = ixtraversalVl0 (\point f _k s -> maybe (point s) (uncurry f) $ g s) . coercedR
 {-# INLINE ixfold0 #-}
 
 infix 3 `failing`
@@ -329,7 +329,7 @@ fold1_ f = coercedR . lmap f . foldVl1 traverse1_
 --
 -- @since 0.0.3
 ixfold1_ :: Foldable1 f => (s -> f (k , a)) -> Ixfold1 k s a
-ixfold1_ f = ixfoldVl1 $ \kab s -> traverse1_ (uncurry kab) (f s)
+ixfold1_ f = ixfoldVl1 $ \kab _k s -> traverse1_ (uncurry kab) (f s)
 {-# INLINE ixfold1_ #-}
 
 -- | Obtain a 'Fold1' from a Van Laarhoven 'Fold1'.
@@ -343,7 +343,7 @@ foldVl1 f = coercedR . representing f . coercedR
 -- | Obtain a 'Ixfold' from a Van Laarhoven 'Fold'.
 --
 -- @since 0.0.3
-ixfoldVl1 :: (forall f. Apply f => (k -> a -> f b) -> s -> f t) -> Ixfold1 k s a
+ixfoldVl1 :: (forall f. Apply f => (k -> a -> f b) -> k -> s -> f t) -> Ixfold1 k s a
 ixfoldVl1 f = coercedR . ixtraversalVl1 f . coercedR
 {-# INLINE ixfoldVl1 #-}
 
@@ -376,7 +376,7 @@ aixfold1 f = afold1 $ \iar -> f (curry iar) . snd
 --
 -- @since 0.0.3
 ixfolding1 :: Traversable1 f => (s -> (k , a)) -> Ixfold1 k (f s) a
-ixfolding1 f = ixfoldVl1 $ \kab -> traverse1 (uncurry kab . f)
+ixfolding1 f = ixfoldVl1 $ \kab _k -> traverse1 (uncurry kab . f)
 {-# INLINE ixfolding1 #-}
 
 ---------------------------------------------------------------------
@@ -406,7 +406,7 @@ cofolding f = cofoldVl cotraverse . coercedL . rmap f
 -- | Obtain a 'Cxfold' from a coindexed Van Laarhoven 'Cofold'.
 --
 -- @since 0.0.3
-cxfoldVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> Cxfold k t b
+cxfoldVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> k -> t) -> Cxfold k t b
 cxfoldVl f = coercedL . cxtraversalVl f . coercedL
 {-# INLINE cxfoldVl #-}
 
@@ -438,7 +438,7 @@ acofold1 f = acotraversal $ (.# getConst) #. f .# (.# Const)
 -- | Obtain a 'Cxfold1' from a coindexed Van Laarhoven 'Cofold1'.
 --
 -- @since 0.0.3
-cxfoldVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> t) -> Cxfold1 k t b
+cxfoldVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> k -> t) -> Cxfold1 k t b
 cxfoldVl1 f = coercedL . cxtraversalVl1 f . coercedL
 {-# INLINE cxfoldVl1 #-}
 
@@ -476,7 +476,7 @@ folded_ = fold_ id
 --
 -- @since 0.0.3
 ixfoldedRep :: F.Representable f => Traversable f => Ixfold (F.Rep f) (f a) a
-ixfoldedRep = ixfoldVl F.itraverseRep
+ixfoldedRep = ixfoldVl $ \f _k -> F.itraverseRep f
 {-# INLINE ixfoldedRep #-}
 
 ---------------------------------------------------------------------

@@ -93,11 +93,14 @@ representing :: Representable p => ((a -> Rep p b) -> s -> Rep p t) -> Optic p s
 representing f = tabulate . f . sieve
 {-# INLINE representing #-}
 
--- | TODO: Document
+-- | Lift a VL-style indexed function into an 'Ixoptic'.
+--
+-- The VL function receives the incoming index from outer composition,
+-- enabling @('.')@ to thread indices through indexed optic chains.
 --
 -- @since 0.0.3
-ixrepresenting :: Representable p => ((i -> a -> Rep p b) -> s -> Rep p t) -> Ixoptic p i s t a b
-ixrepresenting f = representing $ \ab -> f (curry ab) . snd
+ixrepresenting :: Representable p => ((i -> a -> Rep p b) -> i -> s -> Rep p t) -> Ixoptic p i s t a b
+ixrepresenting f = representing $ \ab (i, s) -> f (curry ab) i s
 {-# INLINE ixrepresenting #-}
 
 -- ** Dual
@@ -116,11 +119,14 @@ corepresenting :: Corepresentable p => ((Corep p a -> b) -> Corep p s -> t) -> O
 corepresenting f = cotabulate . f . cosieve
 {-# INLINE corepresenting #-}
 
--- | TODO: Document
+-- | Lift a VL-style coindexed function into a 'Cxoptic'.
+--
+-- The VL function receives the incoming coindex from outer composition,
+-- enabling @('.')@ to thread coindices through coindexed optic chains.
 --
 -- @since 0.0.3
-cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> t) -> Cxoptic p i s t a b
-cxrepresenting f = corepresenting $ \ab -> const . f (flip ab)
+cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> i -> t) -> Cxoptic p i s t a b
+cxrepresenting f = corepresenting $ \ab fs i -> f (\j ca -> ab ca j) fs i
 {-# INLINE cxrepresenting #-}
 
 ---------------------------------------------------------------------
@@ -132,27 +138,19 @@ cxrepresenting f = corepresenting $ \ab -> const . f (flip ab)
 
 infixr 8 %
 
--- | Monoidally combine indices between subsequent levels of optic.
+-- | Compose indexed optics, threading the index through @('.')@.
 --
--- Its precedence is one lower than that of function composition, which allows /./ to be nested in /%/.
---
--- If you only need the final index then use /./.
+-- Since VL-lifted optics now receive and forward the incoming index,
+-- @('%')@ is equivalent to @('.')@.  It is kept as an alias at lower
+-- precedence so that @('.')@ can be nested inside @('%')@.
 --
 -- >>> ixtoListOf (ix "*" traversed . ix "+" traversed) ["foo", "bar"]
--- [("",'f'),("+",'o'),("++",'o'),("",'b'),("+",'a'),("++",'r')]
--- >>> ixtoListOf (ix "*" traversed % ix "+" traversed) ["foo", "bar"]
 -- [("",'f'),("+",'o'),("++",'o'),("*",'b'),("*+",'a'),("*++",'r')]
 --
 -- @since 0.0.3
-(%) :: Monoid i => Representable p => Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
-f % g = ixrepresenting . runCoindex $ (Coindex . ixreps) f <<<< (Coindex . ixreps) g
+(%) :: Ixoptic p i c1 c2 b1 b2 -> Ixoptic p i b1 b2 a1 a2 -> Ixoptic p i c1 c2 a1 a2
+(%) = (.)
 {-# INLINE (%) #-}
-{-
-f % g = representing $ \ia1a2 (ic,c1) ->
-          (fmap flip . flip . ixrepn) f ic c1 $ \ib b1 ->
-            (fmap flip . flip . ixrepn) g ib b1 $ \ia a1 -> ia1a2 (ib <> ia, a1)
-  where ixrepn o h = curry $ reps o $ uncurry h
--}
 
 -- | Convert a coindexed optic to an indexed optic by uncurrying
 -- the coindex.
@@ -214,18 +212,15 @@ ixlast = reix S.Last S.getLast
 
 infixr 8 #
 
--- | Compose two coindexed traversals, combining indices.
+-- | Compose coindexed optics, threading the coindex through @('.')@.
 --
--- Its precedence is one lower than that of function composition, which allows /./ to be nested in /#/.
---
--- If you only need the final index then use /./.
---
--- >>> cxfoldMapOf (cxfrom Map.mapWithKey # cxfrom Map.mapWithKey) (\k r a -> Map.singleton k (a + r)) 1.0 $ Map.fromList [("k",Map.fromList [("l",2.0)])]
--- fromList [("k",fromList [("l",fromList [("kl",3.0)])])]
+-- Since VL-lifted optics now receive and forward the incoming coindex,
+-- @('#')@ is equivalent to @('.')@.  It is kept as an alias at lower
+-- precedence so that @('.')@ can be nested inside @('#')@.
 --
 -- @since 0.0.3
-(#) :: Monoid i => Corepresentable p => Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
-f # g = cxrepresenting . runCoindex $ (Coindex . cxreps) f <<<< (Coindex . cxreps) g
+(#) :: Cxoptic p i c1 c2 b1 b2 -> Cxoptic p i b1 b2 a1 a2 -> Cxoptic p i c1 c2 a1 a2
+(#) = (.)
 {-
 f # g = corepresenting $ \a1ka2 c1 kc ->
           (fmap flip . flip . cxrepn) f kc c1 $ \kb b1 ->

@@ -248,8 +248,8 @@ traversalVl f pab = representing f pab
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-ixtraversalVl :: (forall f. Applicative f => (k -> a -> f b) -> s -> f t) -> Ixtraversal k s t a b
-ixtraversalVl f = traversalVl $ \kab -> f (curry kab) . snd
+ixtraversalVl :: (forall f. Applicative f => (k -> a -> f b) -> k -> s -> f t) -> Ixtraversal k s t a b
+ixtraversalVl f = traversalVl $ \kab -> uncurry (f (curry kab))
 {-# INLINE ixtraversalVl #-}
 
 -- | TODO: Document
@@ -267,33 +267,30 @@ reversing = atraversal . reverseOf
 
 -- | Iteratively index a traversal with an incrementing value.
 --
+-- The incoming index from outer composition is used as the initial
+-- accumulator, so @('.')@ threads indices through chains of 'ix'.
+--
 -- >>> B.first getSum <$> ixtoListOf (ix (Sum 1) traversed) "foobar"
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 -- >>> ixtoListOf (noix traversed . ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("",'b'),("o",'a'),("oo",'r')]
--- >>> ixtoListOf (ix "x" traversed % ix "o" traversed) ["foo", "bar"]
+-- >>> ixtoListOf (ix "x" traversed . ix "o" traversed) ["foo", "bar"]
 -- [("",'f'),("o",'o'),("oo",'o'),("x",'b'),("xo",'a'),("xoo",'r')]
--- >>> B.first getSum <$> ixtoListOf (ix (Sum 3) traversed % ix (Sum 1) traversed) ["foo", "bar"]
+-- >>> B.first getSum <$> ixtoListOf (ix (Sum 3) traversed . ix (Sum 1) traversed) ["foo", "bar"]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3
-ix :: Monoid k => k -> Traversal s t a b -> Ixtraversal k s t a b
-ix k o = ixrepresenting $ \f s ->
-  flip evalState mempty . getCompose . flip runStar s . o . Star $ \a ->
+ix :: Semigroup k => k -> Traversal s t a b -> Ixtraversal k s t a b
+ix k o = ixrepresenting $ \f k_in s ->
+  flip evalState k_in . getCompose . flip runStar s . o . Star $ \a ->
     Compose $ (f <$> get <*> pure a) <* modify (<> k)
 
--- | Lift a VL traversal into an indexed profunctor traversal that ignores its input.
---
--- Useful as the first optic in a chain when no indexed equivalent is at hand.
---
--- >>> B.first getSum <$> ixtoListOf (noix traversed . ix (Sum 1) traversed) ["foo", "bar"]
--- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> ixtoListOf (ix (Sum 1) traversed . noix traversed) ["foo", "bar"]
--- [(0,'f'),(0,'o'),(0,'o'),(0,'b'),(0,'a'),(0,'r')]
+-- | Lift a non-indexed traversal into an indexed one that passes
+-- through the incoming index without modification.
 --
 -- @since 0.0.3
-noix :: Monoid k => Traversal s t a b -> Ixtraversal k s t a b
-noix o = ixrepresenting $ \iab s -> flip runStar s . o . Star $ iab mempty
+noix :: Traversal s t a b -> Ixtraversal k s t a b
+noix o = ixrepresenting $ \iab k_in s -> flip runStar s . o . Star $ iab k_in
 
 -- | Extract the Van Laarhoven function that characterizes a 'Traversal'.
 --
@@ -346,7 +343,7 @@ traversal0 sta sbt = dimap (\s -> (s,) <$> sta s) (either id (uncurry sbt)) . ri
 --
 -- @since 0.0.3
 ixtraversal0 :: (s -> t + (k , a)) -> (s -> b -> t) -> Ixtraversal0 k s t a b
-ixtraversal0 stia sbt = ixtraversalVl0 $ \point f s -> either point (fmap (sbt s) . uncurry f) (stia s)
+ixtraversal0 stia sbt = ixtraversalVl0 $ \point f _k s -> either point (fmap (sbt s) . uncurry f) (stia s)
 {-# INLINE ixtraversal0 #-}
 
 -- | Obtain a 'Traversal0'' from match and constructor functions.
@@ -373,8 +370,8 @@ traversalVl0 f = dimap (\s -> (s,) <$> eswap (f Right Left s)) (either id (uncur
 -- | Transform an indexed Van Laarhoven 'Traversal0' into an indexed profunctor 'Traversal0'.
 --
 -- @since 0.0.3
-ixtraversalVl0 :: (forall f. Functor f => (forall c. c -> f c) -> (k -> a -> f b) -> s -> f t) -> Ixtraversal0 k s t a b
-ixtraversalVl0 f = traversalVl0 $ \cc kab -> f cc (curry kab) . snd
+ixtraversalVl0 :: (forall f. Functor f => (forall c. c -> f c) -> (k -> a -> f b) -> k -> s -> f t) -> Ixtraversal0 k s t a b
+ixtraversalVl0 f = traversalVl0 $ \cc kab -> uncurry (f cc (curry kab))
 {-# INLINE ixtraversalVl0 #-}
 
 -- | Clone a 'Traversal0'.
@@ -468,8 +465,8 @@ traversalVl1 abst = tabulate . abst . sieve
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-ixtraversalVl1 :: (forall f. Apply f => (k -> a -> f b) -> s -> f t) -> Ixtraversal1 k s t a b
-ixtraversalVl1 f = traversalVl1 $ \kab -> f (curry kab) . snd
+ixtraversalVl1 :: (forall f. Apply f => (k -> a -> f b) -> k -> s -> f t) -> Ixtraversal1 k s t a b
+ixtraversalVl1 f = traversalVl1 $ \kab -> uncurry (f (curry kab))
 {-# INLINE ixtraversalVl1 #-}
 
 -- | TODO: Document
@@ -550,8 +547,8 @@ cotraversalVl f pab = corepresenting f pab
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-cxtraversalVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> t) -> Cxtraversal k s t a b
-cxtraversalVl f = cotraversalVl $ \akb -> const . f akb
+cxtraversalVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> k -> t) -> Cxtraversal k s t a b
+cxtraversalVl = cotraversalVl
 {-# INLINE cxtraversalVl #-}
 
 -- | Extract the Van Laarhoven function that characterizes a 'Cotraversal'.
@@ -668,8 +665,8 @@ cotraversalVl1 abst = cotabulate . abst . cosieve
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-cxtraversalVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> t) -> Cxtraversal1 k s t a b
-cxtraversalVl1 f = cotraversalVl1 $ \aib -> const . f aib
+cxtraversalVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> k -> t) -> Cxtraversal1 k s t a b
+cxtraversalVl1 = cotraversalVl1
 {-# INLINE cxtraversalVl1 #-}
 
 -- | Extract the Van Laarhoven function that characterizes a 'Cotraversal1'.
@@ -696,7 +693,7 @@ traversed = traversalVl traverse
 -- | TODO: Document
 --
 itraversedRep :: F.Representable f => Traversable f => Ixtraversal (F.Rep f) (f a) (f b) a b
-itraversedRep = ixtraversalVl F.itraverseRep
+itraversedRep = ixtraversalVl $ \f _k -> F.itraverseRep f
 {-# INLINE itraversedRep #-}
 
 -- | Traverse both parts of a 'Bitraversable' container with matching types.

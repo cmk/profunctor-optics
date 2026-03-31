@@ -172,7 +172,7 @@ lens sa sbt = dimap (fanout id sa) (uncurry sbt) . second'
 --
 -- @since 0.0.3
 ixlens :: (s -> (k , a)) -> (s -> b -> t) -> Ixlens k s t a b
-ixlens ska sbt = ixlensVl $ \kab s -> sbt s <$> uncurry kab (ska s)
+ixlens ska sbt = ixlensVl $ \kab _k s -> sbt s <$> uncurry kab (ska s)
 {-# INLINE ixlens #-}
 
 -- | Transform a Van Laarhoven lens into a profunctor lens.
@@ -218,8 +218,8 @@ lensVl abst = dimap ((fanout info vals) . abst (flip Index id)) (uncurry id . sw
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-ixlensVl :: (forall f. Functor f => (k -> a -> f b) -> s -> f t) -> Ixlens k s t a b
-ixlensVl f = lensVl $ \iab -> f (curry iab) . snd
+ixlensVl :: (forall f. Functor f => (k -> a -> f b) -> k -> s -> f t) -> Ixlens k s t a b
+ixlensVl f = lensVl $ \iab -> uncurry (f (curry iab))
 {-# INLINE ixlensVl #-}
 
 -- | Obtain a 'Lens' from its free tensor representation.
@@ -264,8 +264,8 @@ cloneIxlens o = withIxlens o $ \ska sbt -> ixlens ska sbt
 -- | Extract the indexed Van Laarhoven form of an 'Ixlens'.
 --
 -- @since 0.0.3
-cloneIxlensVl :: AIxlens k s t a b -> (forall f. Functor f => (k -> a -> f b) -> s -> f t)
-cloneIxlensVl o kab s = withIxlens o $ \ska sbt -> sbt s <$> uncurry kab (ska s)
+cloneIxlensVl :: AIxlens k s t a b -> (forall f. Functor f => (k -> a -> f b) -> k -> s -> f t)
+cloneIxlensVl o kab _k s = withIxlens o $ \ska sbt -> sbt s <$> uncurry kab (ska s)
 {-# INLINE cloneIxlensVl #-}
 
 ---------------------------------------------------------------------
@@ -303,7 +303,7 @@ colens bsa bt = cosecond . dimap (uncurry bsa) (fanout id bt)
 --
 -- @since 0.0.3
 cxlens :: (((s -> a) -> k -> b) -> t) -> Cxlens k s t a b
-cxlens f = cxlensVl $ \aib s -> f $ \sa -> aib (fmap sa s)
+cxlens f = cxlensVl $ \aib s _k -> f $ \sa -> aib (fmap sa s)
 {-# INLINE cxlens #-}
 
 -- | Transform a Van Laarhoven colens into a profunctor colens.
@@ -328,8 +328,8 @@ colensVl o = cofirst . dimap (uncurry id . swap) ((fanout info vals) . o (flip I
 -- | Transform a coindexed Van Laarhoven grate into a coindexed profunctor grate.
 --
 -- @since 0.0.3
-cxlensVl :: (forall f. Functor f => (f a -> k -> b) -> f s -> t) -> Cxlens k s t a b
-cxlensVl f = grateVl $ \aib -> const . f aib
+cxlensVl :: (forall f. Functor f => (f a -> k -> b) -> f s -> k -> t) -> Cxlens k s t a b
+cxlensVl = grateVl
 {-# INLINE cxlensVl #-}
 
 -- | Obtain a 'Colens' from a nested continuation.
@@ -454,8 +454,8 @@ cloneCxlens o = withCxlens o cxlens
 -- | Extract the coindexed Van Laarhoven form of a 'Cxlens'.
 --
 -- @since 0.0.3
-cloneCxlensVl :: Monoid k => ACxlens k s t a b -> (forall f. Functor f => (f a -> k -> b) -> f s -> t)
-cloneCxlensVl o fab fs = withCxlens o $ \sabt -> sabt $ \sa k -> fab (fmap sa fs) k
+cloneCxlensVl :: Monoid k => ACxlens k s t a b -> (forall f. Functor f => (f a -> k -> b) -> f s -> k -> t)
+cloneCxlensVl o fab fs _k = withCxlens o $ \sabt -> sabt $ \sa k -> fab (fmap sa fs) k
 {-# INLINE cloneCxlensVl #-}
 
 ---------------------------------------------------------------------
@@ -547,7 +547,7 @@ second = second'
 --
 -- >>> B.first getSum <$> ixtoListOf (noix traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(0,'b'),(1,'a'),(2,'r')]
--- >>> B.first getSum <$> ixtoListOf (ix (Sum 3) traversed % ixfirst % ix (Sum 1) traversed) [("foo",1), ("bar",2)]
+-- >>> B.first getSum <$> ixtoListOf (ix (Sum 3) traversed . ixfirst . ix (Sum 1) traversed) [("foo",1), ("bar",2)]
 -- [(0,'f'),(1,'o'),(2,'o'),(3,'b'),(4,'a'),(5,'r')]
 --
 -- @since 0.0.3

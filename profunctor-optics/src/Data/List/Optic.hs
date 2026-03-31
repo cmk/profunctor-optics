@@ -86,13 +86,13 @@ ixat i = ixtraversal0' f g
 -- | /O(n)/. 'Ixtraversal' over the values of a list.
 --
 ixtraversed :: Ixtraversal Int [a] [b] a b
-ixtraversed = ixtraversalVl $ \f -> traverse (uncurry f) . zip [0..]
+ixtraversed = ixtraversalVl $ \f _k -> traverse (uncurry f) . zip [0..]
 {-# INLINE ixtraversed #-}
 
 -- | /O(n)/. 'Ixfold' over the values of a list.
 --
 ixfolded :: Ixfold Int [a] a
-ixfolded = ixfoldVl $ \f -> traverse (uncurry f) . zip [0..]
+ixfolded = ixfoldVl $ \f _k -> traverse (uncurry f) . zip [0..]
 {-# INLINE ixfolded #-}
 
 -- | /O(n)/. 'Ixsetter' over the values of a list.
@@ -145,7 +145,7 @@ cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
 -- 'Data.IntMap.Optic.cxfolded' instead.
 --
 cxfolded :: Cxfold Int [a] a
-cxfolded = cxfoldVl $ \fakb fs ->
+cxfolded = cxfoldVl $ \fakb fs _k ->
   zipWith (\i _a -> fakb (fmap (!! i) fs) i) [0..] (copure fs)
 {-# INLINE cxfolded #-}
 

@@ -100,13 +100,13 @@ alteredF k = lensVl $ flip IM.alterF k
 -- | /O(log n)/. Indexed lens into Maybe of a value at a key.
 --
 ixalteredF :: Int -> Ixlens' Int (IM.IntMap a) (Maybe a)
-ixalteredF k = ixlensVl $ \kab -> IM.alterF (kab k) k
+ixalteredF k = ixlensVl $ \kab _k -> IM.alterF (kab k) k
 {-# INLINE ixalteredF #-}
 
 -- | /O(n)/. 'Ixtraversal' over values.
 --
 ixtraversed :: Ixtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-ixtraversed = ixtraversalVl IM.traverseWithKey
+ixtraversed = ixtraversalVl $ \kab _k -> IM.traverseWithKey kab
 {-# INLINE ixtraversed #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key.
@@ -166,7 +166,7 @@ values = fold_ IM.toAscList . second'
 -- | /O(n)/. 'Ixfold' over values.
 --
 ixfolded :: Ixfold Int (IM.IntMap a) a
-ixfolded = ixfoldVl IM.traverseWithKey
+ixfolded = ixfoldVl $ \kab _k -> IM.traverseWithKey kab
 {-# INLINE ixfolded #-}
 
 -- | /O(log n)/. 'Ixfold0' into the value at the minimal key.
@@ -240,7 +240,7 @@ zippedIf ks = grate $ \f ->
 -- Requires a fixed key set (Cxlens has no 'copure').
 --
 cxzippedIf :: IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
-cxzippedIf ks = cxlensVl $ \fakb fs ->
+cxzippedIf ks = cxlensVl $ \fakb fs _k ->
   IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) ks
 {-# INLINE cxzippedIf #-}
 
@@ -257,7 +257,7 @@ zippedTraverseIf = cotraversalVl $ \fab fs ->
 -- Self-keyed via 'copure'.
 --
 cxzippedTraverseIf :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
-cxzippedTraverseIf = cxtraversalVl $ \fakb fs ->
+cxzippedTraverseIf = cxtraversalVl $ \fakb fs _k ->
   let m0 = copure fs
   in  IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) (IM.keysSet m0)
 {-# INLINE cxzippedTraverseIf #-}
@@ -312,7 +312,7 @@ cxmappedIf = cxsetter IM.mapMaybeWithKey
 -- @
 --
 cxtraversed :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-cxtraversed = cxtraversalVl $ \fakb fs ->
+cxtraversed = cxtraversalVl $ \fakb fs _k ->
   IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
 {-# INLINE cxtraversed #-}
 
@@ -321,7 +321,7 @@ cxtraversed = cxtraversalVl $ \fakb fs ->
 -- Cx dual of 'ixfolded'. Threads the key as coindex.
 --
 cxfolded :: Cxfold Int (IM.IntMap a) a
-cxfolded = cxfoldVl $ \fakb fs ->
+cxfolded = cxfoldVl $ \fakb fs _k ->
   IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
 {-# INLINE cxfolded #-}
 

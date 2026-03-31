@@ -2,10 +2,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Test.Data.Profunctor.Optic.Lens where
 
+import Data.Monoid (Sum(..))
 import Data.Profunctor.Optic.Types
 import Data.Profunctor.Optic.Carrier (withIxlens, AIxlens)
 import Data.Profunctor.Optic.Property as Prop
 import Data.Profunctor.Optic.Lens (ixlens, ixfirst, ixsecond, cloneIxlens)
+import Data.Profunctor.Optic.Traversal (traversed, ix, noix)
+import Data.Profunctor.Optic.Fold (ixtoListOf)
+import qualified Data.Bifunctor as B
 import Hedgehog
 import qualified Hedgehog.Gen as G
 import qualified Hedgehog.Range as R
@@ -133,6 +137,27 @@ prop_cloneIxlens_nonmonoid_index = withTests 200 . property $ do
   s@(a, _) <- forAll $ gen_pair int char
   withIxlens (cloneIxlens tagged_fst) $ \ska _sbt ->
     fst (ska s) === Tag a
+
+---------------------------------------------------------------------
+-- Index threading via (.) composition
+---------------------------------------------------------------------
+
+-- | Two ix-lifted traversals composed with (.) should accumulate
+-- indices, so the inner traversal's seed is the outer's accumulated
+-- index — not mempty.
+prop_ix_dot_accumulates :: Property
+prop_ix_dot_accumulates = withTests 1 . property $ do
+  let result = B.first getSum <$>
+        ixtoListOf (ix (Sum 3) traversed . ix (Sum 1) traversed) ["ab", "cd"]
+  result === [(0,'a'),(1,'b'),(3,'c'),(4,'d')]
+
+-- | noix passes the incoming index through without modification.
+prop_noix_passthrough :: Property
+prop_noix_passthrough = withTests 1 . property $ do
+  let result = B.first getSum <$>
+        ixtoListOf (ix (Sum 10) traversed . noix traversed) ["ab", "cd"]
+  -- noix gives every element the incoming index (0, 10, 20, 30)
+  result === [(0,'a'),(0,'b'),(10,'c'),(10,'d')]
 
 tests :: IO Bool
 tests = checkSequential $$(discover)

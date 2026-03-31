@@ -73,7 +73,7 @@ flattened = traversalVl go
 -- The index is the depth from the root (root = 0).
 --
 ixflattened :: Ixtraversal Int (Tree a) (Tree b) a b
-ixflattened = ixtraversalVl (go 0)
+ixflattened = ixtraversalVl (\f _k -> go 0 f)
   where go d f (Node a cs) = Node <$> f d a <*> traverse (go (d + 1) f) cs
 {-# INLINE ixflattened #-}
 
