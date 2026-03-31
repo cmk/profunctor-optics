@@ -13,10 +13,10 @@
 -- @(,) k@, while a right-indexed ('Cx') optic threads a coindex
 -- through the right adjoint functor @(->) k@.
 --
--- Profunctor optics for 'Data.IntMap.IntMap' (strict).
+-- Profunctor optics for 'Data.IntMap.IntMap' (lazy).
 --
--- See "Data.IntMap.Lazy.Optic" for the lazy variant.
-module Data.IntMap.Optic (
+-- See "Data.IntMap.Optic" for the strict variant.
+module Data.IntMap.Lazy.Optic (
     -- * Types
     IM.IntMap
     -- * Optics
@@ -83,8 +83,8 @@ import Data.Profunctor.Optic hiding (toMapOf, countsOf, sortFoldOf, sortFold1Of,
 import Data.Profunctor.Optic.Import
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
-import qualified Data.IntMap.Strict as IM
-import qualified Data.IntMap.Merge.Strict as Merge
+import qualified Data.IntMap.Lazy as IM
+import qualified Data.IntMap.Merge.Lazy as Merge
 import Prelude
 
 -- | /O(log n)/. Lens into Maybe of a value at a key.

@@ -59,6 +59,7 @@ library
       Data.Profunctor.Optic.Bench
 
       Data.IntMap.Optic
+      Data.IntMap.Lazy.Optic
       Data.IntSet.Optic
       Data.List.Optic
       Data.Map.Lazy.Optic
