@@ -161,3 +161,15 @@ the only way to embed it into `t + c`.
 Both `Choice` and `Closed` instances of `Cotraversal0Rep` are
 correctly encoded. The property tests in `Test.Carrier` verify the
 left-unit law and the `Closed` identity empirically.
+
+
+## The laws for Ixlens k s t a b:                                      
+                                                        
+1. Get-Set: set s (snd (get s)) == s — setting back what you got is 
+identity                                                  
+2. Set-Get: snd (get (set s b)) == b — getting after setting returns
+what you set                                                       
+3. Set-Set: set (set s b1) b2 == set s b2 — setting twice, second
+wins                                                                
+4. Index stability: fst (get (set s b)) == fst (get s) — setting the
+value doesn't change the index                                     
