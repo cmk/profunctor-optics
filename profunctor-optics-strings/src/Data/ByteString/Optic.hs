@@ -26,18 +26,50 @@ module Data.ByteString.Optic (
     short,
     lazy,
     packed,
+    reversed,
     lined,
     worded,
     splitOn,
 
+    -- ** Prism
+    consed,
+    snoced,
+    prefixed,
+    suffixed,
+
+    -- ** Traversal0
+    at,
+    found,
+
     -- ** Traversal
     bytes,
+
+    -- ** Fold0
+    headed,
+    lasted,
+    foundIndex,
+    elemIndexed,
 
     -- ** Fold
     folded,
 
     -- ** Setter
     mapped,
+    sorted,
+
+    -- ** Adjoint
+    filtered,
+
+    -- * Indexed Optics
+    -- ** Ixtraversal
+    ixat,
+    ixtraversed,
+
+    -- ** Ixfold
+    ixfolded,
+
+    -- ** Ixsetter
+    ixmapped,
 
     -- * Dual Optics
     -- ** Cotraversal
@@ -55,7 +87,8 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Map.Optic (Map)
 import Data.ByteString.Short (ShortByteString)
 import qualified Data.ByteString.Short as SBS
-import Data.Profunctor.Optic hiding (folded)
+import Data.Monoid (Sum(..))
+import Data.Profunctor.Optic hiding (folded, prefixed, filtered)
 import Data.Word (Word8)
 
 -- | Iso between strict 'ByteString' and 'ShortByteString'.
@@ -106,6 +139,102 @@ splitOn delim = iso (split delim) (BS.intercalate delim)
             (pre, rest)
                 | BS.null rest -> [pre]
                 | otherwise -> pre : split d (BS.drop (BS.length d) rest)
+
+-- | 'ByteString' is reversible.
+reversed :: Iso' ByteString ByteString
+reversed = iso BS.reverse BS.reverse
+
+---------------------------------------------------------------------
+-- Prisms
+---------------------------------------------------------------------
+
+-- | Prism for cons-cell view of 'ByteString'.
+consed :: Prism' ByteString (Word8, ByteString)
+consed = prism' BS.uncons (uncurry BS.cons)
+
+-- | Prism for snoc-cell view of 'ByteString'.
+snoced :: Prism' ByteString (ByteString, Word8)
+snoced = prism' BS.unsnoc (uncurry BS.snoc)
+
+-- | Prism matching a prefix.
+prefixed :: ByteString -> Prism' ByteString ByteString
+prefixed p = prism' (BS.stripPrefix p) (p <>)
+
+-- | Prism matching a suffix.
+suffixed :: ByteString -> Prism' ByteString ByteString
+suffixed s = prism' (BS.stripSuffix s) (<> s)
+
+---------------------------------------------------------------------
+-- Traversal0, Fold0
+---------------------------------------------------------------------
+
+-- | /O(1)/. Affine traversal into the byte at a position.
+at :: Int -> Traversal0' ByteString Word8
+at i = traversal0' sa sbt
+  where
+    sa bs = if i >= 0 && i < BS.length bs then Just (BS.index bs i) else Nothing
+    sbt bs w = let (l, r) = BS.splitAt i bs
+               in  if BS.null r then bs else l <> BS.singleton w <> BS.tail r
+
+-- | Affine traversal into the first byte matching a predicate.
+found :: (Word8 -> Bool) -> Traversal0' ByteString Word8
+found p = traversal0' (BS.find p) (\bs w -> BS.map (\x -> if p x then w else x) bs)
+
+-- | First byte, if non-empty.
+headed :: Fold0 ByteString Word8
+headed = fold0 (\bs -> if BS.null bs then Nothing else Just (BS.head bs))
+
+-- | Last byte, if non-empty.
+lasted :: Fold0 ByteString Word8
+lasted = fold0 (\bs -> if BS.null bs then Nothing else Just (BS.last bs))
+
+-- | Index of the first byte matching a predicate.
+foundIndex :: (Word8 -> Bool) -> Fold0 ByteString (Sum Int)
+foundIndex p = fold0 (fmap Sum . BS.findIndex p)
+
+-- | Index of the first occurrence of a byte.
+elemIndexed :: Word8 -> Fold0 ByteString (Sum Int)
+elemIndexed w = fold0 (fmap Sum . BS.elemIndex w)
+
+---------------------------------------------------------------------
+-- Indexed optics
+---------------------------------------------------------------------
+
+-- | Indexed affine traversal at the incoming index.
+ixat :: Ixtraversal0' (Sum Int) ByteString Word8
+ixat = ixtraversalVl0 $ \point f k bs ->
+  let i = getSum k
+  in  if i >= 0 && i < BS.length bs
+      then fmap (\w -> let (l, r) = BS.splitAt i bs
+                       in  l <> BS.singleton w <> BS.tail r) (f k (BS.index bs i))
+      else point bs
+
+-- | Indexed traversal over bytes with positional index.
+ixtraversed :: Ixtraversal (Sum Int) ByteString ByteString Word8 Word8
+ixtraversed = ixtraversalVl $ \f k bs ->
+  BS.pack <$> traverse (\(i, w) -> f (k <> Sum i) w) (zip [0..] (BS.unpack bs))
+
+-- | Indexed fold over bytes with positional index.
+ixfolded :: Ixfold (Sum Int) ByteString Word8
+ixfolded = ixfoldVl $ \f k bs ->
+  traverse (\(i, w) -> f (k <> Sum i) w) (zip [0..] (BS.unpack bs))
+
+-- | Indexed setter over bytes with positional index.
+ixmapped :: Ixsetter (Sum Int) ByteString ByteString Word8 Word8
+ixmapped = ixsetter $ \f k bs ->
+  BS.pack $ zipWith (\i w -> f (k <> Sum i) w) [0..] (BS.unpack bs)
+
+---------------------------------------------------------------------
+-- Setters / Adjoints
+---------------------------------------------------------------------
+
+-- | Sort bytes in ascending order.
+sorted :: Setter' ByteString ByteString
+sorted = setter $ \f -> f . BS.sort
+
+-- | Filter bytes by predicate.
+filtered :: Adjoint ByteString ByteString Word8 Bool
+filtered = adjoint BS.filter
 
 -- | Traversal over individual bytes.
 --

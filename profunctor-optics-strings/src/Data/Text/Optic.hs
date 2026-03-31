@@ -27,18 +27,52 @@ module Data.Text.Optic (
     lazy,
     packed,
     utf8,
+    reversed,
     lined,
     worded,
     splitOn,
 
+    -- ** Prism
+    consed,
+    snoced,
+    prefixed,
+    suffixed,
+
+    -- ** Traversal0
+    at,
+    found,
+
     -- ** Traversal
     chars,
+
+    -- ** Fold0
+    headed,
+    lasted,
+    foundIndex,
 
     -- ** Fold
     folded,
 
     -- ** Setter
     mapped,
+    lowered,
+    uppered,
+    casefolded,
+    titled,
+
+    -- ** Adjoint
+    filtered,
+
+    -- * Indexed Optics
+    -- ** Ixtraversal
+    ixat,
+    ixtraversed,
+
+    -- ** Ixfold
+    ixfolded,
+
+    -- ** Ixsetter
+    ixmapped,
 
     -- * Dual Optics
     -- ** Cotraversal
@@ -51,13 +85,14 @@ module Data.Text.Optic (
 
 import Data.ByteString (ByteString)
 import Data.Map.Optic (Map)
+import Data.Monoid (Sum(..))
 import qualified Data.Text as T
 import Data.Text (Text)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Encoding as TE
 import Data.Text.Short (ShortText)
 import qualified Data.Text.Short as ST
-import Data.Profunctor.Optic hiding (folded)
+import Data.Profunctor.Optic hiding (folded, prefixed, filtered)
 
 -- | Iso between strict 'Text' and 'ShortText'.
 --
@@ -92,6 +127,130 @@ worded = iso T.words (T.intercalate " ")
 -- | Split on an arbitrary delimiter.
 splitOn :: Text -> Iso' Text [Text]
 splitOn delim = iso (T.splitOn delim) (T.intercalate delim)
+
+-- | 'Text' is reversible.
+reversed :: Iso' Text Text
+reversed = iso T.reverse T.reverse
+
+---------------------------------------------------------------------
+-- Prisms
+---------------------------------------------------------------------
+
+-- | Prism for cons-cell view of 'Text'.
+--
+-- @
+-- 'review' 'consed' (c, t) = 'T.cons' c t
+-- 'preview' 'consed' t = 'T.uncons' t
+-- @
+consed :: Prism' Text (Char, Text)
+consed = prism' T.uncons (uncurry T.cons)
+
+-- | Prism for snoc-cell view of 'Text'.
+--
+-- @
+-- 'review' 'snoced' (t, c) = 'T.snoc' t c
+-- 'preview' 'snoced' t = 'T.unsnoc' t
+-- @
+snoced :: Prism' Text (Text, Char)
+snoced = prism' T.unsnoc (uncurry T.snoc)
+
+-- | Prism matching a prefix.
+--
+-- @
+-- 'preview' ('prefixed' "foo") "foobar" = Just "bar"
+-- 'review' ('prefixed' "foo") "bar" = "foobar"
+-- @
+prefixed :: Text -> Prism' Text Text
+prefixed p = prism' (T.stripPrefix p) (p <>)
+
+-- | Prism matching a suffix.
+--
+-- @
+-- 'preview' ('suffixed' "bar") "foobar" = Just "foo"
+-- 'review' ('suffixed' "bar") "foo" = "foobar"
+-- @
+suffixed :: Text -> Prism' Text Text
+suffixed s = prism' (T.stripSuffix s) (<> s)
+
+---------------------------------------------------------------------
+-- Traversal0, Fold0
+---------------------------------------------------------------------
+
+-- | /O(n)/. Affine traversal into the character at a position.
+at :: Int -> Traversal0' Text Char
+at i = traversal0' sa sbt
+  where
+    sa t = if i >= 0 && i < T.length t then Just (T.index t i) else Nothing
+    sbt t c = let (l, r) = T.splitAt i t
+              in  if T.null r then t else l <> T.singleton c <> T.tail r
+
+-- | Affine traversal into the first character matching a predicate.
+found :: (Char -> Bool) -> Traversal0' Text Char
+found p = traversal0' (T.find p) (\t c -> T.map (\x -> if p x then c else x) t)
+
+-- | First character, if non-empty.
+headed :: Fold0 Text Char
+headed = fold0 (\t -> if T.null t then Nothing else Just (T.head t))
+
+-- | Last character, if non-empty.
+lasted :: Fold0 Text Char
+lasted = fold0 (\t -> if T.null t then Nothing else Just (T.last t))
+
+-- | Index of the first character matching a predicate.
+foundIndex :: (Char -> Bool) -> Fold0 Text (Sum Int)
+foundIndex p = fold0 (fmap Sum . T.findIndex p)
+
+---------------------------------------------------------------------
+-- Indexed optics
+---------------------------------------------------------------------
+
+-- | Indexed affine traversal at the incoming index.
+ixat :: Ixtraversal0' (Sum Int) Text Char
+ixat = ixtraversalVl0 $ \point f k t ->
+  let i = getSum k
+  in  if i >= 0 && i < T.length t
+      then fmap (\c -> let (l, r) = T.splitAt i t
+                       in  l <> T.singleton c <> T.tail r) (f k (T.index t i))
+      else point t
+
+-- | Indexed traversal over characters with positional index.
+ixtraversed :: Ixtraversal (Sum Int) Text Text Char Char
+ixtraversed = ixtraversalVl $ \f k t ->
+  T.pack <$> traverse (\(i, c) -> f (k <> Sum i) c) (zip [0..] (T.unpack t))
+
+-- | Indexed fold over characters with positional index.
+ixfolded :: Ixfold (Sum Int) Text Char
+ixfolded = ixfoldVl $ \f k t ->
+  traverse (\(i, c) -> f (k <> Sum i) c) (zip [0..] (T.unpack t))
+
+-- | Indexed setter over characters with positional index.
+ixmapped :: Ixsetter (Sum Int) Text Text Char Char
+ixmapped = ixsetter $ \f k t ->
+  T.pack $ zipWith (\i c -> f (k <> Sum i) c) [0..] (T.unpack t)
+
+---------------------------------------------------------------------
+-- Setters / Adjoints
+---------------------------------------------------------------------
+
+-- | Case-fold all characters.
+casefolded :: Setter' Text Text
+casefolded = setter $ \f -> f . T.toCaseFold
+
+-- | Lower-case all characters.
+lowered :: Setter' Text Text
+lowered = setter $ \f -> f . T.toLower
+
+-- | Upper-case all characters.
+uppered :: Setter' Text Text
+uppered = setter $ \f -> f . T.toUpper
+
+-- | Title-case all characters.
+titled :: Setter' Text Text
+titled = setter $ \f -> f . T.toTitle
+
+-- | Filter characters by predicate.
+filtered :: Adjoint Text Text Char Bool
+filtered = adjoint T.filter
 
 -- | Traversal over individual characters.
 --
