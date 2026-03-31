@@ -22,11 +22,6 @@ module Data.Profunctor.Optic.Setter (
   , closing
   , cloneSetter
   , cloneIxsetter
-    -- ** Setter1, Ixsetter1
-  , Setter1, Setter1'
-  , Ixsetter1, Ixsetter1'
-  , setter1
-  , ixsetter1
     -- * Costar Constructors
     -- ** Cosetter, Cxsetter
   , Cosetter, Cosetter'
@@ -205,20 +200,6 @@ cloneSetter o = setter (sets o)
 cloneIxsetter :: Monoid k => AIxsetter k s t a b -> Ixsetter k s t a b
 cloneIxsetter o = ixsetter (\f _k -> ixsets o f)
 {-# INLINE cloneIxsetter #-}
-
--- | TODO: Document
---
--- @since 0.0.3
-setter1 :: ((a -> b) -> a -> t) -> Setter1 a t a b
-setter1 abst = indexing abst . representing (\f -> distribute1 . fmap f)
-{-# INLINE setter1 #-}
-
--- | Build an 'Ixsetter1' from an indexed function.
---
--- @since 0.0.3
-ixsetter1 :: ((i -> a -> b) -> a -> t) -> Ixsetter1 i a t a b
-ixsetter1 f = setter1 $ \iab -> f (curry iab) . snd
-{-# INLINE ixsetter1 #-}
 
 ---------------------------------------------------------------------
 -- Costar Constructors
