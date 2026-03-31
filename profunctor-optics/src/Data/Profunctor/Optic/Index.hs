@@ -26,6 +26,7 @@ module Data.Profunctor.Optic.Index (
   , cxix
   , reix
   , ixsum
+  , ixall
   , ixany
   , ixhead
   , ixlast
@@ -189,6 +190,12 @@ reix kl lk = (. lmap (first' kl)) . (lmap (first' lk) .)
 ixsum :: Profunctor p => Ixoptic p k s t a b -> Ixoptic p (Sum k) s t a b
 ixsum = reix Sum getSum
 {-# INLINE ixsum #-}
+
+-- | TODO: Document
+--
+ixall :: Profunctor p => Ixoptic p Bool s t a b -> Ixoptic p All s t a b
+ixall = reix All getAll
+{-# INLINE ixall #-}
 
 -- | TODO: Document
 --
