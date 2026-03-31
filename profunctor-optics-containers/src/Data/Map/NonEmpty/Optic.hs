@@ -211,7 +211,7 @@ adjusted = ixsetter $ \f k -> Map.adjust (f k) k
 -- See also 'Data.Map.NonEmpty.updateWithKey'.
 --
 updated :: Ord k => Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a (Maybe a)
-updated = ixsetter $ \f k -> Map.updateWithKey (\_ -> f k) k
+updated = ixsetter $ \f k -> Map.updateWithKey f k
 
 -- | /O(log n)/. Lookup and update a value at a specific key.
 --
@@ -229,7 +229,7 @@ updated = ixsetter $ \f k -> Map.updateWithKey (\_ -> f k) k
 -- See also 'Data.Map.NonEmpty.updateLookupWithKey'.
 --
 updateLooked :: Ord k => Ixsetter k (Map.NEMap k a) (Maybe a, Unsafe.Map k a) a (Maybe a)
-updateLooked = ixsetter $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
+updateLooked = ixsetter $ \f k -> Map.updateLookupWithKey f k
 
 -- | /O(1)/. 'Ixview' into the value at the minimal key of a 'Map.NEMap'.
 --

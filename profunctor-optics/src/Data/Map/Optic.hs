@@ -443,12 +443,12 @@ cxupdated = cxadjoint $ \f k -> Map.update (f k) k
 -- @'ixsets' ('ixupdatedLookup' k) = 'Map.updateLookupWithKey' k@
 --
 ixupdatedLookup :: Ord k => Ixadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-ixupdatedLookup = ixadjoint $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
+ixupdatedLookup = ixadjoint $ \f k -> Map.updateLookupWithKey f k
 {-# INLINE ixupdatedLookup #-}
 
 -- | Cxadjoint wrapping 'Map.updateLookupWithKey'. Costar dual of 'ixupdatedLookup'.
 cxupdatedLookup :: Ord k => Cxadjoint k (Map.Map k a) (Maybe a, Map.Map k a) a (Maybe a)
-cxupdatedLookup = cxadjoint $ \f k -> Map.updateLookupWithKey (\_ -> f k) k
+cxupdatedLookup = cxadjoint $ \f k -> Map.updateLookupWithKey f k
 {-# INLINE cxupdatedLookup #-}
 
 -- | /O(log n)/. Update the value at the minimal key. 'Nothing' deletes.
