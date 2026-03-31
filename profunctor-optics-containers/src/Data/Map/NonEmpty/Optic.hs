@@ -27,7 +27,6 @@ module Data.Map.NonEmpty.Optic (
   , ialteredF
   , adjusted
   , updated
-  , updateLooked
   , foundMin
   , foundMax
   , lookedLT
@@ -212,24 +211,6 @@ adjusted = ixsetter $ \f k -> Map.adjust (f k) k
 --
 updated :: Ord k => Ixsetter k (Map.NEMap k a) (Unsafe.Map k a) a (Maybe a)
 updated = ixsetter $ \f k -> Map.updateWithKey f k
-
--- | /O(log n)/. Lookup and update a value at a specific key.
---
--- Returns the changed value, if it is updated. Returns the original key value
--- if the map entry is deleted.
---
--- >>> let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
--- >>> iover (updateLooked 5) f $ Map.fromList ((5,"a") :| [(3,"b")])
--- (Just "5:new a",fromList [(3,"b"),(5,"5:new a")])
--- >>> iover (updateLooked 7) f $ Map.fromList ((5,"a") :| [(3,"b")])
--- (Nothing,fromList [(3,"b"),(5,"a")])
--- >>> iover (updateLooked 3) f $ Map.fromList ((5,"a") :| [(3,"b")])
--- (Just "b",fromList [(5,"a")])
---
--- See also 'Data.Map.NonEmpty.updateLookupWithKey'.
---
-updateLooked :: Ord k => Ixsetter k (Map.NEMap k a) (Maybe a, Unsafe.Map k a) a (Maybe a)
-updateLooked = ixsetter $ \f k -> Map.updateLookupWithKey f k
 
 -- | /O(1)/. 'Ixview' into the value at the minimal key of a 'Map.NEMap'.
 --

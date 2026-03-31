@@ -29,7 +29,6 @@ module Data.IntMap.Optic (
   , at
   , ixat
   , updated
-  , updateLooked
   , lookedLT
   , lookedLE
   , lookedGE
@@ -129,12 +128,6 @@ ixat = ixtraversalVl0 $ \point f k s -> case IM.lookup (getSum k) s of
 updated :: Ixsetter (Sum Int) (IM.IntMap a) (IM.IntMap a) a (Maybe a)
 updated = ixsetter $ \f k -> IM.updateWithKey (\i -> f (Sum i)) (getSum k)
 {-# INLINE updated #-}
-
--- | /O(log n)/. Lookup and update a value at the incoming index.
---
-updateLooked :: Ixsetter (Sum Int) (IM.IntMap a) (Maybe a, IM.IntMap a) a (Maybe a)
-updateLooked = ixsetter $ \f k -> IM.updateLookupWithKey (\i -> f (Sum i)) (getSum k)
-{-# INLINE updateLooked #-}
 
 -- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the incoming index.
 --
