@@ -97,16 +97,17 @@ alteredF :: Int -> Lens' (IM.IntMap a) (Maybe a)
 alteredF k = lensVl $ flip IM.alterF k
 {-# INLINE alteredF #-}
 
--- | /O(log n)/. Indexed lens into Maybe of a value at a key.
+-- | /O(log n)/. Indexed lens into Maybe of a value at the incoming
+-- index. The index serves as both the optic index and the 'IntMap' key.
 --
-ixalteredF :: Int -> Ixlens' Int (IM.IntMap a) (Maybe a)
-ixalteredF k = ixlensVl $ \kab _k -> IM.alterF (kab k) k
+ixalteredF :: Ixlens' Int (IM.IntMap a) (Maybe a)
+ixalteredF = ixlensVl $ \f k -> IM.alterF (f k) k
 {-# INLINE ixalteredF #-}
 
 -- | /O(n)/. 'Ixtraversal' over values.
 --
 ixtraversed :: Ixtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-ixtraversed = ixtraversalVl $ \kab _k -> IM.traverseWithKey kab
+ixtraversed = ixtraversalVl $ \kab k -> IM.traverseWithKey (\i -> kab (k + i))
 {-# INLINE ixtraversed #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key.
@@ -115,10 +116,12 @@ at :: Int -> Traversal0' (IM.IntMap a) a
 at k = traversal0' (IM.lookup k) (flip $ IM.insert k)
 {-# INLINE at #-}
 
--- | /O(log n)/. Indexed affine traversal into the value at a key.
+-- | /O(log n)/. Indexed affine traversal into the value at the incoming index.
 --
-ixat :: Int -> Ixtraversal0' Int (IM.IntMap a) a
-ixat k = ixtraversal0' (\s -> (k,) <$> IM.lookup k s) (flip $ IM.insert k)
+ixat :: Ixtraversal0' Int (IM.IntMap a) a
+ixat = ixtraversalVl0 $ \point f k s -> case IM.lookup k s of
+  Nothing -> point s
+  Just a  -> fmap (\b -> IM.insert k b s) (f k a)
 {-# INLINE ixat #-}
 
 -- | /O(log n)/. Update a value at a key.
@@ -133,28 +136,32 @@ updateLooked :: Int -> Ixsetter Int (IM.IntMap a) (Maybe a, IM.IntMap a) a (Mayb
 updateLooked k = ixsetter $ \kab -> IM.updateLookupWithKey kab k
 {-# INLINE updateLooked #-}
 
--- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the given one.
+-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than the incoming index.
 --
-lookedLT :: Int -> Ixtraversal0' Int (IM.IntMap a) a
-lookedLT k = ixtraversal0' (IM.lookupLT k) (flip $ IM.insert k)
+lookedLT :: Ixtraversal0' Int (IM.IntMap a) a
+lookedLT = ixtraversalVl0 $ \point f k s ->
+  maybe (point s) (\(i, a) -> fmap (\b -> IM.insert i b s) (f i a)) (IM.lookupLT k s)
 {-# INLINE lookedLT #-}
 
--- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the given one.
+-- | /O(log n)/. Indexed affine traversal into the value at the largest key smaller than or equal to the incoming index.
 --
-lookedLE :: Int -> Ixtraversal0' Int (IM.IntMap a) a
-lookedLE k = ixtraversal0' (IM.lookupLE k) (flip $ IM.insert k)
+lookedLE :: Ixtraversal0' Int (IM.IntMap a) a
+lookedLE = ixtraversalVl0 $ \point f k s ->
+  maybe (point s) (\(i, a) -> fmap (\b -> IM.insert i b s) (f i a)) (IM.lookupLE k s)
 {-# INLINE lookedLE #-}
 
--- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than or equal to the given one.
+-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than or equal to the incoming index.
 --
-lookedGE :: Int -> Ixtraversal0' Int (IM.IntMap a) a
-lookedGE k = ixtraversal0' (IM.lookupGE k) (flip $ IM.insert k)
+lookedGE :: Ixtraversal0' Int (IM.IntMap a) a
+lookedGE = ixtraversalVl0 $ \point f k s ->
+  maybe (point s) (\(i, a) -> fmap (\b -> IM.insert i b s) (f i a)) (IM.lookupGE k s)
 {-# INLINE lookedGE #-}
 
--- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than the given one.
+-- | /O(log n)/. Indexed affine traversal into the value at the smallest key greater than the incoming index.
 --
-lookedGT :: Int -> Ixtraversal0' Int (IM.IntMap a) a
-lookedGT k = ixtraversal0' (IM.lookupGT k) (flip $ IM.insert k)
+lookedGT :: Ixtraversal0' Int (IM.IntMap a) a
+lookedGT = ixtraversalVl0 $ \point f k s ->
+  maybe (point s) (\(i, a) -> fmap (\b -> IM.insert i b s) (f i a)) (IM.lookupGT k s)
 {-# INLINE lookedGT #-}
 
 -- | /O(n)/. 'Fold' over all values in ascending key order.
@@ -166,7 +173,7 @@ values = fold_ IM.toAscList . second'
 -- | /O(n)/. 'Ixfold' over values.
 --
 ixfolded :: Ixfold Int (IM.IntMap a) a
-ixfolded = ixfoldVl $ \kab _k -> IM.traverseWithKey kab
+ixfolded = ixfoldVl $ \kab k -> IM.traverseWithKey (\i -> kab (k + i))
 {-# INLINE ixfolded #-}
 
 -- | /O(log n)/. 'Ixfold0' into the value at the minimal key.
@@ -240,8 +247,8 @@ zippedIf ks = grate $ \f ->
 -- Requires a fixed key set (Cxlens has no 'copure').
 --
 cxzippedIf :: IntSet -> Cxlens Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
-cxzippedIf ks = cxlensVl $ \fakb fs _k ->
-  IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) ks
+cxzippedIf ks = cxlensVl $ \fakb k fs ->
+  IM.mapMaybe id $ IM.fromSet (\i -> fakb (fmap (IM.lookup i) fs) (k + i)) ks
 {-# INLINE cxzippedIf #-}
 
 -- | Pointwise 'Cotraversal' with 'Maybe' focus.
@@ -257,9 +264,9 @@ zippedTraverseIf = cotraversalVl $ \fab fs ->
 -- Self-keyed via 'copure'.
 --
 cxzippedTraverseIf :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) (Maybe a) (Maybe b)
-cxzippedTraverseIf = cxtraversalVl $ \fakb fs _k ->
+cxzippedTraverseIf = cxtraversalVl $ \fakb k fs ->
   let m0 = copure fs
-  in  IM.mapMaybe id $ IM.fromSet (\k -> fakb (fmap (IM.lookup k) fs) k) (IM.keysSet m0)
+  in  IM.mapMaybe id $ IM.fromSet (\i -> fakb (fmap (IM.lookup i) fs) (k + i)) (IM.keysSet m0)
 {-# INLINE cxzippedTraverseIf #-}
 
 ---------------------------------------------------------------------
@@ -312,8 +319,8 @@ cxmappedIf = cxsetter IM.mapMaybeWithKey
 -- @
 --
 cxtraversed :: Cxtraversal Int (IM.IntMap a) (IM.IntMap b) a b
-cxtraversed = cxtraversalVl $ \fakb fs _k ->
-  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
+cxtraversed = cxtraversalVl $ \fakb k fs ->
+  IM.fromSet (\i -> fakb (fmap (IM.! i) fs) (k + i)) (IM.keysSet (copure fs))
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the values of an 'IM.IntMap'.
@@ -321,8 +328,8 @@ cxtraversed = cxtraversalVl $ \fakb fs _k ->
 -- Cx dual of 'ixfolded'. Threads the key as coindex.
 --
 cxfolded :: Cxfold Int (IM.IntMap a) a
-cxfolded = cxfoldVl $ \fakb fs _k ->
-  IM.fromSet (\k -> fakb (fmap (IM.! k) fs) k) (IM.keysSet (copure fs))
+cxfolded = cxfoldVl $ \fakb k fs ->
+  IM.fromSet (\i -> fakb (fmap (IM.! i) fs) (k + i)) (IM.keysSet (copure fs))
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

@@ -113,14 +113,14 @@ ifiltered = ixsetter Map.filterWithKey
 
 -- | /O(n)/. 'Ixtraversal1' over the values of a 'Map.NEMap'.
 --
-itraversed :: Ord k => Ixtraversal1 k (Map.NEMap k a) (Map.NEMap k b) a b
-itraversed = ixtraversalVl1 Map.traverseWithKey1
+itraversed :: (Ord k, Semigroup k) => Ixtraversal1 k (Map.NEMap k a) (Map.NEMap k b) a b
+itraversed = ixtraversalVl1 $ \f k -> Map.traverseWithKey1 (\i -> f (k <> i))
 {-# INLINE itraversed #-}
 
 -- | /O(n)/. 'Ixfold1' over the values of a 'Map.NEMap'.
 --
-ifolded :: Ixfold k (Map.NEMap k a) a
-ifolded = ixfoldVl Map.traverseWithKey
+ifolded :: Semigroup k => Ixfold k (Map.NEMap k a) a
+ifolded = ixfoldVl $ \f k -> Map.traverseWithKey (\i -> f (k <> i))
 {-# INLINE ifolded #-}
 
 -- | /O(log n)/. Alter the value at a specific key.
@@ -174,15 +174,13 @@ alteredF k = lensVl $ flip Map.alterF k
 -- | /O(log n)/. Alter the value at a specific key.
 --
 -- >>> let f _ _ = Just "c"
--- >>> iover (ialteredF 7) f $ Map.fromList ((5,"a") :| [(3,"b")])
--- fromList [(3,"b"),(5,"a"),(7,"c")]
--- >>> iover (ialteredF 5) f $ Map.fromList ((5,"a") :| [(3,"b")])
+-- >>> iover ialteredF f $ Map.fromList ((5,"a") :| [(3,"b")])
 -- fromList [(3,"b"),(5,"c")]
 --
 -- See also 'Data.Map.NonEmpty.alterF'.
 --
-ialteredF :: Ord k => k -> Ixlens k (Map.NEMap k a) (Unsafe.Map k a) (Maybe a) (Maybe a)
-ialteredF k = ixlensVl $ \kab -> Map.alterF (kab k) k
+ialteredF :: Ord k => Ixlens k (Map.NEMap k a) (Unsafe.Map k a) (Maybe a) (Maybe a)
+ialteredF = ixlensVl $ \f k -> Map.alterF (f k) k
 
 -- | /O(log n)/. Adjust a value at a specific key.
 --

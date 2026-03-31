@@ -547,8 +547,8 @@ cotraversalVl f pab = corepresenting f pab
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-cxtraversalVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> k -> t) -> Cxtraversal k s t a b
-cxtraversalVl = cotraversalVl
+cxtraversalVl :: (forall f. Coapplicative f => (f a -> k -> b) -> k -> f s -> t) -> Cxtraversal k s t a b
+cxtraversalVl f = cotraversalVl $ \akb fs k -> f akb k fs
 {-# INLINE cxtraversalVl #-}
 
 -- | Extract the Van Laarhoven function that characterizes a 'Cotraversal'.
@@ -665,8 +665,8 @@ cotraversalVl1 abst = cotabulate . abst . cosieve
 -- See 'Data.Profunctor.Optic.Property'.
 --
 -- @since 0.0.3
-cxtraversalVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> k -> t) -> Cxtraversal1 k s t a b
-cxtraversalVl1 = cotraversalVl1
+cxtraversalVl1 :: (forall f. Coapply f => (f a -> k -> b) -> k -> f s -> t) -> Cxtraversal1 k s t a b
+cxtraversalVl1 f = cotraversalVl1 $ \akb fs k -> f akb k fs
 {-# INLINE cxtraversalVl1 #-}
 
 -- | Extract the Van Laarhoven function that characterizes a 'Cotraversal1'.

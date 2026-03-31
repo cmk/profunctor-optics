@@ -303,7 +303,7 @@ colens bsa bt = cosecond . dimap (uncurry bsa) (fanout id bt)
 --
 -- @since 0.0.3
 cxlens :: (((s -> a) -> k -> b) -> t) -> Cxlens k s t a b
-cxlens f = cxlensVl $ \aib s _k -> f $ \sa -> aib (fmap sa s)
+cxlens f = cxlensVl $ \aib _k s -> f $ \sa -> aib (fmap sa s)
 {-# INLINE cxlens #-}
 
 -- | Transform a Van Laarhoven colens into a profunctor colens.
@@ -328,8 +328,8 @@ colensVl o = cofirst . dimap (uncurry id . swap) ((fanout info vals) . o (flip I
 -- | Transform a coindexed Van Laarhoven grate into a coindexed profunctor grate.
 --
 -- @since 0.0.3
-cxlensVl :: (forall f. Functor f => (f a -> k -> b) -> f s -> k -> t) -> Cxlens k s t a b
-cxlensVl = grateVl
+cxlensVl :: (forall f. Functor f => (f a -> k -> b) -> k -> f s -> t) -> Cxlens k s t a b
+cxlensVl f = grateVl $ \akb fs k -> f akb k fs
 {-# INLINE cxlensVl #-}
 
 -- | Obtain a 'Colens' from a nested continuation.
@@ -454,8 +454,8 @@ cloneCxlens o = withCxlens o cxlens
 -- | Extract the coindexed Van Laarhoven form of a 'Cxlens'.
 --
 -- @since 0.0.3
-cloneCxlensVl :: Monoid k => ACxlens k s t a b -> (forall f. Functor f => (f a -> k -> b) -> f s -> k -> t)
-cloneCxlensVl o fab fs _k = withCxlens o $ \sabt -> sabt $ \sa k -> fab (fmap sa fs) k
+cloneCxlensVl :: Monoid k => ACxlens k s t a b -> (forall f. Functor f => (f a -> k -> b) -> k -> f s -> t)
+cloneCxlensVl o fab _k fs = withCxlens o $ \sabt -> sabt $ \sa k -> fab (fmap sa fs) k
 {-# INLINE cloneCxlensVl #-}
 
 ---------------------------------------------------------------------

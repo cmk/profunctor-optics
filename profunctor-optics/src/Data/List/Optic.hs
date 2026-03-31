@@ -76,23 +76,23 @@ at k = traversalVl0 $ \point f xs -> if k < 0 then point xs else
 
 -- | /O(n)/. Indexed affine traversal into the value at an index.
 --
-ixat :: Int -> Ixtraversal0' Int [a] a
-ixat i = ixtraversal0' f g
-  where
-    f s = listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == i]
-    g s a = zipWith (\j x -> if i == j then a else x) [0..] s
+ixat :: Ixtraversal0' Int [a] a
+ixat = ixtraversalVl0 $ \point f k s ->
+  case listToMaybe [(n, x) | (n, x) <- zip [0..] s, n == k] of
+    Nothing     -> point s
+    Just (_, a) -> fmap (\b -> zipWith (\j x -> if k == j then b else x) [0..] s) (f k a)
 {-# INLINE ixat #-}
 
 -- | /O(n)/. 'Ixtraversal' over the values of a list.
 --
 ixtraversed :: Ixtraversal Int [a] [b] a b
-ixtraversed = ixtraversalVl $ \f _k -> traverse (uncurry f) . zip [0..]
+ixtraversed = ixtraversalVl $ \f k -> traverse (\(i, a) -> f (k + i) a) . zip [0..]
 {-# INLINE ixtraversed #-}
 
 -- | /O(n)/. 'Ixfold' over the values of a list.
 --
 ixfolded :: Ixfold Int [a] a
-ixfolded = ixfoldVl $ \f _k -> traverse (uncurry f) . zip [0..]
+ixfolded = ixfoldVl $ \f k -> traverse (\(i, a) -> f (k + i) a) . zip [0..]
 {-# INLINE ixfolded #-}
 
 -- | /O(n)/. 'Ixsetter' over the values of a list.
@@ -145,8 +145,8 @@ cxmapped = cxsetter $ \f xs -> zipWith (\i a -> f i a) [0..] xs
 -- 'Data.IntMap.Optic.cxfolded' instead.
 --
 cxfolded :: Cxfold Int [a] a
-cxfolded = cxfoldVl $ \fakb fs _k ->
-  zipWith (\i _a -> fakb (fmap (!! i) fs) i) [0..] (copure fs)
+cxfolded = cxfoldVl $ \fakb k fs ->
+  zipWith (\i _a -> fakb (fmap (!! i) fs) (k + i)) [0..] (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

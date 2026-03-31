@@ -117,14 +117,14 @@ alteredF k = lensVl $ flip Map.alterF k
 
 -- | /O(log n)/. Indexed lens into /Maybe/ of a value at a key.
 --
-ixalteredF :: Ord k => k -> Ixlens' k (Map.Map k a) (Maybe a)
-ixalteredF k = ixlensVl $ \kab _k -> Map.alterF (kab k) k
+ixalteredF :: Ord k => Ixlens' k (Map.Map k a) (Maybe a)
+ixalteredF = ixlensVl $ \f k -> Map.alterF (f k) k
 {-# INLINE ixalteredF #-}
 
 -- | /O(n)/. 'Ixtraversal' over the values of a 'Map.Map'.
 --
-ixtraversed :: Ord k => Ixtraversal k (Map.Map k a) (Map.Map k b) a b
-ixtraversed = ixtraversalVl $ \kab _k -> Map.traverseWithKey kab
+ixtraversed :: (Ord k, Semigroup k) => Ixtraversal k (Map.Map k a) (Map.Map k b) a b
+ixtraversed = ixtraversalVl $ \f k -> Map.traverseWithKey (\i -> f (k <> i))
 {-# INLINE ixtraversed #-}
 
 -- | /O(log n)/. Affine traversal into the value at a key of a 'Map.Map'.
@@ -135,8 +135,9 @@ at k = traversal0' (Map.lookup k) (flip $ Map.insert k)
 
 -- | /O(log n)/. Indexed affine traversal into the value at a key of a 'Map.Map'.
 --
-ixat :: Ord k => k -> Ixtraversal0' k (Map.Map k a) a
-ixat k = ixtraversal0' (\s -> (k,) <$> Map.lookup k s) (flip $ Map.insert k)
+ixat :: Ord k => Ixtraversal0' k (Map.Map k a) a
+ixat = ixtraversalVl0 $ \point f k s ->
+  maybe (point s) (\a -> fmap (\b -> Map.insert k b s) (f k a)) (Map.lookup k s)
 {-# INLINE ixat #-}
 
 -- | /O(log n)/. Indexed affine traversal into the value at positional
@@ -188,8 +189,8 @@ values = fold_ Map.toAscList . second'
 
 -- | /O(n)/. 'Ixfold' over the values of a 'Map.Map'.
 --
-ixfolded :: Ixfold k (Map.Map k a) a
-ixfolded = ixfoldVl $ \kab _k -> Map.traverseWithKey kab
+ixfolded :: Semigroup k => Ixfold k (Map.Map k a) a
+ixfolded = ixfoldVl $ \f k -> Map.traverseWithKey (\i -> f (k <> i))
 {-# INLINE ixfolded #-}
 
 -- | /O(log n)/. 'Ixfold0' into the value at the minimal key.
@@ -239,9 +240,9 @@ zippedIfKey ks = grate $ \f ->
 -- | Coindexed 'Cxlens' with 'Maybe' focus.
 -- Requires a fixed key set (Cxlens has no 'copure').
 --
-cxzippedIfKey :: Ord k => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
-cxzippedIfKey ks = cxlensVl $ \fakb fs _k ->
-  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) ks
+cxzippedIfKey :: (Ord k, Semigroup k) => Set k -> Cxlens k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedIfKey ks = cxlensVl $ \fakb k fs ->
+  Map.mapMaybe id $ Map.fromSet (\i -> fakb (fmap (Map.lookup i) fs) (k <> i)) ks
 {-# INLINE cxzippedIfKey #-}
 
 -- | Pointwise 'Cotraversal' with 'Maybe' focus.
@@ -261,27 +262,27 @@ zippedIf = cotraversalVl $ \fab fs ->
 -- 'cxtraverseOf' cxtraversed ≡ 'Data.Map.traverseWithKey'
 -- @
 --
-cxtraversed :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
-cxtraversed = cxtraversalVl $ \fakb fs _k ->
-  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
+cxtraversed :: (Ord k, Semigroup k) => Cxtraversal k (Map.Map k a) (Map.Map k b) a b
+cxtraversed = cxtraversalVl $ \fakb k fs ->
+  Map.fromSet (\i -> fakb (fmap (Map.! i) fs) (k <> i)) (Map.keysSet (copure fs))
 {-# INLINE cxtraversed #-}
 
 -- | Keyed pointwise 'Cxtraversal' with 'Maybe' focus.
 -- Self-keyed via 'copure'.
 --
-cxzippedIf :: Ord k => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
-cxzippedIf = cxtraversalVl $ \fakb fs _k ->
+cxzippedIf :: (Ord k, Semigroup k) => Cxtraversal k (Map.Map k a) (Map.Map k b) (Maybe a) (Maybe b)
+cxzippedIf = cxtraversalVl $ \fakb k fs ->
   let m0 = copure fs
-  in  Map.mapMaybe id $ Map.fromSet (\k -> fakb (fmap (Map.lookup k) fs) k) (Map.keysSet m0)
+  in  Map.mapMaybe id $ Map.fromSet (\i -> fakb (fmap (Map.lookup i) fs) (k <> i)) (Map.keysSet m0)
 {-# INLINE cxzippedIf #-}
 
 -- | /O(n)/. 'Cxfold' over the values of a 'Map.Map'.
 --
 -- Cx dual of 'ixfolded'. Threads the key as coindex.
 --
-cxfolded :: Ord k => Cxfold k (Map.Map k a) a
-cxfolded = cxfoldVl $ \fakb fs _k ->
-  Map.fromSet (\k -> fakb (fmap (Map.! k) fs) k) (Map.keysSet (copure fs))
+cxfolded :: (Ord k, Semigroup k) => Cxfold k (Map.Map k a) a
+cxfolded = cxfoldVl $ \fakb k fs ->
+  Map.fromSet (\i -> fakb (fmap (Map.! i) fs) (k <> i)) (Map.keysSet (copure fs))
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

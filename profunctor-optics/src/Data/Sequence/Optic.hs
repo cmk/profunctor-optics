@@ -77,11 +77,11 @@ at i = traversalVl0 $ \point f s ->
 -- | /O(log(min(i, n-i)))/. Indexed affine traversal into the element
 -- at an index of a 'Seq'.
 --
-ixat :: Int -> Ixtraversal0' Int (Seq a) a
-ixat i = ixtraversal0' f g
-  where
-    f s = fmap (i,) (Seq.lookup i s)
-    g s a = Seq.update i a s
+ixat :: Ixtraversal0' Int (Seq a) a
+ixat = ixtraversalVl0 $ \point f k s ->
+  case Seq.lookup k s of
+    Nothing -> point s
+    Just a  -> fmap (\b -> Seq.update k b s) (f k a)
 {-# INLINE ixat #-}
 
 ---------------------------------------------------------------------
@@ -91,8 +91,8 @@ ixat i = ixtraversal0' f g
 -- | /O(n)/. Indexed traversal over the elements of a 'Seq'.
 --
 ixtraversed :: Ixtraversal Int (Seq a) (Seq b) a b
-ixtraversed = ixtraversalVl $ \f _k ->
-  fmap Seq.fromList . traverse (uncurry f) . zip [0..] . Foldable.toList
+ixtraversed = ixtraversalVl $ \f k ->
+  fmap Seq.fromList . traverse (\(i, a) -> f (k + i) a) . zip [0..] . Foldable.toList
 {-# INLINE ixtraversed #-}
 
 ---------------------------------------------------------------------
@@ -102,8 +102,8 @@ ixtraversed = ixtraversalVl $ \f _k ->
 -- | /O(n)/. Indexed fold over the elements of a 'Seq'.
 --
 ixfolded :: Ixfold Int (Seq a) a
-ixfolded = ixfoldVl $ \f _k ->
-  traverse (uncurry f) . zip [0..] . Foldable.toList
+ixfolded = ixfoldVl $ \f k ->
+  traverse (\(i, a) -> f (k + i) a) . zip [0..] . Foldable.toList
 {-# INLINE ixfolded #-}
 
 ---------------------------------------------------------------------
@@ -163,8 +163,8 @@ cxmapped = cxsetter Seq.mapWithIndex
 -- @
 --
 cxtraversed :: Cxtraversal Int (Seq a) (Seq b) a b
-cxtraversed = cxtraversalVl $ \fakb fs _k ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) i) (copure fs)
+cxtraversed = cxtraversalVl $ \fakb k fs ->
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k + i)) (copure fs)
 {-# INLINE cxtraversed #-}
 
 -- | /O(n)/. 'Cxfold' over the elements of a 'Seq'.
@@ -172,8 +172,8 @@ cxtraversed = cxtraversalVl $ \fakb fs _k ->
 -- Cx dual of 'ixfolded'. Threads the 'Int' index as coindex.
 --
 cxfolded :: Cxfold Int (Seq a) a
-cxfolded = cxfoldVl $ \fakb fs _k ->
-  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) i) (copure fs)
+cxfolded = cxfoldVl $ \fakb k fs ->
+  Seq.mapWithIndex (\i _a -> fakb (fmap (`Seq.index` i) fs) (k + i)) (copure fs)
 {-# INLINE cxfolded #-}
 
 ---------------------------------------------------------------------

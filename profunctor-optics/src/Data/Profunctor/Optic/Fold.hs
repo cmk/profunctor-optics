@@ -406,7 +406,7 @@ cofolding f = cofoldVl cotraverse . coercedL . rmap f
 -- | Obtain a 'Cxfold' from a coindexed Van Laarhoven 'Cofold'.
 --
 -- @since 0.0.3
-cxfoldVl :: (forall f. Coapplicative f => (f a -> k -> b) -> f s -> k -> t) -> Cxfold k t b
+cxfoldVl :: (forall f. Coapplicative f => (f a -> k -> b) -> k -> f s -> t) -> Cxfold k t b
 cxfoldVl f = coercedL . cxtraversalVl f . coercedL
 {-# INLINE cxfoldVl #-}
 
@@ -438,7 +438,7 @@ acofold1 f = acotraversal $ (.# getConst) #. f .# (.# Const)
 -- | Obtain a 'Cxfold1' from a coindexed Van Laarhoven 'Cofold1'.
 --
 -- @since 0.0.3
-cxfoldVl1 :: (forall f. Coapply f => (f a -> k -> b) -> f s -> k -> t) -> Cxfold1 k t b
+cxfoldVl1 :: (forall f. Coapply f => (f a -> k -> b) -> k -> f s -> t) -> Cxfold1 k t b
 cxfoldVl1 f = coercedL . cxtraversalVl1 f . coercedL
 {-# INLINE cxfoldVl1 #-}
 

@@ -125,8 +125,8 @@ corepresenting f = cotabulate . f . cosieve
 -- enabling @('.')@ to thread coindices through coindexed optic chains.
 --
 -- @since 0.0.3
-cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> Corep p s -> i -> t) -> Cxoptic p i s t a b
-cxrepresenting f = corepresenting $ \ab fs i -> f (\j ca -> ab ca j) fs i
+cxrepresenting :: Corepresentable p => ((i -> Corep p a -> b) -> i -> Corep p s -> t) -> Cxoptic p i s t a b
+cxrepresenting f = corepresenting $ \ab fs i -> f (\j ca -> ab ca j) i fs
 {-# INLINE cxrepresenting #-}
 
 ---------------------------------------------------------------------
